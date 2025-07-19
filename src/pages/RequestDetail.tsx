@@ -85,9 +85,9 @@ const RequestDetail = () => {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button variant="ghost" onClick={() => navigate("/")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          Back to Dashboard
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Request Details</h1>
