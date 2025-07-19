@@ -219,16 +219,38 @@ export class SabreParser {
     const match = time12h.match(/(\d+)(A|P)/);
     if (!match) return time12h;
     
-    let hour = parseInt(match[1]);
+    const timeDigits = match[1];
     const period = match[2];
     
+    // Extract hour and minute from the time string
+    let hour: number;
+    let minute: number = 0;
+    
+    if (timeDigits.length === 3) {
+      // Format like "540" -> 5:40
+      hour = parseInt(timeDigits[0]);
+      minute = parseInt(timeDigits.substring(1));
+    } else if (timeDigits.length === 4) {
+      // Format like "1240" -> 12:40
+      hour = parseInt(timeDigits.substring(0, 2));
+      minute = parseInt(timeDigits.substring(2));
+    } else {
+      // Format like "12" -> 12:00
+      hour = parseInt(timeDigits);
+    }
+    
+    // Convert to 12-hour display format
     if (period === 'A' && hour === 12) {
       hour = 0;
     } else if (period === 'P' && hour !== 12) {
       hour += 12;
     }
     
-    return `${hour.toString().padStart(2, '0')}:00`;
+    // Convert back to 12-hour for display
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const displayPeriod = hour < 12 ? 'AM' : 'PM';
+    
+    return `${displayHour}:${minute.toString().padStart(2, '0')} ${displayPeriod}`;
   }
   
   private static calculateDayOffset(depTime: string, arrTime: string, hasArrivalDate: boolean): number {

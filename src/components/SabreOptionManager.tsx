@@ -507,47 +507,65 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
           <p className="text-muted-foreground text-center py-8">No quotes added yet. Click "Add Quote" to get started.</p>
         ) : (
           options.map((option) => (
-            <Card key={option.id} className="border-l-4 border-l-primary">
-              <CardContent className="p-4">
+            <div key={option.id} className="card-elevated transition-all duration-200 hover:shadow-large">
+              <div className="bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-4 border-b border-border/50">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Badge className={`${getStatusColor(option.status)} text-xs`}>
+                  <div className="flex items-center gap-3">
+                    <Badge 
+                      variant={option.status === 'selected' ? 'default' : option.status === 'quoted' ? 'secondary' : 'outline'}
+                      className="capitalize font-medium"
+                    >
                       {option.status}
                     </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {option.format}
+                    <Badge variant="outline" className="text-xs font-medium">
+                      {option.format} Format
                     </Badge>
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-xs font-medium capitalize">
                       {option.quoteType}
                     </Badge>
                     {option.sellingPrice && (
-                      <span className="text-sm font-medium">${option.sellingPrice}</span>
+                      <span className="text-lg font-bold text-accent">
+                        ${option.sellingPrice.toLocaleString()}
+                      </span>
                     )}
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(option.createdAt).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(option.createdAt).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
                     </span>
-                  </div>
-                  <div className="flex space-x-1">
-                    {option.parsedInfo && (
-                      <Button variant="ghost" size="sm" onClick={() => handleGenerateEmail(option)}>
-                        <Mail className="h-3 w-3" />
+                    <div className="flex gap-1">
+                      {option.parsedInfo && (
+                        <Button variant="ghost" size="sm" onClick={() => handleGenerateEmail(option)} className="h-8 w-8 p-0">
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(option)} className="h-8 w-8 p-0">
+                        <Edit className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(option)}>
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onDeleteOption(option.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                      <Button variant="ghost" size="sm" onClick={() => onDeleteOption(option.id)} className="h-8 w-8 p-0 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                <div className="mt-3 text-sm font-mono bg-muted p-3 rounded-md">
-                  {option.content}
+              </div>
+              
+              <div className="p-6">
+                <div className="mb-4 p-4 bg-muted/50 rounded-lg border border-border/30">
+                  <pre className="text-sm font-mono text-foreground whitespace-pre-wrap">
+                    {option.content}
+                  </pre>
                 </div>
+                
                 {option.parsedInfo && (
-                  <div className="mt-4 border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-2 border-b">
-                      <h5 className="text-sm font-semibold">Flight Information</h5>
+                  <>
+                    {/* Pricing Summary - Minimalistic */}
+                    <div className="mb-6 p-4 bg-gradient-subtle rounded-lg border border-border/30">
+                      <h5 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pricing Summary</h5>
                     </div>
                     
                     {/* Pricing Table */}
@@ -594,68 +612,100 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                       </div>
                     </div>
 
-                    {/* Itinerary Display */}
-                    <div className="p-4">
-                      <div className="text-sm mb-3">
-                        <span className="font-medium">Itinerary - {option.parsedInfo.route}</span>
-                        <span className="float-right text-blue-600 text-xs">
-                          {option.parsedInfo.isRoundTrip ? 'Round Trip' : 'One Way'}
-                        </span>
-                       </div>
-                       <div className="space-y-3 text-sm">
-                         {option.parsedInfo.segments.map((segment, index) => (
-                           <div key={index} className="border-l-2 border-blue-500 pl-4 py-2 bg-gray-50">
-                             <div className="flex items-center space-x-2 mb-1">
-                               <span className="text-blue-600 font-bold text-lg">{segment.segmentNumber}</span>
-                               <span className="text-blue-600 font-medium">{segment.flightNumber}</span>
-                               <Badge variant="secondary" className="text-xs">{segment.cabinClass}</Badge>
-                               {segment.aircraftType && (
-                                 <Badge variant="outline" className="text-xs text-gray-600">
-                                   Operated by {segment.aircraftType}
-                                 </Badge>
-                               )}
-                             </div>
-                             <div className="grid grid-cols-2 gap-2 text-sm">
-                               <div>
-                                 <span className="text-gray-600">From:</span>
-                                 <span className="ml-2 font-medium text-orange-600">{segment.departureAirport}</span>
-                               </div>
-                               <div>
-                                 <span className="text-gray-600">To:</span>
-                                 <span className="ml-2 font-medium text-orange-600">{segment.arrivalAirport}</span>
-                               </div>
-                               <div>
-                                 <span className="text-gray-600">Date:</span>
-                                 <span className="ml-2 font-medium text-purple-600">
-                                   {segment.flightDate.split('-')[2]}{segment.flightDate.split('-')[1].toUpperCase()}
-                                 </span>
-                               </div>
-                               <div>
-                                 <span className="text-gray-600">Class:</span>
-                                 <span className="ml-2 font-medium text-green-600">{segment.bookingClass}({segment.statusCode})</span>
-                               </div>
-                               <div>
-                                 <span className="text-gray-600">Departure:</span>
-                                 <span className="ml-2 font-medium">{segment.departureTime}</span>
-                               </div>
-                               <div>
-                                 <span className="text-gray-600">Arrival:</span>
-                                 <span className="ml-2 font-medium">{segment.arrivalTime}{segment.arrivalDayOffset ? '+1' : ''}</span>
-                               </div>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
+                    {/* Itinerary Display - Modern Minimalistic Design */}
+                    <div className="p-6 bg-gradient-subtle">
+                      <div className="flex items-center justify-between mb-6">
+                        <h4 className="text-lg font-semibold text-gradient">
+                          {option.parsedInfo.route}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={option.parsedInfo.isRoundTrip ? "default" : "secondary"} className="text-xs">
+                            {option.parsedInfo.isRoundTrip ? 'Round Trip' : 'One Way'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {option.parsedInfo.totalSegments} segment{option.parsedInfo.totalSegments !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {option.parsedInfo.segments.map((segment, index) => (
+                          <div key={index} className="flight-segment group">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-6 h-6 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center justify-center">
+                                    {segment.segmentNumber}
+                                  </span>
+                                  <span className="font-semibold text-primary">{segment.flightNumber}</span>
+                                </div>
+                                <Badge variant="outline" className="text-xs font-medium">
+                                  {segment.cabinClass}
+                                </Badge>
+                              </div>
+                              {segment.aircraftType && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {segment.aircraftType}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">Route</div>
+                                <div className="font-semibold text-lg">
+                                  <span className="text-primary">{segment.departureAirport}</span>
+                                  <span className="mx-2 text-muted-foreground">→</span>
+                                  <span className="text-accent">{segment.arrivalAirport}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">Date</div>
+                                <div className="font-medium">
+                                  {new Date(segment.flightDate).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    weekday: 'short'
+                                  })}
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">Departure</div>
+                                <div className="font-semibold text-lg text-primary">
+                                  {segment.departureTime}
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">Arrival</div>
+                                <div className="font-semibold text-lg text-accent">
+                                  {segment.arrivalTime}
+                                  {segment.arrivalDayOffset ? <span className="text-xs text-orange-500 ml-1">+1</span> : ''}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-3 pt-3 border-t border-border/30 flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>Class: <span className="font-medium text-foreground">{segment.bookingClass}</span></span>
+                              <span>Status: <span className="font-medium text-green-600">{segment.statusCode}</span></span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
+                
                 {option.notes && (
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    <strong>Notes:</strong> {option.notes}
+                  <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border/30">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Notes</div>
+                    <div className="text-sm">{option.notes}</div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))
         )}
       </CardContent>
