@@ -72,23 +72,27 @@ export class SabreParser {
     
     // Handle multiple regex patterns to account for spacing variations
     const patterns = [
-      // Pattern 1: New format with *SS1 status and /DCIB /E suffix with OPERATED BY
+      // Pattern 1: Format with OPERATED BY (no space in flight number)
       // 3 DL6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E OPERATED BY /LATAM AIRLINES BRASIL
       /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E\s+OPERATED BY\s+\/(.+)$/,
       
-      // Pattern 2: Standard format with *SS1 status and /DCIB /E suffix  
+      // Pattern 2: Format with space in flight number and OPERATED BY
+      // 3 DL 6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E OPERATED BY /LATAM AIRLINES BRASIL  
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E\s+OPERATED BY\s+\/(.+)$/,
+      
+      // Pattern 3: Standard format with *SS1 status and /DCIB /E suffix  
       // 1 IB 212I 10MAY S JFKMAD*SS1   445P  600A  11MAY M /DCIB /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E/,
       
-      // Pattern 3: Standard format with booking class
+      // Pattern 4: Standard format with booking class
       // 1 IB4185J 15SEP M JFKBCN GK1   510P  645A  16SEP T /E
       /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
       
-      // Pattern 4: Format with space in flight number
+      // Pattern 5: Format with space in flight number
       // 2 IB 428J 16SEP T BCNMAD GK1   800A  925A /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
       
-      // Pattern 5: Simplified format without arrival date
+      // Pattern 6: Simplified format without arrival date
       // 3 IB 347J 15OCT W MADBOS GK1  1240P  300P /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s*\/E/
     ];
