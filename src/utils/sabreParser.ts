@@ -68,13 +68,15 @@ export class SabreParser {
   }
   
   private static parseFlightLine(line: string): FlightSegment | null {
+    console.log(`Attempting to parse line: "${line}"`);
+    
     // Handle multiple regex patterns to account for spacing variations
     const patterns = [
       // Pattern 1: New format with *SS1 status and /DCIB /E suffix with OPERATED BY
       // 3 DL6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E OPERATED BY /LATAM AIRLINES BRASIL
       /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E\s+OPERATED BY\s+\/(.+)$/,
       
-      // Pattern 2: New format with *SS1 status and /DCIB /E suffix
+      // Pattern 2: Standard format with *SS1 status and /DCIB /E suffix  
       // 1 IB 212I 10MAY S JFKMAD*SS1   445P  600A  11MAY M /DCIB /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E/,
       
@@ -91,13 +93,18 @@ export class SabreParser {
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s*\/E/
     ];
     
-    for (const pattern of patterns) {
+    for (let i = 0; i < patterns.length; i++) {
+      const pattern = patterns[i];
       const match = line.match(pattern);
       if (match) {
+        console.log(`Pattern ${i + 1} matched:`, match);
         return this.extractSegmentData(match);
+      } else {
+        console.log(`Pattern ${i + 1} did not match`);
       }
     }
     
+    console.log('No patterns matched for line:', line);
     return null;
   }
   
@@ -200,6 +207,8 @@ export class SabreParser {
   }
   
   private static mapBookingClass(bookingClass: string): string {
+    console.log(`Mapping booking class: "${bookingClass}"`);
+    
     const classMap: { [key: string]: string } = {
       'F': 'First Class',
       'A': 'First Class',
@@ -227,6 +236,8 @@ export class SabreParser {
       'Z': 'Economy Class'
     };
     
-    return classMap[bookingClass] || 'Economy Class';
+    const result = classMap[bookingClass] || 'Economy Class';
+    console.log(`Booking class "${bookingClass}" mapped to: "${result}"`);
+    return result;
   }
 }
