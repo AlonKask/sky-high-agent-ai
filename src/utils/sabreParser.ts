@@ -55,13 +55,27 @@ export class SabreParser {
       return null;
     }
     
-    const route = segments.length === 1 
-      ? `${segments[0].departureAirport}-${segments[0].arrivalAirport}`
-      : `${segments[0].departureAirport}-${segments[segments.length - 1].arrivalAirport}`;
+    // Calculate route and determine if it's round trip
+    const firstSegment = segments[0];
+    const lastSegment = segments[segments.length - 1];
     
+    // Check if it's a round trip (returns to origin)
     const isRoundTrip = segments.length > 1 && 
-      segments[0].departureAirport === segments[segments.length - 1].arrivalAirport;
+      firstSegment.departureAirport === lastSegment.arrivalAirport;
     
+    // Find the farthest destination point for round trips
+    let route: string;
+    if (isRoundTrip) {
+      // For round trips, find the turnaround point
+      const outboundSegments = segments.slice(0, Math.ceil(segments.length / 2));
+      const farthestDestination = outboundSegments[outboundSegments.length - 1].arrivalAirport;
+      route = `${firstSegment.departureAirport}-${farthestDestination}/${farthestDestination}-${firstSegment.departureAirport}`;
+    } else {
+      route = segments.length === 1 
+        ? `${firstSegment.departureAirport}-${firstSegment.arrivalAirport}`
+        : `${firstSegment.departureAirport}-${lastSegment.arrivalAirport}`;
+    }
+
     return {
       segments,
       totalSegments: segments.length,
@@ -163,7 +177,7 @@ export class SabreParser {
       departureTime: depTime24h,
       arrivalTime: arrTime24h,
       arrivalDayOffset,
-      cabinClass: this.mapBookingClass(bookingClass)
+      cabinClass: this.mapBookingClass(bookingClass, airlineCode)
     };
     
     // Add operated by information if present
@@ -213,10 +227,43 @@ export class SabreParser {
     return arrHour < depHour ? 1 : 0;
   }
   
-  private static mapBookingClass(bookingClass: string): string {
-    console.log(`Mapping booking class: "${bookingClass}"`);
+  private static mapBookingClass(bookingClass: string, airlineCode?: string): string {
+    console.log(`Mapping booking class: "${bookingClass}" for airline: "${airlineCode}"`);
     
-    const classMap: { [key: string]: string } = {
+    // Delta-specific mapping
+    if (airlineCode === 'DL') {
+      const deltaClassMap: { [key: string]: string } = {
+        'J': 'Delta One',
+        'C': 'Delta One', 
+        'D': 'Delta One',
+        'I': 'Delta One',
+        'Z': 'Delta One',
+        'P': 'Premium Select',
+        'A': 'Premium Select',
+        'G': 'Premium Select',
+        'W': 'Comfort+',
+        'S': 'Comfort+',
+        'Y': 'Economy',
+        'B': 'Economy',
+        'M': 'Economy',
+        'H': 'Economy',
+        'Q': 'Economy',
+        'K': 'Economy',
+        'L': 'Economy',
+        'U': 'Economy',
+        'T': 'Economy',
+        'X': 'Economy',
+        'V': 'Economy',
+        'E': 'Basic Economy'
+      };
+      
+      const result = deltaClassMap[bookingClass] || 'Economy';
+      console.log(`Delta booking class "${bookingClass}" mapped to: "${result}"`);
+      return result;
+    }
+    
+    // Generic mapping for other airlines
+    const genericClassMap: { [key: string]: string } = {
       'F': 'First Class',
       'A': 'First Class',
       'J': 'Business Class',
@@ -243,8 +290,8 @@ export class SabreParser {
       'Z': 'Economy Class'
     };
     
-    const result = classMap[bookingClass] || 'Economy Class';
-    console.log(`Booking class "${bookingClass}" mapped to: "${result}"`);
+    const result = genericClassMap[bookingClass] || 'Economy Class';
+    console.log(`Generic booking class "${bookingClass}" mapped to: "${result}"`);
     return result;
   }
 }
