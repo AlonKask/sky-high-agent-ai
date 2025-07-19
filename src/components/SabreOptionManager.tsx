@@ -129,7 +129,20 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
 
   const handleSubmit = () => {
     if (newOption.content.trim()) {
-      onAddOption(newOption);
+      let parsedInfo;
+      if (newOption.format === "I" && newOption.content.trim()) {
+        try {
+          parsedInfo = SabreParser.parseIFormat(newOption.content);
+        } catch (error) {
+          console.error("Failed to parse itinerary:", error);
+        }
+      }
+
+      onAddOption({
+        ...newOption,
+        parsedInfo
+      });
+      
       setNewOption({
         format: "I",
         content: "",
