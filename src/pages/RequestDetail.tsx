@@ -2,18 +2,29 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
 import RequestInformation from "@/components/RequestInformation";
 import SabreOptionManager from "@/components/SabreOptionManager";
-import SabreCommandTemplates from "@/components/SabreCommandTemplates";
 
 interface SabreOption {
   id: string;
   format: "I" | "VI";
   content: string;
   status: "draft" | "quoted" | "selected" | "expired";
-  price?: string;
+  quoteType: "award" | "revenue";
+  // Revenue fields
+  fareType?: "tour_fare" | "private" | "published";
+  numberOfBags?: number;
+  weightOfBags?: number;
+  // Award fields
+  awardProgram?: string;
+  // Pricing fields
+  netPrice?: number;
+  markup?: number;
+  minimumMarkup?: number;
+  issuingFee?: number;
+  ckFees?: boolean;
+  sellingPrice?: number;
   validUntil?: string;
   notes?: string;
   createdAt: string;
@@ -70,10 +81,6 @@ const RequestDetail = () => {
     setSabreOptions(options => options.filter(option => option.id !== id));
   };
 
-  const handleTemplateSelect = (template: string) => {
-    // This could be enhanced to insert into a form field
-    console.log("Template selected:", template);
-  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -94,25 +101,12 @@ const RequestDetail = () => {
         </div>
 
         <div className="space-y-6">
-          <Tabs defaultValue="options" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="options">Options</TabsTrigger>
-              <TabsTrigger value="templates">Templates</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="options" className="space-y-4">
-              <SabreOptionManager
-                options={sabreOptions}
-                onAddOption={handleAddOption}
-                onUpdateOption={handleUpdateOption}
-                onDeleteOption={handleDeleteOption}
-              />
-            </TabsContent>
-            
-            <TabsContent value="templates" className="space-y-4">
-              <SabreCommandTemplates onTemplateSelect={handleTemplateSelect} />
-            </TabsContent>
-          </Tabs>
+          <SabreOptionManager
+            options={sabreOptions}
+            onAddOption={handleAddOption}
+            onUpdateOption={handleUpdateOption}
+            onDeleteOption={handleDeleteOption}
+          />
         </div>
       </div>
     </div>

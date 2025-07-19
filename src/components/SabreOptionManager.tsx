@@ -1,21 +1,34 @@
-
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Copy, Plus, Edit, Trash2, DollarSign, Clock, Users } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Edit, Trash2, Check, X } from "lucide-react";
 
 interface SabreOption {
   id: string;
   format: "I" | "VI";
   content: string;
   status: "draft" | "quoted" | "selected" | "expired";
-  price?: string;
+  quoteType: "award" | "revenue";
+  // Revenue fields
+  fareType?: "tour_fare" | "private" | "published";
+  numberOfBags?: number;
+  weightOfBags?: number;
+  // Award fields
+  awardProgram?: string;
+  // Pricing fields
+  netPrice?: number;
+  markup?: number;
+  minimumMarkup?: number;
+  issuingFee?: number;
+  ckFees?: boolean;
+  sellingPrice?: number;
   validUntil?: string;
   notes?: string;
   createdAt: string;
@@ -24,270 +37,355 @@ interface SabreOption {
 interface SabreOptionManagerProps {
   options: SabreOption[];
   onAddOption: (option: Omit<SabreOption, 'id' | 'createdAt'>) => void;
-  onUpdateOption: (id: string, option: Partial<SabreOption>) => void;
+  onUpdateOption: (id: string, updates: Partial<SabreOption>) => void;
   onDeleteOption: (id: string) => void;
 }
 
 const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOption }: SabreOptionManagerProps) => {
-  const { toast } = useToast();
-  const [newOption, setNewOption] = useState({
-    format: "I" as "I" | "VI",
-    content: "",
-    status: "draft" as const,
-    price: "",
-    validUntil: "",
-    notes: ""
-  });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newOption, setNewOption] = useState<Omit<SabreOption, 'id' | 'createdAt'>>({
+    format: "I",
+    content: "",
+    status: "draft",
+    quoteType: "revenue",
+    ckFees: false
+  });
 
-  const addOption = () => {
-    if (!newOption.content.trim()) return;
-    
-    onAddOption({
-      ...newOption,
-      price: newOption.price || undefined,
-      validUntil: newOption.validUntil || undefined,
-      notes: newOption.notes || undefined
-    });
-    
-    setNewOption({
-      format: "I",
-      content: "",
-      status: "draft",
-      price: "",
-      validUntil: "",
-      notes: ""
-    });
-    
-    toast({
-      title: "Option Added",
-      description: `Sabre ${newOption.format} format option added successfully.`,
-    });
+  const awardPrograms = [
+    "AA", "AC", "AC (Status)", "AF", "AF (Under Pax)", "AF (Premier Status)", "AD", "NH", "AS", "AMEX",
+    "BA", "BA UK", "CX", "CM", "DL", "DL 15%", "EK", "EK UPG", "EK (Platinum)", "HA", "AY", "G3",
+    "LH", "LH (Senator)", "LH Evouchers (set of 2)", "AV", "LA", "LY Vouchers", "LY Miles", "QR",
+    "QF", "SQ", "SK", "WN", "TP", "TK", "TK Online", "UA", "UA Status Miles", "UA TB or ETC",
+    "UA Plus Points", "UA Plus Points GS", "VS", "VA", "EY", "B6"
+  ];
+
+  const detectFormat = (content: string): "I" | "VI" => {
+    if (content.toLowerCase().includes("vi*") || content.toLowerCase().startsWith("vi")) {
+      return "VI";
+    }
+    return "I";
   };
 
-  const copyToClipboard = (content: string) => {
-    navigator.clipboard.writeText(content);
-    toast({
-      title: "Copied",
-      description: "Option content copied to clipboard.",
-    });
+  const handleContentChange = (content: string) => {
+    const format = detectFormat(content);
+    setNewOption(prev => ({ ...prev, content, format }));
+  };
+
+  const calculateSellingPrice = () => {
+    const netPrice = newOption.netPrice || 0;
+    const markup = newOption.markup || 0;
+    const issuingFee = newOption.issuingFee || 0;
+    let sellingPrice = netPrice + markup + issuingFee;
+    
+    if (newOption.ckFees) {
+      sellingPrice = sellingPrice / (1 - 0.035); // Add 3.5% CK fees
+    }
+    
+    setNewOption(prev => ({ ...prev, sellingPrice: Math.round(sellingPrice * 100) / 100 }));
+  };
+
+  const handleSubmit = () => {
+    if (newOption.content.trim()) {
+      onAddOption(newOption);
+      setNewOption({
+        format: "I",
+        content: "",
+        status: "draft",
+        quoteType: "revenue",
+        ckFees: false
+      });
+      setIsDialogOpen(false);
+    }
+  };
+
+  const handleEdit = (option: SabreOption) => {
+    setEditingId(option.id);
+  };
+
+  const handleSaveEdit = (id: string, updates: Partial<SabreOption>) => {
+    onUpdateOption(id, updates);
+    setEditingId(null);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "draft": return "bg-muted text-muted-foreground";
-      case "quoted": return "bg-primary text-primary-foreground";
-      case "selected": return "bg-success text-success-foreground";
-      case "expired": return "bg-destructive text-destructive-foreground";
-      default: return "bg-muted text-muted-foreground";
+      case "draft": return "bg-gray-100 text-gray-800";
+      case "quoted": return "bg-blue-100 text-blue-800";
+      case "selected": return "bg-green-100 text-green-800";
+      case "expired": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
-
-  const validateSabreCommand = (content: string, format: "I" | "VI") => {
-    if (!content.trim()) return { isValid: false, message: "Command cannot be empty" };
-    
-    if (format === "I") {
-      // Basic validation for I format commands
-      const commonPatterns = [/^\d+\*/, /^WP\*/, /^\*SG/, /^RD\*/];
-      const isValid = commonPatterns.some(pattern => pattern.test(content));
-      return {
-        isValid,
-        message: isValid ? "Valid I format command" : "Check I format syntax"
-      };
-    } else {
-      // VI format is more flexible, just check for basic structure
-      return {
-        isValid: content.length > 3,
-        message: "VI format content"
-      };
-    }
-  };
-
-  const validation = validateSabreCommand(newOption.content, newOption.format);
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Add Sabre Option</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Format</Label>
-              <Select value={newOption.format} onValueChange={(value: "I" | "VI") => setNewOption({...newOption, format: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="I">I Format (Interactive)</SelectItem>
-                  <SelectItem value="VI">VI Format (View Info)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={newOption.status} onValueChange={(value: any) => setNewOption({...newOption, status: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="quoted">Quoted</SelectItem>
-                  <SelectItem value="selected">Selected</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Sabre Options</CardTitle>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Quote
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Quote</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="content">Sabre Command/Itinerary</Label>
+                  <Textarea
+                    id="content"
+                    value={newOption.content}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Enter Sabre command or paste itinerary..."
+                    rows={4}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Format detected: {newOption.format} ({newOption.format === "I" ? "Interactive" : "View Information"})
+                  </p>
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sabre-content">Sabre Command/Response</Label>
-            <Textarea
-              id="sabre-content"
-              placeholder={`Enter Sabre ${newOption.format} format content...`}
-              value={newOption.content}
-              onChange={(e) => setNewOption({...newOption, content: e.target.value})}
-              rows={4}
-              className={validation.isValid ? "border-green-500" : "border-red-500"}
-            />
-            <div className="text-xs text-muted-foreground">{validation.message}</div>
-          </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="quoteType">Quote Type</Label>
+                    <Select value={newOption.quoteType} onValueChange={(value: "award" | "revenue") => setNewOption({ ...newOption, quoteType: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="revenue">Revenue</SelectItem>
+                        <SelectItem value="award">Award</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={newOption.status} onValueChange={(value: any) => setNewOption({ ...newOption, status: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="quoted">Quoted</SelectItem>
+                        <SelectItem value="selected">Selected</SelectItem>
+                        <SelectItem value="expired">Expired</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Price (optional)</Label>
-              <Input
-                placeholder="e.g., $1,250"
-                value={newOption.price}
-                onChange={(e) => setNewOption({...newOption, price: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Valid Until (optional)</Label>
-              <Input
-                type="date"
-                value={newOption.validUntil}
-                onChange={(e) => setNewOption({...newOption, validUntil: e.target.value})}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Notes (optional)</Label>
-            <Textarea
-              placeholder="Additional notes about this option..."
-              value={newOption.notes}
-              onChange={(e) => setNewOption({...newOption, notes: e.target.value})}
-              rows={2}
-            />
-          </div>
-
-          <Button 
-            onClick={addOption}
-            className="w-full"
-            disabled={!validation.isValid}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add {newOption.format} Option
-          </Button>
-        </CardContent>
-      </Card>
-
-      {options.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Saved Options ({options.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {options.map((option) => (
-                <div key={option.id} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">{option.format} Format</Badge>
-                      <Badge className={getStatusColor(option.status)}>{option.status}</Badge>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(option.content)}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingId(editingId === option.id ? null : option.id)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDeleteOption(option.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                {newOption.quoteType === "revenue" && (
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <h4 className="font-medium">Revenue Quote Details</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="fareType">Fare Type</Label>
+                        <Select value={newOption.fareType} onValueChange={(value: any) => setNewOption({ ...newOption, fareType: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select fare type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="tour_fare">Tour Fare</SelectItem>
+                            <SelectItem value="private">Private</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="numberOfBags">Number of Bags</Label>
+                        <Input
+                          id="numberOfBags"
+                          type="number"
+                          value={newOption.numberOfBags || ""}
+                          onChange={(e) => setNewOption({ ...newOption, numberOfBags: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="weightOfBags">Weight of Bags (lbs)</Label>
+                        <Input
+                          id="weightOfBags"
+                          type="number"
+                          value={newOption.weightOfBags || ""}
+                          onChange={(e) => setNewOption({ ...newOption, weightOfBags: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                        />
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  <div className="text-xs font-mono bg-muted p-3 rounded overflow-x-auto">
-                    {option.content}
-                  </div>
-
-                  {(option.price || option.validUntil) && (
-                    <div className="flex items-center space-x-4 text-sm">
-                      {option.price && (
-                        <div className="flex items-center space-x-1">
-                          <DollarSign className="h-3 w-3 text-muted-foreground" />
-                          <span>{option.price}</span>
-                        </div>
-                      )}
-                      {option.validUntil && (
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span>Valid until {option.validUntil}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {option.notes && (
-                    <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                      {option.notes}
-                    </div>
-                  )}
-
-                  {editingId === option.id && (
-                    <div className="space-y-2 border-t pt-2">
-                      <Select 
-                        value={option.status} 
-                        onValueChange={(value: any) => onUpdateOption(option.id, { status: value })}
-                      >
+                {newOption.quoteType === "award" && (
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <h4 className="font-medium">Award Quote Details</h4>
+                    <div>
+                      <Label htmlFor="awardProgram">Award Program</Label>
+                      <Select value={newOption.awardProgram} onValueChange={(value) => setNewOption({ ...newOption, awardProgram: value })}>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select award program" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="quoted">Quoted</SelectItem>
-                          <SelectItem value="selected">Selected</SelectItem>
-                          <SelectItem value="expired">Expired</SelectItem>
+                          {awardPrograms.map((program) => (
+                            <SelectItem key={program} value={program}>{program}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
+                  </div>
+                )}
+
+                <div className="space-y-4 border rounded-lg p-4">
+                  <h4 className="font-medium">Pricing Details</h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="netPrice">Net Price ($)</Label>
+                      <Input
+                        id="netPrice"
+                        type="number"
+                        step="0.01"
+                        value={newOption.netPrice || ""}
+                        onChange={(e) => setNewOption({ ...newOption, netPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="markup">Markup ($)</Label>
+                      <Input
+                        id="markup"
+                        type="number"
+                        step="0.01"
+                        value={newOption.markup || ""}
+                        onChange={(e) => setNewOption({ ...newOption, markup: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="minimumMarkup">Minimum Markup ($)</Label>
+                      <Input
+                        id="minimumMarkup"
+                        type="number"
+                        step="0.01"
+                        value={newOption.minimumMarkup || ""}
+                        onChange={(e) => setNewOption({ ...newOption, minimumMarkup: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="issuingFee">Issuing Fee ($)</Label>
+                      <Input
+                        id="issuingFee"
+                        type="number"
+                        step="0.01"
+                        value={newOption.issuingFee || ""}
+                        onChange={(e) => setNewOption({ ...newOption, issuingFee: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="ckFees"
+                        checked={newOption.ckFees}
+                        onCheckedChange={(checked) => setNewOption({ ...newOption, ckFees: checked as boolean })}
+                      />
+                      <Label htmlFor="ckFees" className="text-sm">CK Fees (3.5%)</Label>
+                    </div>
+                    <div>
+                      <Label htmlFor="sellingPrice">Selling Price ($)</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="sellingPrice"
+                          type="number"
+                          step="0.01"
+                          value={newOption.sellingPrice || ""}
+                          onChange={(e) => setNewOption({ ...newOption, sellingPrice: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                        <Button variant="outline" onClick={calculateSellingPrice} size="sm">
+                          Calculate
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={newOption.notes || ""}
+                    onChange={(e) => setNewOption({ ...newOption, notes: e.target.value })}
+                    placeholder="Additional notes..."
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex space-x-2">
+                  <Button onClick={handleSubmit} size="sm">
+                    <Check className="h-4 w-4 mr-2" />
+                    Save Quote
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)} size="sm">
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {options.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">No quotes added yet. Click "Add Quote" to get started.</p>
+        ) : (
+          options.map((option) => (
+            <Card key={option.id} className="border-l-4 border-l-primary">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Badge className={`${getStatusColor(option.status)} text-xs`}>
+                      {option.status}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {option.format}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {option.quoteType}
+                    </Badge>
+                    {option.sellingPrice && (
+                      <span className="text-sm font-medium">${option.sellingPrice}</span>
+                    )}
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(option.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex space-x-1">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(option)}>
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDeleteOption(option.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-3 text-sm font-mono bg-muted p-3 rounded-md">
+                  {option.content}
+                </div>
+                {option.notes && (
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    <strong>Notes:</strong> {option.notes}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
