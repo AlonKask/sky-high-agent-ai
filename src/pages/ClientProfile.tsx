@@ -265,7 +265,7 @@ const ClientProfile = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+          <Button variant="ghost" onClick={() => navigate("/request/REQ-001")} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Request
           </Button>
