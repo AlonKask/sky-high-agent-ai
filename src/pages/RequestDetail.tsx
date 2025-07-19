@@ -95,19 +95,15 @@ const RequestDetail = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <RequestInformation request={request} />
-        </div>
-
-        <div className="space-y-6">
-          <SabreOptionManager
-            options={sabreOptions}
-            onAddOption={handleAddOption}
-            onUpdateOption={handleUpdateOption}
-            onDeleteOption={handleDeleteOption}
-          />
-        </div>
+      <div className="space-y-6">
+        <RequestInformation request={request} />
+        
+        <SabreOptionManager
+          options={sabreOptions}
+          onAddOption={handleAddOption}
+          onUpdateOption={handleUpdateOption}
+          onDeleteOption={handleDeleteOption}
+        />
       </div>
     </div>
   );
