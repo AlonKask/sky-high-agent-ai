@@ -134,7 +134,12 @@
   }
   
   .flight-segment {
-    @apply border-l-4 border-primary/20 pl-6 py-4 bg-gradient-subtle rounded-r-lg transition-all duration-200 hover:border-primary/40 hover:bg-gradient-subtle;
+    @apply border-l-4 border-primary/20 pl-6 py-4 rounded-r-lg transition-all duration-200 hover:border-primary/40;
+    background: var(--gradient-subtle);
+  }
+  
+  .flight-segment:hover {
+    background: var(--gradient-subtle);
   }
   
   .shadow-large {
