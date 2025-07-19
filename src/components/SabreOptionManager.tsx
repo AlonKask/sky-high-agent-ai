@@ -588,21 +588,46 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                         <span className="float-right text-blue-600 text-xs">
                           {option.parsedInfo.isRoundTrip ? 'Round Trip' : 'One Way'}
                         </span>
-                      </div>
-                      <div className="space-y-1 text-xs font-mono">
-                        {option.parsedInfo.segments.map((segment, index) => (
-                          <div key={index} className="flex items-center space-x-2">
-                            <span className="text-blue-600 w-4">{segment.segmentNumber}</span>
-                            <span className="text-blue-600 font-medium w-16">{segment.flightNumber}</span>
-                            <span className="text-orange-600 w-16">{segment.departureAirport}{segment.arrivalAirport}</span>
-                            <span className="text-purple-600 w-16">{segment.flightDate.split('-')[2]}{segment.flightDate.split('-')[1].toUpperCase()}</span>
-                            <span className="text-gray-600 w-12">{segment.departureTime}</span>
-                            <span className="text-gray-600 w-16">{segment.arrivalTime}{segment.arrivalDayOffset ? '+1' : ''}</span>
-                            <span className="text-green-600 w-20">{segment.bookingClass}({segment.statusCode})</span>
-                            <span className="text-gray-500 flex-1">{segment.cabinClass}</span>
-                          </div>
-                        ))}
-                      </div>
+                       </div>
+                       <div className="space-y-3 text-sm">
+                         {option.parsedInfo.segments.map((segment, index) => (
+                           <div key={index} className="border-l-2 border-blue-500 pl-4 py-2 bg-gray-50">
+                             <div className="flex items-center space-x-2 mb-1">
+                               <span className="text-blue-600 font-bold text-lg">{segment.segmentNumber}</span>
+                               <span className="text-blue-600 font-medium">{segment.flightNumber}</span>
+                               <Badge variant="secondary" className="text-xs">{segment.cabinClass}</Badge>
+                             </div>
+                             <div className="grid grid-cols-2 gap-2 text-sm">
+                               <div>
+                                 <span className="text-gray-600">From:</span>
+                                 <span className="ml-2 font-medium text-orange-600">{segment.departureAirport}</span>
+                               </div>
+                               <div>
+                                 <span className="text-gray-600">To:</span>
+                                 <span className="ml-2 font-medium text-orange-600">{segment.arrivalAirport}</span>
+                               </div>
+                               <div>
+                                 <span className="text-gray-600">Date:</span>
+                                 <span className="ml-2 font-medium text-purple-600">
+                                   {segment.flightDate.split('-')[2]}{segment.flightDate.split('-')[1].toUpperCase()}
+                                 </span>
+                               </div>
+                               <div>
+                                 <span className="text-gray-600">Class:</span>
+                                 <span className="ml-2 font-medium text-green-600">{segment.bookingClass}({segment.statusCode})</span>
+                               </div>
+                               <div>
+                                 <span className="text-gray-600">Departure:</span>
+                                 <span className="ml-2 font-medium">{segment.departureTime}</span>
+                               </div>
+                               <div>
+                                 <span className="text-gray-600">Arrival:</span>
+                                 <span className="ml-2 font-medium">{segment.arrivalTime}{segment.arrivalDayOffset ? '+1' : ''}</span>
+                               </div>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
                     </div>
                   </div>
                 )}
