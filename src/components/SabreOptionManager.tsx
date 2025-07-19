@@ -41,19 +41,25 @@ interface ParsedFlightInfo {
   flights: FlightSegment[];
   totalDuration?: string;
   route?: string;
+  paxType?: string;
+  quantity?: number;
+  fareDetails?: string;
 }
 
 interface FlightSegment {
+  segmentNumber: string;
   airline: string;
   flightNumber: string;
   origin: string;
   destination: string;
-  departureDate: string;
-  departureTime: string;
+  departureDate?: string;
+  departureTime?: string;
   arrivalDate?: string;
-  arrivalTime: string;
+  arrivalTime?: string;
   aircraft?: string;
   duration?: string;
+  bookingClass?: string;
+  status?: string;
 }
 
 interface SabreOptionManagerProps {
@@ -109,16 +115,17 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
         // Parse I format (availability display)
         for (const line of lines) {
           // Look for flight availability lines (e.g., "1  UA 401  F7 A7 Y9  LAXORD  630A  1145A+1 77W")
-          const flightMatch = line.match(/^\s*\d+\s+([A-Z0-9]{2})\s+(\d+)\s+[A-Z0-9\s]+([A-Z]{3})([A-Z]{3})\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*(.*)$/);
+          const flightMatch = line.match(/^\s*(\d+)\s+([A-Z0-9]{2})\s+(\d+)\s+[A-Z0-9\s]+([A-Z]{3})([A-Z]{3})\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*(.*)$/);
           if (flightMatch) {
-            const [, airline, flightNum, origin, dest, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = flightMatch;
+            const [, segNum, airline, flightNum, origin, dest, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = flightMatch;
             
             flights.push({
+              segmentNumber: segNum,
               airline: airline,
               flightNumber: `${airline}${flightNum}`,
               origin: origin,
               destination: dest,
-              departureDate: '', // Not available in I format
+              departureDate: '',
               departureTime: `${depHour}:${depMin}${depAmPm}`,
               arrivalTime: `${arrHour}:${arrMin}${arrAmPm}${dayChange || ''}`,
               aircraft: aircraft?.trim() || undefined
@@ -130,11 +137,12 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           // Look for segment lines (e.g., "1  UA1234Y  15JAN  LAXORD HK1   630A  1145A+1  E")
-          const segmentMatch = line.match(/^\s*(\d+)\s+([A-Z0-9]{2})(\d+)([A-Z])\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})([A-Z]{3})\s+[A-Z0-9]+\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*([A-Z0-9]*)?/);
+          const segmentMatch = line.match(/^\s*(\d+)\s+([A-Z0-9]{2})(\d+)([A-Z])\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})([A-Z]{3})\s+([A-Z0-9]+)\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*([A-Z0-9]*)?/);
           if (segmentMatch) {
-            const [, segNum, airline, flightNum, , date, origin, dest, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = segmentMatch;
+            const [, segNum, airline, flightNum, bookingClass, date, origin, dest, status, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = segmentMatch;
             
             flights.push({
+              segmentNumber: segNum,
               airline: airline,
               flightNumber: `${airline}${flightNum}`,
               origin: origin,
@@ -142,7 +150,9 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
               departureDate: date,
               departureTime: `${depHour}:${depMin}${depAmPm}`,
               arrivalTime: `${arrHour}:${arrMin}${arrAmPm}${dayChange || ''}`,
-              aircraft: aircraft || undefined
+              aircraft: aircraft || undefined,
+              bookingClass: bookingClass,
+              status: status
             });
           }
         }
@@ -156,7 +166,9 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
         return {
           flights,
           route,
-          totalDuration: undefined // Could be calculated if needed
+          paxType: "ADT", // Default passenger type
+          quantity: 1, // Default quantity
+          fareDetails: content.includes("ELR") ? content.match(/ELR [A-Z0-9 ]+/)?.[0] : undefined
         };
       }
     } catch (error) {
@@ -546,27 +558,83 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                   {option.content}
                 </div>
                 {option.parsedInfo && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                    <h5 className="text-sm font-medium mb-2">Flight Information</h5>
-                    {option.parsedInfo.route && (
-                      <p className="text-sm text-blue-700 mb-2">Route: {option.parsedInfo.route}</p>
-                    )}
-                    <div className="space-y-2">
-                      {option.parsedInfo.flights.map((flight, index) => (
-                        <div key={index} className="text-xs bg-white p-2 rounded border">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{flight.flightNumber}</span>
-                            <span className="text-muted-foreground">{flight.aircraft}</span>
-                          </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <span>{flight.origin} → {flight.destination}</span>
-                            <span>{flight.departureTime} - {flight.arrivalTime}</span>
-                          </div>
-                          {flight.departureDate && (
-                            <div className="text-muted-foreground mt-1">{flight.departureDate}</div>
-                          )}
+                  <div className="mt-4 border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b">
+                      <h5 className="text-sm font-semibold">Flight Options</h5>
+                    </div>
+                    
+                    {/* Pricing Table */}
+                    <div className="bg-white border-b">
+                      <div className="grid grid-cols-6 text-xs font-medium bg-gray-100 border-b">
+                        <div className="p-2 border-r">Pax</div>
+                        <div className="p-2 border-r">Q#</div>
+                        <div className="p-2 border-r">Net Price</div>
+                        <div className="p-2 border-r">Min Mrkp</div>
+                        <div className="p-2 border-r">Mrkp</div>
+                        <div className="p-2">Selling Price</div>
+                      </div>
+                      <div className="grid grid-cols-6 text-xs">
+                        <div className="p-2 border-r">{option.parsedInfo.paxType || 'ADT'}</div>
+                        <div className="p-2 border-r">x{option.parsedInfo.quantity || 1}</div>
+                        <div className="p-2 border-r text-gray-700">
+                          {option.netPrice ? `USD ${option.netPrice.toFixed(2)}` : 'USD 0.00'}
                         </div>
-                      ))}
+                        <div className="p-2 border-r text-gray-700">
+                          {option.minimumMarkup ? `USD ${option.minimumMarkup.toFixed(2)}` : 'USD 0.00'}
+                        </div>
+                        <div className="p-2 border-r text-green-600">
+                          {option.markup ? `USD ${option.markup.toFixed(2)}` : 'USD 0.00'}
+                        </div>
+                        <div className="p-2 text-green-600 font-medium">
+                          {option.sellingPrice ? `USD ${option.sellingPrice.toFixed(2)}` : 'USD 0.00'}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-6 text-xs bg-gray-50">
+                        <div className="p-2 border-r font-medium">Total</div>
+                        <div className="p-2 border-r">x{option.parsedInfo.quantity || 1}</div>
+                        <div className="p-2 border-r text-gray-700 font-medium">
+                          {option.netPrice ? `USD ${option.netPrice.toFixed(2)}` : 'USD 0.00'}
+                        </div>
+                        <div className="p-2 border-r text-gray-700 font-medium">
+                          {option.minimumMarkup ? `USD ${option.minimumMarkup.toFixed(2)}` : 'USD 0.00'}
+                        </div>
+                        <div className="p-2 border-r text-green-600 font-medium">
+                          {option.markup ? `USD ${option.markup.toFixed(2)}` : 'USD 0.00'}
+                        </div>
+                        <div className="p-2 text-green-600 font-medium">
+                          {option.sellingPrice ? `USD ${option.sellingPrice.toFixed(2)}` : 'USD 0.00'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Itinerary Display */}
+                    <div className="p-4">
+                      <div className="text-sm mb-3">
+                        <span className="font-medium">Itinerary</span>
+                        <span className="float-right text-blue-600 text-xs">Shortest Route</span>
+                      </div>
+                      <div className="space-y-1 text-xs font-mono">
+                        {option.parsedInfo.flights.map((flight, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <span className="text-blue-600">{index + 1}</span>
+                            <span className="text-blue-600 font-medium">{flight.flightNumber}</span>
+                            <span className="text-orange-600">{flight.origin}{flight.destination}</span>
+                            {flight.departureDate && (
+                              <span className="text-purple-600">{flight.departureDate}</span>
+                            )}
+                            <span className="text-gray-600">{flight.departureTime}</span>
+                            <span className="text-gray-600">{flight.arrivalTime}</span>
+                            {flight.bookingClass && (
+                              <span className="text-green-600">{flight.bookingClass}({flight.status || 'Q'})</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {option.parsedInfo.fareDetails && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          {option.parsedInfo.fareDetails}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
