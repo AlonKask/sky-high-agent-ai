@@ -1,8 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, CreditCard, Plane } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, CreditCard, Plane, Plus, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock client data - in a real app this would come from an API
 const getClientData = (clientId: string) => {
@@ -36,6 +43,40 @@ const getClientData = (clientId: string) => {
 const ClientProfile = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newClient, setNewClient] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    status: "Standard",
+    seatPreference: "",
+    mealPreference: "",
+    specialRequests: ""
+  });
+  
+  
+  const handleCreateClient = () => {
+    // Here you would typically save to a database
+    // For now, we'll just show a success message
+    toast({
+      title: "Client Created",
+      description: `Client record for ${newClient.name} has been created successfully.`,
+    });
+    
+    setIsCreateDialogOpen(false);
+    setNewClient({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      status: "Standard",
+      seatPreference: "",
+      mealPreference: "",
+      specialRequests: ""
+    });
+  };
   
   const client = getClientData(clientId || "");
   
@@ -45,11 +86,133 @@ const ClientProfile = () => {
         <Card className="w-96">
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-semibold mb-2">Client Not Found</h2>
-            <p className="text-muted-foreground mb-4">The requested client profile could not be found.</p>
-            <Button onClick={() => navigate("/")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back to Dashboard
-            </Button>
+            <p className="text-muted-foreground mb-6">The requested client profile could not be found.</p>
+            
+            <div className="space-y-3">
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Client Record
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create New Client</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        value={newClient.name}
+                        onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                        placeholder="John Smith"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newClient.email}
+                        onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                        placeholder="john.smith@email.com"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        value={newClient.phone}
+                        onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                        placeholder="+1 (555) 123-4567"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Address</Label>
+                      <Textarea
+                        id="address"
+                        value={newClient.address}
+                        onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
+                        placeholder="123 Main St, City, State 12345"
+                        rows={2}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Membership Status</Label>
+                      <Select value={newClient.status} onValueChange={(value) => setNewClient({ ...newClient, status: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Standard">Standard</SelectItem>
+                          <SelectItem value="Premium">Premium</SelectItem>
+                          <SelectItem value="VIP">VIP</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="seatPreference">Seat Preference</Label>
+                      <Select value={newClient.seatPreference} onValueChange={(value) => setNewClient({ ...newClient, seatPreference: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select preference" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Window">Window</SelectItem>
+                          <SelectItem value="Aisle">Aisle</SelectItem>
+                          <SelectItem value="Middle">Middle</SelectItem>
+                          <SelectItem value="No Preference">No Preference</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="mealPreference">Meal Preference</Label>
+                      <Select value={newClient.mealPreference} onValueChange={(value) => setNewClient({ ...newClient, mealPreference: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select preference" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Regular">Regular</SelectItem>
+                          <SelectItem value="Vegetarian">Vegetarian</SelectItem>
+                          <SelectItem value="Vegan">Vegan</SelectItem>
+                          <SelectItem value="Kosher">Kosher</SelectItem>
+                          <SelectItem value="Halal">Halal</SelectItem>
+                          <SelectItem value="Gluten-Free">Gluten-Free</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="specialRequests">Special Requests</Label>
+                      <Textarea
+                        id="specialRequests"
+                        value={newClient.specialRequests}
+                        onChange={(e) => setNewClient({ ...newClient, specialRequests: e.target.value })}
+                        placeholder="Extra legroom, wheelchair assistance, etc."
+                        rows={2}
+                      />
+                    </div>
+                    
+                    <Button onClick={handleCreateClient} className="w-full">
+                      <Save className="h-4 w-4 mr-2" />
+                      Create Client
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <Button variant="outline" onClick={() => navigate("/")} className="w-full">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Go Back to Dashboard
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
