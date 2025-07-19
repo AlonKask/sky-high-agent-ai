@@ -46,9 +46,9 @@ const ClientProfile = () => {
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-semibold mb-2">Client Not Found</h2>
             <p className="text-muted-foreground mb-4">The requested client profile could not be found.</p>
-            <Button onClick={() => navigate(-1)}>
+            <Button onClick={() => navigate("/")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back
+              Go Back to Dashboard
             </Button>
           </CardContent>
         </Card>
