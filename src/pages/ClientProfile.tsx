@@ -12,32 +12,55 @@ import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, CreditCard, Plane, Plus
 import { useToast } from "@/hooks/use-toast";
 
 // Mock client data - in a real app this would come from an API
-const getClientData = (clientId: string) => {
-  const clients = {
-    "john-doe": {
-      id: "john-doe",
-      name: "John Doe",
-      email: "john.doe@email.com",
-      phone: "+1 (555) 123-4567",
-      address: "123 Main St, New York, NY 10001",
-      memberSince: "2022-03-15",
-      status: "Premium",
-      totalBookings: 12,
-      totalSpent: 45750,
-      preferences: {
-        seatPreference: "Aisle",
-        mealPreference: "Vegetarian",
-        specialRequests: "Extra legroom"
-      },
-      recentBookings: [
-        { id: "REQ-001", route: "MSY-FOR", date: "2024-09-13", status: "Active" },
-        { id: "REQ-002", route: "JFK-LAX", date: "2024-08-22", status: "Completed" },
-        { id: "REQ-003", route: "MIA-LHR", date: "2024-07-10", status: "Completed" }
-      ]
-    }
+const mockClients: Record<string, any> = {
+  "john-doe": {
+    id: "john-doe",
+    name: "John Doe",
+    email: "john.doe@email.com",
+    phone: "+1 (555) 123-4567",
+    address: "123 Main St, New York, NY 10001",
+    memberSince: "2022-03-15",
+    status: "Premium",
+    totalBookings: 12,
+    totalSpent: 45750,
+    preferences: {
+      seatPreference: "Aisle",
+      mealPreference: "Vegetarian",
+      specialRequests: "Extra legroom"
+    },
+    recentBookings: [
+      { id: "REQ-001", route: "MSY-FOR", date: "2024-09-13", status: "Active" },
+      { id: "REQ-002", route: "JFK-LAX", date: "2024-08-22", status: "Completed" },
+      { id: "REQ-003", route: "MIA-LHR", date: "2024-07-10", status: "Completed" }
+    ]
+  }
+};
+
+// Function to add a new client to mock data
+const addClientToMockData = (clientData: any) => {
+  const clientId = clientData.name.toLowerCase().replace(/\s+/g, '-');
+  mockClients[clientId] = {
+    id: clientId,
+    name: clientData.name,
+    email: clientData.email,
+    phone: clientData.phone,
+    address: clientData.address,
+    memberSince: new Date().toISOString().split('T')[0],
+    status: clientData.status,
+    totalBookings: 0,
+    totalSpent: 0,
+    preferences: {
+      seatPreference: clientData.seatPreference || "No Preference",
+      mealPreference: clientData.mealPreference || "Regular",
+      specialRequests: clientData.specialRequests || "None"
+    },
+    recentBookings: []
   };
-  
-  return clients[clientId as keyof typeof clients] || null;
+  return clientId;
+};
+
+const getClientData = (clientId: string) => {
+  return mockClients[clientId] || null;
 };
 
 const ClientProfile = () => {
@@ -58,13 +81,26 @@ const ClientProfile = () => {
   
   
   const handleCreateClient = () => {
-    // Here you would typically save to a database
-    // For now, we'll just show a success message
+    // Validate required fields
+    if (!newClient.name || !newClient.email) {
+      toast({
+        title: "Error",
+        description: "Please fill in at least the name and email fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Add client to mock data and get the new client ID
+    const newClientId = addClientToMockData(newClient);
+    
+    // Show success message
     toast({
       title: "Client Created",
       description: `Client record for ${newClient.name} has been created successfully.`,
     });
     
+    // Close dialog and reset form
     setIsCreateDialogOpen(false);
     setNewClient({
       name: "",
@@ -76,6 +112,11 @@ const ClientProfile = () => {
       mealPreference: "",
       specialRequests: ""
     });
+    
+    // Redirect to the new client's profile page
+    setTimeout(() => {
+      navigate(`/client/${newClientId}`);
+    }, 1000); // Small delay to let the user see the success message
   };
   
   const client = getClientData(clientId || "");
