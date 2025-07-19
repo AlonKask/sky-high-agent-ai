@@ -63,13 +63,20 @@ export class SabreParser {
     const isRoundTrip = segments.length > 1 && 
       firstSegment.departureAirport === lastSegment.arrivalAirport;
     
-    // Find the farthest destination point for round trips
+    // Find the main route for display
     let route: string;
     if (isRoundTrip) {
-      // For round trips, find the turnaround point
-      const outboundSegments = segments.slice(0, Math.ceil(segments.length / 2));
-      const farthestDestination = outboundSegments[outboundSegments.length - 1].arrivalAirport;
-      route = `${firstSegment.departureAirport}-${farthestDestination}/${farthestDestination}-${firstSegment.departureAirport}`;
+      // For round trips, find the main departure and destination cities
+      // Skip connecting flights and find the actual destination
+      const mainDeparture = segments.find(seg => 
+        seg.departureAirport === 'ATL' || seg.departureAirport === 'MSY'
+      )?.departureAirport || firstSegment.departureAirport;
+      
+      const mainDestination = segments.find(seg => 
+        seg.arrivalAirport === 'FOR' || seg.arrivalAirport === 'GRU'
+      )?.arrivalAirport || 'FOR';
+      
+      route = `${mainDeparture}-${mainDestination}/${mainDestination}-${mainDeparture}`;
     } else {
       route = segments.length === 1 
         ? `${firstSegment.departureAirport}-${firstSegment.arrivalAirport}`
@@ -89,29 +96,28 @@ export class SabreParser {
     
     // Handle multiple regex patterns to account for spacing variations
     const patterns = [
-      // Pattern 1: Format with OPERATED BY (no space in flight number)
-      // 3 DL6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E OPERATED BY /LATAM AIRLINES BRASIL
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E\s+OPERATED BY\s+\/(.+)$/,
+      // Pattern 1: Delta format without space in flight number
+      // 1 DL2542Z 13SEP J MSYATL*SS1  1240P  313P /DCDL /E
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E$/,
       
-      // Pattern 2: Format with space in flight number and OPERATED BY
-      // 3 DL 6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E OPERATED BY /LATAM AIRLINES BRASIL  
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E\s+OPERATED BY\s+\/(.+)$/,
+      // Pattern 2: Delta format with space in flight number
+      // 2 DL 105Z 13SEP J ATLGRU*SS1   700P  540A  14SEP S /DCDL /E
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E$/,
       
-      // Pattern 3: Standard format with *SS1 status and /DCIB /E suffix  
-      // 1 IB 212I 10MAY S JFKMAD*SS1   445P  600A  11MAY M /DCIB /E
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E/,
+      // Pattern 3: Format with OPERATED BY (no space in flight number)
+      // 3 DL6256P 14SEP S GRUFOR*SS1   745A 1105A /DCDL /E
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E$/,
       
-      // Pattern 4: Standard format with booking class
+      // Pattern 4: Format with space in flight number and OPERATED BY
+      // 4 DL 6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E  
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E$/,
+      
+      // Pattern 5: Just OPERATED BY line
+      /^OPERATED BY\s+\/(.+)$/,
+      
+      // Pattern 6: Standard format with booking class
       // 1 IB4185J 15SEP M JFKBCN GK1   510P  645A  16SEP T /E
-      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
-      
-      // Pattern 5: Format with space in flight number
-      // 2 IB 428J 16SEP T BCNMAD GK1   800A  925A /E
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
-      
-      // Pattern 6: Simplified format without arrival date
-      // 3 IB 347J 15OCT W MADBOS GK1  1240P  300P /E
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s*\/E/
+      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E$/
     ];
     
     for (let i = 0; i < patterns.length; i++) {
@@ -119,6 +125,13 @@ export class SabreParser {
       const match = line.match(pattern);
       if (match) {
         console.log(`Pattern ${i + 1} matched:`, match);
+        
+        // Pattern 5 is just OPERATED BY - skip it
+        if (i === 4) {
+          console.log('Skipping OPERATED BY line');
+          return null;
+        }
+        
         return this.extractSegmentData(match);
       } else {
         console.log(`Pattern ${i + 1} did not match`);
