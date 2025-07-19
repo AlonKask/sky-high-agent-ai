@@ -1,0 +1,212 @@
+
+export interface FlightSegment {
+  segmentNumber: number;
+  flightNumber: string;
+  airlineCode: string;
+  bookingClass: string;
+  flightDate: string;
+  dayOfWeek: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  statusCode: string;
+  departureTime: string;
+  arrivalTime: string;
+  arrivalDayOffset: number;
+  cabinClass: string;
+  aircraftType?: string;
+}
+
+export interface ParsedItinerary {
+  segments: FlightSegment[];
+  totalSegments: number;
+  route: string;
+  isRoundTrip: boolean;
+}
+
+export class SabreParser {
+  static parseIFormat(rawItinerary: string): ParsedItinerary | null {
+    // Remove the *IA« prefix and clean up the itinerary
+    const cleaned = rawItinerary.replace(/^\*IA[«»]?\s*/, '').trim();
+    
+    // Split into lines and process each flight segment
+    const lines = cleaned.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    console.log(`Processing ${lines.length} flight segments`);
+    
+    const segments: FlightSegment[] = [];
+    
+    lines.forEach((line, index) => {
+      console.log(`Processing line ${index + 1}: ${line}`);
+      
+      const segmentData = this.parseFlightLine(line);
+      
+      if (segmentData) {
+        segments.push(segmentData);
+        console.log(`Created segment: ${JSON.stringify(segmentData)}`);
+      } else {
+        console.warn(`Could not parse line: ${line}`);
+      }
+    });
+    
+    if (segments.length === 0) {
+      return null;
+    }
+    
+    const route = segments.length === 1 
+      ? `${segments[0].departureAirport}-${segments[0].arrivalAirport}`
+      : `${segments[0].departureAirport}-${segments[segments.length - 1].arrivalAirport}`;
+    
+    const isRoundTrip = segments.length > 1 && 
+      segments[0].departureAirport === segments[segments.length - 1].arrivalAirport;
+    
+    return {
+      segments,
+      totalSegments: segments.length,
+      route,
+      isRoundTrip
+    };
+  }
+  
+  private static parseFlightLine(line: string): FlightSegment | null {
+    // Handle multiple regex patterns to account for spacing variations
+    const patterns = [
+      // Pattern 1: New format with *SS1 status and /DCIB /E suffix
+      // 1 IB 212I 10MAY S JFKMAD*SS1   445P  600A  11MAY M /DCIB /E
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E/,
+      
+      // Pattern 2: Standard format with booking class
+      // 1 IB4185J 15SEP M JFKBCN GK1   510P  645A  16SEP T /E
+      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
+      
+      // Pattern 3: Format with space in flight number
+      // 2 IB 428J 16SEP T BCNMAD GK1   800A  925A /E
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
+      
+      // Pattern 4: Simplified format without arrival date
+      // 3 IB 347J 15OCT W MADBOS GK1  1240P  300P /E
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s*\/E/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match) {
+        return this.extractSegmentData(match);
+      }
+    }
+    
+    return null;
+  }
+  
+  private static extractSegmentData(match: RegExpMatchArray): FlightSegment {
+    const segmentNumber = parseInt(match[1]);
+    const airlineCode = match[2];
+    const flightNumberDigits = match[3];
+    const bookingClass = match[4];
+    const dateStr = match[5];
+    const dayOfWeek = match[6];
+    
+    // Parse airports - remove any * and status codes
+    const airportString = match[7] + match[8];
+    // Remove anything after * (like *SS1)
+    const cleanAirports = airportString.split('*')[0];
+    const departureAirport = cleanAirports.substring(0, 3);
+    const arrivalAirport = cleanAirports.substring(3, 6);
+    
+    const statusCode = match[9]; // GK1, SS1, etc.
+    const departureTime = match[10];
+    const arrivalTime = match[11];
+    const arrivalDateStr = match[12]; // Optional
+    const arrivalDayOfWeek = match[13]; // Optional
+    
+    // Construct full flight number
+    const fullFlightNumber = `${airlineCode}${flightNumberDigits}`;
+    
+    // Parse date (15SEP -> 2024-09-15)
+    const flightDate = this.parseDateFromString(dateStr);
+    
+    // Convert times to 24-hour format
+    const depTime24h = this.convert12hTo24h(departureTime);
+    const arrTime24h = this.convert12hTo24h(arrivalTime);
+    
+    // Determine if arrival is next day
+    const arrivalDayOffset = this.calculateDayOffset(departureTime, arrivalTime, !!arrivalDateStr);
+    
+    return {
+      segmentNumber,
+      flightNumber: fullFlightNumber,
+      airlineCode,
+      bookingClass,
+      flightDate,
+      dayOfWeek,
+      departureAirport,
+      arrivalAirport,
+      statusCode,
+      departureTime: depTime24h,
+      arrivalTime: arrTime24h,
+      arrivalDayOffset,
+      cabinClass: this.mapBookingClass(bookingClass)
+    };
+  }
+  
+  private static parseDateFromString(dateStr: string): string {
+    // Convert "15SEP" to "2024-09-15"
+    const monthMap: { [key: string]: string } = {
+      'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04', 'MAY': '05', 'JUN': '06',
+      'JUL': '07', 'AUG': '08', 'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+    };
+    
+    const day = dateStr.substring(0, 2);
+    const month = dateStr.substring(2, 5);
+    const currentYear = new Date().getFullYear();
+    
+    return `${currentYear}-${monthMap[month]}-${day}`;
+  }
+  
+  private static convert12hTo24h(time12h: string): string {
+    const match = time12h.match(/(\d+)(A|P)/);
+    if (!match) return time12h;
+    
+    let hour = parseInt(match[1]);
+    const period = match[2];
+    
+    if (period === 'A' && hour === 12) {
+      hour = 0;
+    } else if (period === 'P' && hour !== 12) {
+      hour += 12;
+    }
+    
+    return `${hour.toString().padStart(2, '0')}:00`;
+  }
+  
+  private static calculateDayOffset(depTime: string, arrTime: string, hasArrivalDate: boolean): number {
+    if (hasArrivalDate) return 1;
+    
+    const depHour = parseInt(this.convert12hTo24h(depTime).split(':')[0]);
+    const arrHour = parseInt(this.convert12hTo24h(arrTime).split(':')[0]);
+    
+    return arrHour < depHour ? 1 : 0;
+  }
+  
+  private static mapBookingClass(bookingClass: string): string {
+    const classMap: { [key: string]: string } = {
+      'F': 'First Class',
+      'J': 'Business Class',
+      'C': 'Business Class',
+      'W': 'Premium Economy',
+      'Y': 'Economy Class',
+      'H': 'Economy Class',
+      'K': 'Economy Class',
+      'L': 'Economy Class',
+      'M': 'Economy Class',
+      'N': 'Economy Class',
+      'Q': 'Economy Class',
+      'S': 'Economy Class',
+      'T': 'Economy Class',
+      'V': 'Economy Class',
+      'X': 'Economy Class',
+      'Z': 'Economy Class'
+    };
+    
+    return classMap[bookingClass] || 'Economy Class';
+  }
+}

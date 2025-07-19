@@ -8,13 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Check, X } from "lucide-react";
+import { Plus, Edit, Trash2, Check, X, Mail, Copy } from "lucide-react";
+import { SabreParser, ParsedItinerary } from "@/utils/sabreParser";
+import { EmailTemplateGenerator } from "@/utils/emailTemplateGenerator";
+import { useToast } from "@/hooks/use-toast";
 
 interface SabreOption {
   id: string;
   format: "I" | "VI";
   content: string;
-  parsedInfo?: ParsedFlightInfo;
+  parsedInfo?: ParsedItinerary;
   status: "draft" | "quoted" | "selected" | "expired";
   quoteType: "award" | "revenue";
   // Revenue fields
@@ -37,31 +40,6 @@ interface SabreOption {
   createdAt: string;
 }
 
-interface ParsedFlightInfo {
-  flights: FlightSegment[];
-  totalDuration?: string;
-  route?: string;
-  paxType?: string;
-  quantity?: number;
-  fareDetails?: string;
-}
-
-interface FlightSegment {
-  segmentNumber: string;
-  airline: string;
-  flightNumber: string;
-  origin: string;
-  destination: string;
-  departureDate?: string;
-  departureTime?: string;
-  arrivalDate?: string;
-  arrivalTime?: string;
-  aircraft?: string;
-  duration?: string;
-  bookingClass?: string;
-  status?: string;
-}
-
 interface SabreOptionManagerProps {
   options: SabreOption[];
   onAddOption: (option: Omit<SabreOption, 'id' | 'createdAt'>) => void;
@@ -72,6 +50,8 @@ interface SabreOptionManagerProps {
 const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOption }: SabreOptionManagerProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState<string | null>(null);
+  const { toast } = useToast();
   const [newOption, setNewOption] = useState<Omit<SabreOption, 'id' | 'createdAt'>>({
     format: "I",
     content: "",
@@ -104,83 +84,22 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
     return "I";
   };
 
-  const parseSabreCommand = (content: string, format: "I" | "VI"): ParsedFlightInfo | undefined => {
-    if (!content.trim()) return undefined;
-
-    const flights: FlightSegment[] = [];
-    const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-
-    try {
-      if (format === "I") {
-        // Parse I format (availability display)
-        for (const line of lines) {
-          // Look for flight availability lines (e.g., "1  UA 401  F7 A7 Y9  LAXORD  630A  1145A+1 77W")
-          const flightMatch = line.match(/^\s*(\d+)\s+([A-Z0-9]{2})\s+(\d+)\s+[A-Z0-9\s]+([A-Z]{3})([A-Z]{3})\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*(.*)$/);
-          if (flightMatch) {
-            const [, segNum, airline, flightNum, origin, dest, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = flightMatch;
-            
-            flights.push({
-              segmentNumber: segNum,
-              airline: airline,
-              flightNumber: `${airline}${flightNum}`,
-              origin: origin,
-              destination: dest,
-              departureDate: '',
-              departureTime: `${depHour}:${depMin}${depAmPm}`,
-              arrivalTime: `${arrHour}:${arrMin}${arrAmPm}${dayChange || ''}`,
-              aircraft: aircraft?.trim() || undefined
-            });
-          }
-        }
-      } else if (format === "VI") {
-        // Parse VI format (itinerary display)
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          // Look for segment lines (e.g., "1  UA1234Y  15JAN  LAXORD HK1   630A  1145A+1  E")
-          const segmentMatch = line.match(/^\s*(\d+)\s+([A-Z0-9]{2})(\d+)([A-Z])\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})([A-Z]{3})\s+([A-Z0-9]+)\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*([A-Z0-9]*)?/);
-          if (segmentMatch) {
-            const [, segNum, airline, flightNum, bookingClass, date, origin, dest, status, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = segmentMatch;
-            
-            flights.push({
-              segmentNumber: segNum,
-              airline: airline,
-              flightNumber: `${airline}${flightNum}`,
-              origin: origin,
-              destination: dest,
-              departureDate: date,
-              departureTime: `${depHour}:${depMin}${depAmPm}`,
-              arrivalTime: `${arrHour}:${arrMin}${arrAmPm}${dayChange || ''}`,
-              aircraft: aircraft || undefined,
-              bookingClass: bookingClass,
-              status: status
-            });
-          }
-        }
-      }
-
-      if (flights.length > 0) {
-        const route = flights.length === 1 
-          ? `${flights[0].origin}-${flights[0].destination}`
-          : `${flights[0].origin}-${flights[flights.length - 1].destination}`;
-        
-        return {
-          flights,
-          route,
-          paxType: "ADT", // Default passenger type
-          quantity: 1, // Default quantity
-          fareDetails: content.includes("ELR") ? content.match(/ELR [A-Z0-9 ]+/)?.[0] : undefined
-        };
-      }
-    } catch (error) {
-      console.error('Error parsing Sabre command:', error);
-    }
-
-    return undefined;
-  };
-
   const handleContentChange = (content: string) => {
     const format = detectFormat(content);
-    const parsedInfo = parseSabreCommand(content, format);
+    let parsedInfo: ParsedItinerary | undefined = undefined;
+    
+    if (format === "I" && content.trim()) {
+      try {
+        const parsed = SabreParser.parseIFormat(content);
+        if (parsed) {
+          parsedInfo = parsed;
+          console.log('Successfully parsed I format:', parsed);
+        }
+      } catch (error) {
+        console.error('Error parsing I format:', error);
+      }
+    }
+    
     setNewOption(prev => ({ ...prev, content, format, parsedInfo }));
   };
 
@@ -241,6 +160,15 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
     }
   };
 
+  const handleGenerateEmail = (option: SabreOption) => {
+    const emailContent = EmailTemplateGenerator.generateItineraryEmail(option, "Valued Client");
+    navigator.clipboard.writeText(emailContent);
+    toast({
+      title: "Email Template Copied",
+      description: "The email template has been copied to your clipboard.",
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -264,11 +192,14 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                     id="content"
                     value={newOption.content}
                     onChange={(e) => handleContentChange(e.target.value)}
-                    placeholder="Enter Sabre command or paste itinerary..."
-                    rows={4}
+                    placeholder="Enter Sabre *I command or paste itinerary..."
+                    rows={6}
                   />
                   <p className="text-sm text-muted-foreground mt-1">
                     Format detected: {newOption.format} ({newOption.format === "I" ? "Interactive" : "View Information"})
+                    {newOption.parsedInfo && (
+                      <span className="text-green-600 ml-2">✓ Successfully parsed</span>
+                    )}
                   </p>
                 </div>
 
@@ -337,6 +268,76 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                           onChange={(e) => setNewOption({ ...newOption, weightOfBags: parseInt(e.target.value) || 0 })}
                           placeholder="0"
                         />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="netPrice">Net Price ($)</Label>
+                        <Input
+                          id="netPrice"
+                          type="number"
+                          step="0.01"
+                          value={newOption.netPrice || ""}
+                          onChange={(e) => setNewOption({ ...newOption, netPrice: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="markup">Markup ($)</Label>
+                        <Input
+                          id="markup"
+                          type="number"
+                          step="0.01"
+                          value={newOption.markup || ""}
+                          onChange={(e) => setNewOption({ ...newOption, markup: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="minimumMarkup">Minimum Markup ($)</Label>
+                        <Input
+                          id="minimumMarkup"
+                          type="number"
+                          step="0.01"
+                          value={newOption.minimumMarkup || ""}
+                          onChange={(e) => setNewOption({ ...newOption, minimumMarkup: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="issuingFee">Issuing Fee ($)</Label>
+                        <Input
+                          id="issuingFee"
+                          type="number"
+                          step="0.01"
+                          value={newOption.issuingFee || ""}
+                          onChange={(e) => setNewOption({ ...newOption, issuingFee: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="ckFees"
+                          checked={newOption.ckFees}
+                          onCheckedChange={(checked) => setNewOption({ ...newOption, ckFees: checked as boolean })}
+                        />
+                        <Label htmlFor="ckFees" className="text-sm">CK Fees (3.5%)</Label>
+                      </div>
+                      <div>
+                        <Label htmlFor="sellingPrice">Selling Price ($)</Label>
+                        <div className="flex space-x-2">
+                          <Input
+                            id="sellingPrice"
+                            type="number"
+                            step="0.01"
+                            value={newOption.sellingPrice || ""}
+                            onChange={(e) => setNewOption({ ...newOption, sellingPrice: parseFloat(e.target.value) || 0 })}
+                            placeholder="0.00"
+                          />
+                          <Button variant="outline" onClick={calculateSellingPrice} size="sm">
+                            Calculate
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -418,82 +419,6 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                   </div>
                 )}
 
-                {newOption.quoteType === "revenue" && (
-                  <div className="space-y-4 border rounded-lg p-4">
-                    <h4 className="font-medium">Revenue Pricing Details</h4>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="netPrice">Net Price ($)</Label>
-                        <Input
-                          id="netPrice"
-                          type="number"
-                          step="0.01"
-                          value={newOption.netPrice || ""}
-                          onChange={(e) => setNewOption({ ...newOption, netPrice: parseFloat(e.target.value) || 0 })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="markup">Markup ($)</Label>
-                        <Input
-                          id="markup"
-                          type="number"
-                          step="0.01"
-                          value={newOption.markup || ""}
-                          onChange={(e) => setNewOption({ ...newOption, markup: parseFloat(e.target.value) || 0 })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="minimumMarkup">Minimum Markup ($)</Label>
-                        <Input
-                          id="minimumMarkup"
-                          type="number"
-                          step="0.01"
-                          value={newOption.minimumMarkup || ""}
-                          onChange={(e) => setNewOption({ ...newOption, minimumMarkup: parseFloat(e.target.value) || 0 })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="issuingFee">Issuing Fee ($)</Label>
-                        <Input
-                          id="issuingFee"
-                          type="number"
-                          step="0.01"
-                          value={newOption.issuingFee || ""}
-                          onChange={(e) => setNewOption({ ...newOption, issuingFee: parseFloat(e.target.value) || 0 })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="ckFees"
-                          checked={newOption.ckFees}
-                          onCheckedChange={(checked) => setNewOption({ ...newOption, ckFees: checked as boolean })}
-                        />
-                        <Label htmlFor="ckFees" className="text-sm">CK Fees (3.5%)</Label>
-                      </div>
-                      <div>
-                        <Label htmlFor="sellingPrice">Selling Price ($)</Label>
-                        <div className="flex space-x-2">
-                          <Input
-                            id="sellingPrice"
-                            type="number"
-                            step="0.01"
-                            value={newOption.sellingPrice || ""}
-                            onChange={(e) => setNewOption({ ...newOption, sellingPrice: parseFloat(e.target.value) || 0 })}
-                            placeholder="0.00"
-                          />
-                          <Button variant="outline" onClick={calculateSellingPrice} size="sm">
-                            Calculate
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 <div>
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
@@ -546,6 +471,11 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                     </span>
                   </div>
                   <div className="flex space-x-1">
+                    {option.parsedInfo && (
+                      <Button variant="ghost" size="sm" onClick={() => handleGenerateEmail(option)}>
+                        <Mail className="h-3 w-3" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(option)}>
                       <Edit className="h-3 w-3" />
                     </Button>
@@ -560,22 +490,22 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                 {option.parsedInfo && (
                   <div className="mt-4 border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-4 py-2 border-b">
-                      <h5 className="text-sm font-semibold">Flight Options</h5>
+                      <h5 className="text-sm font-semibold">Flight Information</h5>
                     </div>
                     
                     {/* Pricing Table */}
                     <div className="bg-white border-b">
                       <div className="grid grid-cols-6 text-xs font-medium bg-gray-100 border-b">
-                        <div className="p-2 border-r">Pax</div>
-                        <div className="p-2 border-r">Q#</div>
+                        <div className="p-2 border-r">Passenger</div>
+                        <div className="p-2 border-r">Quantity</div>
                         <div className="p-2 border-r">Net Price</div>
-                        <div className="p-2 border-r">Min Mrkp</div>
-                        <div className="p-2 border-r">Mrkp</div>
+                        <div className="p-2 border-r">Min Markup</div>
+                        <div className="p-2 border-r">Markup</div>
                         <div className="p-2">Selling Price</div>
                       </div>
                       <div className="grid grid-cols-6 text-xs">
-                        <div className="p-2 border-r">{option.parsedInfo.paxType || 'ADT'}</div>
-                        <div className="p-2 border-r">x{option.parsedInfo.quantity || 1}</div>
+                        <div className="p-2 border-r">ADT</div>
+                        <div className="p-2 border-r">x1</div>
                         <div className="p-2 border-r text-gray-700">
                           {option.netPrice ? `USD ${option.netPrice.toFixed(2)}` : 'USD 0.00'}
                         </div>
@@ -591,7 +521,7 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                       </div>
                       <div className="grid grid-cols-6 text-xs bg-gray-50">
                         <div className="p-2 border-r font-medium">Total</div>
-                        <div className="p-2 border-r">x{option.parsedInfo.quantity || 1}</div>
+                        <div className="p-2 border-r">x1</div>
                         <div className="p-2 border-r text-gray-700 font-medium">
                           {option.netPrice ? `USD ${option.netPrice.toFixed(2)}` : 'USD 0.00'}
                         </div>
@@ -610,31 +540,25 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                     {/* Itinerary Display */}
                     <div className="p-4">
                       <div className="text-sm mb-3">
-                        <span className="font-medium">Itinerary</span>
-                        <span className="float-right text-blue-600 text-xs">Shortest Route</span>
+                        <span className="font-medium">Itinerary - {option.parsedInfo.route}</span>
+                        <span className="float-right text-blue-600 text-xs">
+                          {option.parsedInfo.isRoundTrip ? 'Round Trip' : 'One Way'}
+                        </span>
                       </div>
                       <div className="space-y-1 text-xs font-mono">
-                        {option.parsedInfo.flights.map((flight, index) => (
+                        {option.parsedInfo.segments.map((segment, index) => (
                           <div key={index} className="flex items-center space-x-2">
-                            <span className="text-blue-600">{index + 1}</span>
-                            <span className="text-blue-600 font-medium">{flight.flightNumber}</span>
-                            <span className="text-orange-600">{flight.origin}{flight.destination}</span>
-                            {flight.departureDate && (
-                              <span className="text-purple-600">{flight.departureDate}</span>
-                            )}
-                            <span className="text-gray-600">{flight.departureTime}</span>
-                            <span className="text-gray-600">{flight.arrivalTime}</span>
-                            {flight.bookingClass && (
-                              <span className="text-green-600">{flight.bookingClass}({flight.status || 'Q'})</span>
-                            )}
+                            <span className="text-blue-600 w-4">{segment.segmentNumber}</span>
+                            <span className="text-blue-600 font-medium w-16">{segment.flightNumber}</span>
+                            <span className="text-orange-600 w-16">{segment.departureAirport}{segment.arrivalAirport}</span>
+                            <span className="text-purple-600 w-16">{segment.flightDate.split('-')[2]}{segment.flightDate.split('-')[1].toUpperCase()}</span>
+                            <span className="text-gray-600 w-12">{segment.departureTime}</span>
+                            <span className="text-gray-600 w-16">{segment.arrivalTime}{segment.arrivalDayOffset ? '+1' : ''}</span>
+                            <span className="text-green-600 w-20">{segment.bookingClass}({segment.statusCode})</span>
+                            <span className="text-gray-500 flex-1">{segment.cabinClass}</span>
                           </div>
                         ))}
                       </div>
-                      {option.parsedInfo.fareDetails && (
-                        <div className="mt-2 text-xs text-gray-600">
-                          {option.parsedInfo.fareDetails}
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
