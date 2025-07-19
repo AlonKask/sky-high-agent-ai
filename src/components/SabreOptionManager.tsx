@@ -20,10 +20,12 @@ interface SabreOption {
   fareType?: "tour_fare" | "private" | "published";
   numberOfBags?: number;
   weightOfBags?: number;
+  netPrice?: number;
   // Award fields
   awardProgram?: string;
-  // Pricing fields
-  netPrice?: number;
+  numberOfPoints?: number;
+  taxes?: number;
+  // Common pricing fields
   markup?: number;
   minimumMarkup?: number;
   issuingFee?: number;
@@ -60,6 +62,15 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
     "UA Plus Points", "UA Plus Points GS", "VS", "VA", "EY", "B6"
   ];
 
+  const pricePerPoint = [
+    1.8, 1.4, 1.5, 1.3, 1.5, 1.8, 0.55, 1.4, 1.55, 0, 1.25, 1.35, 1.5, 1.8, 1.25, 1.35, 1.45, 1.4, 2.0, 1.3, 1.3, 0.55, 2.0, 2.1, 600, 1.35, 0.65, 0.05, 1.3, 1.3, 1.4, 1.5, 1.6, 1.2, 1.15, 1.4, 1.6, 1.6, 1.8, 0.07, 25, 40, 1.3, 1.5, 1.3, 1.2
+  ];
+
+  const getPricePerPoint = (program: string): number => {
+    const index = awardPrograms.indexOf(program);
+    return index !== -1 ? pricePerPoint[index] : 0;
+  };
+
   const detectFormat = (content: string): "I" | "VI" => {
     if (content.toLowerCase().includes("vi*") || content.toLowerCase().startsWith("vi")) {
       return "VI";
@@ -73,16 +84,27 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
   };
 
   const calculateSellingPrice = () => {
-    const netPrice = newOption.netPrice || 0;
-    const markup = newOption.markup || 0;
-    const issuingFee = newOption.issuingFee || 0;
-    let sellingPrice = netPrice + markup + issuingFee;
-    
-    if (newOption.ckFees) {
-      sellingPrice = sellingPrice / (1 - 0.035); // Add 3.5% CK fees
+    if (newOption.quoteType === "revenue") {
+      const netPrice = newOption.netPrice || 0;
+      const markup = newOption.markup || 0;
+      const issuingFee = newOption.issuingFee || 0;
+      let sellingPrice = netPrice + markup + issuingFee;
+      
+      if (newOption.ckFees) {
+        sellingPrice = sellingPrice / (1 - 0.035); // Add 3.5% CK fees
+      }
+      
+      setNewOption(prev => ({ ...prev, sellingPrice: Math.round(sellingPrice * 100) / 100 }));
+    } else if (newOption.quoteType === "award" && newOption.awardProgram) {
+      const points = newOption.numberOfPoints || 0;
+      const priceRate = getPricePerPoint(newOption.awardProgram);
+      const netPrice = (points / 1000) * priceRate; // Convert points to thousands for calculation
+      const taxes = newOption.taxes || 0;
+      const markup = newOption.markup || 0;
+      const sellingPrice = netPrice + taxes + markup;
+      
+      setNewOption(prev => ({ ...prev, sellingPrice: Math.round(sellingPrice * 100) / 100 }));
     }
-    
-    setNewOption(prev => ({ ...prev, sellingPrice: Math.round(sellingPrice * 100) / 100 }));
   };
 
   const handleSubmit = () => {
@@ -222,95 +244,154 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                 {newOption.quoteType === "award" && (
                   <div className="space-y-4 border rounded-lg p-4">
                     <h4 className="font-medium">Award Quote Details</h4>
-                    <div>
-                      <Label htmlFor="awardProgram">Award Program</Label>
-                      <Select value={newOption.awardProgram} onValueChange={(value) => setNewOption({ ...newOption, awardProgram: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select award program" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {awardPrograms.map((program) => (
-                            <SelectItem key={program} value={program}>{program}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="awardProgram">Award Program</Label>
+                        <Select value={newOption.awardProgram} onValueChange={(value) => setNewOption({ ...newOption, awardProgram: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select award program" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {awardPrograms.map((program) => (
+                              <SelectItem key={program} value={program}>{program}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {newOption.awardProgram && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Rate: ${getPricePerPoint(newOption.awardProgram)}/1000 points
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="numberOfPoints">Number of Points</Label>
+                        <Input
+                          id="numberOfPoints"
+                          type="number"
+                          value={newOption.numberOfPoints || ""}
+                          onChange={(e) => setNewOption({ ...newOption, numberOfPoints: parseInt(e.target.value) || 0 })}
+                          placeholder="e.g., 100000"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="taxes">Taxes ($)</Label>
+                        <Input
+                          id="taxes"
+                          type="number"
+                          step="0.01"
+                          value={newOption.taxes || ""}
+                          onChange={(e) => setNewOption({ ...newOption, taxes: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="markup">Markup ($)</Label>
+                        <Input
+                          id="markup"
+                          type="number"
+                          step="0.01"
+                          value={newOption.markup || ""}
+                          onChange={(e) => setNewOption({ ...newOption, markup: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="sellingPrice">Selling Price ($)</Label>
+                        <div className="flex space-x-2">
+                          <Input
+                            id="sellingPrice"
+                            type="number"
+                            step="0.01"
+                            value={newOption.sellingPrice || ""}
+                            onChange={(e) => setNewOption({ ...newOption, sellingPrice: parseFloat(e.target.value) || 0 })}
+                            placeholder="0.00"
+                          />
+                          <Button variant="outline" onClick={calculateSellingPrice} size="sm">
+                            Calculate
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-4 border rounded-lg p-4">
-                  <h4 className="font-medium">Pricing Details</h4>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="netPrice">Net Price ($)</Label>
-                      <Input
-                        id="netPrice"
-                        type="number"
-                        step="0.01"
-                        value={newOption.netPrice || ""}
-                        onChange={(e) => setNewOption({ ...newOption, netPrice: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="markup">Markup ($)</Label>
-                      <Input
-                        id="markup"
-                        type="number"
-                        step="0.01"
-                        value={newOption.markup || ""}
-                        onChange={(e) => setNewOption({ ...newOption, markup: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="minimumMarkup">Minimum Markup ($)</Label>
-                      <Input
-                        id="minimumMarkup"
-                        type="number"
-                        step="0.01"
-                        value={newOption.minimumMarkup || ""}
-                        onChange={(e) => setNewOption({ ...newOption, minimumMarkup: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="issuingFee">Issuing Fee ($)</Label>
-                      <Input
-                        id="issuingFee"
-                        type="number"
-                        step="0.01"
-                        value={newOption.issuingFee || ""}
-                        onChange={(e) => setNewOption({ ...newOption, issuingFee: parseFloat(e.target.value) || 0 })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="ckFees"
-                        checked={newOption.ckFees}
-                        onCheckedChange={(checked) => setNewOption({ ...newOption, ckFees: checked as boolean })}
-                      />
-                      <Label htmlFor="ckFees" className="text-sm">CK Fees (3.5%)</Label>
-                    </div>
-                    <div>
-                      <Label htmlFor="sellingPrice">Selling Price ($)</Label>
-                      <div className="flex space-x-2">
+                {newOption.quoteType === "revenue" && (
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <h4 className="font-medium">Revenue Pricing Details</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="netPrice">Net Price ($)</Label>
                         <Input
-                          id="sellingPrice"
+                          id="netPrice"
                           type="number"
                           step="0.01"
-                          value={newOption.sellingPrice || ""}
-                          onChange={(e) => setNewOption({ ...newOption, sellingPrice: parseFloat(e.target.value) || 0 })}
+                          value={newOption.netPrice || ""}
+                          onChange={(e) => setNewOption({ ...newOption, netPrice: parseFloat(e.target.value) || 0 })}
                           placeholder="0.00"
                         />
-                        <Button variant="outline" onClick={calculateSellingPrice} size="sm">
-                          Calculate
-                        </Button>
+                      </div>
+                      <div>
+                        <Label htmlFor="markup">Markup ($)</Label>
+                        <Input
+                          id="markup"
+                          type="number"
+                          step="0.01"
+                          value={newOption.markup || ""}
+                          onChange={(e) => setNewOption({ ...newOption, markup: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="minimumMarkup">Minimum Markup ($)</Label>
+                        <Input
+                          id="minimumMarkup"
+                          type="number"
+                          step="0.01"
+                          value={newOption.minimumMarkup || ""}
+                          onChange={(e) => setNewOption({ ...newOption, minimumMarkup: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="issuingFee">Issuing Fee ($)</Label>
+                        <Input
+                          id="issuingFee"
+                          type="number"
+                          step="0.01"
+                          value={newOption.issuingFee || ""}
+                          onChange={(e) => setNewOption({ ...newOption, issuingFee: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="ckFees"
+                          checked={newOption.ckFees}
+                          onCheckedChange={(checked) => setNewOption({ ...newOption, ckFees: checked as boolean })}
+                        />
+                        <Label htmlFor="ckFees" className="text-sm">CK Fees (3.5%)</Label>
+                      </div>
+                      <div>
+                        <Label htmlFor="sellingPrice">Selling Price ($)</Label>
+                        <div className="flex space-x-2">
+                          <Input
+                            id="sellingPrice"
+                            type="number"
+                            step="0.01"
+                            value={newOption.sellingPrice || ""}
+                            onChange={(e) => setNewOption({ ...newOption, sellingPrice: parseFloat(e.target.value) || 0 })}
+                            placeholder="0.00"
+                          />
+                          <Button variant="outline" onClick={calculateSellingPrice} size="sm">
+                            Calculate
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <Label htmlFor="notes">Notes</Label>
