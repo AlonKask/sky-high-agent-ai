@@ -142,12 +142,56 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
   };
 
   const handleEdit = (option: SabreOption) => {
+    setNewOption({
+      format: option.format,
+      content: option.content,
+      status: option.status,
+      quoteType: option.quoteType,
+      fareType: option.fareType,
+      numberOfBags: option.numberOfBags,
+      weightOfBags: option.weightOfBags,
+      netPrice: option.netPrice,
+      awardProgram: option.awardProgram,
+      numberOfPoints: option.numberOfPoints,
+      taxes: option.taxes,
+      markup: option.markup,
+      minimumMarkup: option.minimumMarkup,
+      issuingFee: option.issuingFee,
+      ckFees: option.ckFees || false,
+      sellingPrice: option.sellingPrice,
+      validUntil: option.validUntil,
+      notes: option.notes
+    });
     setEditingId(option.id);
+    setIsDialogOpen(true);
   };
 
-  const handleSaveEdit = (id: string, updates: Partial<SabreOption>) => {
-    onUpdateOption(id, updates);
-    setEditingId(null);
+  const handleSaveEdit = () => {
+    if (editingId) {
+      let parsedInfo;
+      if (newOption.format === "I" && newOption.content.trim()) {
+        try {
+          parsedInfo = SabreParser.parseIFormat(newOption.content);
+        } catch (error) {
+          console.error("Failed to parse itinerary:", error);
+        }
+      }
+
+      onUpdateOption(editingId, {
+        ...newOption,
+        parsedInfo
+      });
+      
+      setNewOption({
+        format: "I",
+        content: "",
+        status: "draft",
+        quoteType: "revenue",
+        ckFees: false
+      });
+      setEditingId(null);
+      setIsDialogOpen(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -183,7 +227,7 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add New Quote</DialogTitle>
+                <DialogTitle>{editingId ? 'Edit Quote' : 'Add New Quote'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -431,9 +475,9 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button onClick={handleSubmit} size="sm">
+                  <Button onClick={editingId ? handleSaveEdit : handleSubmit} size="sm">
                     <Check className="h-4 w-4 mr-2" />
-                    Save Quote
+                    {editingId ? 'Update Quote' : 'Save Quote'}
                   </Button>
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} size="sm">
                     <X className="h-4 w-4 mr-2" />
