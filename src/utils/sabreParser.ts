@@ -25,6 +25,9 @@ export interface ParsedItinerary {
 
 export class SabreParser {
   static parseIFormat(rawItinerary: string): ParsedItinerary | null {
+    console.log("=== SABRE PARSER CALLED ===");
+    console.log("Raw input:", rawItinerary);
+    
     // Remove the *IA« prefix and clean up the itinerary
     const cleaned = rawItinerary.replace(/^\*IA[«»]?\s*/, '').trim();
     
