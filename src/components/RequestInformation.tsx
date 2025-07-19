@@ -1,7 +1,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, Plane, MapPin, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, Users, Plane, MapPin, ArrowRight, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface RequestInformationProps {
   request: {
@@ -22,6 +24,13 @@ interface RequestInformationProps {
 }
 
 const RequestInformation = ({ request }: RequestInformationProps) => {
+  const navigate = useNavigate();
+  
+  const handleClientClick = () => {
+    // Convert client name to a URL-friendly format
+    const clientId = request.clientName.toLowerCase().replace(/\s+/g, '-');
+    navigate(`/client/${clientId}`);
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-warning text-warning-foreground";
@@ -67,7 +76,16 @@ const RequestInformation = ({ request }: RequestInformationProps) => {
             </div>
             <div>
               <span className="font-medium">Client:</span>
-              <div className="text-muted-foreground">{request.clientName}</div>
+              <div className="text-muted-foreground">
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto font-normal text-muted-foreground hover:text-primary transition-colors"
+                  onClick={handleClientClick}
+                >
+                  {request.clientName}
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </Button>
+              </div>
             </div>
             <div>
               <span className="font-medium">Request Date:</span>
