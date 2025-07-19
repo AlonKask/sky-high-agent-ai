@@ -14,6 +14,7 @@ interface SabreOption {
   id: string;
   format: "I" | "VI";
   content: string;
+  parsedInfo?: ParsedFlightInfo;
   status: "draft" | "quoted" | "selected" | "expired";
   quoteType: "award" | "revenue";
   // Revenue fields
@@ -34,6 +35,25 @@ interface SabreOption {
   validUntil?: string;
   notes?: string;
   createdAt: string;
+}
+
+interface ParsedFlightInfo {
+  flights: FlightSegment[];
+  totalDuration?: string;
+  route?: string;
+}
+
+interface FlightSegment {
+  airline: string;
+  flightNumber: string;
+  origin: string;
+  destination: string;
+  departureDate: string;
+  departureTime: string;
+  arrivalDate?: string;
+  arrivalTime: string;
+  aircraft?: string;
+  duration?: string;
 }
 
 interface SabreOptionManagerProps {
@@ -78,9 +98,78 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
     return "I";
   };
 
+  const parseSabreCommand = (content: string, format: "I" | "VI"): ParsedFlightInfo | undefined => {
+    if (!content.trim()) return undefined;
+
+    const flights: FlightSegment[] = [];
+    const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+    try {
+      if (format === "I") {
+        // Parse I format (availability display)
+        for (const line of lines) {
+          // Look for flight availability lines (e.g., "1  UA 401  F7 A7 Y9  LAXORD  630A  1145A+1 77W")
+          const flightMatch = line.match(/^\s*\d+\s+([A-Z0-9]{2})\s+(\d+)\s+[A-Z0-9\s]+([A-Z]{3})([A-Z]{3})\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*(.*)$/);
+          if (flightMatch) {
+            const [, airline, flightNum, origin, dest, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = flightMatch;
+            
+            flights.push({
+              airline: airline,
+              flightNumber: `${airline}${flightNum}`,
+              origin: origin,
+              destination: dest,
+              departureDate: '', // Not available in I format
+              departureTime: `${depHour}:${depMin}${depAmPm}`,
+              arrivalTime: `${arrHour}:${arrMin}${arrAmPm}${dayChange || ''}`,
+              aircraft: aircraft?.trim() || undefined
+            });
+          }
+        }
+      } else if (format === "VI") {
+        // Parse VI format (itinerary display)
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          // Look for segment lines (e.g., "1  UA1234Y  15JAN  LAXORD HK1   630A  1145A+1  E")
+          const segmentMatch = line.match(/^\s*(\d+)\s+([A-Z0-9]{2})(\d+)([A-Z])\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})([A-Z]{3})\s+[A-Z0-9]+\s+(\d{1,2})(\d{2})(A|P)\s+(\d{1,2})(\d{2})(A|P)(\+\d)?\s*([A-Z0-9]*)?/);
+          if (segmentMatch) {
+            const [, segNum, airline, flightNum, , date, origin, dest, depHour, depMin, depAmPm, arrHour, arrMin, arrAmPm, dayChange, aircraft] = segmentMatch;
+            
+            flights.push({
+              airline: airline,
+              flightNumber: `${airline}${flightNum}`,
+              origin: origin,
+              destination: dest,
+              departureDate: date,
+              departureTime: `${depHour}:${depMin}${depAmPm}`,
+              arrivalTime: `${arrHour}:${arrMin}${arrAmPm}${dayChange || ''}`,
+              aircraft: aircraft || undefined
+            });
+          }
+        }
+      }
+
+      if (flights.length > 0) {
+        const route = flights.length === 1 
+          ? `${flights[0].origin}-${flights[0].destination}`
+          : `${flights[0].origin}-${flights[flights.length - 1].destination}`;
+        
+        return {
+          flights,
+          route,
+          totalDuration: undefined // Could be calculated if needed
+        };
+      }
+    } catch (error) {
+      console.error('Error parsing Sabre command:', error);
+    }
+
+    return undefined;
+  };
+
   const handleContentChange = (content: string) => {
     const format = detectFormat(content);
-    setNewOption(prev => ({ ...prev, content, format }));
+    const parsedInfo = parseSabreCommand(content, format);
+    setNewOption(prev => ({ ...prev, content, format, parsedInfo }));
   };
 
   const calculateSellingPrice = () => {
@@ -456,6 +545,31 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                 <div className="mt-3 text-sm font-mono bg-muted p-3 rounded-md">
                   {option.content}
                 </div>
+                {option.parsedInfo && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                    <h5 className="text-sm font-medium mb-2">Flight Information</h5>
+                    {option.parsedInfo.route && (
+                      <p className="text-sm text-blue-700 mb-2">Route: {option.parsedInfo.route}</p>
+                    )}
+                    <div className="space-y-2">
+                      {option.parsedInfo.flights.map((flight, index) => (
+                        <div key={index} className="text-xs bg-white p-2 rounded border">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{flight.flightNumber}</span>
+                            <span className="text-muted-foreground">{flight.aircraft}</span>
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span>{flight.origin} → {flight.destination}</span>
+                            <span>{flight.departureTime} - {flight.arrivalTime}</span>
+                          </div>
+                          {flight.departureDate && (
+                            <div className="text-muted-foreground mt-1">{flight.departureDate}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {option.notes && (
                   <div className="mt-2 text-sm text-muted-foreground">
                     <strong>Notes:</strong> {option.notes}
