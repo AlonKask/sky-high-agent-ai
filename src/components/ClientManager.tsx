@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock } f
 import { cn } from "@/lib/utils";
 
 const ClientManager = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
@@ -233,7 +235,11 @@ const ClientManager = () => {
                   <CardContent>
                     <div className="space-y-2">
                       {selectedClient.previousBookings.map((booking: any) => (
-                        <div key={booking.id} className="flex justify-between items-center p-2 border rounded">
+                        <div 
+                          key={booking.id} 
+                          className="flex justify-between items-center p-2 border rounded cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => navigate(`/booking/${booking.id}`)}
+                        >
                           <div>
                             <div className="font-medium text-sm">{booking.destination}</div>
                             <div className="text-xs text-muted-foreground">{booking.date}</div>
