@@ -116,11 +116,13 @@
 
 @layer components {
   .card-minimal {
-    @apply bg-card rounded-xl border border-border/50 shadow-soft backdrop-blur-sm;
+    @apply bg-card rounded-xl border border-border/50 backdrop-blur-sm;
+    box-shadow: 0 1px 3px 0 hsl(212 100% 45% / 0.05), 0 1px 2px -1px hsl(212 100% 45% / 0.05);
   }
   
   .card-elevated {
-    @apply bg-card rounded-xl border border-border/50 shadow-medium;
+    @apply bg-card rounded-xl border border-border/50;
+    box-shadow: 0 4px 6px -1px hsl(212 100% 45% / 0.07), 0 2px 4px -2px hsl(212 100% 45% / 0.05);
   }
   
   .glass-effect {
@@ -133,5 +135,9 @@
   
   .flight-segment {
     @apply border-l-4 border-primary/20 pl-6 py-4 bg-gradient-subtle rounded-r-lg transition-all duration-200 hover:border-primary/40 hover:bg-gradient-subtle;
+  }
+  
+  .shadow-large {
+    box-shadow: 0 10px 15px -3px hsl(212 100% 45% / 0.08), 0 4px 6px -4px hsl(212 100% 45% / 0.05);
   }
 }
