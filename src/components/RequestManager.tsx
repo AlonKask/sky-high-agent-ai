@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { CalendarIcon, Search, Plus, MapPin, Users, Clock, Plane, ArrowRight } f
 import { cn } from "@/lib/utils";
 
 const RequestManager = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isNewRequestDialogOpen, setIsNewRequestDialogOpen] = useState(false);
@@ -170,8 +172,11 @@ const RequestManager = () => {
       {/* Request Cards */}
       <div className="grid gap-4">
         {filteredRequests.map((request) => (
-          <Card key={request.id} className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => setSelectedRequest(request)}>
+          <Card 
+            key={request.id} 
+            className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => navigate(`/request/${request.id}`)}
+          >
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
