@@ -70,19 +70,23 @@ export class SabreParser {
   private static parseFlightLine(line: string): FlightSegment | null {
     // Handle multiple regex patterns to account for spacing variations
     const patterns = [
-      // Pattern 1: New format with *SS1 status and /DCIB /E suffix
+      // Pattern 1: New format with *SS1 status and /DCIB /E suffix with OPERATED BY
+      // 3 DL6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E OPERATED BY /LATAM AIRLINES BRASIL
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E\s+OPERATED BY\s+\/(.+)$/,
+      
+      // Pattern 2: New format with *SS1 status and /DCIB /E suffix
       // 1 IB 212I 10MAY S JFKMAD*SS1   445P  600A  11MAY M /DCIB /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E/,
       
-      // Pattern 2: Standard format with booking class
+      // Pattern 3: Standard format with booking class
       // 1 IB4185J 15SEP M JFKBCN GK1   510P  645A  16SEP T /E
       /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
       
-      // Pattern 3: Format with space in flight number
+      // Pattern 4: Format with space in flight number
       // 2 IB 428J 16SEP T BCNMAD GK1   800A  925A /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E/,
       
-      // Pattern 4: Simplified format without arrival date
+      // Pattern 5: Simplified format without arrival date
       // 3 IB 347J 15OCT W MADBOS GK1  1240P  300P /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s*\/E/
     ];
@@ -117,6 +121,7 @@ export class SabreParser {
     const arrivalTime = match[11];
     const arrivalDateStr = match[12]; // Optional
     const arrivalDayOfWeek = match[13]; // Optional
+    const operatedBy = match[14]; // OPERATED BY information if present
     
     // Construct full flight number
     const fullFlightNumber = `${airlineCode}${flightNumberDigits}`;
@@ -131,7 +136,7 @@ export class SabreParser {
     // Determine if arrival is next day
     const arrivalDayOffset = this.calculateDayOffset(departureTime, arrivalTime, !!arrivalDateStr);
     
-    return {
+    const segmentData: FlightSegment = {
       segmentNumber,
       flightNumber: fullFlightNumber,
       airlineCode,
@@ -146,6 +151,13 @@ export class SabreParser {
       arrivalDayOffset,
       cabinClass: this.mapBookingClass(bookingClass)
     };
+    
+    // Add operated by information if present
+    if (operatedBy) {
+      segmentData.aircraftType = operatedBy;
+    }
+    
+    return segmentData;
   }
   
   private static parseDateFromString(dateStr: string): string {
@@ -190,18 +202,26 @@ export class SabreParser {
   private static mapBookingClass(bookingClass: string): string {
     const classMap: { [key: string]: string } = {
       'F': 'First Class',
+      'A': 'First Class',
       'J': 'Business Class',
-      'C': 'Business Class',
+      'C': 'Business Class', 
+      'D': 'Business Class',
+      'I': 'Business Class',
+      'P': 'Premium Economy',
       'W': 'Premium Economy',
       'Y': 'Economy Class',
+      'B': 'Economy Class',
+      'E': 'Economy Class',
       'H': 'Economy Class',
       'K': 'Economy Class',
       'L': 'Economy Class',
       'M': 'Economy Class',
       'N': 'Economy Class',
       'Q': 'Economy Class',
+      'R': 'Economy Class', 
       'S': 'Economy Class',
       'T': 'Economy Class',
+      'U': 'Economy Class',
       'V': 'Economy Class',
       'X': 'Economy Class',
       'Z': 'Economy Class'

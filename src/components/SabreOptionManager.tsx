@@ -596,6 +596,11 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                                <span className="text-blue-600 font-bold text-lg">{segment.segmentNumber}</span>
                                <span className="text-blue-600 font-medium">{segment.flightNumber}</span>
                                <Badge variant="secondary" className="text-xs">{segment.cabinClass}</Badge>
+                               {segment.aircraftType && (
+                                 <Badge variant="outline" className="text-xs text-gray-600">
+                                   Operated by {segment.aircraftType}
+                                 </Badge>
+                               )}
                              </div>
                              <div className="grid grid-cols-2 gap-2 text-sm">
                                <div>
