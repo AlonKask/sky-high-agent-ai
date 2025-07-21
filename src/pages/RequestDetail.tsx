@@ -710,16 +710,21 @@ const RequestDetail = () => {
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                     <Users className="h-5 w-5 text-purple-600" />
                     <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">Travelers</p>
-                      <p className="font-semibold">{request.passengers} passengers total</p>
-                      <div className="text-xs text-muted-foreground space-y-1 mt-1">
+                      <div className="text-sm font-medium space-y-1">
                         <div className="flex gap-4">
                           <span>Adults: {Math.max(1, Math.floor(request.passengers * 0.7))}</span>
                           <span>Children: {Math.max(0, Math.floor(request.passengers * 0.2))}</span>
                           <span>Infants: {Math.max(0, Math.floor(request.passengers * 0.1))}</span>
                         </div>
-                        <p className="capitalize">{request.class_preference} class</p>
                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                    <Plane className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Class</p>
+                      <p className="font-semibold capitalize">{request.class_preference}</p>
                     </div>
                   </div>
                 </div>
