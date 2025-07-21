@@ -261,8 +261,9 @@ const RequestDetail = () => {
   const calculateTotalPrice = () => {
     const netPrice = parseFloat(quoteData.netPrice) || 0;
     const markup = parseFloat(quoteData.markup) || 0;
-    const ckFee = quoteData.ckFeeEnabled ? netPrice * 0.035 : 0;
-    return netPrice + markup + ckFee;
+    const basePrice = netPrice + markup;
+    const ckFee = quoteData.ckFeeEnabled ? basePrice * 0.035 : 0;
+    return basePrice + ckFee;
   };
 
   const handleQuoteDataChange = (field: string, value: any) => {
@@ -279,8 +280,9 @@ const RequestDetail = () => {
 
     const netPrice = parseFloat(quoteData.netPrice) || 0;
     const markup = parseFloat(quoteData.markup) || 0;
-    const ckFee = quoteData.ckFeeEnabled ? netPrice * 0.035 : 0;
-    const totalPrice = netPrice + markup + ckFee;
+    const basePrice = netPrice + markup;
+    const ckFee = quoteData.ckFeeEnabled ? basePrice * 0.035 : 0;
+    const totalPrice = basePrice + ckFee;
 
     try {
       const { data, error } = await supabase
@@ -798,7 +800,7 @@ const RequestDetail = () => {
                             onCheckedChange={(checked) => handleQuoteDataChange('ckFeeEnabled', checked)}
                           />
                           <Label htmlFor="ckFee" className="text-sm">
-                            Add CK Fee (3.5% of net price): ${quoteData.ckFeeEnabled ? ((parseFloat(quoteData.netPrice) || 0) * 0.035).toFixed(2) : '0.00'}
+                            Add CK Fee (3.5% of net + markup): ${quoteData.ckFeeEnabled ? (((parseFloat(quoteData.netPrice) || 0) + (parseFloat(quoteData.markup) || 0)) * 0.035).toFixed(2) : '0.00'}
                           </Label>
                         </div>
                       </div>
