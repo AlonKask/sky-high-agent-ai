@@ -746,165 +746,189 @@ const RequestDetail = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {editing ? (
+                  <div className="space-y-6">
+                    {/* Route Configuration */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-lg">Route Configuration</h3>
+                      
+                      {/* Trip Type Selection */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Trip Type</Label>
+                        <Select 
+                          value={editedRequest.request_type || ''} 
+                          onValueChange={(value) => {
+                            setEditedRequest(prev => ({ ...prev, request_type: value }));
+                            // Initialize segments based on trip type
+                            if (value === 'multi_city' && segments.length === 1) {
+                              setSegments([
+                                segments[0],
+                                { origin: '', destination: '', date: '' }
+                              ]);
+                            } else if (value !== 'multi_city') {
+                              setSegments([{ 
+                                origin: editedRequest.origin || request.origin, 
+                                destination: editedRequest.destination || request.destination, 
+                                date: request.departure_date 
+                              }]);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select trip type" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            <SelectItem value="one_way">One Way</SelectItem>
+                            <SelectItem value="round_trip">Round Trip</SelectItem>
+                            <SelectItem value="multi_city">Multi City</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Route Input */}
+                      {editedRequest.request_type === 'multi_city' ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">Flight Segments ({segments.length}/9)</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (segments.length < 9) {
+                                    setSegments([...segments, { origin: '', destination: '', date: '' }]);
+                                  }
+                                }}
+                                disabled={segments.length >= 9}
+                                className="h-8 px-3"
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add Segment
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (segments.length > 1) {
+                                    setSegments(segments.slice(0, -1));
+                                  }
+                                }}
+                                disabled={segments.length <= 1}
+                                className="h-8 px-3"
+                              >
+                                <Minus className="h-4 w-4 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {segments.map((segment, index) => (
+                              <div key={index} className="p-4 border rounded-lg bg-muted/20">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <span className="text-sm font-semibold text-primary">Segment {index + 1}</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">From</Label>
+                                    <Input
+                                      value={segment.origin || ''}
+                                      onChange={(e) => {
+                                        const newSegments = [...segments];
+                                        newSegments[index] = { ...segment, origin: e.target.value };
+                                        setSegments(newSegments);
+                                        if (index === 0) {
+                                          setEditedRequest(prev => ({ ...prev, origin: e.target.value }));
+                                        }
+                                      }}
+                                      placeholder="Origin city"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">To</Label>
+                                    <Input
+                                      value={segment.destination || ''}
+                                      onChange={(e) => {
+                                        const newSegments = [...segments];
+                                        newSegments[index] = { ...segment, destination: e.target.value };
+                                        setSegments(newSegments);
+                                        if (index === segments.length - 1) {
+                                          setEditedRequest(prev => ({ ...prev, destination: e.target.value }));
+                                        }
+                                      }}
+                                      placeholder="Destination city"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Departure Date</Label>
+                                    <Input
+                                      type="date"
+                                      value={segment.date || ''}
+                                      onChange={(e) => {
+                                        const newSegments = [...segments];
+                                        newSegments[index] = { ...segment, date: e.target.value };
+                                        setSegments(newSegments);
+                                      }}
+                                      className="h-9"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">From</Label>
+                            <Input
+                              value={editedRequest.origin || ''}
+                              onChange={(e) => setEditedRequest(prev => ({ ...prev, origin: e.target.value }))}
+                              placeholder="Origin city"
+                              className="h-10"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">To</Label>
+                            <Input
+                              value={editedRequest.destination || ''}
+                              onChange={(e) => setEditedRequest(prev => ({ ...prev, destination: e.target.value }))}
+                              placeholder="Destination city"
+                              className="h-10"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                     <MapPin className="h-5 w-5 text-blue-600" />
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground">Route</p>
-                      {editing ? (
-                        <div className="space-y-3 mt-1">
-                          {/* Trip Type Selection */}
-                          <Select 
-                            value={editedRequest.request_type || ''} 
-                            onValueChange={(value) => {
-                              setEditedRequest(prev => ({ ...prev, request_type: value }));
-                              // Initialize segments based on trip type
-                              if (value === 'multi_city' && segments.length === 1) {
-                                setSegments([
-                                  segments[0],
-                                  { origin: '', destination: '', date: '' }
-                                ]);
-                              } else if (value !== 'multi_city') {
-                                setSegments([{ 
-                                  origin: editedRequest.origin || request.origin, 
-                                  destination: editedRequest.destination || request.destination, 
-                                  date: request.departure_date 
-                                }]);
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Trip type" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-background border shadow-lg z-50">
-                              <SelectItem value="one_way">One Way</SelectItem>
-                              <SelectItem value="round_trip">Round Trip</SelectItem>
-                              <SelectItem value="multi_city">Multi City</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          
-                          {/* Multi-City Segments */}
-                          {editedRequest.request_type === 'multi_city' ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-medium">Segments ({segments.length}/9)</span>
-                                <div className="flex gap-1">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      if (segments.length < 9) {
-                                        setSegments([...segments, { origin: '', destination: '', date: '' }]);
-                                      }
-                                    }}
-                                    disabled={segments.length >= 9}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      if (segments.length > 1) {
-                                        setSegments(segments.slice(0, -1));
-                                      }
-                                    }}
-                                    disabled={segments.length <= 1}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                        <p className="font-semibold">
+                          {request.request_type === 'multi_city' && segments.length > 1 
+                            ? `Multi-city (${segments.length} segments)`
+                            : `${request.origin} → ${request.destination}`
+                          }
+                        </p>
+                        <p className="text-xs text-muted-foreground">{request.request_type.replace('_', ' ')}</p>
+                        {request.request_type === 'multi_city' && segments.length > 1 && (
+                          <div className="text-xs text-muted-foreground mt-1 max-h-16 overflow-y-auto">
+                            {segments.slice(0, 3).map((segment, index) => (
+                              <div key={index}>
+                                {index + 1}. {segment.origin} → {segment.destination}
+                                {segment.date && ` (${new Date(segment.date).toLocaleDateString()})`}
                               </div>
-                              
-                              {segments.map((segment, index) => (
-                                <div key={index} className="flex gap-2 items-center p-2 border rounded">
-                                  <span className="text-xs font-medium w-8">{index + 1}.</span>
-                                  <Input
-                                    value={segment.origin || ''}
-                                    onChange={(e) => {
-                                      const newSegments = [...segments];
-                                      newSegments[index] = { ...segment, origin: e.target.value };
-                                      setSegments(newSegments);
-                                      // Update main origin/destination for first/last segments
-                                      if (index === 0) {
-                                        setEditedRequest(prev => ({ ...prev, origin: e.target.value }));
-                                      }
-                                    }}
-                                    placeholder="From"
-                                    className="h-7 text-xs flex-1"
-                                  />
-                                  <span className="text-xs text-muted-foreground">→</span>
-                                  <Input
-                                    value={segment.destination || ''}
-                                    onChange={(e) => {
-                                      const newSegments = [...segments];
-                                      newSegments[index] = { ...segment, destination: e.target.value };
-                                      setSegments(newSegments);
-                                      // Update main destination for last segment
-                                      if (index === segments.length - 1) {
-                                        setEditedRequest(prev => ({ ...prev, destination: e.target.value }));
-                                      }
-                                    }}
-                                    placeholder="To"
-                                    className="h-7 text-xs flex-1"
-                                  />
-                                  <Input
-                                    type="date"
-                                    value={segment.date || ''}
-                                    onChange={(e) => {
-                                      const newSegments = [...segments];
-                                      newSegments[index] = { ...segment, date: e.target.value };
-                                      setSegments(newSegments);
-                                    }}
-                                    className="h-7 text-xs w-32"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            /* Simple Origin → Destination for non-multi-city */
-                            <div className="flex gap-2 items-center">
-                              <Input
-                                value={editedRequest.origin || ''}
-                                onChange={(e) => setEditedRequest(prev => ({ ...prev, origin: e.target.value }))}
-                                placeholder="Origin"
-                                className="h-8 text-sm font-semibold"
-                              />
-                              <span className="text-muted-foreground">→</span>
-                              <Input
-                                value={editedRequest.destination || ''}
-                                onChange={(e) => setEditedRequest(prev => ({ ...prev, destination: e.target.value }))}
-                                placeholder="Destination"
-                                className="h-8 text-sm font-semibold"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          <p className="font-semibold">
-                            {request.request_type === 'multi_city' && segments.length > 1 
-                              ? `Multi-city (${segments.length} segments)`
-                              : `${request.origin} → ${request.destination}`
-                            }
-                          </p>
-                          <p className="text-xs text-muted-foreground">{request.request_type.replace('_', ' ')}</p>
-                          {request.request_type === 'multi_city' && segments.length > 1 && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {segments.map((segment, index) => (
-                                <div key={index}>
-                                  {index + 1}. {segment.origin} → {segment.destination}
-                                  {segment.date && ` (${new Date(segment.date).toLocaleDateString()})`}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
+                            ))}
+                            {segments.length > 3 && <div className="text-muted-foreground">... +{segments.length - 3} more</div>}
+                          </div>
+                        )}
                     </div>
                   </div>
                   
@@ -942,6 +966,9 @@ const RequestDetail = () => {
                     </div>
                   </div>
                 </div>
+                )}
+
+                
 
                 {(request.special_requirements || request.budget_range) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
