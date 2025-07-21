@@ -538,11 +538,12 @@ const RequestDetail = () => {
     try {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: emailPreview.to,
+          to: [emailPreview.to],
           subject: emailPreview.subject,
-          html: emailPreview.body.replace(/\n/g, '<br>'),
+          body: emailPreview.body,
           requestId: requestId,
-          clientId: client.id
+          clientId: client.id,
+          emailType: 'quote'
         }
       });
 

@@ -73,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
       cc,
       bcc,
       subject,
-      html: body,
+      html: body.replace(/\n/g, '<br>'),
     });
 
     console.log('Email sent successfully:', emailResponse);
