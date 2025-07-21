@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ArrowLeft, User, Mail, Phone, Building, Calendar as CalendarIcon, CreditCard, Plane, Loader2, Edit, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +29,8 @@ const ClientProfile = () => {
   const [editForm, setEditForm] = useState({
     email: '',
     phone: '',
-    date_of_birth: null as Date | null
+    date_of_birth: null as Date | null,
+    preferred_class: 'business'
   });
 
   const fetchClientData = async () => {
@@ -61,7 +63,8 @@ const ClientProfile = () => {
       setEditForm({
         email: clientData.email || '',
         phone: clientData.phone || '',
-        date_of_birth: clientData.date_of_birth ? new Date(clientData.date_of_birth) : null
+        date_of_birth: clientData.date_of_birth ? new Date(clientData.date_of_birth) : null,
+        preferred_class: clientData.preferred_class || 'business'
       });
 
       // Fetch client's bookings
@@ -93,7 +96,8 @@ const ClientProfile = () => {
       const updateData: any = {
         email: editForm.email,
         phone: editForm.phone || null,
-        date_of_birth: editForm.date_of_birth ? editForm.date_of_birth.toISOString().split('T')[0] : null
+        date_of_birth: editForm.date_of_birth ? editForm.date_of_birth.toISOString().split('T')[0] : null,
+        preferred_class: editForm.preferred_class
       };
 
       const { error } = await supabase
@@ -137,7 +141,8 @@ const ClientProfile = () => {
     setEditForm({
       email: client.email || '',
       phone: client.phone || '',
-      date_of_birth: client.date_of_birth ? new Date(client.date_of_birth) : null
+      date_of_birth: client.date_of_birth ? new Date(client.date_of_birth) : null,
+      preferred_class: client.preferred_class || 'business'
     });
     setIsEditing(false);
   };
@@ -186,9 +191,31 @@ const ClientProfile = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Clients
           </Button>
-          <Badge variant={client.preferred_class === "business" ? "default" : "secondary"}>
-            {client.preferred_class} Class Preference
-          </Badge>
+          
+          {/* Class Preference - Editable when in edit mode */}
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <Select 
+                value={editForm.preferred_class} 
+                onValueChange={(value) => setEditForm({ ...editForm, preferred_class: value })}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select class preference" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="economy">Economy</SelectItem>
+                  <SelectItem value="premium_economy">Premium Economy</SelectItem>
+                  <SelectItem value="business">Business</SelectItem>
+                  <SelectItem value="first">First</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <Badge variant={client.preferred_class === "business" ? "default" : "secondary"}>
+                {client.preferred_class === "premium_economy" ? "Premium Economy" : 
+                 client.preferred_class?.charAt(0).toUpperCase() + client.preferred_class?.slice(1)} Class Preference
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Client Information */}
