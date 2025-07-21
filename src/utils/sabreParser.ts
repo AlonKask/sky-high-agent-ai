@@ -572,7 +572,6 @@ export class SabreParser {
       'Q': 'Economy',
       'N': 'Economy',
       'G': 'Economy',
-      'G': 'Economy',
       'V': 'Economy',
       'X': 'Economy',
       'T': 'Economy',
