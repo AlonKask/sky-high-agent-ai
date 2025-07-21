@@ -147,11 +147,18 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
   const initializeGoogleAuth = () => {
     window.gapi.load('auth2', () => {
       const authInstance = window.gapi.auth2.init({
-        client_id: config.google.clientId
+        client_id: config.google.clientId,
+        scope: 'https://www.googleapis.com/auth/gmail.readonly',
+        immediate: false
       });
 
-      authInstance.signIn().then((user: any) => {
+      // Sign in with specific options
+      authInstance.signIn({
+        scope: 'https://www.googleapis.com/auth/gmail.readonly',
+        prompt: 'select_account'
+      }).then((user: any) => {
         const accessToken = user.getAuthResponse().access_token;
+        console.log('Successfully authenticated, access token:', accessToken ? 'received' : 'missing');
         fetchGmailEmails(accessToken);
       }).catch((error: any) => {
         console.error('Google Auth error:', error);
@@ -169,10 +176,16 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
             description: "Gmail access was denied. Please grant the necessary permissions to sync emails.",
             variant: "destructive"
           });
+        } else if (error?.error === 'popup_blocked') {
+          toast({
+            title: "Popup Blocked",
+            description: "The authentication popup was blocked. Please allow popups for this site and try again.",
+            variant: "destructive"
+          });
         } else {
           toast({
             title: "Authentication Error",
-            description: "Failed to authenticate with Google. Please check your Google OAuth setup.",
+            description: `Failed to authenticate with Google: ${error?.error || 'Unknown error'}. Please check your Google OAuth setup.`,
             variant: "destructive"
           });
         }
