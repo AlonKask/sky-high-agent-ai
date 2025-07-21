@@ -158,9 +158,11 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
         </div>
       </div>
 
-      {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200">
+        <Card 
+          className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+          onClick={() => setCurrentView?.("clients")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
             <Users className="h-4 w-4 text-primary" />
@@ -171,7 +173,10 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
           </CardContent>
         </Card>
 
-        <Card className="card-elevated border-0 hover:shadow-large transition-all duration-200">
+        <Card 
+          className="card-elevated border-0 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+          onClick={() => setCurrentView?.("requests")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
             <Clock className="h-4 w-4 text-accent" />
@@ -182,7 +187,10 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
           </CardContent>
         </Card>
 
-        <Card className="card-elevated border-0 hover:shadow-large transition-all duration-200">
+        <Card 
+          className="card-elevated border-0 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+          onClick={() => navigate("/analytics/revenue")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
@@ -193,7 +201,10 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
           </CardContent>
         </Card>
 
-        <Card className="card-elevated border-0 hover:shadow-large transition-all duration-200">
+        <Card 
+          className="card-elevated border-0 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+          onClick={() => navigate("/analytics/performance")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
             <Plane className="h-4 w-4 text-orange-500" />
