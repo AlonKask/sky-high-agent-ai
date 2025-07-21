@@ -306,6 +306,10 @@ const ClientManager = () => {
                     }
                     initialFocus
                     className="p-3 pointer-events-auto"
+                    defaultMonth={dateOfBirth || new Date(1990, 0)}
+                    fromYear={1900}
+                    toYear={new Date().getFullYear()}
+                    captionLayout="dropdown-buttons"
                   />
                 </PopoverContent>
               </Popover>
