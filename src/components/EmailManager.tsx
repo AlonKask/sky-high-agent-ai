@@ -155,11 +155,27 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
         fetchGmailEmails(accessToken);
       }).catch((error: any) => {
         console.error('Google Auth error:', error);
-        toast({
-          title: "Authentication Error",
-          description: "Failed to authenticate with Google. Please check your Google OAuth setup.",
-          variant: "destructive"
-        });
+        
+        // Handle specific error cases
+        if (error?.error === 'popup_closed_by_user') {
+          toast({
+            title: "Gmail Sync Cancelled",
+            description: "You cancelled the Gmail authorization. Please try again and complete the authorization to sync emails.",
+            variant: "destructive"
+          });
+        } else if (error?.error === 'access_denied') {
+          toast({
+            title: "Access Denied",
+            description: "Gmail access was denied. Please grant the necessary permissions to sync emails.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Authentication Error",
+            description: "Failed to authenticate with Google. Please check your Google OAuth setup.",
+            variant: "destructive"
+          });
+        }
         setIsLoading(false);
       });
     });
