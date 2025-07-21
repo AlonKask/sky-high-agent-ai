@@ -218,7 +218,7 @@ const ClientManager = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClients.map((client) => (
-          <Card key={client.id} className="minimal-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setSelectedClient(client)}>
+          <Card key={client.id} className="minimal-card hover:bg-accent/50 transition-colors cursor-pointer group relative" onClick={() => setSelectedClient(client)}>
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -228,9 +228,23 @@ const ClientManager = () => {
                     <p className="text-xs text-muted-foreground">{client.company}</p>
                   )}
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  {client.total_bookings || 0} bookings
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {client.total_bookings || 0} bookings
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/requests?clientId=${client.id}&clientName=${encodeURIComponent(client.first_name + ' ' + client.last_name)}`);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 group-hover:hidden" />
+                    <span className="hidden group-hover:block text-xs font-medium">Create</span>
+                  </Button>
+                </div>
               </div>
               
               <div className="space-y-2 text-sm">
