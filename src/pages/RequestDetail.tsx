@@ -86,6 +86,12 @@ const RequestDetail = () => {
   const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
   const [showSendQuoteDialog, setShowSendQuoteDialog] = useState(false);
+  const [emailPreview, setEmailPreview] = useState({
+    to: '',
+    subject: '',
+    body: '',
+    selectedQuotesList: [] as any[]
+  });
   
 
   useEffect(() => {
@@ -479,6 +485,7 @@ const RequestDetail = () => {
 
     const selectedQuotesList = quotes.filter(q => selectedQuotes.has(q.id));
     
+    // Generate email content
     let emailText = `Dear ${client?.first_name},\n\n`;
     emailText += `I have prepared ${selectedQuotesList.length} flight quote${selectedQuotesList.length > 1 ? 's' : ''} for your trip from ${request.origin} to ${request.destination}:\n\n`;
 
@@ -510,21 +517,30 @@ const RequestDetail = () => {
       }
       emailText += `TOTAL PRICE: $${parseFloat(quote.total_price).toFixed(2)}\n\n`;
 
-      // I-Format data if available in quote metadata
-      if (quote.notes) {
-        emailText += `📋 TECHNICAL DETAILS:\n${quote.notes}\n\n`;
-      }
+      // I-Format data
+      emailText += `📋 TECHNICAL DETAILS:\n${generateIFormatDisplay(quote)}\n\n`;
     });
 
     emailText += `\nPlease review these options and let me know your preference. I'm here to answer any questions you may have.\n\n`;
     emailText += `Best regards,\nYour Travel Agent`;
 
+    // Set up email preview
+    setEmailPreview({
+      to: client.email,
+      subject: `Flight Quote${selectedQuotesList.length > 1 ? 's' : ''}: ${request.origin} → ${request.destination}`,
+      body: emailText,
+      selectedQuotesList
+    });
+    setShowSendQuoteDialog(true);
+  };
+
+  const handleSendEmailFromPreview = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: client.email,
-          subject: `Flight Quote${selectedQuotesList.length > 1 ? 's' : ''}: ${request.origin} → ${request.destination}`,
-          html: emailText.replace(/\n/g, '<br>'),
+          to: emailPreview.to,
+          subject: emailPreview.subject,
+          html: emailPreview.body.replace(/\n/g, '<br>'),
           requestId: requestId,
           clientId: client.id
         }
@@ -537,9 +553,9 @@ const RequestDetail = () => {
         client_id: client.id,
         request_id: requestId,
         sender_email: user.email,
-        recipient_emails: [client.email],
-        subject: `Flight Quote${selectedQuotesList.length > 1 ? 's' : ''}: ${request.origin} → ${request.destination}`,
-        body: emailText,
+        recipient_emails: [emailPreview.to],
+        subject: emailPreview.subject,
+        body: emailPreview.body,
         direction: 'outgoing',
         status: 'sent',
         email_type: 'quote'
@@ -547,7 +563,7 @@ const RequestDetail = () => {
 
       setSelectedQuotes(new Set());
       setShowSendQuoteDialog(false);
-      toast.success(`Quote${selectedQuotesList.length > 1 ? 's' : ''} sent successfully!`);
+      toast.success(`Quote${emailPreview.selectedQuotesList.length > 1 ? 's' : ''} sent successfully!`);
     } catch (error) {
       console.error('Error sending quotes:', error);
       toast.error('Failed to send quotes. Please ensure email service is configured.');
@@ -942,6 +958,73 @@ const RequestDetail = () => {
                       </div>
                     </>
                   )}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Email Preview Dialog */}
+            <Dialog open={showSendQuoteDialog} onOpenChange={setShowSendQuoteDialog}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-primary" />
+                    Email Preview - {emailPreview.selectedQuotesList.length} Quote{emailPreview.selectedQuotesList.length > 1 ? 's' : ''}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Review and edit the email before sending to your client
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>To</Label>
+                      <Select value={emailPreview.to} onValueChange={(value) => setEmailPreview(prev => ({ ...prev, to: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select email address" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={client?.email}>{client?.email}</SelectItem>
+                          {client?.email !== emailContent.recipient && emailContent.recipient && (
+                            <SelectItem value={emailContent.recipient}>{emailContent.recipient}</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Subject</Label>
+                      <Input
+                        value={emailPreview.subject}
+                        onChange={(e) => setEmailPreview(prev => ({ ...prev, subject: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Email Content</Label>
+                    <Textarea
+                      value={emailPreview.body}
+                      onChange={(e) => setEmailPreview(prev => ({ ...prev, body: e.target.value }))}
+                      rows={20}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-4 border-t">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setShowSendQuoteDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleSendEmailFromPreview}
+                      disabled={!emailPreview.to || !emailPreview.subject}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Send Email
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
