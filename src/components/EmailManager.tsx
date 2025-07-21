@@ -145,53 +145,48 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
   };
 
   const initializeGoogleAuth = () => {
-    window.gapi.load('auth2', () => {
-      const authInstance = window.gapi.auth2.init({
+    // Use the newer Google Identity Services API
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = () => {
+      // @ts-ignore - Google Identity Services
+      window.google.accounts.oauth2.initTokenClient({
         client_id: config.google.clientId,
         scope: 'https://www.googleapis.com/auth/gmail.readonly',
-        immediate: false
-      });
-
-      // Sign in with specific options
-      authInstance.signIn({
-        scope: 'https://www.googleapis.com/auth/gmail.readonly',
-        prompt: 'select_account'
-      }).then((user: any) => {
-        const accessToken = user.getAuthResponse().access_token;
-        console.log('Successfully authenticated, access token:', accessToken ? 'received' : 'missing');
-        fetchGmailEmails(accessToken);
-      }).catch((error: any) => {
-        console.error('Google Auth error:', error);
-        
-        // Handle specific error cases
-        if (error?.error === 'popup_closed_by_user') {
+        callback: (response: any) => {
+          if (response.access_token) {
+            console.log('Successfully authenticated with new API');
+            fetchGmailEmails(response.access_token);
+          } else {
+            console.error('No access token received:', response);
+            toast({
+              title: "Authentication Failed",
+              description: "Failed to receive access token from Google",
+              variant: "destructive"
+            });
+            setIsLoading(false);
+          }
+        },
+        error_callback: (error: any) => {
+          console.error('Google Auth error:', error);
           toast({
-            title: "Gmail Sync Cancelled",
-            description: "You cancelled the Gmail authorization. Please try again and complete the authorization to sync emails.",
+            title: "Gmail Authentication Error",
+            description: `Authentication failed: ${error.type || 'Unknown error'}`,
             variant: "destructive"
           });
-        } else if (error?.error === 'access_denied') {
-          toast({
-            title: "Access Denied",
-            description: "Gmail access was denied. Please grant the necessary permissions to sync emails.",
-            variant: "destructive"
-          });
-        } else if (error?.error === 'popup_blocked') {
-          toast({
-            title: "Popup Blocked",
-            description: "The authentication popup was blocked. Please allow popups for this site and try again.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Authentication Error",
-            description: `Failed to authenticate with Google: ${error?.error || 'Unknown error'}. Please check your Google OAuth setup.`,
-            variant: "destructive"
-          });
+          setIsLoading(false);
         }
-        setIsLoading(false);
+      }).requestAccessToken();
+    };
+    script.onerror = () => {
+      toast({
+        title: "Google API Error",
+        description: "Failed to load Google authentication services",
+        variant: "destructive"
       });
-    });
+      setIsLoading(false);
+    };
+    document.head.appendChild(script);
   };
 
   const fetchGmailEmails = async (accessToken: string) => {
