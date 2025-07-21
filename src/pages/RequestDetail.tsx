@@ -1009,32 +1009,218 @@ const RequestDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Add Quote Section */}
+            {/* Options Section - Combined Add Quote and Flight Quotes */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  Add Quote
+                  <FileText className="h-5 w-5 text-primary" />
+                  Options
                 </CardTitle>
                 <CardDescription>
-                  Parse Sabre I-format output and create readable flight quotes
+                  Create new quotes and manage existing flight options
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-center p-8">
+              <CardContent className="space-y-6">
+                {/* Add Quote Button */}
+                <div className="flex items-center justify-center p-6 border border-dashed border-muted-foreground/25 rounded-lg">
                   <Button 
                     onClick={() => setShowQuoteDialog(true)}
                     size="lg"
                     className="flex items-center gap-3"
                   >
                     <Plus className="h-5 w-5" />
-                    Add Quote
+                    Add New Quote
                   </Button>
                 </div>
                 
-                <div className="text-center text-sm text-muted-foreground">
-                  Click to open the Sabre parser and create a detailed flight quote
-                </div>
+                {/* Existing Quotes */}
+                {quotes.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground">
+                    No quotes created yet. Click "Add New Quote" to create your first option.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-base">
+                        Flight Quotes ({quotes.filter(q => !q.is_hidden).length})
+                      </h4>
+                    </div>
+                    
+                    {/* Quote Selection Controls */}
+                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="select-all"
+                            checked={selectedQuotes.size === quotes.filter(q => !q.is_hidden).length && quotes.filter(q => !q.is_hidden).length > 0}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedQuotes(new Set(quotes.filter(q => !q.is_hidden).map(q => q.id)));
+                              } else {
+                                setSelectedQuotes(new Set());
+                              }
+                            }}
+                          />
+                          <Label htmlFor="select-all" className="text-sm font-medium">
+                            Select All ({quotes.filter(q => !q.is_hidden).length})
+                          </Label>
+                        </div>
+                        {selectedQuotes.size > 0 && (
+                          <Badge variant="secondary">
+                            {selectedQuotes.size} selected
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        onClick={handleSendSelectedQuotes}
+                        disabled={selectedQuotes.size === 0}
+                        size="sm"
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Quote{selectedQuotes.size > 1 ? 's' : ''}
+                      </Button>
+                    </div>
+
+                    {quotes.filter(q => !q.is_hidden).map((quote) => (
+                      <div key={quote.id} className="p-4 border rounded-lg bg-muted/20">
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            checked={selectedQuotes.has(quote.id)}
+                            onCheckedChange={(checked) => handleQuoteSelection(quote.id, checked as boolean)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h4 className="font-semibold flex items-center gap-2">
+                                  <Badge variant="outline">{quote.route}</Badge>
+                                  <Badge className="bg-green-100 text-green-800">
+                                    ${parseFloat(quote.total_price).toFixed(2)}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {quote.fare_type.replace('_', ' ')}
+                                  </Badge>
+                                </h4>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {quote.total_segments} segment{quote.total_segments > 1 ? 's' : ''} • 
+                                  Created {new Date(quote.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}>
+                                      {quote.is_hidden ? (
+                                        <>
+                                          <Eye className="h-4 w-4 mr-2" />
+                                          Show Quote
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="h-4 w-4 mr-2" />
+                                          Hide Quote
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDeleteQuote(quote.id)} className="text-destructive">
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete Quote
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+
+                            {/* Flight Segments */}
+                            <div className="space-y-2 mb-4">
+                              {quote.segments?.map((segment: any, index: number) => (
+                                <div key={index} className="p-3 bg-background rounded border text-sm">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="secondary" className="text-xs">{segment.flightNumber}</Badge>
+                                      <span className="font-medium">
+                                        {segment.departureAirport} → {segment.arrivalAirport}
+                                      </span>
+                                    </div>
+                                    <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                      {segment.cabinClass}
+                                    </Badge>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                    <div>Departure: {segment.departureTime}</div>
+                                    <div>
+                                      Arrival: {segment.arrivalTime}
+                                      {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* I-Format Display */}
+                            <div className="mb-3">
+                              <Label className="text-xs font-medium text-muted-foreground mb-2 block">Sabre I-Format:</Label>
+                              <div className="p-2 bg-background rounded border font-mono text-xs text-muted-foreground whitespace-pre-wrap">
+                                {generateIFormatDisplay(quote)}
+                              </div>
+                            </div>
+
+                            {/* Pricing Details */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm border-t pt-3">
+                              <div>
+                                <span className="text-muted-foreground">Segments:</span>
+                                <p className="font-medium">{quote.total_segments}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Net Price:</span>
+                                <p className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Markup:</span>
+                                <p className="font-medium">${parseFloat(quote.markup).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Created:</span>
+                                <p className="font-medium">{new Date(quote.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Total:</span>
+                                <p className="font-medium text-green-600">${parseFloat(quote.total_price).toFixed(2)}</p>
+                              </div>
+                            </div>
+
+                            {quote.ck_fee_enabled && (
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                CK Fee (3.5%): ${parseFloat(quote.ck_fee_amount).toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {quotes.filter(q => q.is_hidden).length > 0 && (
+                      <div className="pt-4 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Toggle hidden quotes visibility
+                            setQuotes(prev => prev.map(q => ({ ...q, showHidden: !q.showHidden })));
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Show Hidden Quotes ({quotes.filter(q => q.is_hidden).length})
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1296,204 +1482,6 @@ const RequestDetail = () => {
               </DialogContent>
             </Dialog>
 
-            {/* Saved Quotes Section */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Flight Quotes ({quotes.filter(q => !q.is_hidden).length})
-                </CardTitle>
-                <CardDescription>
-                  Saved flight quotes for this request
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {quotes.length === 0 ? (
-                  <div className="p-8 text-center border border-dashed border-muted-foreground/25 rounded-lg">
-                    <p className="text-muted-foreground">No quotes created yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Use the "Add Quote" button above to create your first quote
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Quote Selection Controls */}
-                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="select-all"
-                            checked={selectedQuotes.size === quotes.filter(q => !q.is_hidden).length && quotes.filter(q => !q.is_hidden).length > 0}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedQuotes(new Set(quotes.filter(q => !q.is_hidden).map(q => q.id)));
-                              } else {
-                                setSelectedQuotes(new Set());
-                              }
-                            }}
-                          />
-                          <Label htmlFor="select-all" className="text-sm font-medium">
-                            Select All ({quotes.filter(q => !q.is_hidden).length})
-                          </Label>
-                        </div>
-                        {selectedQuotes.size > 0 && (
-                          <Badge variant="secondary">
-                            {selectedQuotes.size} selected
-                          </Badge>
-                        )}
-                      </div>
-                      <Button
-                        onClick={handleSendSelectedQuotes}
-                        disabled={selectedQuotes.size === 0}
-                        size="sm"
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Quote{selectedQuotes.size > 1 ? 's' : ''}
-                      </Button>
-                    </div>
-
-                    {quotes.filter(q => !q.is_hidden).map((quote) => (
-                      <div key={quote.id} className="p-4 border rounded-lg bg-muted/20">
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            checked={selectedQuotes.has(quote.id)}
-                            onCheckedChange={(checked) => handleQuoteSelection(quote.id, checked as boolean)}
-                            className="mt-1"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h4 className="font-semibold flex items-center gap-2">
-                                  <Badge variant="outline">{quote.route}</Badge>
-                                  <Badge className="bg-green-100 text-green-800">
-                                    ${parseFloat(quote.total_price).toFixed(2)}
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {quote.fare_type.replace('_', ' ')}
-                                  </Badge>
-                                </h4>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {quote.total_segments} segment{quote.total_segments > 1 ? 's' : ''} • 
-                                  Created {new Date(quote.created_at).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}>
-                                      {quote.is_hidden ? (
-                                        <>
-                                          <Eye className="h-4 w-4 mr-2" />
-                                          Show Quote
-                                        </>
-                                      ) : (
-                                        <>
-                                          <EyeOff className="h-4 w-4 mr-2" />
-                                          Hide Quote
-                                        </>
-                                      )}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDeleteQuote(quote.id)} className="text-destructive">
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete Quote
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </div>
-
-                            {/* Flight Segments */}
-                            <div className="space-y-2 mb-4">
-                              {quote.segments?.map((segment: any, index: number) => (
-                                <div key={index} className="p-3 bg-background rounded border text-sm">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="secondary" className="text-xs">{segment.flightNumber}</Badge>
-                                      <span className="font-medium">
-                                        {segment.departureAirport} → {segment.arrivalAirport}
-                                      </span>
-                                    </div>
-                                    <Badge className="bg-blue-100 text-blue-800 text-xs">
-                                      {segment.cabinClass}
-                                    </Badge>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                    <div>Departure: {segment.departureTime}</div>
-                                    <div>
-                                      Arrival: {segment.arrivalTime}
-                                      {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* I-Format Display */}
-                            <div className="mb-3">
-                              <Label className="text-xs font-medium text-muted-foreground mb-2 block">Sabre I-Format:</Label>
-                              <div className="p-2 bg-background rounded border font-mono text-xs text-muted-foreground whitespace-pre-wrap">
-                                {generateIFormatDisplay(quote)}
-                              </div>
-                            </div>
-
-                            {/* Pricing Details */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm border-t pt-3">
-                              <div>
-                                <span className="text-muted-foreground">Segments:</span>
-                                <p className="font-medium">{quote.total_segments}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Net Price:</span>
-                                <p className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Markup:</span>
-                                <p className="font-medium">${parseFloat(quote.markup).toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Created:</span>
-                                <p className="font-medium">{new Date(quote.created_at).toLocaleDateString()}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Total:</span>
-                                <p className="font-medium text-green-600">${parseFloat(quote.total_price).toFixed(2)}</p>
-                              </div>
-                            </div>
-
-                            {quote.ck_fee_enabled && (
-                              <div className="mt-2 text-xs text-muted-foreground">
-                                CK Fee (3.5%): ${parseFloat(quote.ck_fee_amount).toFixed(2)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {quotes.filter(q => q.is_hidden).length > 0 && (
-                      <div className="pt-4 border-t">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            // Toggle hidden quotes visibility
-                            setQuotes(prev => prev.map(q => ({ ...q, showHidden: !q.showHidden })));
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Show Hidden Quotes ({quotes.filter(q => q.is_hidden).length})
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* Quick Actions */}
             <Card className="border-0 shadow-lg">
