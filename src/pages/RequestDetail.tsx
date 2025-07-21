@@ -44,8 +44,10 @@ import {
   Eye,
   EyeOff,
   Pencil,
-  Minus
+  Minus,
+  X
 } from "lucide-react";
+import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -824,81 +826,92 @@ const RequestDetail = () => {
                             </div>
                           </div>
                           
-                          <div className="space-y-3">
-                            {segments.map((segment, index) => (
-                              <div key={index} className="p-4 border rounded-lg bg-muted/20">
-                                <div className="flex items-center gap-3 mb-3">
-                                  <span className="text-sm font-semibold text-primary">Segment {index + 1}</span>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                  <div className="space-y-1">
-                                    <Label className="text-xs">From</Label>
-                                    <Input
-                                      value={segment.origin || ''}
-                                      onChange={(e) => {
-                                        const newSegments = [...segments];
-                                        newSegments[index] = { ...segment, origin: e.target.value };
-                                        setSegments(newSegments);
-                                        if (index === 0) {
-                                          setEditedRequest(prev => ({ ...prev, origin: e.target.value }));
-                                        }
-                                      }}
-                                      placeholder="Origin city"
-                                      className="h-9"
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label className="text-xs">To</Label>
-                                    <Input
-                                      value={segment.destination || ''}
-                                      onChange={(e) => {
-                                        const newSegments = [...segments];
-                                        newSegments[index] = { ...segment, destination: e.target.value };
-                                        setSegments(newSegments);
-                                        if (index === segments.length - 1) {
-                                          setEditedRequest(prev => ({ ...prev, destination: e.target.value }));
-                                        }
-                                      }}
-                                      placeholder="Destination city"
-                                      className="h-9"
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label className="text-xs">Departure Date</Label>
-                                    <Input
-                                      type="date"
-                                      value={segment.date || ''}
-                                      onChange={(e) => {
-                                        const newSegments = [...segments];
-                                        newSegments[index] = { ...segment, date: e.target.value };
-                                        setSegments(newSegments);
-                                      }}
-                                      className="h-9"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                           <div className="space-y-3">
+                             {segments.map((segment, index) => (
+                               <div key={index} className="p-4 border rounded-lg bg-muted/20">
+                                 <div className="flex items-center justify-between mb-3">
+                                   <span className="text-sm font-semibold text-primary">Segment {index + 1}</span>
+                                   <Button
+                                     type="button"
+                                     size="sm"
+                                     variant="ghost"
+                                     onClick={() => {
+                                       if (segments.length > 1) {
+                                         const newSegments = segments.filter((_, i) => i !== index);
+                                         setSegments(newSegments);
+                                       }
+                                     }}
+                                     disabled={segments.length <= 1}
+                                     className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                   >
+                                     <X className="h-3 w-3" />
+                                   </Button>
+                                 </div>
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                   <div className="space-y-1">
+                                     <Label className="text-xs">From</Label>
+                                     <AirportAutocomplete
+                                       value={segment.origin || ''}
+                                       onChange={(value) => {
+                                         const newSegments = [...segments];
+                                         newSegments[index] = { ...segment, origin: value };
+                                         setSegments(newSegments);
+                                         if (index === 0) {
+                                           setEditedRequest(prev => ({ ...prev, origin: value }));
+                                         }
+                                       }}
+                                       placeholder="Select origin"
+                                     />
+                                   </div>
+                                   <div className="space-y-1">
+                                     <Label className="text-xs">To</Label>
+                                     <AirportAutocomplete
+                                       value={segment.destination || ''}
+                                       onChange={(value) => {
+                                         const newSegments = [...segments];
+                                         newSegments[index] = { ...segment, destination: value };
+                                         setSegments(newSegments);
+                                         if (index === segments.length - 1) {
+                                           setEditedRequest(prev => ({ ...prev, destination: value }));
+                                         }
+                                       }}
+                                       placeholder="Select destination"
+                                     />
+                                   </div>
+                                   <div className="space-y-1">
+                                     <Label className="text-xs">Departure Date</Label>
+                                     <Input
+                                       type="date"
+                                       value={segment.date || ''}
+                                       onChange={(e) => {
+                                         const newSegments = [...segments];
+                                         newSegments[index] = { ...segment, date: e.target.value };
+                                         setSegments(newSegments);
+                                       }}
+                                       className="h-9"
+                                     />
+                                   </div>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">From</Label>
-                            <Input
-                              value={editedRequest.origin || ''}
-                              onChange={(e) => setEditedRequest(prev => ({ ...prev, origin: e.target.value }))}
-                              placeholder="Origin city"
-                              className="h-10"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">To</Label>
-                            <Input
-                              value={editedRequest.destination || ''}
-                              onChange={(e) => setEditedRequest(prev => ({ ...prev, destination: e.target.value }))}
-                              placeholder="Destination city"
-                              className="h-10"
+                           <div className="space-y-2">
+                             <Label className="text-sm font-medium">From</Label>
+                             <AirportAutocomplete
+                               value={editedRequest.origin || ''}
+                               onChange={(value) => setEditedRequest(prev => ({ ...prev, origin: value }))}
+                               placeholder="Select origin"
+                             />
+                           </div>
+                           <div className="space-y-2">
+                             <Label className="text-sm font-medium">To</Label>
+                             <AirportAutocomplete
+                               value={editedRequest.destination || ''}
+                               onChange={(value) => setEditedRequest(prev => ({ ...prev, destination: value }))}
+                               placeholder="Select destination"
                             />
                           </div>
                         </div>
