@@ -390,6 +390,7 @@ export type Database = {
           quoted_price: number | null
           request_type: string
           return_date: string | null
+          segments: Json | null
           special_requirements: string | null
           status: string | null
           updated_at: string | null
@@ -410,6 +411,7 @@ export type Database = {
           quoted_price?: number | null
           request_type: string
           return_date?: string | null
+          segments?: Json | null
           special_requirements?: string | null
           status?: string | null
           updated_at?: string | null
@@ -430,6 +432,7 @@ export type Database = {
           quoted_price?: number | null
           request_type?: string
           return_date?: string | null
+          segments?: Json | null
           special_requirements?: string | null
           status?: string | null
           updated_at?: string | null

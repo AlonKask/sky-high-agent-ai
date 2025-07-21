@@ -43,7 +43,8 @@ import {
   MoreVertical,
   Eye,
   EyeOff,
-  Pencil
+  Pencil,
+  Minus
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -125,6 +126,12 @@ const RequestDetail = () => {
       setRequest(requestData);
       setClient(requestData.clients);
       setEditedRequest(requestData);
+      
+      // Initialize segments for multi-city trips
+      const requestSegments = Array.isArray(requestData.segments) ? requestData.segments : [];
+      setSegments(requestSegments.length > 0 ? requestSegments : [
+        { origin: requestData.origin, destination: requestData.destination, date: requestData.departure_date }
+      ]);
       
       setEmailContent(prev => ({
         ...prev,
@@ -702,13 +709,22 @@ const RequestDetail = () => {
                         </Button>
                         <Button size="sm" onClick={async () => {
                           try {
+                            const updateData: any = {
+                              origin: editedRequest.origin,
+                              destination: editedRequest.destination,
+                              request_type: editedRequest.request_type
+                            };
+                            
+                            // Add segments for multi-city trips
+                            if (editedRequest.request_type === 'multi_city') {
+                              updateData.segments = segments;
+                            } else {
+                              updateData.segments = [];
+                            }
+                            
                             const { error } = await supabase
                               .from('requests')
-                              .update({
-                                origin: editedRequest.origin,
-                                destination: editedRequest.destination,
-                                request_type: editedRequest.request_type
-                              })
+                              .update(updateData)
                               .eq('id', requestId);
                             
                             if (error) throw error;
@@ -736,25 +752,26 @@ const RequestDetail = () => {
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground">Route</p>
                       {editing ? (
-                        <div className="space-y-2 mt-1">
-                          <div className="flex gap-2 items-center">
-                            <Input
-                              value={editedRequest.origin || ''}
-                              onChange={(e) => setEditedRequest(prev => ({ ...prev, origin: e.target.value }))}
-                              placeholder="Origin"
-                              className="h-8 text-sm font-semibold"
-                            />
-                            <span className="text-muted-foreground">→</span>
-                            <Input
-                              value={editedRequest.destination || ''}
-                              onChange={(e) => setEditedRequest(prev => ({ ...prev, destination: e.target.value }))}
-                              placeholder="Destination"
-                              className="h-8 text-sm font-semibold"
-                            />
-                          </div>
+                        <div className="space-y-3 mt-1">
+                          {/* Trip Type Selection */}
                           <Select 
                             value={editedRequest.request_type || ''} 
-                            onValueChange={(value) => setEditedRequest(prev => ({ ...prev, request_type: value }))}
+                            onValueChange={(value) => {
+                              setEditedRequest(prev => ({ ...prev, request_type: value }));
+                              // Initialize segments based on trip type
+                              if (value === 'multi_city' && segments.length === 1) {
+                                setSegments([
+                                  segments[0],
+                                  { origin: '', destination: '', date: '' }
+                                ]);
+                              } else if (value !== 'multi_city') {
+                                setSegments([{ 
+                                  origin: editedRequest.origin || request.origin, 
+                                  destination: editedRequest.destination || request.destination, 
+                                  date: request.departure_date 
+                                }]);
+                              }
+                            }}
                           >
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Trip type" />
@@ -765,11 +782,127 @@ const RequestDetail = () => {
                               <SelectItem value="multi_city">Multi City</SelectItem>
                             </SelectContent>
                           </Select>
+                          
+                          {/* Multi-City Segments */}
+                          {editedRequest.request_type === 'multi_city' ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium">Segments ({segments.length}/9)</span>
+                                <div className="flex gap-1">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      if (segments.length < 9) {
+                                        setSegments([...segments, { origin: '', destination: '', date: '' }]);
+                                      }
+                                    }}
+                                    disabled={segments.length >= 9}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      if (segments.length > 1) {
+                                        setSegments(segments.slice(0, -1));
+                                      }
+                                    }}
+                                    disabled={segments.length <= 1}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              {segments.map((segment, index) => (
+                                <div key={index} className="flex gap-2 items-center p-2 border rounded">
+                                  <span className="text-xs font-medium w-8">{index + 1}.</span>
+                                  <Input
+                                    value={segment.origin || ''}
+                                    onChange={(e) => {
+                                      const newSegments = [...segments];
+                                      newSegments[index] = { ...segment, origin: e.target.value };
+                                      setSegments(newSegments);
+                                      // Update main origin/destination for first/last segments
+                                      if (index === 0) {
+                                        setEditedRequest(prev => ({ ...prev, origin: e.target.value }));
+                                      }
+                                    }}
+                                    placeholder="From"
+                                    className="h-7 text-xs flex-1"
+                                  />
+                                  <span className="text-xs text-muted-foreground">→</span>
+                                  <Input
+                                    value={segment.destination || ''}
+                                    onChange={(e) => {
+                                      const newSegments = [...segments];
+                                      newSegments[index] = { ...segment, destination: e.target.value };
+                                      setSegments(newSegments);
+                                      // Update main destination for last segment
+                                      if (index === segments.length - 1) {
+                                        setEditedRequest(prev => ({ ...prev, destination: e.target.value }));
+                                      }
+                                    }}
+                                    placeholder="To"
+                                    className="h-7 text-xs flex-1"
+                                  />
+                                  <Input
+                                    type="date"
+                                    value={segment.date || ''}
+                                    onChange={(e) => {
+                                      const newSegments = [...segments];
+                                      newSegments[index] = { ...segment, date: e.target.value };
+                                      setSegments(newSegments);
+                                    }}
+                                    className="h-7 text-xs w-32"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            /* Simple Origin → Destination for non-multi-city */
+                            <div className="flex gap-2 items-center">
+                              <Input
+                                value={editedRequest.origin || ''}
+                                onChange={(e) => setEditedRequest(prev => ({ ...prev, origin: e.target.value }))}
+                                placeholder="Origin"
+                                className="h-8 text-sm font-semibold"
+                              />
+                              <span className="text-muted-foreground">→</span>
+                              <Input
+                                value={editedRequest.destination || ''}
+                                onChange={(e) => setEditedRequest(prev => ({ ...prev, destination: e.target.value }))}
+                                placeholder="Destination"
+                                className="h-8 text-sm font-semibold"
+                              />
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <>
-                          <p className="font-semibold">{request.origin} → {request.destination}</p>
+                          <p className="font-semibold">
+                            {request.request_type === 'multi_city' && segments.length > 1 
+                              ? `Multi-city (${segments.length} segments)`
+                              : `${request.origin} → ${request.destination}`
+                            }
+                          </p>
                           <p className="text-xs text-muted-foreground">{request.request_type.replace('_', ' ')}</p>
+                          {request.request_type === 'multi_city' && segments.length > 1 && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {segments.map((segment, index) => (
+                                <div key={index}>
+                                  {index + 1}. {segment.origin} → {segment.destination}
+                                  {segment.date && ` (${new Date(segment.date).toLocaleDateString()})`}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
