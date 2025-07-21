@@ -212,7 +212,7 @@ const ClientProfile = () => {
             ) : (
               <Badge variant={client.preferred_class === "business" ? "default" : "secondary"}>
                 {client.preferred_class === "premium_economy" ? "Premium Economy" : 
-                 client.preferred_class?.charAt(0).toUpperCase() + client.preferred_class?.slice(1)} Class Preference
+                 client.preferred_class?.charAt(0).toUpperCase() + client.preferred_class?.slice(1)} Class
               </Badge>
             )}
           </div>
