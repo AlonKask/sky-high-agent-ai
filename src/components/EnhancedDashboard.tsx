@@ -367,248 +367,302 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
         </div>
       </div>
 
-      {/* Enhanced Tabs */}
-      <Tabs defaultValue="bookings" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 h-14 bg-muted/50">
-          <TabsTrigger value="bookings" className="flex items-center gap-2 text-sm font-medium">
-            <Plane className="h-4 w-4" />
-            Recent Bookings
-          </TabsTrigger>
-          <TabsTrigger value="requests" className="flex items-center gap-2 text-sm font-medium">
-            <Calendar className="h-4 w-4" />
-            Active Requests
-          </TabsTrigger>
-          <TabsTrigger value="insights" className="flex items-center gap-2 text-sm font-medium">
-            <BarChart3 className="h-4 w-4" />
-            Quick Actions
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="bookings" className="space-y-4">
-          <Card className="card-elevated border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl">Recent Bookings</CardTitle>
-                  <CardDescription>Latest confirmed and pending bookings</CardDescription>
-                </div>
-                <Button variant="outline" className="bg-white" onClick={() => setCurrentView?.("bookings")}>
-                  View All
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {loading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse p-6 border rounded-xl">
-                      <div className="flex items-center space-x-6">
-                        <div className="w-16 h-16 bg-muted rounded-full"></div>
-                        <div className="flex-1">
-                          <div className="h-5 bg-muted rounded w-1/3 mb-2"></div>
-                          <div className="h-4 bg-muted rounded w-1/2 mb-1"></div>
-                          <div className="h-3 bg-muted rounded w-1/4"></div>
-                        </div>
-                        <div className="text-right">
-                          <div className="h-6 bg-muted rounded w-20 mb-2"></div>
-                          <div className="h-4 bg-muted rounded w-16"></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : recentBookings.length > 0 ? (
-                <div className="space-y-4">
-                  {recentBookings.map((booking) => (
-                    <div key={booking.id} className="group flex items-center justify-between p-6 border-2 rounded-xl hover:border-primary hover:shadow-md transition-all duration-200 cursor-pointer bg-gradient-to-r hover:from-primary/5 hover:to-accent/5">
-                      <div className="flex items-center space-x-6">
-                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-colors">
-                          <Plane className="h-8 w-8 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-lg">
-                            {booking.clients?.first_name} {booking.clients?.last_name}
-                          </div>
-                          <div className="flex items-center text-sm text-muted-foreground mb-1">
-                            <MapPin className="mr-1 h-4 w-4" />
-                            {booking.route}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(booking.departure_date).toLocaleDateString('en-US', { 
-                              weekday: 'short',
-                              month: 'short', 
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-2xl text-green-600">${Number(booking.total_price).toLocaleString()}</div>
-                        <div className="flex items-center space-x-2 mt-3">
-                          <Badge variant="secondary" className="text-xs capitalize font-medium">
-                            {booking.class} Class
-                          </Badge>
-                          <Badge className={`text-xs capitalize font-medium ${getStatusColor(booking.status)}`}>
-                            {booking.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Plane className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No bookings yet</h3>
-                  <p className="text-muted-foreground mb-4">Start by creating your first booking</p>
-                  <Button onClick={() => setCurrentView?.("bookings")}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Booking
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="requests" className="space-y-4">
-          <Card className="card-elevated border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-accent/5 to-primary/5 rounded-t-lg">
-              <CardTitle className="text-xl">Active Travel Requests</CardTitle>
-              <CardDescription>Client requests requiring attention and follow-up</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              {loading ? (
-                <div className="space-y-4">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="animate-pulse p-6 border rounded-xl">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-muted rounded-full"></div>
-                        <div className="flex-1">
-                          <div className="h-5 bg-muted rounded w-1/3 mb-2"></div>
-                          <div className="h-4 bg-muted rounded w-1/2"></div>
-                        </div>
-                        <div className="h-6 bg-muted rounded w-20"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : activeRequests.length > 0 ? (
-                <div className="grid gap-4">
-                  {activeRequests.slice(0, 3).map((request) => (
-                    <div key={request.id} className="p-6 border-2 rounded-xl hover:border-accent hover:shadow-md transition-all duration-200 cursor-pointer bg-gradient-to-r hover:from-accent/5 hover:to-primary/5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10">
-                            <Calendar className="h-6 w-6 text-accent" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-lg">Travel Request #{request.id.slice(-6)}</div>
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <MapPin className="mr-1 h-4 w-4" />
-                              {request.origin} → {request.destination}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {new Date(request.departure_date).toLocaleDateString()} • {request.passengers} passenger{request.passengers > 1 ? 's' : ''}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right space-y-2">
-                          <Badge className={`text-xs ${getStatusColor(request.status)}`}>
-                            {request.status.replace('_', ' ')}
-                          </Badge>
-                          <div className="text-xs text-muted-foreground">
-                            Created: {new Date(request.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No active requests</h3>
-                  <p className="text-muted-foreground mb-4">All caught up! No pending requests at the moment.</p>
-                  <Button onClick={() => setCurrentView?.("requests")}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Request
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="insights" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="card-elevated border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-accent" />
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button variant="outline" className="h-16 flex-col gap-2" onClick={() => setCurrentView?.("email")}>
-                    <Mail className="h-5 w-5" />
-                    <span className="text-xs">Email Management</span>
-                  </Button>
-                  <Button variant="outline" className="h-16 flex-col gap-2" onClick={() => setCurrentView?.("clients")}>
-                    <Phone className="h-5 w-5" />
-                    <span className="text-xs">Client Contact</span>
-                  </Button>
-                  <Button variant="outline" className="h-16 flex-col gap-2" onClick={() => setCurrentView?.("requests")}>
-                    <FileText className="h-5 w-5" />
-                    <span className="text-xs">Generate Quote</span>
-                  </Button>
-                  <Button variant="outline" className="h-16 flex-col gap-2" onClick={() => setCurrentView?.("bookings")}>
-                    <Briefcase className="h-5 w-5" />
-                    <span className="text-xs">New Booking</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="card-elevated border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Performance Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div>
-                      <div className="font-medium">Total Revenue</div>
-                      <div className="text-sm text-muted-foreground">This month</div>
-                    </div>
-                    <div className="font-bold text-green-600">${stats.revenue.toLocaleString()}</div>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div>
-                      <div className="font-medium">Average Ticket</div>
-                      <div className="text-sm text-muted-foreground">Per booking</div>
-                    </div>
-                    <div className="font-bold text-blue-600">${stats.averageTicketPrice.toLocaleString()}</div>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div>
-                      <div className="font-medium">Upcoming Trips</div>
-                      <div className="text-sm text-muted-foreground">Confirmed bookings</div>
-                    </div>
-                    <div className="font-bold text-orange-600">{stats.upcomingTrips}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Enhanced Carousel */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Recent Activity & Requests</h2>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setCurrentView?.("bookings")}>
+              View All Bookings
+            </Button>
+            <Button variant="outline" onClick={() => setCurrentView?.("requests")}>
+              View All Requests
+            </Button>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+
+        <div className="relative">
+          <div className="overflow-hidden rounded-xl">
+            <div className="flex gap-6 pb-4" style={{ width: 'fit-content' }}>
+              {/* Recent Bookings Section */}
+              <Card className="card-elevated border-0 shadow-lg min-w-[400px] max-w-[500px]">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        <Plane className="h-5 w-5" />
+                        Recent Bookings
+                      </CardTitle>
+                      <CardDescription>Latest confirmed reservations</CardDescription>
+                    </div>
+                    <Badge variant="outline" className="bg-white">
+                      {recentBookings.length} bookings
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {loading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="animate-pulse p-4 border rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-muted rounded-full"></div>
+                            <div className="flex-1">
+                              <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                              <div className="h-3 bg-muted rounded w-1/2"></div>
+                            </div>
+                            <div className="h-6 bg-muted rounded w-16"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : recentBookings.length > 0 ? (
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                      {recentBookings.map((booking) => (
+                        <div key={booking.id} className="group p-4 border-2 rounded-lg hover:border-primary hover:shadow-md transition-all duration-200 cursor-pointer bg-gradient-to-r hover:from-primary/5 hover:to-accent/5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-colors">
+                                <Plane className="h-6 w-6 text-primary" />
+                              </div>
+                              <div>
+                                <div className="font-semibold text-lg">
+                                  {booking.clients?.first_name} {booking.clients?.last_name}
+                                </div>
+                                <div className="flex items-center text-sm text-muted-foreground mb-1">
+                                  <MapPin className="mr-1 h-4 w-4" />
+                                  {booking.route}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {new Date(booking.departure_date).toLocaleDateString('en-US', { 
+                                    weekday: 'short',
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-xl text-green-600">${Number(booking.total_price).toLocaleString()}</div>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <Badge variant="secondary" className="text-xs capitalize">
+                                  {booking.class}
+                                </Badge>
+                                <Badge className={`text-xs capitalize ${getStatusColor(booking.status)}`}>
+                                  {booking.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Plane className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                      <h3 className="font-semibold mb-2">No bookings yet</h3>
+                      <p className="text-sm text-muted-foreground mb-4">Start by creating your first booking</p>
+                      <Button size="sm" onClick={() => setCurrentView?.("bookings")}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Booking
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Active Requests Section */}
+              <Card className="card-elevated border-0 shadow-lg min-w-[400px] max-w-[500px]">
+                <CardHeader className="bg-gradient-to-r from-accent/5 to-primary/5 rounded-t-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        Active Requests
+                      </CardTitle>
+                      <CardDescription>Pending client travel requests</CardDescription>
+                    </div>
+                    <Badge variant="outline" className="bg-white">
+                      {activeRequests.length} requests
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {loading ? (
+                    <div className="space-y-4">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="animate-pulse p-4 border rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-muted rounded-full"></div>
+                            <div className="flex-1">
+                              <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                              <div className="h-3 bg-muted rounded w-1/2"></div>
+                            </div>
+                            <div className="h-6 bg-muted rounded w-20"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : activeRequests.length > 0 ? (
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                      {activeRequests.slice(0, 4).map((request) => (
+                        <div key={request.id} className="p-4 border-2 rounded-lg hover:border-accent hover:shadow-md transition-all duration-200 cursor-pointer bg-gradient-to-r hover:from-accent/5 hover:to-primary/5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10">
+                                <Calendar className="h-6 w-6 text-accent" />
+                              </div>
+                              <div>
+                                <div className="font-semibold text-lg">Request #{request.id.slice(-6)}</div>
+                                <div className="flex items-center text-sm text-muted-foreground">
+                                  <MapPin className="mr-1 h-4 w-4" />
+                                  <span className="font-medium">{request.origin}</span>
+                                  <ArrowRight className="mx-2 h-3 w-3" />
+                                  <span className="font-medium">{request.destination}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {new Date(request.departure_date).toLocaleDateString()} • {request.passengers} passenger{request.passengers > 1 ? 's' : ''}
+                                </div>
+                                <div className="text-xs text-blue-600 mt-1 font-medium">
+                                  {request.class_preference} Class • {request.request_type}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right space-y-2">
+                              <Badge className={`text-xs ${getStatusColor(request.status)}`}>
+                                {request.status.replace('_', ' ')}
+                              </Badge>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </div>
+                              {request.quoted_price && (
+                                <div className="text-sm font-semibold text-green-600">
+                                  ${Number(request.quoted_price).toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Calendar className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                      <h3 className="font-semibold mb-2">No active requests</h3>
+                      <p className="text-sm text-muted-foreground mb-4">All caught up! No pending requests.</p>
+                      <Button size="sm" onClick={() => setCurrentView?.("requests")}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Request
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions Section */}
+              <Card className="card-elevated border-0 shadow-lg min-w-[400px] max-w-[500px]">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-t-lg">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    Quick Actions & Insights
+                  </CardTitle>
+                  <CardDescription>Streamline your workflow</CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {/* Quick Actions Grid */}
+                    <div>
+                      <h4 className="font-medium mb-3">Quick Actions</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button variant="outline" className="h-16 flex-col gap-2 hover:bg-primary/5" onClick={() => setCurrentView?.("email")}>
+                          <Mail className="h-5 w-5" />
+                          <span className="text-xs">Email Hub</span>
+                        </Button>
+                        <Button variant="outline" className="h-16 flex-col gap-2 hover:bg-green-50" onClick={() => setCurrentView?.("clients")}>
+                          <Phone className="h-5 w-5" />
+                          <span className="text-xs">Client Call</span>
+                        </Button>
+                        <Button variant="outline" className="h-16 flex-col gap-2 hover:bg-blue-50" onClick={() => setCurrentView?.("requests")}>
+                          <FileText className="h-5 w-5" />
+                          <span className="text-xs">New Quote</span>
+                        </Button>
+                        <Button variant="outline" className="h-16 flex-col gap-2 hover:bg-purple-50" onClick={() => setCurrentView?.("bookings")}>
+                          <Briefcase className="h-5 w-5" />
+                          <span className="text-xs">Book Flight</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Performance Metrics */}
+                    <div>
+                      <h4 className="font-medium mb-3">Performance Summary</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                          <div>
+                            <div className="font-medium">Monthly Revenue</div>
+                            <div className="text-sm text-muted-foreground">Current period</div>
+                          </div>
+                          <div className="font-bold text-green-600">${stats.revenue.toLocaleString()}</div>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                          <div>
+                            <div className="font-medium">Average Ticket</div>
+                            <div className="text-sm text-muted-foreground">Per booking</div>
+                          </div>
+                          <div className="font-bold text-blue-600">${stats.averageTicketPrice.toLocaleString()}</div>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                          <div>
+                            <div className="font-medium">Upcoming Trips</div>
+                            <div className="text-sm text-muted-foreground">Confirmed bookings</div>
+                          </div>
+                          <div className="font-bold text-orange-600">{stats.upcomingTrips}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Popular Destinations */}
+                    <div>
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        Popular Destinations
+                      </h4>
+                      <div className="space-y-2">
+                        {[
+                          { dest: "London (LHR)", bookings: recentBookings.filter(b => b.route?.includes('LHR')).length },
+                          { dest: "Tokyo (NRT)", bookings: recentBookings.filter(b => b.route?.includes('NRT')).length },
+                          { dest: "Paris (CDG)", bookings: recentBookings.filter(b => b.route?.includes('CDG')).length }
+                        ].filter(item => item.bookings > 0).map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-primary"></div>
+                              <span className="font-medium text-sm">{item.dest}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground">{item.bookings} booking{item.bookings !== 1 ? 's' : ''}</span>
+                          </div>
+                        ))}
+                        {recentBookings.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No bookings to analyze yet
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Scroll indicators */}
+          <div className="flex justify-center mt-4 space-x-2">
+            <div className="w-2 h-2 rounded-full bg-primary"></div>
+            <div className="w-2 h-2 rounded-full bg-muted"></div>
+            <div className="w-2 h-2 rounded-full bg-muted"></div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
