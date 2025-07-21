@@ -36,6 +36,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { SabreParser, ParsedItinerary } from "@/utils/sabreParser";
 
 
 const RequestDetail = () => {
@@ -54,6 +55,10 @@ const RequestDetail = () => {
     body: "",
     recipient: ""
   });
+
+  // Sabre parser state
+  const [sabreInput, setSabreInput] = useState("");
+  const [parsedFlights, setParsedFlights] = useState<ParsedItinerary | null>(null);
   
 
   useEffect(() => {
@@ -190,6 +195,82 @@ const RequestDetail = () => {
       case "confirmed": return <CheckCircle className="h-4 w-4" />;
       default: return <FileText className="h-4 w-4" />;
     }
+  };
+
+  const handleParseSabre = () => {
+    if (!sabreInput.trim()) {
+      toast.error('Please enter Sabre I-format data');
+      return;
+    }
+
+    try {
+      const parsed = SabreParser.parseIFormat(sabreInput);
+      if (parsed) {
+        setParsedFlights(parsed);
+        toast.success(`Successfully parsed ${parsed.totalSegments} flight segment${parsed.totalSegments > 1 ? 's' : ''}`);
+      } else {
+        toast.error('Could not parse the Sabre data. Please check the format.');
+      }
+    } catch (error) {
+      console.error('Parse error:', error);
+      toast.error('Error parsing Sabre data. Please check the format.');
+    }
+  };
+
+  const addParsedFlightToEmail = () => {
+    if (!parsedFlights) return;
+
+    const formatTime = (time: string) => {
+      // Convert time back to display format if needed
+      return time;
+    };
+
+    let emailText = `\n\n✈️ FLIGHT ITINERARY - ${parsedFlights.route}\n`;
+    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+    parsedFlights.segments.forEach((segment, index) => {
+      emailText += `🛫 SEGMENT ${index + 1}\n`;
+      emailText += `Flight: ${segment.flightNumber} (${segment.airlineCode})\n`;
+      emailText += `Route: ${segment.departureAirport} → ${segment.arrivalAirport}\n`;
+      emailText += `Class: ${segment.cabinClass}\n`;
+      emailText += `Departure: ${segment.departureTime}\n`;
+      emailText += `Arrival: ${segment.arrivalTime}${segment.arrivalDayOffset > 0 ? ` (+${segment.arrivalDayOffset} day)` : ''}\n`;
+      if (segment.aircraftType) {
+        emailText += `Aircraft: ${segment.aircraftType}\n`;
+      }
+      emailText += "\n";
+    });
+
+    emailText += "💰 PRICING:\n";
+    emailText += "- Base Fare: $____\n";
+    emailText += "- Taxes & Fees: $____\n";
+    emailText += "- Total Price: $____\n\n";
+    emailText += "Valid until: ____\n\n";
+    emailText += "Ready to book? Reply to confirm!\n";
+    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+
+    setEmailContent(prev => ({
+      ...prev,
+      body: prev.body + emailText
+    }));
+
+    toast.success('Flight details added to email');
+  };
+
+  const copyFlightDetails = () => {
+    if (!parsedFlights) return;
+
+    let copyText = `Flight Itinerary - ${parsedFlights.route}\n\n`;
+    parsedFlights.segments.forEach((segment, index) => {
+      copyText += `Segment ${index + 1}: ${segment.flightNumber} ${segment.departureAirport}-${segment.arrivalAirport}\n`;
+      copyText += `Class: ${segment.cabinClass}, Depart: ${segment.departureTime}, Arrive: ${segment.arrivalTime}\n\n`;
+    });
+
+    navigator.clipboard.writeText(copyText).then(() => {
+      toast.success('Flight details copied to clipboard');
+    }).catch(() => {
+      toast.error('Failed to copy to clipboard');
+    });
   };
 
   if (loading) {
@@ -350,131 +431,105 @@ const RequestDetail = () => {
                   Add Quote
                 </CardTitle>
                 <CardDescription>
-                  Create and manage flight quotes for this request
+                  Parse Sabre I-format output and create readable flight quotes
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Plus className="h-4 w-4 text-primary" />
-                      <span className="font-medium">Quick Actions</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button 
-                      className="w-full justify-start"
-                      onClick={() => {
-                        const quoteText = `
-✈️ FLIGHT QUOTE - ${request.origin} → ${request.destination}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📅 Travel Dates: ${formatDate(request.departure_date)}
-${request.return_date ? `Return: ${new Date(request.return_date).toLocaleDateString()}` : ''}
-✈️ Passengers: ${request.passengers}
-🎫 Class: ${request.class_preference}
-
-💰 QUOTE DETAILS:
-- Base Fare: $____
-- Taxes & Fees: $____
-- Total Price: $____
-
-Valid until: ____
-
-Best regards,
-Your Travel Agent
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                        `;
-                        setEmailContent(prev => ({
-                          ...prev,
-                          body: prev.body + quoteText
-                        }));
-                        toast.success('Quote template added to email');
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Basic Quote Template
+                <div className="space-y-3">
+                  <Label>Sabre I-Format Input</Label>
+                  <Textarea
+                    placeholder="Paste Sabre *I or VI command output here..."
+                    className="h-32 font-mono text-sm"
+                    value={sabreInput}
+                    onChange={(e) => setSabreInput(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={handleParseSabre} disabled={!sabreInput.trim()}>
+                      <Plane className="h-4 w-4 mr-2" />
+                      Parse Flight Data
                     </Button>
                     <Button 
                       variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => {
-                        const premiumText = `
-🌟 PREMIUM FLIGHT OPTION - ${request.origin} → ${request.destination}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✈️ Flight Details:
-- Airline: ____
-- Flight: ____
-- Aircraft: ____
-- Departure: ${formatDate(request.departure_date)} at ____
-- Arrival: ____ at ____
-
-🎫 ${request.class_preference.toUpperCase()} CLASS FEATURES:
-- Priority check-in & boarding
-- Extra legroom
-- Premium meal service
-- Complimentary beverages
-- Enhanced baggage allowance
-
-💰 Investment: $____
-Valid until: ____
-
-Ready to book? Reply to confirm!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                        `;
-                        setEmailContent(prev => ({
-                          ...prev,
-                          body: prev.body + premiumText
-                        }));
-                        toast.success('Premium quote template added to email');
-                      }}
+                      onClick={() => setSabreInput("")}
+                      disabled={!sabreInput.trim()}
                     >
-                      <Star className="h-4 w-4 mr-2" />
-                      Premium Quote
+                      Clear
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label>Quick Quote Builder</Label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Base Fare</Label>
-                      <Input placeholder="$0.00" className="text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Taxes & Fees</Label>
-                      <Input placeholder="$0.00" className="text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Total Price</Label>
-                      <Input placeholder="$0.00" className="text-sm font-medium" />
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => {
-                      toast.info('Advanced quote builder coming soon!');
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Generate Custom Quote
-                  </Button>
-                </div>
+                {parsedFlights && (
+                  <div className="space-y-4">
+                    <Separator />
+                    <div className="space-y-3">
+                      <Label>Parsed Flight Information</Label>
+                      <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">{parsedFlights.route}</h4>
+                          <Badge variant="outline">
+                            {parsedFlights.totalSegments} segment{parsedFlights.totalSegments > 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {parsedFlights.segments.map((segment, index) => (
+                            <div key={index} className="p-3 bg-background rounded border">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary">{segment.flightNumber}</Badge>
+                                  <span className="text-sm font-medium">
+                                    {segment.departureAirport} → {segment.arrivalAirport}
+                                  </span>
+                                </div>
+                                <Badge className="bg-blue-100 text-blue-800">
+                                  {segment.cabinClass}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                                <div>
+                                  <span className="font-medium">Departure:</span> {segment.departureTime}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Arrival:</span> {segment.arrivalTime}
+                                  {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
 
-                {request.quoted_price && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="font-semibold text-green-900">Previous Quote</span>
+                        <div className="flex gap-2 pt-2">
+                          <Button 
+                            onClick={() => addParsedFlightToEmail()}
+                            className="flex-1"
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            Add to Email
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            onClick={() => copyFlightDetails()}
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy Details
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-sm text-green-700">
-                      Last quoted price: ${request.quoted_price}
-                    </p>
                   </div>
                 )}
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label>Previous Quotes</Label>
+                  <div className="p-4 border border-dashed border-muted-foreground/25 rounded-lg text-center">
+                    <p className="text-sm text-muted-foreground">No quotes created yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Parsed flight quotes will appear here for reference
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
