@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 
 const RequestManager = () => {
   const navigate = useNavigate();
@@ -453,18 +454,18 @@ const RequestManager = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>From *</Label>
-                <Input
-                  placeholder="NYC"
+                <AirportAutocomplete
                   value={formData.origin}
-                  onChange={(e) => handleInputChange('origin', e.target.value)}
+                  onChange={(value) => handleInputChange('origin', value)}
+                  placeholder="Select departure airport"
                 />
               </div>
               <div className="space-y-2">
                 <Label>To *</Label>
-                <Input
-                  placeholder="LAX"
+                <AirportAutocomplete
                   value={formData.destination}
-                  onChange={(e) => handleInputChange('destination', e.target.value)}
+                  onChange={(value) => handleInputChange('destination', value)}
+                  placeholder="Select destination airport"
                 />
               </div>
             </div>
