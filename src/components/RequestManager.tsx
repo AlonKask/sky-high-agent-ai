@@ -38,7 +38,9 @@ const RequestManager = () => {
     destination: "",
     departureDate: null as Date | null,
     returnDate: null as Date | null,
-    passengers: 1,
+    adults: 1,
+    children: 0,
+    infants: 0,
     classPreference: "business",
     budgetRange: "",
     specialRequirements: "",
@@ -134,7 +136,7 @@ const RequestManager = () => {
         destination: formData.destination,
         departure_date: formData.departureDate.toISOString().split('T')[0],
         return_date: formData.returnDate ? formData.returnDate.toISOString().split('T')[0] : null,
-        passengers: formData.passengers,
+        passengers: formData.adults + formData.children + formData.infants,
         class_preference: formData.classPreference,
         budget_range: formData.budgetRange || null,
         special_requirements: formData.specialRequirements || null,
@@ -183,7 +185,9 @@ const RequestManager = () => {
       destination: "",
       departureDate: null,
       returnDate: null,
-      passengers: 1,
+      adults: 1,
+      children: 0,
+      infants: 0,
       classPreference: "business",
       budgetRange: "",
       specialRequirements: "",
@@ -528,21 +532,56 @@ const RequestManager = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Passengers</Label>
-                <Select value={formData.passengers.toString()} onValueChange={(value) => handleInputChange('passengers', parseInt(value))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1,2,3,4,5,6,7,8].map(num => (
-                      <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Adults (12+)</Label>
+                    <Select value={formData.adults.toString()} onValueChange={(value) => handleInputChange('adults', parseInt(value))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1,2,3,4,5,6,7,8].map(num => (
+                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Children (2-11)</Label>
+                    <Select value={formData.children.toString()} onValueChange={(value) => handleInputChange('children', parseInt(value))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[0,1,2,3,4,5,6,7,8].map(num => (
+                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Infants (0-2)</Label>
+                    <Select value={formData.infants.toString()} onValueChange={(value) => handleInputChange('infants', parseInt(value))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[0,1,2,3,4].map(num => (
+                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-              
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Class</Label>
                 <Select value={formData.classPreference} onValueChange={(value) => handleInputChange('classPreference', value)}>
