@@ -84,6 +84,8 @@ const RequestDetail = () => {
   // Quotes state
   const [quotes, setQuotes] = useState<any[]>([]);
   const [editingQuote, setEditingQuote] = useState<any>(null);
+  const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
+  const [showSendQuoteDialog, setShowSendQuoteDialog] = useState(false);
   
 
   useEffect(() => {
@@ -457,6 +459,121 @@ const RequestDetail = () => {
     }).catch(() => {
       toast.error('Failed to copy to clipboard');
     });
+  };
+
+  const handleQuoteSelection = (quoteId: string, selected: boolean) => {
+    const newSelected = new Set(selectedQuotes);
+    if (selected) {
+      newSelected.add(quoteId);
+    } else {
+      newSelected.delete(quoteId);
+    }
+    setSelectedQuotes(newSelected);
+  };
+
+  const handleSendSelectedQuotes = async () => {
+    if (selectedQuotes.size === 0) {
+      toast.error('Please select at least one quote to send');
+      return;
+    }
+
+    const selectedQuotesList = quotes.filter(q => selectedQuotes.has(q.id));
+    
+    let emailText = `Dear ${client?.first_name},\n\n`;
+    emailText += `I have prepared ${selectedQuotesList.length} flight quote${selectedQuotesList.length > 1 ? 's' : ''} for your trip from ${request.origin} to ${request.destination}:\n\n`;
+
+    selectedQuotesList.forEach((quote, index) => {
+      emailText += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      emailText += `✈️ OPTION ${index + 1}: ${quote.route}\n`;
+      emailText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+      // Flight segments
+      quote.segments.forEach((segment: any, segIndex: number) => {
+        emailText += `🛫 SEGMENT ${segIndex + 1}\n`;
+        emailText += `Flight: ${segment.flightNumber} (${segment.airlineCode})\n`;
+        emailText += `Route: ${segment.departureAirport} → ${segment.arrivalAirport}\n`;
+        emailText += `Class: ${segment.cabinClass}\n`;
+        emailText += `Departure: ${segment.departureTime}\n`;
+        emailText += `Arrival: ${segment.arrivalTime}${segment.arrivalDayOffset > 0 ? ` (+${segment.arrivalDayOffset} day)` : ''}\n\n`;
+      });
+
+      // Pricing
+      emailText += `💰 FARE DETAILS:\n`;
+      emailText += `Fare Type: ${quote.fare_type.replace('_', ' ').toUpperCase()}\n`;
+      if (quote.pseudo_city) {
+        emailText += `Pseudo City: ${quote.pseudo_city}\n`;
+      }
+      emailText += `Net Price: $${parseFloat(quote.net_price).toFixed(2)}\n`;
+      emailText += `Markup: $${parseFloat(quote.markup).toFixed(2)}\n`;
+      if (quote.ck_fee_enabled) {
+        emailText += `CK Fee (3.5%): $${parseFloat(quote.ck_fee_amount).toFixed(2)}\n`;
+      }
+      emailText += `TOTAL PRICE: $${parseFloat(quote.total_price).toFixed(2)}\n\n`;
+
+      // I-Format data if available in quote metadata
+      if (quote.notes) {
+        emailText += `📋 TECHNICAL DETAILS:\n${quote.notes}\n\n`;
+      }
+    });
+
+    emailText += `\nPlease review these options and let me know your preference. I'm here to answer any questions you may have.\n\n`;
+    emailText += `Best regards,\nYour Travel Agent`;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: client.email,
+          subject: `Flight Quote${selectedQuotesList.length > 1 ? 's' : ''}: ${request.origin} → ${request.destination}`,
+          html: emailText.replace(/\n/g, '<br>'),
+          requestId: requestId,
+          clientId: client.id
+        }
+      });
+
+      if (error) throw error;
+
+      await supabase.from('email_exchanges').insert({
+        user_id: user.id,
+        client_id: client.id,
+        request_id: requestId,
+        sender_email: user.email,
+        recipient_emails: [client.email],
+        subject: `Flight Quote${selectedQuotesList.length > 1 ? 's' : ''}: ${request.origin} → ${request.destination}`,
+        body: emailText,
+        direction: 'outgoing',
+        status: 'sent',
+        email_type: 'quote'
+      });
+
+      setSelectedQuotes(new Set());
+      setShowSendQuoteDialog(false);
+      toast.success(`Quote${selectedQuotesList.length > 1 ? 's' : ''} sent successfully!`);
+    } catch (error) {
+      console.error('Error sending quotes:', error);
+      toast.error('Failed to send quotes. Please ensure email service is configured.');
+    }
+  };
+
+  const generateIFormatDisplay = (quote: any) => {
+    if (!quote.segments || quote.segments.length === 0) return 'No I-format data available';
+    
+    let iFormatText = '';
+    quote.segments.forEach((segment: any, index: number) => {
+      const segNum = index + 1;
+      const airline = segment.airlineCode || 'XX';
+      const flightNum = segment.flightNumber?.replace(airline, '') || '000';
+      const bookingClass = segment.bookingClass || 'Y';
+      const date = segment.flightDate ? new Date(segment.flightDate).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }).replace(' ', '').toUpperCase() : '01JAN';
+      const dayOfWeek = segment.dayOfWeek || 'M';
+      const depAirport = segment.departureAirport || 'XXX';
+      const arrAirport = segment.arrivalAirport || 'XXX';
+      const depTime = segment.departureTime?.replace(/[^\d]/g, '').padStart(4, '0') + (segment.departureTime?.includes('PM') && !segment.departureTime?.includes('12:') ? 'P' : 'A') || '1200A';
+      const arrTime = segment.arrivalTime?.replace(/[^\d]/g, '').padStart(4, '0') + (segment.arrivalTime?.includes('PM') && !segment.arrivalTime?.includes('12:') ? 'P' : 'A') || '1200A';
+      
+      iFormatText += `${segNum} ${airline}${flightNum}${bookingClass} ${date} ${dayOfWeek} ${depAirport}${arrAirport}*SS1   ${depTime}  ${arrTime} /DC${airline} /E\n`;
+    });
+    
+    return iFormatText.trim();
   };
 
   if (loading) {
@@ -850,76 +967,161 @@ const RequestDetail = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {/* Quote Selection Controls */}
+                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="select-all"
+                            checked={selectedQuotes.size === quotes.filter(q => !q.is_hidden).length && quotes.filter(q => !q.is_hidden).length > 0}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedQuotes(new Set(quotes.filter(q => !q.is_hidden).map(q => q.id)));
+                              } else {
+                                setSelectedQuotes(new Set());
+                              }
+                            }}
+                          />
+                          <Label htmlFor="select-all" className="text-sm font-medium">
+                            Select All ({quotes.filter(q => !q.is_hidden).length})
+                          </Label>
+                        </div>
+                        {selectedQuotes.size > 0 && (
+                          <Badge variant="secondary">
+                            {selectedQuotes.size} selected
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        onClick={handleSendSelectedQuotes}
+                        disabled={selectedQuotes.size === 0}
+                        size="sm"
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Quote{selectedQuotes.size > 1 ? 's' : ''}
+                      </Button>
+                    </div>
+
                     {quotes.filter(q => !q.is_hidden).map((quote) => (
                       <div key={quote.id} className="p-4 border rounded-lg bg-muted/20">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-semibold flex items-center gap-2">
-                              <Badge variant="outline">{quote.route}</Badge>
-                              <Badge className="bg-green-100 text-green-800">
-                                ${parseFloat(quote.total_price).toFixed(2)}
-                              </Badge>
-                            </h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {quote.fare_type.replace('_', ' ').toUpperCase()}
-                              {quote.pseudo_city && ` • ${quote.pseudo_city}`}
-                            </p>
-                          </div>
-                          
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                onClick={() => handleSendQuoteToEmail(quote)}
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Add to Email
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
-                              >
-                                <EyeOff className="h-4 w-4 mr-2" />
-                                Hide Quote
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleDeleteQuote(quote.id)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Quote
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            checked={selectedQuotes.has(quote.id)}
+                            onCheckedChange={(checked) => handleQuoteSelection(quote.id, checked as boolean)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h4 className="font-semibold flex items-center gap-2">
+                                  <Badge variant="outline">{quote.route}</Badge>
+                                  <Badge className="bg-green-100 text-green-800">
+                                    ${parseFloat(quote.total_price).toFixed(2)}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {quote.fare_type.replace('_', ' ')}
+                                  </Badge>
+                                </h4>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {quote.total_segments} segment{quote.total_segments > 1 ? 's' : ''} • 
+                                  Created {new Date(quote.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}>
+                                      {quote.is_hidden ? (
+                                        <>
+                                          <Eye className="h-4 w-4 mr-2" />
+                                          Show Quote
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="h-4 w-4 mr-2" />
+                                          Hide Quote
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDeleteQuote(quote.id)} className="text-destructive">
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete Quote
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Segments:</span>
-                            <p className="font-medium">{quote.total_segments}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Net Price:</span>
-                            <p className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Markup:</span>
-                            <p className="font-medium">${parseFloat(quote.markup).toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Created:</span>
-                            <p className="font-medium">{new Date(quote.created_at).toLocaleDateString()}</p>
+                            {/* Flight Segments */}
+                            <div className="space-y-2 mb-4">
+                              {quote.segments?.map((segment: any, index: number) => (
+                                <div key={index} className="p-3 bg-background rounded border text-sm">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="secondary" className="text-xs">{segment.flightNumber}</Badge>
+                                      <span className="font-medium">
+                                        {segment.departureAirport} → {segment.arrivalAirport}
+                                      </span>
+                                    </div>
+                                    <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                      {segment.cabinClass}
+                                    </Badge>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                    <div>Departure: {segment.departureTime}</div>
+                                    <div>
+                                      Arrival: {segment.arrivalTime}
+                                      {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* I-Format Display */}
+                            <div className="mb-3">
+                              <Label className="text-xs font-medium text-muted-foreground mb-2 block">Sabre I-Format:</Label>
+                              <div className="p-2 bg-background rounded border font-mono text-xs text-muted-foreground whitespace-pre-wrap">
+                                {generateIFormatDisplay(quote)}
+                              </div>
+                            </div>
+
+                            {/* Pricing Details */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm border-t pt-3">
+                              <div>
+                                <span className="text-muted-foreground">Segments:</span>
+                                <p className="font-medium">{quote.total_segments}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Net Price:</span>
+                                <p className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Markup:</span>
+                                <p className="font-medium">${parseFloat(quote.markup).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Created:</span>
+                                <p className="font-medium">{new Date(quote.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Total:</span>
+                                <p className="font-medium text-green-600">${parseFloat(quote.total_price).toFixed(2)}</p>
+                              </div>
+                            </div>
+
+                            {quote.ck_fee_enabled && (
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                CK Fee (3.5%): ${parseFloat(quote.ck_fee_amount).toFixed(2)}
+                              </div>
+                            )}
                           </div>
                         </div>
-
-                        {quote.ck_fee_enabled && (
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            CK Fee (3.5%): ${parseFloat(quote.ck_fee_amount).toFixed(2)}
-                          </div>
-                        )}
                       </div>
                     ))}
 
@@ -1054,78 +1256,6 @@ const RequestDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Email Communication */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-primary" />
-                  Send Email Quote
-                </CardTitle>
-                <CardDescription>Compose and send travel quotes to your client</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>To</Label>
-                  <Input
-                    value={emailContent.recipient}
-                    onChange={(e) => setEmailContent(prev => ({ ...prev, recipient: e.target.value }))}
-                    placeholder="client@example.com"
-                  />
-                </div>
-                <div>
-                  <Label>Subject</Label>
-                  <Input
-                    value={emailContent.subject}
-                    onChange={(e) => setEmailContent(prev => ({ ...prev, subject: e.target.value }))}
-                    placeholder="Travel Quote"
-                  />
-                </div>
-                <div>
-                  <Label>Message</Label>
-                  <Textarea
-                    value={emailContent.body}
-                    onChange={(e) => setEmailContent(prev => ({ ...prev, body: e.target.value }))}
-                    placeholder="Compose your email..."
-                    rows={8}
-                    className="resize-none"
-                  />
-                </div>
-                
-                {/* Email Templates Quick Actions */}
-                <div className="border-t pt-4">
-                  <Label className="text-sm font-medium">Quick Templates</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setEmailContent(prev => ({
-                        ...prev,
-                        subject: `Travel Quote Request - ${request.origin} to ${request.destination}`,
-                        body: `Dear ${client?.first_name},\n\nThank you for your travel request from ${request.origin} to ${request.destination}. I'm researching the best options for your trip on ${formatDate(request.departure_date)}.\n\nI'll have quotes ready for you shortly.\n\nBest regards,\nYour Travel Agent`
-                      }))}
-                    >
-                      Initial Response
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setEmailContent(prev => ({
-                        ...prev,
-                        subject: `Flight Options - ${request.origin} to ${request.destination}`,
-                        body: `Dear ${client?.first_name},\n\nI've found several excellent flight options for your trip:\n\n[Flight segments will appear here when added from the parser above]\n\nPlease review these options and let me know your preference.\n\nBest regards,\nYour Travel Agent`
-                      }))}
-                    >
-                      Quote Template
-                    </Button>
-                  </div>
-                </div>
-                
-                <Button onClick={handleSendEmail} className="w-full">
-                  <Send className="mr-2 h-4 w-4" />
-                  Send Email Quote
-                </Button>
-              </CardContent>
-            </Card>
 
             {/* Request Timeline */}
             <Card className="border-0 shadow-lg">
