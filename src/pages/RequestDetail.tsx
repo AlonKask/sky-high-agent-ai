@@ -60,6 +60,7 @@ const RequestDetail = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editedRequest, setEditedRequest] = useState<any>({});
+  const [segments, setSegments] = useState<any[]>([]);
   
   // Email/SMS state
   const [emailContent, setEmailContent] = useState({
