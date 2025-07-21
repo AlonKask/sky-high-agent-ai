@@ -147,7 +147,7 @@ const Index = () => {
       default:
         return <EnhancedDashboard setCurrentView={setCurrentView} />;
     }
-export default Index;
+  };
 
   if (loading) {
     return (
