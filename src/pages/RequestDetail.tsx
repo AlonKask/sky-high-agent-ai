@@ -11,6 +11,12 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { 
   ArrowLeft, 
   Edit, 
   Save, 
@@ -33,7 +39,11 @@ import {
   AlertCircle,
   FileText,
   Settings,
-  ExternalLink
+  ExternalLink,
+  MoreVertical,
+  Eye,
+  EyeOff,
+  Pencil
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -70,11 +80,16 @@ const RequestDetail = () => {
     pseudoCity: '',
     totalPrice: 0
   });
+
+  // Quotes state
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [editingQuote, setEditingQuote] = useState<any>(null);
   
 
   useEffect(() => {
     if (requestId && user) {
       fetchRequestDetails();
+      fetchQuotes();
     }
   }, [requestId, user]);
 
@@ -116,6 +131,21 @@ const RequestDetail = () => {
     }
   };
 
+  const fetchQuotes = async () => {
+    try {
+      const { data: quotesData, error } = await supabase
+        .from('quotes')
+        .select('*')
+        .eq('request_id', requestId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setQuotes(quotesData || []);
+    } catch (error) {
+      console.error('Error fetching quotes:', error);
+    }
+  };
 
   const handleSendEmail = async () => {
     try {
@@ -241,7 +271,7 @@ const RequestDetail = () => {
     setQuoteData({ ...newData, totalPrice });
   };
 
-  const handleCreateQuote = () => {
+  const handleCreateQuote = async () => {
     if (!parsedFlights) {
       toast.error('Please parse flight data first');
       return;
@@ -252,11 +282,92 @@ const RequestDetail = () => {
     const ckFee = quoteData.ckFeeEnabled ? netPrice * 0.035 : 0;
     const totalPrice = netPrice + markup + ckFee;
 
-    let emailText = `\n\n✈️ FLIGHT QUOTE - ${parsedFlights.route}\n`;
+    try {
+      const { data, error } = await supabase
+        .from('quotes')
+        .insert({
+          user_id: user.id,
+          request_id: requestId,
+          client_id: client.id,
+          route: parsedFlights.route,
+          segments: parsedFlights.segments as any,
+          total_segments: parsedFlights.totalSegments,
+          fare_type: quoteData.fareType,
+          pseudo_city: quoteData.pseudoCity || null,
+          net_price: netPrice,
+          markup: markup,
+          ck_fee_enabled: quoteData.ckFeeEnabled,
+          ck_fee_amount: ckFee,
+          total_price: totalPrice
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setQuotes(prev => [data, ...prev]);
+      setShowQuoteDialog(false);
+      setSabreInput("");
+      setParsedFlights(null);
+      setQuoteData({
+        fareType: 'revenue_published',
+        netPrice: '',
+        markup: '',
+        ckFeeEnabled: false,
+        pseudoCity: '',
+        totalPrice: 0
+      });
+
+      toast.success('Quote saved successfully');
+    } catch (error) {
+      console.error('Error saving quote:', error);
+      toast.error('Failed to save quote');
+    }
+  };
+
+  const handleDeleteQuote = async (quoteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('quotes')
+        .delete()
+        .eq('id', quoteId);
+
+      if (error) throw error;
+
+      setQuotes(prev => prev.filter(q => q.id !== quoteId));
+      toast.success('Quote deleted successfully');
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      toast.error('Failed to delete quote');
+    }
+  };
+
+  const handleToggleQuoteVisibility = async (quoteId: string, isHidden: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('quotes')
+        .update({ is_hidden: !isHidden })
+        .eq('id', quoteId);
+
+      if (error) throw error;
+
+      setQuotes(prev => prev.map(q => 
+        q.id === quoteId ? { ...q, is_hidden: !isHidden } : q
+      ));
+      
+      toast.success(`Quote ${!isHidden ? 'hidden' : 'shown'} successfully`);
+    } catch (error) {
+      console.error('Error updating quote visibility:', error);
+      toast.error('Failed to update quote visibility');
+    }
+  };
+
+  const handleSendQuoteToEmail = (quote: any) => {
+    let emailText = `\n\n✈️ FLIGHT QUOTE - ${quote.route}\n`;
     emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
     // Flight details
-    parsedFlights.segments.forEach((segment, index) => {
+    quote.segments.forEach((segment: any, index: number) => {
       emailText += `🛫 SEGMENT ${index + 1}\n`;
       emailText += `Flight: ${segment.flightNumber} (${segment.airlineCode})\n`;
       emailText += `Route: ${segment.departureAirport} → ${segment.arrivalAirport}\n`;
@@ -267,16 +378,16 @@ const RequestDetail = () => {
 
     // Fare information
     emailText += `💰 FARE DETAILS:\n`;
-    emailText += `Fare Type: ${quoteData.fareType.replace('_', ' ').toUpperCase()}\n`;
-    if (quoteData.pseudoCity) {
-      emailText += `Pseudo City: ${quoteData.pseudoCity}\n`;
+    emailText += `Fare Type: ${quote.fare_type.replace('_', ' ').toUpperCase()}\n`;
+    if (quote.pseudo_city) {
+      emailText += `Pseudo City: ${quote.pseudo_city}\n`;
     }
-    emailText += `Net Price: $${netPrice.toFixed(2)}\n`;
-    emailText += `Markup: $${markup.toFixed(2)}\n`;
-    if (quoteData.ckFeeEnabled) {
-      emailText += `CK Fee (3.5%): $${ckFee.toFixed(2)}\n`;
+    emailText += `Net Price: $${parseFloat(quote.net_price).toFixed(2)}\n`;
+    emailText += `Markup: $${parseFloat(quote.markup).toFixed(2)}\n`;
+    if (quote.ck_fee_enabled) {
+      emailText += `CK Fee (3.5%): $${parseFloat(quote.ck_fee_amount).toFixed(2)}\n`;
     }
-    emailText += `TOTAL PRICE: $${totalPrice.toFixed(2)}\n\n`;
+    emailText += `TOTAL PRICE: $${parseFloat(quote.total_price).toFixed(2)}\n\n`;
     
     emailText += "Valid until: ____\n\n";
     emailText += "Ready to book? Reply to confirm!\n";
@@ -287,19 +398,7 @@ const RequestDetail = () => {
       body: prev.body + emailText
     }));
 
-    setShowQuoteDialog(false);
-    setSabreInput("");
-    setParsedFlights(null);
-    setQuoteData({
-      fareType: 'revenue_published',
-      netPrice: '',
-      markup: '',
-      ckFeeEnabled: false,
-      pseudoCity: '',
-      totalPrice: 0
-    });
-
-    toast.success('Quote added to email successfully');
+    toast.success('Quote added to email');
   };
 
   const addParsedFlightToEmail = () => {
@@ -718,8 +817,8 @@ const RequestDetail = () => {
                           onClick={handleCreateQuote}
                           disabled={!quoteData.netPrice}
                         >
-                          <Send className="h-4 w-4 mr-2" />
-                          Add Quote to Email
+                          <Save className="h-4 w-4 mr-2" />
+                          Save Quote
                         </Button>
                       </div>
                     </>
@@ -727,6 +826,120 @@ const RequestDetail = () => {
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* Saved Quotes Section */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Flight Quotes ({quotes.filter(q => !q.is_hidden).length})
+                </CardTitle>
+                <CardDescription>
+                  Saved flight quotes for this request
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {quotes.length === 0 ? (
+                  <div className="p-8 text-center border border-dashed border-muted-foreground/25 rounded-lg">
+                    <p className="text-muted-foreground">No quotes created yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use the "Add Quote" button above to create your first quote
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {quotes.filter(q => !q.is_hidden).map((quote) => (
+                      <div key={quote.id} className="p-4 border rounded-lg bg-muted/20">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold flex items-center gap-2">
+                              <Badge variant="outline">{quote.route}</Badge>
+                              <Badge className="bg-green-100 text-green-800">
+                                ${parseFloat(quote.total_price).toFixed(2)}
+                              </Badge>
+                            </h4>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {quote.fare_type.replace('_', ' ').toUpperCase()}
+                              {quote.pseudo_city && ` • ${quote.pseudo_city}`}
+                            </p>
+                          </div>
+                          
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleSendQuoteToEmail(quote)}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Add to Email
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
+                              >
+                                <EyeOff className="h-4 w-4 mr-2" />
+                                Hide Quote
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteQuote(quote.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Quote
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Segments:</span>
+                            <p className="font-medium">{quote.total_segments}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Net Price:</span>
+                            <p className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Markup:</span>
+                            <p className="font-medium">${parseFloat(quote.markup).toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Created:</span>
+                            <p className="font-medium">{new Date(quote.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+
+                        {quote.ck_fee_enabled && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            CK Fee (3.5%): ${parseFloat(quote.ck_fee_amount).toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {quotes.filter(q => q.is_hidden).length > 0 && (
+                      <div className="pt-4 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Toggle hidden quotes visibility
+                            setQuotes(prev => prev.map(q => ({ ...q, showHidden: !q.showHidden })));
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Show Hidden Quotes ({quotes.filter(q => q.is_hidden).length})
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Quick Actions */}
             <Card className="border-0 shadow-lg">

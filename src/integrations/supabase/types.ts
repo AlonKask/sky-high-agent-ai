@@ -302,6 +302,75 @@ export type Database = {
         }
         Relationships: []
       }
+      quotes: {
+        Row: {
+          ck_fee_amount: number
+          ck_fee_enabled: boolean
+          client_id: string
+          created_at: string
+          fare_type: string
+          id: string
+          is_hidden: boolean
+          markup: number
+          net_price: number
+          notes: string | null
+          pseudo_city: string | null
+          request_id: string
+          route: string
+          segments: Json
+          status: string
+          total_price: number
+          total_segments: number
+          updated_at: string
+          user_id: string
+          valid_until: string | null
+        }
+        Insert: {
+          ck_fee_amount?: number
+          ck_fee_enabled?: boolean
+          client_id: string
+          created_at?: string
+          fare_type: string
+          id?: string
+          is_hidden?: boolean
+          markup?: number
+          net_price: number
+          notes?: string | null
+          pseudo_city?: string | null
+          request_id: string
+          route: string
+          segments: Json
+          status?: string
+          total_price: number
+          total_segments: number
+          updated_at?: string
+          user_id: string
+          valid_until?: string | null
+        }
+        Update: {
+          ck_fee_amount?: number
+          ck_fee_enabled?: boolean
+          client_id?: string
+          created_at?: string
+          fare_type?: string
+          id?: string
+          is_hidden?: boolean
+          markup?: number
+          net_price?: number
+          notes?: string | null
+          pseudo_city?: string | null
+          request_id?: string
+          route?: string
+          segments?: Json
+          status?: string
+          total_price?: number
+          total_segments?: number
+          updated_at?: string
+          user_id?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       requests: {
         Row: {
           budget_range: string | null
