@@ -1,7 +1,7 @@
 // Configuration for external services
 export const config = {
   google: {
-    clientId: "871203174190-4ek66omgn4umket9po4qvd54edd3sdb0.apps.googleusercontent.com",
+    clientId: "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com",
   },
   supabase: {
     url: "https://ekrwjfdypqzequovmvjn.supabase.co",
