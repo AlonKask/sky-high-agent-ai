@@ -8,25 +8,25 @@ const BookingDetail = () => {
   const { bookingId } = useParams();
   const navigate = useNavigate();
 
-  // Mock booking data - in real app this would come from API/database
-  const booking = {
-    id: bookingId,
-    destination: "Paris",
-    date: "2024-01-15",
-    price: 8500,
-    type: "business",
-    itinerary: [
-      { from: "New York JFK", to: "Paris CDG", date: "2024-01-15", time: "22:30", flight: "AF007" },
-      { from: "Paris CDG", to: "New York JFK", date: "2024-01-22", time: "14:15", flight: "AF006" }
-    ],
-    passengers: [
-      { name: "John Smith", type: "adult", seat: "2A" }
-    ],
-    productType: "published",
-    requestSummary: "Client requested business class seats with vegetarian meals and aisle preference.",
-    bookingDate: "2023-12-20",
-    status: "completed"
-  };
+  // TODO: Fetch booking data from API/database
+  const booking = null;
+
+  if (!booking) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Booking Details</h1>
+            <p className="text-muted-foreground">No booking data available for {bookingId}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">

@@ -132,23 +132,9 @@ const RequestDetail = () => {
   };
 
   const generateSabreOptions = () => {
-    const mockOptions = [
-      {
-        id: 1,
-        airline: "American Airlines",
-        flightNumber: "AA1234",
-        departure: { time: "08:00", airport: request?.origin, date: request?.departure_date },
-        arrival: { time: "14:30", airport: request?.destination, date: request?.departure_date },
-        price: 1200,
-        class: request?.class_preference || "Business",
-        duration: "6h 30m",
-        stops: "Nonstop",
-        aircraft: "Boeing 777"
-      }
-    ];
-    
-    setSabreOptions(mockOptions);
-    toast.success('Flight options loaded from Sabre GDS');
+    // TODO: Implement actual Sabre GDS API integration
+    setSabreOptions([]);
+    toast.success('Connected to Sabre GDS - implement actual API call');
   };
 
   const addOptionToEmail = (option: any) => {

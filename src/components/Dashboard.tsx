@@ -318,8 +318,8 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
                   <CardTitle>Active Requests</CardTitle>
                   <CardDescription>Current client requests requiring attention</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => navigate("/request/REQ-001")}>
-                  View Sample
+                <Button variant="outline" size="sm" disabled>
+                  No Requests
                   <ExternalLink className="ml-2 h-4 w-4" />
                 </Button>
               </div>
