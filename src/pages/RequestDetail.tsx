@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft, 
   Edit, 
@@ -59,6 +61,15 @@ const RequestDetail = () => {
   // Sabre parser state
   const [sabreInput, setSabreInput] = useState("");
   const [parsedFlights, setParsedFlights] = useState<ParsedItinerary | null>(null);
+  const [showQuoteDialog, setShowQuoteDialog] = useState(false);
+  const [quoteData, setQuoteData] = useState({
+    fareType: 'revenue_published',
+    netPrice: '',
+    markup: '',
+    ckFeeEnabled: false,
+    pseudoCity: '',
+    totalPrice: 0
+  });
   
 
   useEffect(() => {
@@ -215,6 +226,80 @@ const RequestDetail = () => {
       console.error('Parse error:', error);
       toast.error('Error parsing Sabre data. Please check the format.');
     }
+  };
+
+  const calculateTotalPrice = () => {
+    const netPrice = parseFloat(quoteData.netPrice) || 0;
+    const markup = parseFloat(quoteData.markup) || 0;
+    const ckFee = quoteData.ckFeeEnabled ? netPrice * 0.035 : 0;
+    return netPrice + markup + ckFee;
+  };
+
+  const handleQuoteDataChange = (field: string, value: any) => {
+    const newData = { ...quoteData, [field]: value };
+    const totalPrice = calculateTotalPrice();
+    setQuoteData({ ...newData, totalPrice });
+  };
+
+  const handleCreateQuote = () => {
+    if (!parsedFlights) {
+      toast.error('Please parse flight data first');
+      return;
+    }
+
+    const netPrice = parseFloat(quoteData.netPrice) || 0;
+    const markup = parseFloat(quoteData.markup) || 0;
+    const ckFee = quoteData.ckFeeEnabled ? netPrice * 0.035 : 0;
+    const totalPrice = netPrice + markup + ckFee;
+
+    let emailText = `\n\n✈️ FLIGHT QUOTE - ${parsedFlights.route}\n`;
+    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+    // Flight details
+    parsedFlights.segments.forEach((segment, index) => {
+      emailText += `🛫 SEGMENT ${index + 1}\n`;
+      emailText += `Flight: ${segment.flightNumber} (${segment.airlineCode})\n`;
+      emailText += `Route: ${segment.departureAirport} → ${segment.arrivalAirport}\n`;
+      emailText += `Class: ${segment.cabinClass}\n`;
+      emailText += `Departure: ${segment.departureTime}\n`;
+      emailText += `Arrival: ${segment.arrivalTime}${segment.arrivalDayOffset > 0 ? ` (+${segment.arrivalDayOffset} day)` : ''}\n\n`;
+    });
+
+    // Fare information
+    emailText += `💰 FARE DETAILS:\n`;
+    emailText += `Fare Type: ${quoteData.fareType.replace('_', ' ').toUpperCase()}\n`;
+    if (quoteData.pseudoCity) {
+      emailText += `Pseudo City: ${quoteData.pseudoCity}\n`;
+    }
+    emailText += `Net Price: $${netPrice.toFixed(2)}\n`;
+    emailText += `Markup: $${markup.toFixed(2)}\n`;
+    if (quoteData.ckFeeEnabled) {
+      emailText += `CK Fee (3.5%): $${ckFee.toFixed(2)}\n`;
+    }
+    emailText += `TOTAL PRICE: $${totalPrice.toFixed(2)}\n\n`;
+    
+    emailText += "Valid until: ____\n\n";
+    emailText += "Ready to book? Reply to confirm!\n";
+    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+
+    setEmailContent(prev => ({
+      ...prev,
+      body: prev.body + emailText
+    }));
+
+    setShowQuoteDialog(false);
+    setSabreInput("");
+    setParsedFlights(null);
+    setQuoteData({
+      fareType: 'revenue_published',
+      netPrice: '',
+      markup: '',
+      ckFeeEnabled: false,
+      pseudoCity: '',
+      totalPrice: 0
+    });
+
+    toast.success('Quote added to email successfully');
   };
 
   const addParsedFlightToEmail = () => {
@@ -435,103 +520,213 @@ const RequestDetail = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <Label>Sabre I-Format Input</Label>
-                  <Textarea
-                    placeholder="Paste Sabre *I or VI command output here..."
-                    className="h-32 font-mono text-sm"
-                    value={sabreInput}
-                    onChange={(e) => setSabreInput(e.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <Button onClick={handleParseSabre} disabled={!sabreInput.trim()}>
-                      <Plane className="h-4 w-4 mr-2" />
-                      Parse Flight Data
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setSabreInput("")}
-                      disabled={!sabreInput.trim()}
-                    >
-                      Clear
-                    </Button>
-                  </div>
+                <div className="flex items-center justify-center p-8">
+                  <Button 
+                    onClick={() => setShowQuoteDialog(true)}
+                    size="lg"
+                    className="flex items-center gap-3"
+                  >
+                    <Plus className="h-5 w-5" />
+                    Add Quote
+                  </Button>
                 </div>
-
-                {parsedFlights && (
-                  <div className="space-y-4">
-                    <Separator />
-                    <div className="space-y-3">
-                      <Label>Parsed Flight Information</Label>
-                      <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{parsedFlights.route}</h4>
-                          <Badge variant="outline">
-                            {parsedFlights.totalSegments} segment{parsedFlights.totalSegments > 1 ? 's' : ''}
-                          </Badge>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {parsedFlights.segments.map((segment, index) => (
-                            <div key={index} className="p-3 bg-background rounded border">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary">{segment.flightNumber}</Badge>
-                                  <span className="text-sm font-medium">
-                                    {segment.departureAirport} → {segment.arrivalAirport}
-                                  </span>
-                                </div>
-                                <Badge className="bg-blue-100 text-blue-800">
-                                  {segment.cabinClass}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                                <div>
-                                  <span className="font-medium">Departure:</span> {segment.departureTime}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Arrival:</span> {segment.arrivalTime}
-                                  {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex gap-2 pt-2">
-                          <Button 
-                            onClick={() => addParsedFlightToEmail()}
-                            className="flex-1"
-                          >
-                            <Send className="h-4 w-4 mr-2" />
-                            Add to Email
-                          </Button>
-                          <Button 
-                            variant="outline"
-                            onClick={() => copyFlightDetails()}
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy Details
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <Label>Previous Quotes</Label>
-                  <div className="p-4 border border-dashed border-muted-foreground/25 rounded-lg text-center">
-                    <p className="text-sm text-muted-foreground">No quotes created yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Parsed flight quotes will appear here for reference
-                    </p>
-                  </div>
+                
+                <div className="text-center text-sm text-muted-foreground">
+                  Click to open the Sabre parser and create a detailed flight quote
                 </div>
               </CardContent>
             </Card>
+
+            {/* Quote Dialog */}
+            <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Create Flight Quote
+                  </DialogTitle>
+                  <DialogDescription>
+                    Parse Sabre I-format data and configure pricing details
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6">
+                  {/* Sabre Input Section */}
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Sabre I-Format Input</Label>
+                    <Textarea
+                      placeholder="Paste Sabre *I or VI command output here..."
+                      className="h-32 font-mono text-sm"
+                      value={sabreInput}
+                      onChange={(e) => setSabreInput(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button onClick={handleParseSabre} disabled={!sabreInput.trim()}>
+                        <Plane className="h-4 w-4 mr-2" />
+                        Parse Flight Data
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSabreInput("")}
+                        disabled={!sabreInput.trim()}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Parsed Flight Information */}
+                  {parsedFlights && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <Label className="text-base font-medium">Parsed Flight Information</Label>
+                        <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">{parsedFlights.route}</h4>
+                            <Badge variant="outline">
+                              {parsedFlights.totalSegments} segment{parsedFlights.totalSegments > 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {parsedFlights.segments.map((segment, index) => (
+                              <div key={index} className="p-3 bg-background rounded border">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="secondary">{segment.flightNumber}</Badge>
+                                    <span className="text-sm font-medium">
+                                      {segment.departureAirport} → {segment.arrivalAirport}
+                                    </span>
+                                  </div>
+                                  <Badge className="bg-blue-100 text-blue-800">
+                                    {segment.cabinClass}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                                  <div>
+                                    <span className="font-medium">Departure:</span> {segment.departureTime}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Arrival:</span> {segment.arrivalTime}
+                                    {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      {/* Fare Configuration */}
+                      <div className="space-y-4">
+                        <Label className="text-base font-medium">Fare Configuration</Label>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Fare Type */}
+                          <div className="space-y-2">
+                            <Label>Fare Type</Label>
+                            <Select 
+                              value={quoteData.fareType} 
+                              onValueChange={(value) => handleQuoteDataChange('fareType', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select fare type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="revenue_published">Revenue - Published</SelectItem>
+                                <SelectItem value="revenue_private">Revenue - Private</SelectItem>
+                                <SelectItem value="tourfare">Tour Fare</SelectItem>
+                                <SelectItem value="award">Award</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Pseudo City - shown for specific fare types */}
+                          {(quoteData.fareType === 'revenue_private' || quoteData.fareType === 'tourfare') && (
+                            <div className="space-y-2">
+                              <Label>Pseudo City</Label>
+                              <Input
+                                placeholder="Enter pseudo city"
+                                value={quoteData.pseudoCity}
+                                onChange={(e) => handleQuoteDataChange('pseudoCity', e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Pricing Details */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label>Net Price ($)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={quoteData.netPrice}
+                              onChange={(e) => handleQuoteDataChange('netPrice', e.target.value)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Markup ($)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={quoteData.markup}
+                              onChange={(e) => handleQuoteDataChange('markup', e.target.value)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Total Price ($)</Label>
+                            <Input
+                              value={calculateTotalPrice().toFixed(2)}
+                              readOnly
+                              className="bg-muted font-medium"
+                            />
+                          </div>
+                        </div>
+
+                        {/* CK Fee Checkbox */}
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="ckFee"
+                            checked={quoteData.ckFeeEnabled}
+                            onCheckedChange={(checked) => handleQuoteDataChange('ckFeeEnabled', checked)}
+                          />
+                          <Label htmlFor="ckFee" className="text-sm">
+                            Add CK Fee (3.5% of net price): ${quoteData.ckFeeEnabled ? ((parseFloat(quoteData.netPrice) || 0) * 0.035).toFixed(2) : '0.00'}
+                          </Label>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-3 justify-end">
+                        <Button 
+                          variant="outline"
+                          onClick={() => setShowQuoteDialog(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleCreateQuote}
+                          disabled={!quoteData.netPrice}
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Add Quote to Email
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Quick Actions */}
             <Card className="border-0 shadow-lg">
