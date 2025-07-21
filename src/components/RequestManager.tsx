@@ -538,7 +538,7 @@ const RequestManager = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm text-muted-foreground">Adults (12+)</Label>
-                    <Select value={formData.adults.toString()} onValueChange={(value) => handleInputChange('adults', parseInt(value))}>
+                    <Select value={(formData.adults || 1).toString()} onValueChange={(value) => handleInputChange('adults', parseInt(value))}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -552,7 +552,7 @@ const RequestManager = () => {
                   
                   <div className="space-y-2">
                     <Label className="text-sm text-muted-foreground">Children (2-11)</Label>
-                    <Select value={formData.children.toString()} onValueChange={(value) => handleInputChange('children', parseInt(value))}>
+                    <Select value={(formData.children || 0).toString()} onValueChange={(value) => handleInputChange('children', parseInt(value))}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -566,7 +566,7 @@ const RequestManager = () => {
                   
                   <div className="space-y-2">
                     <Label className="text-sm text-muted-foreground">Infants (0-2)</Label>
-                    <Select value={formData.infants.toString()} onValueChange={(value) => handleInputChange('infants', parseInt(value))}>
+                    <Select value={(formData.infants || 0).toString()} onValueChange={(value) => handleInputChange('infants', parseInt(value))}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
