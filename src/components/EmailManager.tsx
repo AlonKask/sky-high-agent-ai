@@ -12,6 +12,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { config } from "@/lib/config";
+
+// Extend Window interface for Google APIs
+declare global {
+  interface Window {
+    google: any;
+    gapi: any;
+  }
+}
 
 interface EmailExchange {
   id: string;
@@ -111,12 +120,89 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
       return;
     }
 
-    // For now, show a message that Gmail integration requires OAuth setup
-    toast({
-      title: "Gmail Integration",
-      description: "Gmail OAuth setup required. Contact administrator for configuration.",
-      variant: "default"
+    try {
+      setIsLoading(true);
+      
+      // Initialize Google Auth
+      if (!window.google) {
+        // Load Google API
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.onload = initializeGoogleAuth;
+        document.head.appendChild(script);
+      } else {
+        initializeGoogleAuth();
+      }
+    } catch (error) {
+      console.error('Error syncing with Gmail:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync with Gmail",
+        variant: "destructive"
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const initializeGoogleAuth = () => {
+    window.gapi.load('auth2', () => {
+      const authInstance = window.gapi.auth2.init({
+        client_id: config.google.clientId
+      });
+
+      authInstance.signIn().then((user: any) => {
+        const accessToken = user.getAuthResponse().access_token;
+        fetchGmailEmails(accessToken);
+      }).catch((error: any) => {
+        console.error('Google Auth error:', error);
+        toast({
+          title: "Authentication Error",
+          description: "Failed to authenticate with Google. Please check your Google OAuth setup.",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+      });
     });
+  };
+
+  const fetchGmailEmails = async (accessToken: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-gmail-emails', {
+        body: {
+          clientEmail,
+          accessToken,
+          maxResults: 50
+        }
+      });
+
+      if (error) {
+        console.error('Error fetching Gmail emails:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch emails from Gmail",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: `Synced ${data.emailCount} emails from Gmail`,
+      });
+
+      // Refresh the email list
+      fetchEmails();
+
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync Gmail emails",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const sendEmail = async () => {
