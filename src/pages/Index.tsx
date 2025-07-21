@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import Navigation from "@/components/Navigation";
 import EnhancedDashboard from "@/components/EnhancedDashboard";
 import ClientManager from "@/components/ClientManager";
 import RequestManager from "@/components/RequestManager";
@@ -162,32 +161,27 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        <Navigation currentView={currentView} onViewChange={setCurrentView} />
-        <main className="flex-1 p-6">
-          {/* Simple Header */}
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Welcome back</p>
-              <p className="font-medium">{user.email}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setCurrentView("notifications")}>
-                <Bell className="h-4 w-4" />
-                <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 text-xs">
-                  3
-                </Badge>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-          {renderCurrentView()}
-        </main>
+    <div className="min-h-screen bg-background p-6">
+      {/* Simple Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <p className="text-sm text-muted-foreground">Welcome back</p>
+          <p className="font-medium">{user.email}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setCurrentView("notifications")}>
+            <Bell className="h-4 w-4" />
+            <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 text-xs">
+              3
+            </Badge>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={signOut}>
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
       </div>
+      {renderCurrentView()}
     </div>
   );
 };
