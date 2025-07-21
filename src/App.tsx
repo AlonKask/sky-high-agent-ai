@@ -10,6 +10,7 @@ import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import BookingDetail from "./pages/BookingDetail";
 import RequestDetail from "./pages/RequestDetail";
+import Requests from "./pages/Requests";
 import ClientProfile from "./pages/ClientProfile";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
+            <Route path="/requests" element={<Requests />} />
             <Route path="/analytics/:type" element={<Analytics />} />
             <Route path="/booking/:bookingId" element={<BookingDetail />} />
             <Route path="/request/:requestId" element={<RequestDetail />} />
