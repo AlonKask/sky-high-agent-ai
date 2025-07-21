@@ -1,4 +1,3 @@
-
 export interface FlightSegment {
   segmentNumber: number;
   flightNumber: string;
@@ -265,139 +264,271 @@ export class SabreParser {
   private static mapBookingClass(bookingClass: string, airlineCode?: string): string {
     console.log(`Mapping booking class: "${bookingClass}" for airline: "${airlineCode}"`);
     
-    // Airline-specific mapping with accurate cabin class information
+    // Comprehensive airline-specific RBD mapping for ALL major airlines and alliances
     const airlineSpecificMappings: { [key: string]: { [key: string]: string } } = {
-      // LUFTHANSA GROUP (LH, OS, LX, SN, 4Y)
-      'LH': {
+      // STAR ALLIANCE - LUFTHANSA GROUP
+      'LH': { // Lufthansa
         'F': 'First Class', 'A': 'First Class',
         'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'Z': 'Business Class', 'P': 'Business Class', 'I': 'Business Class',
         'W': 'Premium Economy', 'E': 'Premium Economy',
         'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy'
       },
-      'OS': { // Austrian Airlines (same as LH)
+      'OS': { // Austrian Airlines
         'F': 'First Class', 'A': 'First Class',
         'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'Z': 'Business Class', 'P': 'Business Class', 'I': 'Business Class',
         'W': 'Premium Economy', 'E': 'Premium Economy',
         'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy'
       },
-      'LX': { // Swiss (same as LH group)
+      'LX': { // Swiss International Air Lines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'Z': 'Business Class', 'P': 'Business Class', 'I': 'Business Class',
+        'W': 'Premium Economy', 'E': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy'
+      },
+      'SN': { // Brussels Airlines
         'F': 'First Class', 'A': 'First Class',
         'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'Z': 'Business Class', 'P': 'Business Class', 'I': 'Business Class',
         'W': 'Premium Economy', 'E': 'Premium Economy',
         'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy'
       },
       
-      // DELTA AIR LINES
-      'DL': {
-        'F': 'Delta One', 'A': 'Delta One',
-        'J': 'Delta One', 'C': 'Delta One', 'D': 'Delta One', 'I': 'Delta One', 'Z': 'Delta One',
-        'P': 'Premium Select', 'G': 'Premium Select',
-        'W': 'Comfort+', 'S': 'Comfort+',
-        'Y': 'Main Cabin', 'B': 'Main Cabin', 'M': 'Main Cabin', 'H': 'Main Cabin', 'Q': 'Main Cabin', 'K': 'Main Cabin', 'L': 'Main Cabin', 'U': 'Main Cabin', 'T': 'Main Cabin', 'X': 'Main Cabin', 'V': 'Main Cabin',
-        'E': 'Basic Economy'
-      },
-      
-      // AMERICAN AIRLINES
-      'AA': {
-        'F': 'Flagship First', 'A': 'Flagship First',
-        'J': 'Flagship Business', 'C': 'Flagship Business', 'D': 'Flagship Business', 'R': 'Flagship Business', 'I': 'Flagship Business',
-        'W': 'Premium Economy', 'P': 'Premium Economy', 'Z': 'Premium Economy',
-        'Y': 'Main Cabin', 'H': 'Main Cabin', 'K': 'Main Cabin', 'M': 'Main Cabin', 'L': 'Main Cabin', 'V': 'Main Cabin', 'S': 'Main Cabin', 'N': 'Main Cabin', 'Q': 'Main Cabin', 'O': 'Main Cabin', 'G': 'Main Cabin',
-        'B': 'Basic Economy'
-      },
-      
-      // UNITED AIRLINES
-      'UA': {
-        'F': 'United Polaris First', 'A': 'United Polaris First',
-        'J': 'United Polaris Business', 'C': 'United Polaris Business', 'D': 'United Polaris Business', 'Z': 'United Polaris Business', 'P': 'United Polaris Business', 'I': 'United Polaris Business',
-        'W': 'Premium Plus', 'S': 'Premium Plus', 'E': 'Premium Plus',
+      // STAR ALLIANCE - OTHER MAJOR CARRIERS
+      'UA': { // United Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'Z': 'Business Class', 'P': 'Business Class', 'I': 'Business Class',
+        'W': 'Premium Economy', 'S': 'Premium Economy', 'E': 'Premium Economy',
         'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'L': 'Economy', 'K': 'Economy', 'G': 'Economy', 'T': 'Economy', 'X': 'Economy',
         'N': 'Basic Economy'
       },
-      
-      // BRITISH AIRWAYS
-      'BA': {
+      'AC': { // Air Canada
         'F': 'First Class', 'A': 'First Class',
-        'J': 'Club World', 'C': 'Club World', 'D': 'Club World', 'I': 'Club World', 'R': 'Club World',
-        'W': 'World Traveller Plus', 'E': 'World Traveller Plus', 'T': 'World Traveller Plus',
-        'Y': 'World Traveller', 'B': 'World Traveller', 'H': 'World Traveller', 'K': 'World Traveller', 'L': 'World Traveller', 'M': 'World Traveller', 'N': 'World Traveller', 'Q': 'World Traveller', 'S': 'World Traveller', 'V': 'World Traveller', 'G': 'World Traveller'
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'Z': 'Business Class', 'P': 'Business Class', 'I': 'Business Class',
+        'W': 'Premium Economy', 'S': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'L': 'Economy', 'K': 'Economy', 'G': 'Economy', 'T': 'Economy', 'N': 'Economy', 'R': 'Economy', 'E': 'Economy'
+      },
+      'TK': { // Turkish Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class', 'R': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'SQ': { // Singapore Airlines
+        'F': 'First Class', 'A': 'First Class', 'R': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'TG': { // Thai Airways
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'NH': { // All Nippon Airways
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'OZ': { // Asiana Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'SK': { // SAS Scandinavian Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'CA': { // Air China
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
       },
       
-      // AIR FRANCE
-      'AF': {
-        'F': 'La Première', 'A': 'La Première',
-        'J': 'Business', 'C': 'Business', 'D': 'Business', 'I': 'Business', 'Z': 'Business',
+      // SKYTEAM ALLIANCE
+      'DL': { // Delta Air Lines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'P': 'Premium Economy', 'G': 'Premium Economy',
+        'W': 'Comfort+', 'S': 'Comfort+',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'K': 'Economy', 'L': 'Economy', 'U': 'Economy', 'T': 'Economy', 'X': 'Economy', 'V': 'Economy',
+        'E': 'Basic Economy'
+      },
+      'AF': { // Air France
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
         'W': 'Premium Economy', 'P': 'Premium Economy', 'E': 'Premium Economy',
         'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy'
       },
-      
-      // KLM
-      'KL': {
-        'F': 'World Business Class', 'A': 'World Business Class',
-        'J': 'World Business Class', 'C': 'World Business Class', 'D': 'World Business Class', 'I': 'World Business Class', 'Z': 'World Business Class',
-        'W': 'Economy Comfort', 'E': 'Economy Comfort',
+      'KL': { // KLM Royal Dutch Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'E': 'Premium Economy',
         'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy'
       },
-      
-      // TURKISH AIRLINES
-      'TK': {
-        'F': 'Turkish Airlines Business', 'A': 'Turkish Airlines Business',
-        'J': 'Turkish Airlines Business', 'C': 'Turkish Airlines Business', 'D': 'Turkish Airlines Business', 'I': 'Turkish Airlines Business', 'Z': 'Turkish Airlines Business',
-        'W': 'Economy Comfort', 'P': 'Economy Comfort',
-        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
-      },
-      
-      // EMIRATES
-      'EK': {
-        'F': 'First Class', 'A': 'First Class',
-        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
-        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy', 'W': 'Economy'
-      },
-      
-      // QATAR AIRWAYS
-      'QR': {
-        'F': 'Qsuite First', 'A': 'Qsuite First',
-        'J': 'Qsuite Business', 'C': 'Qsuite Business', 'D': 'Qsuite Business', 'I': 'Qsuite Business', 'Z': 'Qsuite Business',
-        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy', 'W': 'Economy'
-      },
-      
-      // ETIHAD AIRWAYS
-      'EY': {
-        'F': 'First Class', 'A': 'First Class',
-        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
-        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy', 'W': 'Economy'
-      },
-      
-      // SINGAPORE AIRLINES
-      'SQ': {
-        'F': 'Singapore Suites', 'A': 'First Class',
-        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
-        'W': 'Premium Economy', 'P': 'Premium Economy',
-        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
-      },
-      
-      // CATHAY PACIFIC
-      'CX': {
+      'AZ': { // Alitalia / ITA Airways
         'F': 'First Class', 'A': 'First Class',
         'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
         'W': 'Premium Economy', 'P': 'Premium Economy',
         'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
       },
-      
-      // JAPAN AIRLINES
-      'JL': {
-        'F': 'JAL First', 'A': 'JAL First',
-        'J': 'JAL Business', 'C': 'JAL Business', 'D': 'JAL Business', 'I': 'JAL Business', 'Z': 'JAL Business',
-        'W': 'JAL Premium Economy', 'P': 'JAL Premium Economy',
-        'Y': 'JAL Economy', 'B': 'JAL Economy', 'M': 'JAL Economy', 'H': 'JAL Economy', 'Q': 'JAL Economy', 'V': 'JAL Economy', 'S': 'JAL Economy', 'N': 'JAL Economy', 'R': 'JAL Economy', 'G': 'JAL Economy', 'X': 'JAL Economy', 'K': 'JAL Economy', 'L': 'JAL Economy', 'T': 'JAL Economy', 'U': 'JAL Economy', 'E': 'JAL Economy'
+      'SU': { // Aeroflot
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'CI': { // China Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'KE': { // Korean Air
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'CZ': { // China Southern Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'MU': { // China Eastern Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'VN': { // Vietnam Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
       },
       
-      // ALL NIPPON AIRWAYS
-      'NH': {
-        'F': 'ANA First', 'A': 'ANA First',
-        'J': 'ANA Business', 'C': 'ANA Business', 'D': 'ANA Business', 'I': 'ANA Business', 'Z': 'ANA Business',
-        'W': 'ANA Premium Economy', 'P': 'ANA Premium Economy',
-        'Y': 'ANA Economy', 'B': 'ANA Economy', 'M': 'ANA Economy', 'H': 'ANA Economy', 'Q': 'ANA Economy', 'V': 'ANA Economy', 'S': 'ANA Economy', 'N': 'ANA Economy', 'R': 'ANA Economy', 'G': 'ANA Economy', 'X': 'ANA Economy', 'K': 'ANA Economy', 'L': 'ANA Economy', 'T': 'ANA Economy', 'U': 'ANA Economy', 'E': 'ANA Economy'
+      // ONEWORLD ALLIANCE
+      'AA': { // American Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'R': 'Business Class', 'I': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy', 'Z': 'Premium Economy',
+        'Y': 'Economy', 'H': 'Economy', 'K': 'Economy', 'M': 'Economy', 'L': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'Q': 'Economy', 'O': 'Economy', 'G': 'Economy',
+        'B': 'Basic Economy'
+      },
+      'BA': { // British Airways
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'R': 'Business Class',
+        'W': 'Premium Economy', 'E': 'Premium Economy', 'T': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'H': 'Economy', 'K': 'Economy', 'L': 'Economy', 'M': 'Economy', 'N': 'Economy', 'Q': 'Economy', 'S': 'Economy', 'V': 'Economy', 'G': 'Economy'
+      },
+      'CX': { // Cathay Pacific
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'JL': { // Japan Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'QF': { // Qantas
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'QR': { // Qatar Airways
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy', 'W': 'Economy'
+      },
+      'IB': { // Iberia
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'AY': { // Finnair
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'RJ': { // Royal Jordanian
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'AT': { // Royal Air Maroc
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'AS': { // Alaska Airlines
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      
+      // MAJOR INDEPENDENT CARRIERS
+      'EK': { // Emirates
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy', 'W': 'Economy'
+      },
+      'EY': { // Etihad Airways
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy', 'W': 'Economy'
+      },
+      'BR': { // EVA Air
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'VS': { // Virgin Atlantic
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'VA': { // Virgin Australia
+        'F': 'First Class', 'A': 'First Class',
+        'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+        'W': 'Premium Economy', 'P': 'Premium Economy',
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      
+      // LOW COST CARRIERS (Single Class Operations)
+      'WN': { // Southwest Airlines (single class)
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy', 'A': 'Economy'
+      },
+      'FR': { // Ryanair (single class)
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'U2': { // easyJet (single class)
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'JQ': { // Jetstar (Budget Carrier)
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'G9': { // Air Arabia
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
+      },
+      'FZ': { // flydubai
+        'Y': 'Economy', 'B': 'Economy', 'M': 'Economy', 'H': 'Economy', 'Q': 'Economy', 'V': 'Economy', 'S': 'Economy', 'N': 'Economy', 'R': 'Economy', 'G': 'Economy', 'X': 'Economy', 'K': 'Economy', 'L': 'Economy', 'T': 'Economy', 'U': 'Economy', 'E': 'Economy'
       }
     };
     
@@ -411,36 +542,44 @@ export class SabreParser {
       }
     }
     
-    // Fall back to generic IATA standard mapping
+    // Fall back to comprehensive IATA standard mapping
     const genericClassMap: { [key: string]: string } = {
+      // First Class RBDs
       'F': 'First Class',
       'A': 'First Class',
+      
+      // Business Class RBDs (most common)
       'J': 'Business Class',
       'C': 'Business Class', 
       'D': 'Business Class',
       'I': 'Business Class',
-      'Z': 'Business Class',
+      'Z': 'Business Class', // Default to Business for most airlines
+      'R': 'Business Class',
+      
+      // Premium Economy RBDs
       'P': 'Premium Economy',
       'W': 'Premium Economy',
       'S': 'Premium Economy',
-      'Y': 'Economy Class',
-      'B': 'Economy Class',
-      'E': 'Economy Class',
-      'H': 'Economy Class',
-      'K': 'Economy Class',
-      'L': 'Economy Class',
-      'M': 'Economy Class',
-      'N': 'Economy Class',
-      'Q': 'Economy Class',
-      'R': 'Economy Class', 
-      'T': 'Economy Class',
-      'U': 'Economy Class',
-      'V': 'Economy Class',
-      'X': 'Economy Class',
-      'G': 'Economy Class'
+      'E': 'Premium Economy',
+      
+      // Economy Class RBDs (most comprehensive)
+      'Y': 'Economy',
+      'B': 'Economy',
+      'M': 'Economy',
+      'H': 'Economy',
+      'K': 'Economy',
+      'L': 'Economy',
+      'Q': 'Economy',
+      'N': 'Economy',
+      'G': 'Economy',
+      'G': 'Economy',
+      'V': 'Economy',
+      'X': 'Economy',
+      'T': 'Economy',
+      'U': 'Economy'
     };
     
-    const result = genericClassMap[bookingClass] || 'Economy Class';
+    const result = genericClassMap[bookingClass] || 'Economy';
     console.log(`Generic booking class "${bookingClass}" mapped to: "${result}"`);
     return result;
   }
