@@ -11,7 +11,7 @@ const Index = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case "dashboard":
-        return <Dashboard />;
+        return <Dashboard setCurrentView={setCurrentView} />;
       case "clients":
         return <ClientManager />;
       case "requests":

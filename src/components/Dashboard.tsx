@@ -8,7 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Users, Plane, Calendar, TrendingUp, Clock, MapPin, Search, Plus, ExternalLink, ArrowRight, Filter } from "lucide-react";
 
-const Dashboard = () => {
+interface DashboardProps {
+  setCurrentView?: (view: string) => void;
+}
+
+const Dashboard = ({ setCurrentView }: DashboardProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
@@ -140,19 +144,19 @@ const Dashboard = () => {
                 <DialogTitle>Quick Actions</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-2 gap-4 py-4">
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col" onClick={() => setCurrentView?.("bookings")}>
                   <Plane className="h-6 w-6 mb-2" />
                   New Booking
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col" onClick={() => setCurrentView?.("clients")}>
                   <Users className="h-6 w-6 mb-2" />
                   Add Client
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col" onClick={() => setCurrentView?.("requests")}>
                   <Calendar className="h-6 w-6 mb-2" />
                   New Request
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col" onClick={() => alert("Analytics feature coming soon!")}>
                   <TrendingUp className="h-6 w-6 mb-2" />
                   Analytics
                 </Button>
@@ -256,7 +260,7 @@ const Dashboard = () => {
                   <CardTitle>Recent Bookings</CardTitle>
                   <CardDescription>Latest confirmed and pending bookings</CardDescription>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setCurrentView("bookings")}>
                   View All
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -265,7 +269,7 @@ const Dashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 {recentBookings.map((booking) => (
-                  <div key={booking.id} className="group flex items-center justify-between p-4 border rounded-lg hover:bg-gradient-subtle transition-all duration-200 cursor-pointer">
+                  <div key={booking.id} className="group flex items-center justify-between p-4 border rounded-lg hover:bg-gradient-subtle transition-all duration-200 cursor-pointer" onClick={() => navigate(`/booking/${booking.id}`)}>
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <Plane className="h-6 w-6 text-primary" />

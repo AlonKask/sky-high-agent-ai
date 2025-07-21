@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Search, Plane, MapPin, Calendar, User, DollarSign, Filter } from "lucid
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BookingManager = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -189,7 +191,7 @@ const BookingManager = () => {
       <div className="grid gap-4">
         {filteredBookings.map((booking) => (
           <Card key={booking.id} className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => setSelectedBooking(booking)}>
+                onClick={() => navigate(`/booking/${booking.id}`)}>
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
