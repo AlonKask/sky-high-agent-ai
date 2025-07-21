@@ -140,15 +140,13 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
   const renderStatsCards = () => {
     if (loading) {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="card-elevated border-0 animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
-                <div className="h-8 bg-muted rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-muted rounded w-1/3"></div>
-              </CardContent>
-            </Card>
+            <div key={i} className="minimal-card animate-pulse">
+              <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
+              <div className="h-8 bg-muted rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-muted rounded w-1/3"></div>
+            </div>
           ))}
         </div>
       );
@@ -257,50 +255,46 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
       case 'user':
       default:
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale" onClick={() => setCurrentView?.("clients")}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">My Clients</CardTitle>
-                <Users className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-primary">{stats.totalClients}</div>
-                <p className="text-xs text-muted-foreground">Under your management</p>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="stat-card" onClick={() => setCurrentView?.("clients")}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Clients</p>
+                  <p className="text-2xl font-semibold">{stats.totalClients}</p>
+                </div>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">${stats.revenue.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">This month</p>
-              </CardContent>
-            </Card>
+            <div className="stat-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Revenue</p>
+                  <p className="text-2xl font-semibold">${stats.revenue.toLocaleString()}</p>
+                </div>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-orange-50 to-orange-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale" onClick={() => setCurrentView?.("requests")}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
-                <Clock className="h-4 w-4 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-600">{stats.activeRequests}</div>
-                <p className="text-xs text-muted-foreground">Awaiting response</p>
-              </CardContent>
-            </Card>
+            <div className="stat-card" onClick={() => setCurrentView?.("requests")}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Requests</p>
+                  <p className="text-2xl font-semibold">{stats.activeRequests}</p>
+                </div>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale" onClick={() => setCurrentView?.("bookings")}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">This Month</CardTitle>
-                <Plane className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-600">{stats.thisMonthBookings}</div>
-                <p className="text-xs text-muted-foreground">Bookings completed</p>
-              </CardContent>
-            </Card>
+            <div className="stat-card" onClick={() => setCurrentView?.("bookings")}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Bookings</p>
+                  <p className="text-2xl font-semibold">{stats.thisMonthBookings}</p>
+                </div>
+                <Plane className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
           </div>
         );
     }
@@ -317,13 +311,11 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
   return (
     <div className="space-y-6">
       {/* Header with Role Selector */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Executive Travel Hub
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Premium business travel management & client relationship platform
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">
+            Manage your travel operations
           </p>
         </div>
         
@@ -332,7 +324,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
             currentRole={userRole}
             selectedViewRole={selectedViewRole}
             onRoleChange={setSelectedViewRole}
-            className="w-full lg:w-80"
+            className="w-64"
           />
         )}
       </div>

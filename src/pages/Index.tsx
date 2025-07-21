@@ -151,11 +151,8 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary/20 border-t-primary mx-auto"></div>
-          <p className="mt-6 text-muted-foreground font-medium">Loading your workspace...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -165,30 +162,25 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-background">
       <div className="flex">
         <Navigation currentView={currentView} onViewChange={setCurrentView} />
-        <main className="flex-1 p-6 md:p-8">
-          {/* Enhanced Header */}
+        <main className="flex-1 p-6">
+          {/* Simple Header */}
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <User className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Welcome back,</p>
-                <p className="font-semibold">{user.email}</p>
-              </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Welcome back</p>
+              <p className="font-medium">{user.email}</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="ghost" className="relative" onClick={() => setCurrentView("notifications")}>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentView("notifications")}>
                 <Bell className="h-4 w-4" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-red-500 text-white border-2 border-background">
+                <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 text-xs">
                   3
                 </Badge>
               </Button>
-              <Button variant="ghost" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-                <LogOut className="mr-2 h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={signOut}>
+                <LogOut className="h-4 w-4" />
                 Sign Out
               </Button>
             </div>
