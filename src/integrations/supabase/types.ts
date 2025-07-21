@@ -14,6 +14,416 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          airline: string
+          arrival_date: string
+          booking_reference: string
+          class: string
+          client_id: string
+          commission: number | null
+          created_at: string | null
+          departure_date: string
+          flight_number: string | null
+          id: string
+          notes: string | null
+          passengers: number | null
+          payment_status: string | null
+          pnr: string | null
+          request_id: string | null
+          return_arrival_date: string | null
+          return_departure_date: string | null
+          route: string
+          status: string | null
+          ticket_numbers: string[] | null
+          total_price: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          airline: string
+          arrival_date: string
+          booking_reference: string
+          class: string
+          client_id: string
+          commission?: number | null
+          created_at?: string | null
+          departure_date: string
+          flight_number?: string | null
+          id?: string
+          notes?: string | null
+          passengers?: number | null
+          payment_status?: string | null
+          pnr?: string | null
+          request_id?: string | null
+          return_arrival_date?: string | null
+          return_departure_date?: string | null
+          route: string
+          status?: string | null
+          ticket_numbers?: string[] | null
+          total_price: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          airline?: string
+          arrival_date?: string
+          booking_reference?: string
+          class?: string
+          client_id?: string
+          commission?: number | null
+          created_at?: string | null
+          departure_date?: string
+          flight_number?: string | null
+          id?: string
+          notes?: string | null
+          passengers?: number | null
+          payment_status?: string | null
+          pnr?: string | null
+          request_id?: string | null
+          return_arrival_date?: string | null
+          return_departure_date?: string | null
+          route?: string
+          status?: string | null
+          ticket_numbers?: string[] | null
+          total_price?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          last_trip_date: string | null
+          notes: string | null
+          phone: string | null
+          preferred_class: string | null
+          total_bookings: number | null
+          total_spent: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          last_trip_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          preferred_class?: string | null
+          total_bookings?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          last_trip_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          preferred_class?: string | null
+          total_bookings?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_exchanges: {
+        Row: {
+          attachments: Json | null
+          bcc_emails: string[] | null
+          body: string
+          cc_emails: string[] | null
+          client_id: string | null
+          created_at: string
+          direction: string
+          email_type: string | null
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          recipient_emails: string[]
+          request_id: string | null
+          sender_email: string
+          status: string
+          subject: string
+          thread_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          bcc_emails?: string[] | null
+          body: string
+          cc_emails?: string[] | null
+          client_id?: string | null
+          created_at?: string
+          direction: string
+          email_type?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          recipient_emails: string[]
+          request_id?: string | null
+          sender_email: string
+          status?: string
+          subject: string
+          thread_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          bcc_emails?: string[] | null
+          body?: string
+          cc_emails?: string[] | null
+          client_id?: string | null
+          created_at?: string
+          direction?: string
+          email_type?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          recipient_emails?: string[]
+          request_id?: string | null
+          sender_email?: string
+          status?: string
+          subject?: string
+          thread_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string | null
+          id: string
+          message: string
+          priority: string | null
+          read: boolean | null
+          related_id: string | null
+          related_type: string | null
+          title: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string | null
+          id?: string
+          message: string
+          priority?: string | null
+          read?: boolean | null
+          related_id?: string | null
+          related_type?: string | null
+          title: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string | null
+          id?: string
+          message?: string
+          priority?: string | null
+          read?: boolean | null
+          related_id?: string | null
+          related_type?: string | null
+          title?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      requests: {
+        Row: {
+          budget_range: string | null
+          class_preference: string | null
+          client_id: string
+          created_at: string | null
+          departure_date: string
+          destination: string
+          id: string
+          notes: string | null
+          origin: string
+          passengers: number | null
+          priority: string | null
+          quoted_price: number | null
+          request_type: string
+          return_date: string | null
+          special_requirements: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          budget_range?: string | null
+          class_preference?: string | null
+          client_id: string
+          created_at?: string | null
+          departure_date: string
+          destination: string
+          id?: string
+          notes?: string | null
+          origin: string
+          passengers?: number | null
+          priority?: string | null
+          quoted_price?: number | null
+          request_type: string
+          return_date?: string | null
+          special_requirements?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          budget_range?: string | null
+          class_preference?: string | null
+          client_id?: string
+          created_at?: string | null
+          departure_date?: string
+          destination?: string
+          id?: string
+          notes?: string | null
+          origin?: string
+          passengers?: number | null
+          priority?: string | null
+          quoted_price?: number | null
+          request_type?: string
+          return_date?: string | null
+          special_requirements?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_preferences: {
+        Row: {
+          commission_rate: number | null
+          created_at: string | null
+          currency: string | null
+          date_format: string | null
+          default_class: string | null
+          email_notifications: boolean | null
+          id: string
+          language: string | null
+          push_notifications: boolean | null
+          sms_notifications: boolean | null
+          theme: string | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          commission_rate?: number | null
+          created_at?: string | null
+          currency?: string | null
+          date_format?: string | null
+          default_class?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          push_notifications?: boolean | null
+          sms_notifications?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          commission_rate?: number | null
+          created_at?: string | null
+          currency?: string | null
+          date_format?: string | null
+          default_class?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          push_notifications?: boolean | null
+          sms_notifications?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -40,6 +450,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_notification: {
+        Args: {
+          p_user_id: string
+          p_title: string
+          p_message: string
+          p_type?: string
+          p_priority?: string
+          p_action_url?: string
+          p_related_id?: string
+          p_related_type?: string
+        }
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
