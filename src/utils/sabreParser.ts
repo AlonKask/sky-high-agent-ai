@@ -95,26 +95,30 @@ export class SabreParser {
     
     // Handle multiple regex patterns to account for spacing variations
     const patterns = [
-      // Pattern 1: Delta format without space in flight number
+      // Pattern 1: LH format with arrival date and day
+      // 1 LH7608P 15APR W EWRMUC SS1   500P  710A  16APR Q /DCLH /E
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])\s+(\d+[A-Z]{3})\s+([A-Z])\s+\/DC[A-Z]*\s*\/E$/,
+      
+      // Pattern 2: Delta format without space in flight number
       // 1 DL2542Z 13SEP J MSYATL*SS1  1240P  313P /DCDL /E
       /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E$/,
       
-      // Pattern 2: Delta format with space in flight number
+      // Pattern 3: Delta format with space in flight number
       // 2 DL 105Z 13SEP J ATLGRU*SS1   700P  540A  14SEP S /DCDL /E
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E$/,
       
-      // Pattern 3: Format with OPERATED BY (no space in flight number)
+      // Pattern 4: Format with OPERATED BY (no space in flight number)
       // 3 DL6256P 14SEP S GRUFOR*SS1   745A 1105A /DCDL /E
       /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E$/,
       
-      // Pattern 4: Format with space in flight number and OPERATED BY
+      // Pattern 5: Format with space in flight number and OPERATED BY
       // 4 DL 6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E  
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E$/,
       
-      // Pattern 5: Just OPERATED BY line
+      // Pattern 6: Just OPERATED BY line
       /^OPERATED BY\s+\/(.+)$/,
       
-      // Pattern 6: Standard format with booking class
+      // Pattern 7: Standard format with booking class
       // 1 IB4185J 15SEP M JFKBCN GK1   510P  645A  16SEP T /E
       /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E$/
     ];
@@ -125,8 +129,8 @@ export class SabreParser {
       if (match) {
         console.log(`Pattern ${i + 1} matched:`, match);
         
-        // Pattern 5 is just OPERATED BY - skip it
-        if (i === 4) {
+        // Pattern 6 is just OPERATED BY - skip it
+        if (i === 5) {
           console.log('Skipping OPERATED BY line');
           return null;
         }
