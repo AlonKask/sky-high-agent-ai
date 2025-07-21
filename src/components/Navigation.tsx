@@ -100,12 +100,20 @@ const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
         </nav>
 
         <div className="p-4 border-t">
-          <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-muted-foreground"
+            onClick={() => onViewChange("notifications")}
+          >
             <Bell className="mr-2 h-4 w-4" />
             Notifications
             <Badge variant="destructive" className="ml-auto text-xs">3</Badge>
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-muted-foreground mt-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-muted-foreground mt-2"
+            onClick={() => onViewChange("settings")}
+          >
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Button>
@@ -146,12 +154,26 @@ const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
                   <NavItems />
                   
                   <div className="pt-4 mt-4 border-t space-y-2">
-                    <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start text-muted-foreground"
+                      onClick={() => {
+                        onViewChange("notifications");
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
                       <Bell className="mr-2 h-4 w-4" />
                       Notifications
                       <Badge variant="destructive" className="ml-auto text-xs">3</Badge>
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start text-muted-foreground"
+                      onClick={() => {
+                        onViewChange("settings");
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
                     </Button>
