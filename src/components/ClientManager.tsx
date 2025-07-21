@@ -218,47 +218,30 @@ const ClientManager = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClients.map((client) => (
-          <Card key={client.id} className="minimal-card hover:bg-accent/50 transition-colors cursor-pointer group relative" onClick={() => setSelectedClient(client)}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold">{client.first_name} {client.last_name}</h3>
-                  <p className="text-sm text-muted-foreground">{client.email}</p>
-                  {client.company && (
-                    <p className="text-xs text-muted-foreground">{client.company}</p>
-                  )}
+           <Card key={client.id} className="minimal-card hover:bg-accent/50 transition-colors cursor-pointer group relative" onClick={() => setSelectedClient(client)}>
+             <CardContent className="p-4">
+               <div className="flex items-center justify-between gap-3">
+                 <div className="flex-1 min-w-0">
+                   <h3 className="font-semibold truncate">{client.first_name} {client.last_name}</h3>
+                 </div>
+                 <div className="flex items-center gap-2 flex-shrink-0">
+                   <Badge variant="outline" className="text-xs whitespace-nowrap">
+                     {client.total_bookings || 0} bookings
+                   </Badge>
+                   <Button
+                     size="sm"
+                     variant="outline"
+                     className="h-8 w-8 p-0 opacity-60 group-hover:opacity-100 transition-all duration-200 hover:bg-primary hover:text-white hover:border-primary group-hover:shadow-sm flex-shrink-0"
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       navigate(`/requests?clientId=${client.id}&clientName=${encodeURIComponent(client.first_name + ' ' + client.last_name)}`);
+                     }}
+                   >
+                     <Plus className="h-3 w-3 group-hover:hidden" />
+                     <span className="hidden group-hover:inline text-xs font-medium">+</span>
+                   </Button>
+                 </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {client.total_bookings || 0} bookings
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 px-2 opacity-60 group-hover:opacity-100 transition-all duration-200 hover:bg-primary hover:text-white hover:border-primary group-hover:shadow-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/requests?clientId=${client.id}&clientName=${encodeURIComponent(client.first_name + ' ' + client.last_name)}`);
-                    }}
-                  >
-                    <Plus className="h-3 w-3 group-hover:hidden" />
-                    <span className="hidden group-hover:inline text-xs font-medium">Create</span>
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                {client.phone && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-3 w-3" />
-                    <span>{client.phone}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>Joined {new Date(client.created_at).toLocaleDateString()}</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         ))}
