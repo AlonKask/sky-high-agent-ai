@@ -3,9 +3,15 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Mail, Phone, Building, Calendar, CreditCard, Plane, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, User, Mail, Phone, Building, Calendar as CalendarIcon, CreditCard, Plane, Loader2, Edit, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const ClientProfile = () => {
   const { clientId } = useParams();
@@ -15,56 +21,128 @@ const ClientProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    email: '',
+    phone: '',
+    date_of_birth: null as Date | null
+  });
 
-  useEffect(() => {
-    const fetchClientData = async () => {
-      if (!clientId) {
-        setError("No client ID provided");
+  const fetchClientData = async () => {
+    if (!clientId) {
+      setError("No client ID provided");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Fetch client data
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .single();
+
+      if (clientError) {
+        console.error('Error fetching client:', clientError);
+        setError("Client not found");
         setLoading(false);
         return;
       }
 
-      try {
-        setLoading(true);
-        
-        // Fetch client data
-        const { data: clientData, error: clientError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', clientId)
-          .single();
+      setClient(clientData);
+      
+      // Initialize edit form with current data
+      setEditForm({
+        email: clientData.email || '',
+        phone: clientData.phone || '',
+        date_of_birth: clientData.date_of_birth ? new Date(clientData.date_of_birth) : null
+      });
 
-        if (clientError) {
-          console.error('Error fetching client:', clientError);
-          setError("Client not found");
-          setLoading(false);
-          return;
-        }
+      // Fetch client's bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-        setClient(clientData);
-
-        // Fetch client's bookings
-        const { data: bookingsData, error: bookingsError } = await supabase
-          .from('bookings')
-          .select('*')
-          .eq('client_id', clientId)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (bookingsError) {
-          console.error('Error fetching bookings:', bookingsError);
-        } else {
-          setBookings(bookingsData || []);
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Unexpected error:', err);
-        setError("Failed to load client data");
-        setLoading(false);
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+      } else {
+        setBookings(bookingsData || []);
       }
-    };
 
+      setLoading(false);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError("Failed to load client data");
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      
+      const updateData: any = {
+        email: editForm.email,
+        phone: editForm.phone || null,
+        date_of_birth: editForm.date_of_birth ? editForm.date_of_birth.toISOString().split('T')[0] : null
+      };
+
+      const { error } = await supabase
+        .from('clients')
+        .update(updateData)
+        .eq('id', clientId);
+
+      if (error) {
+        console.error('Error updating client:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update client information.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state
+      setClient({ ...client, ...updateData });
+      setIsEditing(false);
+      
+      toast({
+        title: "Success",
+        description: "Client information updated successfully.",
+      });
+      
+    } catch (err) {
+      console.error('Error saving:', err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset form to original values
+    setEditForm({
+      email: client.email || '',
+      phone: client.phone || '',
+      date_of_birth: client.date_of_birth ? new Date(client.date_of_birth) : null
+    });
+    setIsEditing(false);
+  };
+
+  useEffect(() => {
     fetchClientData();
   }, [clientId]);
 
@@ -116,32 +194,148 @@ const ClientProfile = () => {
         {/* Client Information */}
         <Card className="card-elevated">
           <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
-            <CardTitle className="flex items-center gap-3">
-              <User className="h-6 w-6" />
-              <span className="text-gradient">{client.first_name} {client.last_name}</span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-3">
+                <User className="h-6 w-6" />
+                <span className="text-gradient">{client.first_name} {client.last_name}</span>
+              </CardTitle>
+              
+              {/* Edit/Save/Cancel buttons */}
+              <div className="flex items-center gap-2">
+                {!isEditing ? (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleCancel}
+                      disabled={saving}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSave}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-1" />
+                      )}
+                      Save
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{client.email}</span>
+                {/* Email */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Email</span>
+                  </div>
+                  {isEditing ? (
+                    <Input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      placeholder="Enter email address"
+                      className="ml-7"
+                    />
+                  ) : (
+                    <div className="ml-7">{client.email}</div>
+                  )}
                 </div>
-                {client.phone && (
+
+                {/* Phone */}
+                <div className="space-y-2">
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{client.phone}</span>
+                    <span className="text-sm font-medium">Phone</span>
                   </div>
-                )}
+                  {isEditing ? (
+                    <Input
+                      type="tel"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      placeholder="Enter phone number"
+                      className="ml-7"
+                    />
+                  ) : (
+                    <div className="ml-7">{client.phone || 'Not provided'}</div>
+                  )}
+                </div>
+
+                {/* Date of Birth */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Date of Birth</span>
+                  </div>
+                  {isEditing ? (
+                    <div className="ml-7">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !editForm.date_of_birth && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {editForm.date_of_birth ? (
+                              format(editForm.date_of_birth, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={editForm.date_of_birth}
+                            onSelect={(date) => setEditForm({ ...editForm, date_of_birth: date })}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  ) : (
+                    <div className="ml-7">
+                      {client.date_of_birth 
+                        ? format(new Date(client.date_of_birth), "PPP")
+                        : 'Not provided'
+                      }
+                    </div>
+                  )}
+                </div>
+
+                {/* Company */}
                 {client.company && (
                   <div className="flex items-center gap-3">
                     <Building className="h-4 w-4 text-muted-foreground" />
                     <span>{client.company}</span>
                   </div>
                 )}
+                
+                {/* Client since */}
                 <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <span>Client since {new Date(client.created_at).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'long', 
