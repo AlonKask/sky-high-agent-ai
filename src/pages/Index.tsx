@@ -30,8 +30,65 @@ const Index = () => {
         return <RequestManager />;
       case "bookings":
         return <BookingManager />;
+      case "notifications":
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold">Notifications</h1>
+            <div className="grid gap-4">
+              <div className="p-4 border rounded-lg bg-card">
+                <h3 className="font-semibold text-destructive">New Booking Request</h3>
+                <p className="text-sm text-muted-foreground mt-1">John Smith requested a quote for NYC → LHR</p>
+                <p className="text-xs text-muted-foreground mt-2">2 hours ago</p>
+              </div>
+              <div className="p-4 border rounded-lg bg-card">
+                <h3 className="font-semibold">Payment Received</h3>
+                <p className="text-sm text-muted-foreground mt-1">Payment of $8,500 received from Sarah Johnson</p>
+                <p className="text-xs text-muted-foreground mt-2">5 hours ago</p>
+              </div>
+              <div className="p-4 border rounded-lg bg-card">
+                <h3 className="font-semibold">Quote Expired</h3>
+                <p className="text-sm text-muted-foreground mt-1">Quote for Michael Chen expired - follow up required</p>
+                <p className="text-xs text-muted-foreground mt-2">1 day ago</p>
+              </div>
+            </div>
+          </div>
+        );
+      case "settings":
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold">Settings</h1>
+            <div className="grid gap-6">
+              <div className="p-6 border rounded-lg bg-card">
+                <h3 className="font-semibold mb-4">Account Settings</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span>Email Notifications</span>
+                    <Button variant="outline" size="sm">Configure</Button>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Profile Information</span>
+                    <Button variant="outline" size="sm">Edit</Button>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 border rounded-lg bg-card">
+                <h3 className="font-semibold mb-4">System Preferences</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span>Theme</span>
+                    <Button variant="outline" size="sm">Dark Mode</Button>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Language</span>
+                    <Button variant="outline" size="sm">English</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       default:
-        return <Dashboard />;
+        return <Dashboard setCurrentView={setCurrentView} />;
     }
   };
 
