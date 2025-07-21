@@ -659,12 +659,72 @@ export const AirportAutocomplete: React.FC<AirportAutocompleteProps> = ({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  const filteredAirports = AIRPORTS.filter((airport) =>
-    airport.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-    airport.code.toLowerCase().includes(searchValue.toLowerCase()) ||
-    airport.airports.toLowerCase().includes(searchValue.toLowerCase()) ||
-    airport.country.toLowerCase().includes(searchValue.toLowerCase())
-  );
+  // Smart search function that matches based on multiple criteria
+  const getSearchScore = (airport: typeof AIRPORTS[0], searchValue: string): number => {
+    const search = searchValue.toLowerCase();
+    const name = airport.name.toLowerCase();
+    const code = airport.code.toLowerCase();
+    const country = airport.country.toLowerCase();
+    const airports = airport.airports.toLowerCase();
+    
+    // Exact matches get highest priority
+    if (code === search) return 1000;
+    if (name === search) return 900;
+    
+    // Code starts with search
+    if (code.startsWith(search)) return 800;
+    
+    // Name starts with search
+    if (name.startsWith(search)) return 700;
+    
+    // Code contains search
+    if (code.includes(search)) return 600;
+    
+    // Name words start with search
+    const nameWords = name.split(' ');
+    if (nameWords.some(word => word.startsWith(search))) return 500;
+    
+    // Country starts with search
+    if (country.startsWith(search)) return 400;
+    
+    // Name contains search
+    if (name.includes(search)) return 300;
+    
+    // Country contains search
+    if (country.includes(search)) return 200;
+    
+    // Airports field contains search
+    if (airports.includes(search)) return 150;
+    
+    // Fuzzy matching - check if search characters appear in order
+    const fuzzyMatch = (text: string, search: string): boolean => {
+      let searchIndex = 0;
+      for (let i = 0; i < text.length && searchIndex < search.length; i++) {
+        if (text[i] === search[searchIndex]) {
+          searchIndex++;
+        }
+      }
+      return searchIndex === search.length;
+    };
+    
+    // Fuzzy match on name
+    if (fuzzyMatch(name.replace(/\s/g, ''), search)) return 100;
+    
+    // Fuzzy match on code
+    if (fuzzyMatch(code, search)) return 50;
+    
+    return 0;
+  };
+
+  const filteredAirports = AIRPORTS
+    .map(airport => ({
+      airport,
+      score: getSearchScore(airport, searchValue)
+    }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50) // Limit to top 50 results for performance
+    .map(item => item.airport);
 
   const selectedAirport = AIRPORTS.find((airport) => airport.code === value);
 
