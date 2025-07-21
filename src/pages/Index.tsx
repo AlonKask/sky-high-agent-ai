@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Navigation from "@/components/Navigation";
-import Dashboard from "@/components/Dashboard";
+import EnhancedDashboard from "@/components/EnhancedDashboard";
 import ClientManager from "@/components/ClientManager";
 import RequestManager from "@/components/RequestManager";
 import BookingManager from "@/components/BookingManager";
+import EmailManager from "@/components/EmailManager";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { LogOut, User, Settings as SettingsIcon, Bell } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -23,32 +25,55 @@ const Index = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case "dashboard":
-        return <Dashboard setCurrentView={setCurrentView} />;
+        return <EnhancedDashboard setCurrentView={setCurrentView} />;
       case "clients":
         return <ClientManager />;
       case "requests":
         return <RequestManager />;
       case "bookings":
         return <BookingManager />;
+      case "email":
+        return <EmailManager />;
       case "notifications":
         return (
           <div className="space-y-6">
-            <h1 className="text-3xl font-bold">Notifications</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold text-gradient">Notifications Center</h1>
+              <Badge variant="destructive" className="text-sm px-3 py-1">3 New</Badge>
+            </div>
             <div className="grid gap-4">
-              <div className="p-4 border rounded-lg bg-card">
-                <h3 className="font-semibold text-destructive">New Booking Request</h3>
-                <p className="text-sm text-muted-foreground mt-1">John Smith requested a quote for NYC → LHR</p>
-                <p className="text-xs text-muted-foreground mt-2">2 hours ago</p>
+              <div className="p-6 border-2 rounded-xl bg-gradient-to-r from-red-50 to-red-100 border-red-200 hover:shadow-lg transition-all duration-200">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-red-800 flex items-center gap-2">
+                      <Bell className="h-4 w-4" />
+                      Urgent: High-Value Client Request
+                    </h3>
+                    <p className="text-sm text-red-700 mt-2">John Smith (VIP) requested quote for NYC → LHR Business Class</p>
+                    <p className="text-xs text-red-600 mt-2 font-medium">2 hours ago • Response time: 94% SLA remaining</p>
+                  </div>
+                  <Badge variant="destructive" className="text-xs">High Priority</Badge>
+                </div>
               </div>
-              <div className="p-4 border rounded-lg bg-card">
-                <h3 className="font-semibold">Payment Received</h3>
-                <p className="text-sm text-muted-foreground mt-1">Payment of $8,500 received from Sarah Johnson</p>
-                <p className="text-xs text-muted-foreground mt-2">5 hours ago</p>
+              <div className="p-6 border-2 rounded-xl bg-gradient-to-r from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-200">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-green-800">Payment Received</h3>
+                    <p className="text-sm text-green-700 mt-2">Payment of $12,000 received from Sarah Johnson for LAX → NRT</p>
+                    <p className="text-xs text-green-600 mt-2">5 hours ago • Booking confirmed automatically</p>
+                  </div>
+                  <Badge className="bg-green-500 text-white text-xs">Completed</Badge>
+                </div>
               </div>
-              <div className="p-4 border rounded-lg bg-card">
-                <h3 className="font-semibold">Quote Expired</h3>
-                <p className="text-sm text-muted-foreground mt-1">Quote for Michael Chen expired - follow up required</p>
-                <p className="text-xs text-muted-foreground mt-2">1 day ago</p>
+              <div className="p-6 border-2 rounded-xl bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-all duration-200">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-orange-800">Quote Expiring Soon</h3>
+                    <p className="text-sm text-orange-700 mt-2">Quote for Michael Chen expires in 24 hours - follow up recommended</p>
+                    <p className="text-xs text-orange-600 mt-2">1 day ago • $7,800 quote value</p>
+                  </div>
+                  <Badge className="bg-orange-500 text-white text-xs">Action Required</Badge>
+                </div>
               </div>
             </div>
           </div>
@@ -56,31 +81,63 @@ const Index = () => {
       case "settings":
         return (
           <div className="space-y-6">
-            <h1 className="text-3xl font-bold">Settings</h1>
+            <h1 className="text-3xl font-bold text-gradient">System Settings</h1>
             <div className="grid gap-6">
-              <div className="p-6 border rounded-lg bg-card">
-                <h3 className="font-semibold mb-4">Account Settings</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span>Email Notifications</span>
+              <div className="p-6 border-2 rounded-xl bg-card hover:shadow-lg transition-all duration-200">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Account Settings
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-4 border rounded-lg">
+                    <div>
+                      <span className="font-medium">Email Notifications</span>
+                      <p className="text-sm text-muted-foreground">Receive updates on bookings and requests</p>
+                    </div>
                     <Button variant="outline" size="sm">Configure</Button>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Profile Information</span>
-                    <Button variant="outline" size="sm">Edit</Button>
+                  <div className="flex justify-between items-center p-4 border rounded-lg">
+                    <div>
+                      <span className="font-medium">Profile Information</span>
+                      <p className="text-sm text-muted-foreground">Update your personal details</p>
+                    </div>
+                    <Button variant="outline" size="sm">Edit Profile</Button>
+                  </div>
+                  <div className="flex justify-between items-center p-4 border rounded-lg">
+                    <div>
+                      <span className="font-medium">Security Settings</span>
+                      <p className="text-sm text-muted-foreground">Password and two-factor authentication</p>
+                    </div>
+                    <Button variant="outline" size="sm">Manage</Button>
                   </div>
                 </div>
               </div>
-              <div className="p-6 border rounded-lg bg-card">
-                <h3 className="font-semibold mb-4">System Preferences</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span>Theme</span>
-                    <Button variant="outline" size="sm">Dark Mode</Button>
+              <div className="p-6 border-2 rounded-xl bg-card hover:shadow-lg transition-all duration-200">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <SettingsIcon className="h-5 w-5" />
+                  System Preferences
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-4 border rounded-lg">
+                    <div>
+                      <span className="font-medium">Theme Preference</span>
+                      <p className="text-sm text-muted-foreground">Choose light or dark mode</p>
+                    </div>
+                    <Button variant="outline" size="sm">Light Mode</Button>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Language</span>
-                    <Button variant="outline" size="sm">English</Button>
+                  <div className="flex justify-between items-center p-4 border rounded-lg">
+                    <div>
+                      <span className="font-medium">Language & Region</span>
+                      <p className="text-sm text-muted-foreground">Set your preferred language</p>
+                    </div>
+                    <Button variant="outline" size="sm">English (US)</Button>
+                  </div>
+                  <div className="flex justify-between items-center p-4 border rounded-lg">
+                    <div>
+                      <span className="font-medium">Time Zone</span>
+                      <p className="text-sm text-muted-foreground">Your local time zone for scheduling</p>
+                    </div>
+                    <Button variant="outline" size="sm">EST (UTC-5)</Button>
                   </div>
                 </div>
               </div>
@@ -88,16 +145,16 @@ const Index = () => {
           </div>
         );
       default:
-        return <Dashboard setCurrentView={setCurrentView} />;
+        return <EnhancedDashboard setCurrentView={setCurrentView} />;
     }
-  };
+export default Index;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary/20 border-t-primary mx-auto"></div>
+          <p className="mt-6 text-muted-foreground font-medium">Loading your workspace...</p>
         </div>
       </div>
     );
@@ -108,15 +165,33 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-subtle">
       <div className="flex">
         <Navigation currentView={currentView} onViewChange={setCurrentView} />
         <main className="flex-1 p-6 md:p-8">
-          <div className="flex justify-end mb-4">
-            <Button variant="ghost" onClick={signOut} className="text-muted-foreground">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+          {/* Enhanced Header */}
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <User className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Welcome back,</p>
+                <p className="font-semibold">{user.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button variant="ghost" className="relative" onClick={() => setCurrentView("notifications")}>
+                <Bell className="h-4 w-4" />
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-red-500 text-white border-2 border-background">
+                  3
+                </Badge>
+              </Button>
+              <Button variant="ghost" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
           </div>
           {renderCurrentView()}
         </main>

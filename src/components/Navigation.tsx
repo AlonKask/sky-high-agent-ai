@@ -10,7 +10,11 @@ import {
   Bell,
   Settings,
   Menu,
-  Plane
+  Plane,
+  Mail,
+  BarChart3,
+  Star,
+  Zap
 } from "lucide-react";
 
 interface NavigationProps {
@@ -24,27 +28,38 @@ const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
   const navigationItems = [
     {
       id: "dashboard",
-      label: "Dashboard",
+      label: "Executive Dashboard",
       icon: LayoutDashboard,
-      badge: null
+      badge: null,
+      description: "Overview & Analytics"
     },
     {
       id: "clients",
-      label: "Clients",
+      label: "Client Portfolio",
       icon: Users,
-      badge: "247"
+      badge: "247",
+      description: "VIP Client Management"
     },
     {
       id: "requests",
-      label: "Active Requests",
+      label: "Travel Requests",
       icon: FileText,
-      badge: "18"
+      badge: "18",
+      description: "Active Quotes & Proposals"
     },
     {
       id: "bookings",
-      label: "Bookings",
+      label: "Flight Bookings",
       icon: Calendar,
-      badge: "32"
+      badge: "32",
+      description: "Confirmed Reservations"
+    },
+    {
+      id: "email",
+      label: "Communication Hub",
+      icon: Mail,
+      badge: "5",
+      description: "Email Management"
     }
   ];
 
