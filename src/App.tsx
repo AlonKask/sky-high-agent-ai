@@ -14,6 +14,7 @@ import BookingDetail from "./pages/BookingDetail";
 import RequestDetail from "./pages/RequestDetail";
 import Requests from "./pages/Requests";
 import ClientProfile from "./pages/ClientProfile";
+import Clients from "./pages/Clients";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/" element={<Index />} />
                     <Route path="/requests" element={<Requests />} />
+                    <Route path="/clients" element={<Clients />} />
                     <Route path="/analytics/:type" element={<Analytics />} />
                     <Route path="/booking/:bookingId" element={<BookingDetail />} />
                     <Route path="/request/:requestId" element={<RequestDetail />} />
