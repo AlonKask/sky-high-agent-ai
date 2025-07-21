@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import RequestInformation from "@/components/RequestInformation";
 import SabreOptionManager from "@/components/SabreOptionManager";
+import EmailManager from "@/components/EmailManager";
 
 interface SabreOption {
   id: string;
@@ -103,6 +104,11 @@ const RequestDetail = () => {
           onAddOption={handleAddOption}
           onUpdateOption={handleUpdateOption}
           onDeleteOption={handleDeleteOption}
+        />
+
+        <EmailManager 
+          clientEmail="john.smith@example.com"
+          requestId={requestId}
         />
       </div>
     </div>
