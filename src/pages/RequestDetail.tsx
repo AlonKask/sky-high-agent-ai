@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -707,14 +708,28 @@ const RequestDetail = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
-                    <Users className="h-5 w-5 text-purple-600" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Travelers</p>
-                      <p className="font-semibold">{request.passengers} passengers</p>
-                      <p className="text-xs text-muted-foreground capitalize">{request.class_preference} class</p>
-                    </div>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors cursor-help">
+                          <Users className="h-5 w-5 text-purple-600" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Travelers</p>
+                            <p className="font-semibold">{request.passengers} passengers</p>
+                            <p className="text-xs text-muted-foreground capitalize">{request.class_preference} class</p>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-sm">
+                          <p className="font-medium">Passenger Types:</p>
+                          <p>• Adults: {Math.max(1, request.passengers - 1)}</p>
+                          {request.passengers > 1 && <p>• Children/Infants: {Math.min(1, request.passengers - 1)}</p>}
+                          <p className="mt-1 text-muted-foreground">Class: {request.class_preference}</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
 
                 {(request.special_requirements || request.budget_range) && (
