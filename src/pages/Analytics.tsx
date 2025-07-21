@@ -22,28 +22,25 @@ const Analytics = () => {
   const { type } = useParams();
   const [selectedPeriod, setSelectedPeriod] = useState("month");
 
+  // TODO: Replace with actual API calls to fetch analytics data
   const revenueData = {
-    current: 284500,
-    previous: 251200,
-    growth: 13.2,
-    bookings: 32,
-    avgTicket: 8906,
-    topRoutes: [
-      { route: "NYC → LHR", bookings: 8, revenue: 68000 },
-      { route: "LAX → NRT", bookings: 6, revenue: 72000 },
-      { route: "SFO → CDG", bookings: 5, revenue: 39000 },
-    ]
+    current: 0,
+    previous: 0,
+    growth: 0,
+    bookings: 0,
+    avgTicket: 0,
+    topRoutes: []
   };
 
   const performanceData = {
-    conversionRate: 73,
-    previousConversion: 68,
-    leadToBooking: 73,
-    inquiryToQuote: 89,
-    quoteToBooking: 82,
-    avgResponseTime: "2.4 hours",
-    customerSatisfaction: 4.8,
-    repeatCustomers: 45
+    conversionRate: 0,
+    previousConversion: 0,
+    leadToBooking: 0,
+    inquiryToQuote: 0,
+    quoteToBooking: 0,
+    avgResponseTime: "No data",
+    customerSatisfaction: 0,
+    repeatCustomers: 0
   };
 
   const getGrowthColor = (growth: number) => {
@@ -69,7 +66,7 @@ const Analytics = () => {
                 <TrendingDown className={`h-4 w-4 mr-1 ${getGrowthColor(revenueData.growth)}`} />
               )}
               <span className={getGrowthColor(revenueData.growth)}>
-                +{revenueData.growth}% from last month
+                {revenueData.growth > 0 ? `+${revenueData.growth}% from last month` : "No growth data available"}
               </span>
             </div>
           </CardContent>
@@ -81,9 +78,11 @@ const Analytics = () => {
             <Plane className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">${revenueData.avgTicket.toLocaleString()}</div>
+            <div className="text-3xl font-bold">
+              {revenueData.avgTicket > 0 ? `$${revenueData.avgTicket.toLocaleString()}` : "$0"}
+            </div>
             <p className="text-sm text-muted-foreground">
-              {revenueData.bookings} bookings this month
+              {revenueData.bookings > 0 ? `${revenueData.bookings} bookings this month` : "No bookings this month"}
             </p>
           </CardContent>
         </Card>
@@ -94,9 +93,14 @@ const Analytics = () => {
             <BarChart3 className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">{revenueData.topRoutes[0].route}</div>
+            <div className="text-xl font-bold">
+              {revenueData.topRoutes.length > 0 ? revenueData.topRoutes[0].route : "No data"}
+            </div>
             <p className="text-sm text-muted-foreground">
-              ${revenueData.topRoutes[0].revenue.toLocaleString()} revenue
+              {revenueData.topRoutes.length > 0 
+                ? `$${revenueData.topRoutes[0].revenue.toLocaleString()} revenue` 
+                : "No route data available"
+              }
             </p>
           </CardContent>
         </Card>
@@ -109,27 +113,37 @@ const Analytics = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {revenueData.topRoutes.map((route, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                  <div>
-                    <div className="font-semibold">{route.route}</div>
+            {revenueData.topRoutes.length === 0 ? (
+              <div className="flex items-center justify-center p-8 text-muted-foreground">
+                <div className="text-center">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No route data available</p>
+                  <p className="text-sm">Connect your booking system to see top performing routes</p>
+                </div>
+              </div>
+            ) : (
+              revenueData.topRoutes.map((route, index) => (
+                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
+                    <div>
+                      <div className="font-semibold">{route.route}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {route.bookings} bookings
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-green-600">
+                      ${route.revenue.toLocaleString()}
+                    </div>
                     <div className="text-sm text-muted-foreground">
-                      {route.bookings} bookings
+                      Avg: ${(route.revenue / route.bookings).toLocaleString()}
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-green-600">
-                    ${route.revenue.toLocaleString()}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Avg: ${(route.revenue / route.bookings).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -155,7 +169,10 @@ const Analytics = () => {
                 <TrendingDown className={`h-4 w-4 mr-1 ${getGrowthColor(performanceData.conversionRate - performanceData.previousConversion)}`} />
               )}
               <span className={getGrowthColor(performanceData.conversionRate - performanceData.previousConversion)}>
-                +{performanceData.conversionRate - performanceData.previousConversion}% from last month
+                {(performanceData.conversionRate - performanceData.previousConversion) > 0 
+                  ? `+${performanceData.conversionRate - performanceData.previousConversion}% from last month`
+                  : "No comparison data available"
+                }
               </span>
             </div>
           </CardContent>
@@ -212,8 +229,12 @@ const Analytics = () => {
                 <div className="text-sm text-muted-foreground">Initial response rate</div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-primary">{performanceData.inquiryToQuote}%</div>
-                <Badge variant="secondary">Excellent</Badge>
+                <div className="text-2xl font-bold text-primary">
+                  {performanceData.inquiryToQuote > 0 ? `${performanceData.inquiryToQuote}%` : "0%"}
+                </div>
+                <Badge variant="secondary">
+                  {performanceData.inquiryToQuote > 0 ? "Excellent" : "No data"}
+                </Badge>
               </div>
             </div>
 
@@ -223,8 +244,12 @@ const Analytics = () => {
                 <div className="text-sm text-muted-foreground">Quote acceptance rate</div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-orange-500">{performanceData.quoteToBooking}%</div>
-                <Badge variant="secondary">Good</Badge>
+                <div className="text-2xl font-bold text-orange-500">
+                  {performanceData.quoteToBooking > 0 ? `${performanceData.quoteToBooking}%` : "0%"}
+                </div>
+                <Badge variant="secondary">
+                  {performanceData.quoteToBooking > 0 ? "Good" : "No data"}
+                </Badge>
               </div>
             </div>
 
@@ -234,8 +259,12 @@ const Analytics = () => {
                 <div className="text-sm text-muted-foreground">End-to-end conversion</div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-green-600">{performanceData.leadToBooking}%</div>
-                <Badge variant="secondary">Excellent</Badge>
+                <div className="text-2xl font-bold text-green-600">
+                  {performanceData.leadToBooking > 0 ? `${performanceData.leadToBooking}%` : "0%"}
+                </div>
+                <Badge variant="secondary">
+                  {performanceData.leadToBooking > 0 ? "Excellent" : "No data"}
+                </Badge>
               </div>
             </div>
           </div>
