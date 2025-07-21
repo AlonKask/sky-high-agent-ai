@@ -97,7 +97,7 @@ export class SabreParser {
     const patterns = [
       // Pattern 1: LH format with arrival date and day
       // 1 LH7608P 15APR W EWRMUC SS1   500P  710A  16APR Q /DCLH /E
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])\s+(\d+[A-Z]{3})\s+([A-Z])\s+\/DC[A-Z]*\s*\/E$/,
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])\s+(\d+[A-Z]{3})\s+([A-Z])\s+\/DC[A-Z]*\s*\/E$/,
       
       // Pattern 2: Delta format without space in flight number
       // 1 DL2542Z 13SEP J MSYATL*SS1  1240P  313P /DCDL /E
