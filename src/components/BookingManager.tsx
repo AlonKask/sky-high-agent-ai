@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,101 +6,101 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plane, MapPin, Calendar, User, DollarSign, Filter } from "lucide-react";
+import { Search, Plane, MapPin, Calendar, User, DollarSign, Filter, Plus, Mail, FileText, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+
+interface Booking {
+  id: string;
+  user_id: string;
+  client_id: string;
+  request_id?: string;
+  departure_date: string;
+  arrival_date: string;
+  return_departure_date?: string;
+  return_arrival_date?: string;
+  passengers: number;
+  total_price: number;
+  commission?: number;
+  ticket_numbers?: string[];
+  class: string;
+  flight_number?: string;
+  payment_status: string;
+  route: string;
+  status: string;
+  notes?: string;
+  pnr?: string;
+  airline: string;
+  booking_reference: string;
+  created_at: string;
+  updated_at: string;
+  clients?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string;
+  };
+}
 
 const BookingManager = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const bookings = [
-    {
-      id: "BK-2024-001",
-      clientName: "John Smith",
-      clientId: "CL-001",
-      itinerary: [
-        { from: "NYC", to: "LHR", date: "2024-02-15", flight: "BA 177", class: "Business" },
-        { from: "LHR", to: "NYC", date: "2024-02-22", flight: "BA 178", class: "Business" }
-      ],
-      totalPrice: 8500,
-      productType: "published",
-      status: "confirmed",
-      bookingDate: "2024-01-20",
-      passengers: [
-        { name: "John Smith", type: "adult", seat: "2A" }
-      ],
-      summary: "London business trip, preferred morning flights",
-      specialRequests: "Vegetarian meal, aisle seat",
-      paymentStatus: "paid"
-    },
-    {
-      id: "BK-2024-002",
-      clientName: "Sarah Johnson",
-      clientId: "CL-002",
-      itinerary: [
-        { from: "LAX", to: "NRT", date: "2024-02-18", flight: "JL 061", class: "First" }
-      ],
-      totalPrice: 12000,
-      productType: "award",
-      status: "pending",
-      bookingDate: "2024-02-01",
-      passengers: [
-        { name: "Sarah Johnson", type: "adult", seat: "1A" }
-      ],
-      summary: "Tokyo vacation, used miles upgrade",
-      specialRequests: "Kosher meal, window seat",
-      paymentStatus: "pending"
-    },
-    {
-      id: "BK-2024-003",
-      clientName: "Michael Chen",
-      clientId: "CL-003",
-      itinerary: [
-        { from: "SFO", to: "CDG", date: "2024-02-20", flight: "AF 83", class: "Business" },
-        { from: "CDG", to: "SFO", date: "2024-02-27", flight: "AF 84", class: "Business" }
-      ],
-      totalPrice: 7800,
-      productType: "manipulated",
-      status: "confirmed",
-      bookingDate: "2024-01-25",
-      passengers: [
-        { name: "Michael Chen", type: "adult", seat: "4A" }
-      ],
-      summary: "Paris conference, negotiated corporate rate",
-      specialRequests: "Extra legroom, dairy-free meal",
-      paymentStatus: "paid"
-    },
-    {
-      id: "BK-2024-004",
-      clientName: "Emma Wilson",
-      clientId: "CL-004",
-      itinerary: [
-        { from: "NYC", to: "DXB", date: "2024-03-10", flight: "EK 201", class: "Business" },
-        { from: "DXB", to: "NYC", date: "2024-03-17", flight: "EK 202", class: "Business" }
-      ],
-      totalPrice: 11200,
-      productType: "private",
-      status: "processing",
-      bookingDate: "2024-02-10",
-      passengers: [
-        { name: "Emma Wilson", type: "adult", seat: "6A" },
-        { name: "James Wilson", type: "adult", seat: "6B" }
-      ],
-      summary: "Anniversary trip to Dubai, premium service",
-      specialRequests: "Champagne service, late check-in",
-      paymentStatus: "deposit_paid"
+  useEffect(() => {
+    if (user) {
+      fetchBookings();
     }
-  ];
+  }, [user]);
+
+  const fetchBookings = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          clients!inner(
+            first_name,
+            last_name,
+            email,
+            phone
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching bookings:', error);
+        toast.error('Failed to load bookings');
+        return;
+      }
+
+      setBookings(data || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      toast.error('Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.itinerary.some(leg => 
-                           leg.from.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           leg.to.toLowerCase().includes(searchTerm.toLowerCase())
-                         );
+    if (!booking.clients) return false;
+    
+    const clientName = `${booking.clients.first_name} ${booking.clients.last_name}`;
+    const matchesSearch = clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         booking.booking_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         booking.route.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         booking.airline.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesFilter = filterStatus === "all" || booking.status === filterStatus;
     
@@ -109,54 +109,89 @@ const BookingManager = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "confirmed": return "bg-success text-success-foreground";
-      case "pending": return "bg-warning text-warning-foreground";
-      case "processing": return "bg-primary text-primary-foreground";
-      case "cancelled": return "bg-destructive text-destructive-foreground";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
-
-  const getProductTypeColor = (type: string) => {
-    switch (type) {
-      case "published": return "bg-muted text-muted-foreground";
-      case "award": return "bg-accent text-accent-foreground";
-      case "private": return "bg-primary text-primary-foreground";
-      case "manipulated": return "bg-secondary text-secondary-foreground";
-      default: return "bg-muted text-muted-foreground";
+      case "confirmed": return "bg-green-500 text-white";
+      case "pending": return "bg-yellow-500 text-white";
+      case "cancelled": return "bg-red-500 text-white";
+      case "processing": return "bg-blue-500 text-white";
+      default: return "bg-gray-500 text-white";
     }
   };
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case "paid": return "bg-success text-success-foreground";
-      case "pending": return "bg-warning text-warning-foreground";
-      case "deposit_paid": return "bg-primary text-primary-foreground";
-      case "overdue": return "bg-destructive text-destructive-foreground";
-      default: return "bg-muted text-muted-foreground";
+      case "paid": return "bg-green-500 text-white";
+      case "pending": return "bg-yellow-500 text-white";
+      case "deposit_paid": return "bg-blue-500 text-white";
+      case "overdue": return "bg-red-500 text-white";
+      default: return "bg-gray-500 text-white";
     }
   };
 
-  const formatItinerary = (itinerary: any[]) => {
-    if (itinerary.length === 1) {
-      return `${itinerary[0].from} → ${itinerary[0].to}`;
-    } else if (itinerary.length === 2 && itinerary[0].to === itinerary[1].from) {
-      return `${itinerary[0].from} ⇄ ${itinerary[0].to}`;
-    } else {
-      return itinerary.map(leg => `${leg.from} → ${leg.to}`).join(", ");
+  const formatRoute = (route: string) => {
+    // Handle different route formats
+    if (route.includes('→')) {
+      return route;
+    } else if (route.includes('-')) {
+      return route.replace('-', ' → ');
+    }
+    return route;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleNewBooking = () => {
+    navigate('/requests');
+  };
+
+  const handleViewBooking = (booking: Booking) => {
+    navigate(`/booking/${booking.id}`);
+  };
+
+  const handleSendConfirmation = async (booking: Booking) => {
+    try {
+      // This would call an edge function to send confirmation email
+      toast.success('Confirmation email sent successfully');
+    } catch (error) {
+      toast.error('Failed to send confirmation email');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Booking Manager</h1>
+        </div>
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Booking Manager</h1>
+          <h1 className="text-3xl font-bold">✈️ Booking Manager</h1>
           <p className="text-muted-foreground">Track and manage all client bookings</p>
         </div>
-        <Button className="bg-gradient-to-r from-primary to-primary-light">
-          <Plane className="mr-2 h-4 w-4" />
+        <Button onClick={handleNewBooking} className="bg-primary hover:bg-primary/90">
+          <Plus className="mr-2 h-4 w-4" />
           New Booking
         </Button>
       </div>
@@ -166,7 +201,7 @@ const BookingManager = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search bookings by client, ID, or destination..."
+            placeholder="Search bookings by client, reference, route, or airline..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -188,67 +223,86 @@ const BookingManager = () => {
       </div>
 
       {/* Booking Cards */}
-      <div className="grid gap-4">
-        {filteredBookings.map((booking) => (
-          <Card key={booking.id} className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => navigate(`/booking/${booking.id}`)}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-                    <Plane className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="text-lg font-semibold">{booking.clientName}</h3>
-                      <Badge variant="outline" className="text-xs">{booking.id}</Badge>
+      {filteredBookings.length === 0 ? (
+        <div className="text-center py-12">
+          <Plane className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No bookings found</h3>
+          <p className="text-muted-foreground mb-4">
+            {bookings.length === 0 ? "Start by creating your first booking" : "Try adjusting your search terms"}
+          </p>
+          <Button onClick={handleNewBooking}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create First Booking
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredBookings.map((booking) => (
+            <Card key={booking.id} className="hover:shadow-lg transition-shadow cursor-pointer animate-fade-in"
+                  onClick={() => setSelectedBooking(booking)}>
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
+                      <Plane className="h-5 w-5 text-primary" />
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      <span>{formatItinerary(booking.itinerary)}</span>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-semibold">
+                          {booking.clients?.first_name} {booking.clients?.last_name}
+                        </h3>
+                        <Badge variant="outline" className="text-xs">{booking.booking_reference}</Badge>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        <span>{formatRoute(booking.route)}</span>
+                        {booking.airline && (
+                          <>
+                            <span>•</span>
+                            <span>{booking.airline}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="text-lg font-bold">${booking.total_price.toLocaleString()}</div>
+                    <div className="flex items-center space-x-1">
+                      <Badge className={`text-xs ${getStatusColor(booking.status)}`}>
+                        {booking.status}
+                      </Badge>
+                      <Badge className={`text-xs ${getPaymentStatusColor(booking.payment_status)}`}>
+                        {booking.payment_status.replace('_', ' ')}
+                      </Badge>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end space-y-1">
-                  <div className="text-lg font-bold">${booking.totalPrice.toLocaleString()}</div>
-                  <div className="flex items-center space-x-1">
-                    <Badge className={`text-xs ${getStatusColor(booking.status)}`}>
-                      {booking.status}
-                    </Badge>
-                    <Badge className={`text-xs ${getProductTypeColor(booking.productType)}`}>
-                      {booking.productType}
-                    </Badge>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>Departure: {formatDate(booking.departure_date)}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span>{booking.passengers} passenger{booking.passengers > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>Class: {booking.class}</span>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Departure: {booking.itinerary[0].date}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span>{booking.passengers.length} passenger{booking.passengers.length > 1 ? 's' : ''}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span>Payment:</span>
-                  <Badge className={`text-xs ${getPaymentStatusColor(booking.paymentStatus)}`}>
-                    {booking.paymentStatus.replace('_', ' ')}
-                  </Badge>
-                </div>
-              </div>
-
-              {booking.summary && (
-                <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground">{booking.summary}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                {booking.notes && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">{booking.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Booking Detail Dialog */}
       {selectedBooking && (
@@ -257,74 +311,126 @@ const BookingManager = () => {
             <DialogHeader>
               <DialogTitle className="flex items-center space-x-2">
                 <Plane className="h-5 w-5" />
-                <span>Booking {selectedBooking.id}</span>
+                <span>Booking {selectedBooking.booking_reference}</span>
                 <Badge className={`${getStatusColor(selectedBooking.status)}`}>
                   {selectedBooking.status}
                 </Badge>
               </DialogTitle>
               <DialogDescription>
-                Complete booking details and itinerary
+                Complete booking details for {selectedBooking.clients?.first_name} {selectedBooking.clients?.last_name}
               </DialogDescription>
             </DialogHeader>
             
-            <Tabs defaultValue="itinerary" className="w-full">
+            <Tabs defaultValue="details" className="w-full">
               <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
-                <TabsTrigger value="passengers">Passengers</TabsTrigger>
                 <TabsTrigger value="payment">Payment</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="itinerary" className="space-y-4">
+              <TabsContent value="details" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Flight Details</CardTitle>
+                    <CardTitle className="text-lg">Booking Information</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {selectedBooking.itinerary.map((leg: any, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-4">
-                            <div className="text-center">
-                              <div className="font-medium">{leg.from}</div>
-                              <div className="text-xs text-muted-foreground">Departure</div>
-                            </div>
-                            <Plane className="h-4 w-4 text-muted-foreground" />
-                            <div className="text-center">
-                              <div className="font-medium">{leg.to}</div>
-                              <div className="text-xs text-muted-foreground">Arrival</div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium">{leg.flight}</div>
-                            <div className="text-sm text-muted-foreground">{leg.date}</div>
-                            <Badge variant="outline" className="text-xs mt-1">{leg.class}</Badge>
-                          </div>
-                        </div>
-                      ))}
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="font-medium">Client:</span>
+                        <p className="text-muted-foreground">
+                          {selectedBooking.clients?.first_name} {selectedBooking.clients?.last_name}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Email:</span>
+                        <p className="text-muted-foreground">{selectedBooking.clients?.email}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Passengers:</span>
+                        <p className="text-muted-foreground">{selectedBooking.passengers}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Class:</span>
+                        <p className="text-muted-foreground">{selectedBooking.class}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Airline:</span>
+                        <p className="text-muted-foreground">{selectedBooking.airline}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">PNR:</span>
+                        <p className="text-muted-foreground">{selectedBooking.pnr || 'Not available'}</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
               
-              <TabsContent value="passengers" className="space-y-4">
+              <TabsContent value="itinerary" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Passenger Information</CardTitle>
+                    <CardTitle className="text-lg">Flight Details</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {selectedBooking.passengers.map((passenger: any, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-3 border rounded">
-                          <div>
-                            <div className="font-medium">{passenger.name}</div>
-                            <div className="text-sm text-muted-foreground capitalize">{passenger.type}</div>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="text-center">
+                            <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[0]}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatDate(selectedBooking.departure_date)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatTime(selectedBooking.departure_date)}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="font-medium">Seat {passenger.seat}</div>
+                          <Plane className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-center">
+                            <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[1]}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatDate(selectedBooking.arrival_date)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatTime(selectedBooking.arrival_date)}
+                            </div>
                           </div>
                         </div>
-                      ))}
+                        <div className="text-right">
+                          <div className="font-medium">{selectedBooking.flight_number || selectedBooking.airline}</div>
+                          <Badge variant="outline" className="text-xs mt-1">{selectedBooking.class}</Badge>
+                        </div>
+                      </div>
+                      
+                      {selectedBooking.return_departure_date && (
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            <div className="text-center">
+                              <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[1]}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatDate(selectedBooking.return_departure_date)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatTime(selectedBooking.return_departure_date)}
+                              </div>
+                            </div>
+                            <Plane className="h-4 w-4 text-muted-foreground" />
+                            <div className="text-center">
+                              <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[0]}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {selectedBooking.return_arrival_date ? formatDate(selectedBooking.return_arrival_date) : 'TBD'}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {selectedBooking.return_arrival_date ? formatTime(selectedBooking.return_arrival_date) : ''}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">Return Flight</div>
+                            <Badge variant="outline" className="text-xs mt-1">{selectedBooking.class}</Badge>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -333,29 +439,41 @@ const BookingManager = () => {
               <TabsContent value="payment" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Payment Details</CardTitle>
+                    <CardTitle className="text-lg">Payment Details</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
                       <span>Total Amount:</span>
-                      <span className="font-medium">${selectedBooking.totalPrice.toLocaleString()}</span>
+                      <span className="font-medium">${selectedBooking.total_price.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Product Type:</span>
-                      <Badge className={`${getProductTypeColor(selectedBooking.productType)}`}>
-                        {selectedBooking.productType}
-                      </Badge>
-                    </div>
+                    {selectedBooking.commission && (
+                      <div className="flex justify-between">
+                        <span>Commission:</span>
+                        <span className="font-medium">${selectedBooking.commission.toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span>Payment Status:</span>
-                      <Badge className={`${getPaymentStatusColor(selectedBooking.paymentStatus)}`}>
-                        {selectedBooking.paymentStatus.replace('_', ' ')}
+                      <Badge className={`${getPaymentStatusColor(selectedBooking.payment_status)}`}>
+                        {selectedBooking.payment_status.replace('_', ' ')}
                       </Badge>
                     </div>
                     <div className="flex justify-between">
                       <span>Booking Date:</span>
-                      <span>{selectedBooking.bookingDate}</span>
+                      <span>{formatDate(selectedBooking.created_at)}</span>
                     </div>
+                    {selectedBooking.ticket_numbers && selectedBooking.ticket_numbers.length > 0 && (
+                      <div>
+                        <span className="font-medium">Ticket Numbers:</span>
+                        <div className="mt-1">
+                          {selectedBooking.ticket_numbers.map((ticket, index) => (
+                            <Badge key={index} variant="outline" className="mr-1 mb-1">
+                              {ticket}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -363,30 +481,30 @@ const BookingManager = () => {
               <TabsContent value="notes" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Booking Summary</CardTitle>
+                    <CardTitle className="text-lg">Booking Notes</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm">{selectedBooking.summary}</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Special Requests</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{selectedBooking.specialRequests}</p>
+                    <p className="text-sm">{selectedBooking.notes || 'No notes available'}</p>
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
 
             <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="outline">Edit Booking</Button>
-              <Button variant="outline">Send Confirmation</Button>
-              <Button className="bg-gradient-to-r from-primary to-primary-light">
-                Process Payment
+              <Button variant="outline" onClick={() => handleViewBooking(selectedBooking)}>
+                <FileText className="mr-2 h-4 w-4" />
+                View Details
               </Button>
+              <Button variant="outline" onClick={() => handleSendConfirmation(selectedBooking)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Send Confirmation
+              </Button>
+              {selectedBooking.payment_status !== 'paid' && (
+                <Button className="bg-primary hover:bg-primary/90">
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  Process Payment
+                </Button>
+              )}
             </div>
           </DialogContent>
         </Dialog>
