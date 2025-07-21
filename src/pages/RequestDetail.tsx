@@ -30,6 +30,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { SabreParser, ParsedItinerary } from "@/utils/sabreParser";
 
 const RequestDetail = () => {
   const { requestId } = useParams();
@@ -51,6 +52,10 @@ const RequestDetail = () => {
   
   // Sabre options state
   const [sabreOptions, setSabreOptions] = useState<any[]>([]);
+  
+  // I-format parser state
+  const [iFormatInput, setIFormatInput] = useState("");
+  const [parsedItinerary, setParsedItinerary] = useState<ParsedItinerary | null>(null);
 
   useEffect(() => {
     if (requestId && user) {
@@ -135,6 +140,44 @@ const RequestDetail = () => {
     // TODO: Implement actual Sabre GDS API integration
     setSabreOptions([]);
     toast.success('Connected to Sabre GDS - implement actual API call');
+  };
+
+  const parseIFormatData = () => {
+    if (!iFormatInput.trim()) {
+      toast.error('Please enter I-format data to parse');
+      return;
+    }
+    
+    const parsed = SabreParser.parseIFormat(iFormatInput);
+    if (parsed) {
+      setParsedItinerary(parsed);
+      toast.success(`Parsed ${parsed.totalSegments} flight segments`);
+    } else {
+      toast.error('Failed to parse I-format data. Please check the format.');
+    }
+  };
+
+  const addParsedSegmentToEmail = (segment: any) => {
+    const segmentText = `
+✈️ FLIGHT SEGMENT ${segment.segmentNumber}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Flight: ${segment.flightNumber}
+Date: ${new Date(segment.flightDate).toLocaleDateString()}
+Class: ${segment.cabinClass}
+
+📅 DEPARTURE: ${segment.departureTime} - ${segment.departureAirport}
+📅 ARRIVAL: ${segment.arrivalTime} - ${segment.arrivalAirport}${segment.arrivalDayOffset ? ' (+1 day)' : ''}
+Status: ${segment.statusCode}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+    
+    setEmailContent(prev => ({
+      ...prev,
+      body: prev.body + segmentText
+    }));
+    
+    toast.success('Flight segment added to email');
   };
 
   const addOptionToEmail = (option: any) => {
@@ -255,6 +298,94 @@ Aircraft: ${option.aircraft}
                   <div className="mt-4 p-3 bg-muted rounded-lg">
                     <p className="text-sm font-medium">Special Requirements:</p>
                     <p className="text-sm text-muted-foreground mt-1">{request.special_requests}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* I-Format Parser */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plane className="h-5 w-5" />
+                  I-Format Parser
+                </CardTitle>
+                <CardDescription>
+                  Paste Sabre I-format itinerary data to parse flight segments
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>I-Format Data</Label>
+                  <Textarea
+                    value={iFormatInput}
+                    onChange={(e) => setIFormatInput(e.target.value)}
+                    placeholder="Paste your Sabre I-format data here..."
+                    rows={4}
+                  />
+                </div>
+                <Button onClick={parseIFormatData}>
+                  Parse I-Format Data
+                </Button>
+                
+                {parsedItinerary && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="font-semibold text-sm">Parsed Itinerary</p>
+                      <p className="text-sm text-muted-foreground">
+                        Route: {parsedItinerary.route} | {parsedItinerary.totalSegments} segments | 
+                        {parsedItinerary.isRoundTrip ? 'Round Trip' : 'One Way'}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {parsedItinerary.segments.map((segment, index) => (
+                        <Card key={index} className="border-l-4 border-l-blue-500">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-2 flex-1">
+                                <div className="flex items-center gap-3">
+                                  <Badge variant="outline">Segment {segment.segmentNumber}</Badge>
+                                  <span className="font-semibold">{segment.flightNumber}</span>
+                                  <Badge variant="secondary">{segment.cabinClass}</Badge>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <p className="font-medium text-emerald-600">Departure</p>
+                                    <p>{segment.departureTime} - {segment.departureAirport}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {new Date(segment.flightDate).toLocaleDateString()} ({segment.dayOfWeek})
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-blue-600">Arrival</p>
+                                    <p>{segment.arrivalTime} - {segment.arrivalAirport}</p>
+                                    {segment.arrivalDayOffset > 0 && (
+                                      <p className="text-xs text-muted-foreground">+{segment.arrivalDayOffset} day</p>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="text-xs text-muted-foreground">
+                                  Status: {segment.statusCode} | Booking Class: {segment.bookingClass}
+                                </div>
+                              </div>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => addParsedSegmentToEmail(segment)}
+                                className="ml-4"
+                              >
+                                <Copy className="mr-2 h-4 w-4" />
+                                Add to Email
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
