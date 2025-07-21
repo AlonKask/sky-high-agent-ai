@@ -677,20 +677,100 @@ const RequestDetail = () => {
             {/* Trip Information Card */}
             <Card className="border-0 shadow-lg">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Globe className="h-5 w-5 text-primary" />
-                  Trip Information
-                </CardTitle>
-                <CardDescription>Complete travel request details and requirements</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                      <Globe className="h-5 w-5 text-primary" />
+                      Trip Information
+                    </CardTitle>
+                    <CardDescription>Complete travel request details and requirements</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!editing ? (
+                      <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          setEditing(false);
+                          setEditedRequest(request);
+                        }}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={async () => {
+                          try {
+                            const { error } = await supabase
+                              .from('requests')
+                              .update({
+                                origin: editedRequest.origin,
+                                destination: editedRequest.destination,
+                                request_type: editedRequest.request_type
+                              })
+                              .eq('id', requestId);
+                            
+                            if (error) throw error;
+                            
+                            setRequest(editedRequest);
+                            setEditing(false);
+                            toast.success('Trip information updated successfully');
+                          } catch (error) {
+                            console.error('Error updating request:', error);
+                            toast.error('Failed to update trip information');
+                          }
+                        }}>
+                          <Save className="h-4 w-4 mr-1" />
+                          Save
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                     <MapPin className="h-5 w-5 text-blue-600" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-muted-foreground">Route</p>
-                      <p className="font-semibold">{request.origin} → {request.destination}</p>
-                      <p className="text-xs text-muted-foreground">{request.request_type.replace('_', ' ')}</p>
+                      {editing ? (
+                        <div className="space-y-2 mt-1">
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              value={editedRequest.origin || ''}
+                              onChange={(e) => setEditedRequest(prev => ({ ...prev, origin: e.target.value }))}
+                              placeholder="Origin"
+                              className="h-8 text-sm font-semibold"
+                            />
+                            <span className="text-muted-foreground">→</span>
+                            <Input
+                              value={editedRequest.destination || ''}
+                              onChange={(e) => setEditedRequest(prev => ({ ...prev, destination: e.target.value }))}
+                              placeholder="Destination"
+                              className="h-8 text-sm font-semibold"
+                            />
+                          </div>
+                          <Select 
+                            value={editedRequest.request_type || ''} 
+                            onValueChange={(value) => setEditedRequest(prev => ({ ...prev, request_type: value }))}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Trip type" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-lg z-50">
+                              <SelectItem value="one_way">One Way</SelectItem>
+                              <SelectItem value="round_trip">Round Trip</SelectItem>
+                              <SelectItem value="multi_city">Multi City</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-semibold">{request.origin} → {request.destination}</p>
+                          <p className="text-xs text-muted-foreground">{request.request_type.replace('_', ' ')}</p>
+                        </>
+                      )}
                     </div>
                   </div>
                   
