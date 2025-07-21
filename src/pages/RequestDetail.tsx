@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -25,7 +24,14 @@ import {
   Plus,
   Copy,
   Phone,
-  DollarSign
+  DollarSign,
+  Star,
+  Globe,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  Settings,
+  ExternalLink
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,7 +54,6 @@ const RequestDetail = () => {
     body: "",
     recipient: ""
   });
-  const [smsContent, setSmsContent] = useState("");
   
   // Sabre options state
   const [sabreOptions, setSabreOptions] = useState<any[]>([]);
@@ -101,47 +106,6 @@ const RequestDetail = () => {
     }
   };
 
-  const handleSendEmail = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: emailContent.recipient,
-          subject: emailContent.subject,
-          html: emailContent.body.replace(/\n/g, '<br>'),
-          requestId: requestId,
-          clientId: client.id
-        }
-      });
-
-      if (error) throw error;
-
-      await supabase.from('email_exchanges').insert({
-        user_id: user.id,
-        client_id: client.id,
-        request_id: requestId,
-        sender_email: user.email,
-        recipient_emails: [emailContent.recipient],
-        subject: emailContent.subject,
-        body: emailContent.body,
-        direction: 'outgoing',
-        status: 'sent',
-        email_type: 'quote'
-      });
-
-      toast.success('Email sent successfully');
-      setEmailContent(prev => ({ ...prev, body: "" }));
-    } catch (error) {
-      console.error('Error sending email:', error);
-      toast.error('Failed to send email. Please ensure email service is configured.');
-    }
-  };
-
-  const generateSabreOptions = () => {
-    // TODO: Implement actual Sabre GDS API integration
-    setSabreOptions([]);
-    toast.success('Connected to Sabre GDS - implement actual API call');
-  };
-
   const parseIFormatData = () => {
     if (!iFormatInput.trim()) {
       toast.error('Please enter I-format data to parse');
@@ -180,35 +144,107 @@ Status: ${segment.statusCode}
     toast.success('Flight segment added to email');
   };
 
-  const addOptionToEmail = (option: any) => {
-    const optionText = `
-✈️ FLIGHT OPTION ${option.id}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Airline: ${option.airline}
-Flight: ${option.flightNumber}
-Aircraft: ${option.aircraft}
+  const handleSendEmail = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: emailContent.recipient,
+          subject: emailContent.subject,
+          html: emailContent.body.replace(/\n/g, '<br>'),
+          requestId: requestId,
+          clientId: client.id
+        }
+      });
 
-📅 DEPARTURE: ${option.departure.time} - ${option.departure.airport}
-📅 ARRIVAL: ${option.arrival.time} - ${option.arrival.airport}
-⏱️ Duration: ${option.duration} | ${option.stops}
-💰 PRICE: $${option.price} USD
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      if (error) throw error;
 
-`;
-    
-    setEmailContent(prev => ({
-      ...prev,
-      body: prev.body + optionText
-    }));
-    
-    toast.success('Flight option added to email');
+      await supabase.from('email_exchanges').insert({
+        user_id: user.id,
+        client_id: client.id,
+        request_id: requestId,
+        sender_email: user.email,
+        recipient_emails: [emailContent.recipient],
+        subject: emailContent.subject,
+        body: emailContent.body,
+        direction: 'outgoing',
+        status: 'sent',
+        email_type: 'quote'
+      });
+
+      toast.success('Email sent successfully');
+      setEmailContent(prev => ({ ...prev, body: "" }));
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast.error('Failed to send email. Please ensure email service is configured.');
+    }
+  };
+
+  const updateRequestStatus = async (newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('requests')
+        .update({ status: newStatus })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      setRequest(prev => ({ ...prev, status: newStatus }));
+      toast.success('Request status updated successfully');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update request status');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending": return "bg-orange-500 text-white";
+      case "researching": return "bg-blue-500 text-white";
+      case "quote_sent": return "bg-purple-500 text-white";
+      case "confirmed": return "bg-green-500 text-white";
+      case "cancelled": return "bg-red-500 text-white";
+      default: return "bg-gray-500 text-white";
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-100 text-red-800 border-red-200";
+      case "medium": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low": return "bg-green-100 text-green-800 border-green-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pending": return <AlertCircle className="h-4 w-4" />;
+      case "researching": return <Clock className="h-4 w-4" />;
+      case "quote_sent": return <Send className="h-4 w-4" />;
+      case "confirmed": return <CheckCircle className="h-4 w-4" />;
+      default: return <FileText className="h-4 w-4" />;
+    }
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              <p className="text-muted-foreground">Loading request details...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -216,102 +252,148 @@ Aircraft: ${option.aircraft}
 
   if (!request) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-4">Request not found</h1>
-          <Button onClick={() => navigate('/requests')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Requests
-          </Button>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center">
+            <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
+              <Plane className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h1 className="text-2xl font-semibold mb-4">Request not found</h1>
+            <p className="text-muted-foreground mb-6">The requested travel request could not be found.</p>
+            <Button onClick={() => navigate('/requests')} variant="outline">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Requests
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Enhanced Header with Gradient Background */}
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
+        <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => navigate('/requests')}>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/requests')}
+                className="hover:scale-105 transition-transform"
+              >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                Back to Requests
               </Button>
-              <div>
-                <h1 className="text-2xl font-semibold">Request Details</h1>
-                <p className="text-muted-foreground">
-                  {client?.first_name} {client?.last_name} • {request.origin} → {request.destination}
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-primary/10">
+                  <Plane className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">✈️ Flight Request Details</h1>
+                  <p className="text-muted-foreground">
+                    {client?.first_name} {client?.last_name} • {request.origin} → {request.destination}
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                Status: {request.status || 'Active'}
+            
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className={getPriorityColor(request.priority)}>
+                <Star className="h-3 w-3 mr-1" />
+                {request.priority} priority
+              </Badge>
+              <Badge className={`${getStatusColor(request.status)} flex items-center gap-1`}>
+                {getStatusIcon(request.status)}
+                {request.status.replace('_', ' ')}
               </Badge>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto p-6">
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Left Column - Request Info & Flight Options */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Left Column - Request Details & Flight Options */}
           <div className="xl:col-span-2 space-y-6">
-            {/* Request Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plane className="h-5 w-5" />
+            {/* Trip Information Card */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Globe className="h-5 w-5 text-primary" />
                   Trip Information
                 </CardTitle>
+                <CardDescription>Complete travel request details and requirements</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                    <MapPin className="h-5 w-5 text-blue-600" />
                     <div>
                       <p className="text-sm text-muted-foreground">Route</p>
-                      <p className="font-medium">{request.origin} → {request.destination}</p>
+                      <p className="font-semibold">{request.origin} → {request.destination}</p>
+                      <p className="text-xs text-muted-foreground">{request.request_type.replace('_', ' ')}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                  
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                    <Calendar className="h-5 w-5 text-green-600" />
                     <div>
                       <p className="text-sm text-muted-foreground">Departure</p>
-                      <p className="font-medium">{new Date(request.departure_date).toLocaleDateString()}</p>
+                      <p className="font-semibold">{formatDate(request.departure_date)}</p>
                       {request.return_date && (
-                        <p className="text-xs text-muted-foreground">Return: {new Date(request.return_date).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Return: {new Date(request.return_date).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Users className="h-5 w-5 text-muted-foreground" />
+                  
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                    <Users className="h-5 w-5 text-purple-600" />
                     <div>
                       <p className="text-sm text-muted-foreground">Travelers</p>
-                      <p className="font-medium">{request.passengers} passengers</p>
+                      <p className="font-semibold">{request.passengers} passengers</p>
+                      <p className="text-xs text-muted-foreground capitalize">{request.class_preference} class</p>
                     </div>
                   </div>
                 </div>
-                {request.special_requests && (
-                  <div className="mt-4 p-3 bg-muted rounded-lg">
-                    <p className="text-sm font-medium">Special Requirements:</p>
-                    <p className="text-sm text-muted-foreground mt-1">{request.special_requests}</p>
+
+                {(request.special_requirements || request.budget_range) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {request.special_requirements && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">Special Requirements</h4>
+                        <p className="text-sm text-blue-700">{request.special_requirements}</p>
+                      </div>
+                    )}
+                    {request.budget_range && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h4 className="font-medium text-green-900 mb-2">Budget Range</h4>
+                        <p className="text-sm text-green-700">{request.budget_range}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {request.notes && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <h4 className="font-medium text-amber-900 mb-2">Additional Notes</h4>
+                    <p className="text-sm text-amber-700">{request.notes}</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* I-Format Parser */}
-            <Card>
+            <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Plane className="h-5 w-5" />
-                  I-Format Parser
+                  <FileText className="h-5 w-5 text-primary" />
+                  Sabre I-Format Parser
                 </CardTitle>
                 <CardDescription>
-                  Paste Sabre I-format itinerary data to parse flight segments
+                  Parse Sabre I-format itinerary data to extract flight segments
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -322,17 +404,22 @@ Aircraft: ${option.aircraft}
                     onChange={(e) => setIFormatInput(e.target.value)}
                     placeholder="Paste your Sabre I-format data here..."
                     rows={4}
+                    className="font-mono text-sm"
                   />
                 </div>
-                <Button onClick={parseIFormatData}>
+                <Button onClick={parseIFormatData} className="w-full">
+                  <Settings className="mr-2 h-4 w-4" />
                   Parse I-Format Data
                 </Button>
                 
                 {parsedItinerary && (
                   <div className="space-y-4">
-                    <div className="p-3 bg-muted rounded-lg">
-                      <p className="font-semibold text-sm">Parsed Itinerary</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="font-semibold text-green-900">Parsing Successful</span>
+                      </div>
+                      <p className="text-sm text-green-700">
                         Route: {parsedItinerary.route} | {parsedItinerary.totalSegments} segments | 
                         {parsedItinerary.isRoundTrip ? 'Round Trip' : 'One Way'}
                       </p>
@@ -376,7 +463,7 @@ Aircraft: ${option.aircraft}
                                 variant="outline"
                                 size="sm"
                                 onClick={() => addParsedSegmentToEmail(segment)}
-                                className="ml-4"
+                                className="ml-4 hover:scale-105 transition-transform"
                               >
                                 <Copy className="mr-2 h-4 w-4" />
                                 Add to Email
@@ -391,116 +478,50 @@ Aircraft: ${option.aircraft}
               </CardContent>
             </Card>
 
-            {/* Flight Options from Sabre */}
-            <Card>
+            {/* Quick Actions */}
+            <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Plane className="h-5 w-5" />
-                  Flight Options
+                  <Settings className="h-5 w-5 text-primary" />
+                  Quick Actions & Status Updates
                 </CardTitle>
-                <CardDescription>
-                  Search and manage flight options from Sabre GDS
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button onClick={generateSabreOptions}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Search Flights in Sabre
-                </Button>
-                
-                {sabreOptions.length > 0 ? (
-                  <div className="space-y-4">
-                    <h3 className="font-semibold">Available Options:</h3>
-                    {sabreOptions.map((option) => (
-                      <Card key={option.id} className="border-l-4 border-l-primary">
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-3 flex-1">
-                              <div className="flex items-center gap-3">
-                                <span className="font-semibold text-lg">{option.airline}</span>
-                                <Badge variant="outline">{option.flightNumber}</Badge>
-                                <Badge variant="secondary">{option.aircraft}</Badge>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <p className="font-medium text-emerald-600">Departure</p>
-                                  <p>{option.departure.time} - {option.departure.airport}</p>
-                                </div>
-                                <div>
-                                  <p className="font-medium text-blue-600">Arrival</p>
-                                  <p>{option.arrival.time} - {option.arrival.airport}</p>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-2">
-                                <DollarSign className="h-4 w-4 text-emerald-600" />
-                                <span className="font-semibold text-xl text-emerald-600">
-                                  ${option.price} USD
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => addOptionToEmail(option)}
-                              className="ml-4"
-                            >
-                              <Copy className="mr-2 h-4 w-4" />
-                              Add to Email
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Plane className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>No flight options loaded yet</p>
-                    <p className="text-sm">Click "Search Flights in Sabre" to find options</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setEmailContent(prev => ({
-                      ...prev,
-                      subject: `Travel Quote Request - ${request.origin} to ${request.destination}`,
-                      body: `Dear ${client?.first_name},\n\nThank you for your travel request. I'm researching options for your trip.\n\nBest regards`
-                    }))}
+                    onClick={() => updateRequestStatus('researching')}
+                    className="hover:scale-105 transition-transform"
                   >
-                    Initial Response
+                    <Clock className="mr-2 h-4 w-4" />
+                    Start Research
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setEmailContent(prev => ({
-                      ...prev,
-                      subject: `Travel Quote - ${request.origin} to ${request.destination}`,
-                      body: `Dear ${client?.first_name},\n\nPlease find below the flight options:\n\n[Flight options will appear here when added from Sabre]\n\nBest regards`
-                    }))}
+                    onClick={() => updateRequestStatus('quote_sent')}
+                    className="hover:scale-105 transition-transform"
                   >
-                    Quote Template
+                    <Send className="mr-2 h-4 w-4" />
+                    Mark Quoted
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Request
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate(`/client/${client.id}`)}
+                    className="hover:scale-105 transition-transform"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Client
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="hover:scale-105 transition-transform"
+                  >
                     <Copy className="mr-2 h-4 w-4" />
-                    Duplicate
+                    Duplicate Request
                   </Button>
                 </div>
               </CardContent>
@@ -510,48 +531,72 @@ Aircraft: ${option.aircraft}
           {/* Right Column - Client Info & Communication */}
           <div className="space-y-6">
             {/* Client Information */}
-            <Card>
+            <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
+                  <Users className="h-5 w-5 text-primary" />
                   Client Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <p className="font-semibold text-lg">
+                <div className="text-center pb-4 border-b">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Users className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-lg">
                     {client?.first_name} {client?.last_name}
-                  </p>
+                  </h3>
                   <p className="text-sm text-muted-foreground">{client?.email}</p>
                   {client?.phone && (
-                    <p className="text-sm text-muted-foreground">{client?.phone}</p>
+                    <div className="flex items-center justify-center gap-1 mt-1">
+                      <Phone className="h-3 w-3 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">{client?.phone}</p>
+                    </div>
                   )}
                 </div>
-                <Separator />
-                <div className="space-y-2">
+                
+                <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Bookings:</span>
-                    <span>{client?.total_bookings || 0}</span>
+                    <span className="font-medium">{client?.total_bookings || 0}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Spent:</span>
-                    <span>${client?.total_spent || 0}</span>
+                    <span className="font-medium">${client?.total_spent || 0}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Preferred Class:</span>
+                    <span className="font-medium capitalize">{client?.preferred_class}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Last Trip:</span>
-                    <span>{client?.last_trip_date ? new Date(client.last_trip_date).toLocaleDateString() : 'N/A'}</span>
+                    <span className="font-medium">
+                      {client?.last_trip_date ? new Date(client.last_trip_date).toLocaleDateString() : 'N/A'}
+                    </span>
                   </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => navigate(`/client/${client.id}`)}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Full Profile
+                  </Button>
                 </div>
               </CardContent>
             </Card>
 
             {/* Email Communication */}
-            <Card>
+            <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Send Email
+                  <Mail className="h-5 w-5 text-primary" />
+                  Send Email Quote
                 </CardTitle>
+                <CardDescription>Compose and send travel quotes to your client</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -577,50 +622,90 @@ Aircraft: ${option.aircraft}
                     onChange={(e) => setEmailContent(prev => ({ ...prev, body: e.target.value }))}
                     placeholder="Compose your email..."
                     rows={8}
+                    className="resize-none"
                   />
                 </div>
+                
+                {/* Email Templates Quick Actions */}
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium">Quick Templates</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setEmailContent(prev => ({
+                        ...prev,
+                        subject: `Travel Quote Request - ${request.origin} to ${request.destination}`,
+                        body: `Dear ${client?.first_name},\n\nThank you for your travel request from ${request.origin} to ${request.destination}. I'm researching the best options for your trip on ${formatDate(request.departure_date)}.\n\nI'll have quotes ready for you shortly.\n\nBest regards,\nYour Travel Agent`
+                      }))}
+                    >
+                      Initial Response
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setEmailContent(prev => ({
+                        ...prev,
+                        subject: `Flight Options - ${request.origin} to ${request.destination}`,
+                        body: `Dear ${client?.first_name},\n\nI've found several excellent flight options for your trip:\n\n[Flight segments will appear here when added from the parser above]\n\nPlease review these options and let me know your preference.\n\nBest regards,\nYour Travel Agent`
+                      }))}
+                    >
+                      Quote Template
+                    </Button>
+                  </div>
+                </div>
+                
                 <Button onClick={handleSendEmail} className="w-full">
                   <Send className="mr-2 h-4 w-4" />
-                  Send Email
+                  Send Email Quote
                 </Button>
               </CardContent>
             </Card>
 
-            {/* SMS Communication */}
-            <Card>
+            {/* Request Timeline */}
+            <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Send SMS
+                  <Clock className="h-5 w-5 text-primary" />
+                  Request Timeline
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Phone Number</Label>
-                  <Input
-                    value={client?.phone || ''}
-                    placeholder="+1234567890"
-                    disabled
-                  />
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                    <div>
+                      <p className="font-medium">Request Created</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(request.created_at).toLocaleDateString()} at {new Date(request.created_at).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${
+                      request.status === 'pending' ? 'bg-orange-500' :
+                      request.status === 'researching' ? 'bg-blue-500' :
+                      request.status === 'quote_sent' ? 'bg-purple-500' :
+                      request.status === 'confirmed' ? 'bg-green-500' :
+                      'bg-gray-500'
+                    }`}></div>
+                    <div>
+                      <p className="font-medium">Current Status: {request.status.replace('_', ' ')}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Last updated: {new Date(request.updated_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full mt-2"></div>
+                    <div>
+                      <p className="font-medium text-muted-foreground">Travel Date</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(request.departure_date)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label>Message ({smsContent.length}/160)</Label>
-                  <Textarea
-                    value={smsContent}
-                    onChange={(e) => setSmsContent(e.target.value)}
-                    placeholder="Your travel quote is ready..."
-                    rows={4}
-                    maxLength={160}
-                  />
-                </div>
-                <Button 
-                  className="w-full" 
-                  disabled={!client?.phone || smsContent.length > 160}
-                  onClick={() => toast.info('SMS integration will be implemented')}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send SMS
-                </Button>
               </CardContent>
             </Card>
           </div>
