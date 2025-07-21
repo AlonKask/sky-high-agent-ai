@@ -556,7 +556,7 @@ const RequestDetail = () => {
         recipient_emails: [emailPreview.to],
         subject: emailPreview.subject,
         body: emailPreview.body,
-        direction: 'outgoing',
+        direction: 'outbound',
         status: 'sent',
         email_type: 'quote'
       });
