@@ -124,14 +124,6 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
           <p className="text-muted-foreground mt-2">Manage premium travel experiences and client relationships</p>
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate("/request/REQ-001")}
-            className="hover:shadow-medium transition-all duration-200"
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            View Sample Request
-          </Button>
           <Dialog>
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-primary to-accent hover:shadow-large transition-all duration-200">
