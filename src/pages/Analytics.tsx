@@ -50,10 +50,6 @@ const Analytics = () => {
     return growth >= 0 ? "text-green-600" : "text-red-600";
   };
 
-  const getGrowthIcon = (growth: number) => {
-    return growth >= 0 ? TrendingUp : TrendingDown;
-  };
-
   const renderRevenueAnalytics = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -67,7 +63,11 @@ const Analytics = () => {
               ${revenueData.current.toLocaleString()}
             </div>
             <div className="flex items-center text-sm">
-              {getGrowthIcon(revenueData.growth)({ className: `h-4 w-4 mr-1 ${getGrowthColor(revenueData.growth)}` })}
+              {revenueData.growth >= 0 ? (
+                <TrendingUp className={`h-4 w-4 mr-1 ${getGrowthColor(revenueData.growth)}`} />
+              ) : (
+                <TrendingDown className={`h-4 w-4 mr-1 ${getGrowthColor(revenueData.growth)}`} />
+              )}
               <span className={getGrowthColor(revenueData.growth)}>
                 +{revenueData.growth}% from last month
               </span>
@@ -149,7 +149,11 @@ const Analytics = () => {
               {performanceData.conversionRate}%
             </div>
             <div className="flex items-center text-sm">
-              <TrendingUp className={`h-4 w-4 mr-1 ${getGrowthColor(performanceData.conversionRate - performanceData.previousConversion)}`} />
+              {(performanceData.conversionRate - performanceData.previousConversion) >= 0 ? (
+                <TrendingUp className={`h-4 w-4 mr-1 ${getGrowthColor(performanceData.conversionRate - performanceData.previousConversion)}`} />
+              ) : (
+                <TrendingDown className={`h-4 w-4 mr-1 ${getGrowthColor(performanceData.conversionRate - performanceData.previousConversion)}`} />
+              )}
               <span className={getGrowthColor(performanceData.conversionRate - performanceData.previousConversion)}>
                 +{performanceData.conversionRate - performanceData.previousConversion}% from last month
               </span>
