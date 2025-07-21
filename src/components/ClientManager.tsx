@@ -234,15 +234,15 @@ const ClientManager = () => {
                   </Badge>
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+                    variant="outline"
+                    className="h-8 px-2 opacity-60 group-hover:opacity-100 transition-all duration-200 hover:bg-primary hover:text-white hover:border-primary group-hover:shadow-sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/requests?clientId=${client.id}&clientName=${encodeURIComponent(client.first_name + ' ' + client.last_name)}`);
                     }}
                   >
-                    <Plus className="h-4 w-4 group-hover:hidden" />
-                    <span className="hidden group-hover:block text-xs font-medium">Create</span>
+                    <Plus className="h-3 w-3 group-hover:hidden" />
+                    <span className="hidden group-hover:inline text-xs font-medium">Create</span>
                   </Button>
                 </div>
               </div>
