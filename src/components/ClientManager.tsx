@@ -220,14 +220,15 @@ const ClientManager = () => {
         {filteredClients.map((client) => (
            <Card key={client.id} className="minimal-card hover:bg-accent/50 transition-colors cursor-pointer group relative" onClick={() => setSelectedClient(client)}>
              <CardContent className="p-4">
-               <div className="flex items-center justify-between gap-3">
-                 <div className="flex-1 min-w-0">
+               <div className="space-y-3">
+                 <div>
                    <h3 className="font-semibold truncate">{client.first_name} {client.last_name}</h3>
                  </div>
-                 <div className="flex items-center gap-2 flex-shrink-0">
-                   <Badge variant="outline" className="text-xs whitespace-nowrap">
-                     {client.total_bookings || 0} bookings
-                   </Badge>
+                 <div className="flex items-center justify-between gap-3">
+                   <div className="flex items-center gap-1 text-muted-foreground">
+                     <Plane className="h-4 w-4" />
+                     <span className="text-sm font-medium">{client.total_bookings || 0}</span>
+                   </div>
                    <Button
                      size="sm"
                      variant="outline"
@@ -241,7 +242,7 @@ const ClientManager = () => {
                      <span className="hidden group-hover:inline text-xs font-medium">+</span>
                    </Button>
                  </div>
-                </div>
+               </div>
             </CardContent>
           </Card>
         ))}
