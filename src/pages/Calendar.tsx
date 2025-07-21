@@ -44,11 +44,12 @@ const Calendar = () => {
     try {
       setLoadingEvents(true);
       
-      // Get the start and end of the current month
+      // Get today's date and the start/end of current month
+      const today = new Date();
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
       
-      // Fetch bookings for calendar events
+      // Only fetch future/planned bookings (departure date >= today)
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -62,16 +63,18 @@ const Calendar = () => {
           clients!inner(first_name, last_name)
         `)
         .eq('user_id', user.id)
+        .gte('departure_date', today.toISOString())
+        .in('status', ['confirmed', 'pending'])
         .gte('departure_date', monthStart.toISOString())
         .lte('departure_date', monthEnd.toISOString());
 
       if (bookingsError) {
         console.error('Error fetching bookings:', bookingsError);
-        toast.error('Failed to load calendar events');
+        toast.error('Failed to load planned bookings');
         return;
       }
 
-      // Fetch requests for calendar events
+      // Only fetch pending/active requests (not completed ones)
       const { data: requests, error: requestsError } = await supabase
         .from('requests')
         .select(`
@@ -84,6 +87,8 @@ const Calendar = () => {
           clients!inner(first_name, last_name)
         `)
         .eq('user_id', user.id)
+        .gte('departure_date', today.toISOString().split('T')[0])
+        .in('status', ['pending', 'quoted', 'approved'])
         .gte('departure_date', monthStart.toISOString().split('T')[0])
         .lte('departure_date', monthEnd.toISOString().split('T')[0]);
 
@@ -94,65 +99,79 @@ const Calendar = () => {
       // Transform data into calendar events
       const calendarEvents: CalendarEvent[] = [];
 
-      // Add booking events
+      // Add planned booking events (only future ones)
       bookings?.forEach(booking => {
-        // Departure event
-        calendarEvents.push({
-          id: `booking-dep-${booking.id}`,
-          title: `Departure: ${booking.route}`,
-          date: booking.departure_date,
-          type: 'departure',
-          client_name: `${booking.clients.first_name} ${booking.clients.last_name}`,
-          route: booking.route,
-          status: booking.status,
-          booking_id: booking.id
-        });
-
-        // Arrival event
-        calendarEvents.push({
-          id: `booking-arr-${booking.id}`,
-          title: `Arrival: ${booking.route}`,
-          date: booking.arrival_date,
-          type: 'arrival',
-          client_name: `${booking.clients.first_name} ${booking.clients.last_name}`,
-          route: booking.route,
-          status: booking.status,
-          booking_id: booking.id
-        });
-
-        // Return events if available
-        if (booking.return_departure_date) {
+        const departureDate = new Date(booking.departure_date);
+        const arrivalDate = new Date(booking.arrival_date);
+        
+        // Only add if departure is in the future or today
+        if (departureDate >= today) {
+          // Departure event
           calendarEvents.push({
-            id: `booking-ret-dep-${booking.id}`,
-            title: `Return Departure: ${booking.route}`,
-            date: booking.return_departure_date,
+            id: `booking-dep-${booking.id}`,
+            title: `✈️ Departure: ${booking.route}`,
+            date: booking.departure_date,
             type: 'departure',
             client_name: `${booking.clients.first_name} ${booking.clients.last_name}`,
             route: booking.route,
             status: booking.status,
             booking_id: booking.id
           });
-        }
 
-        if (booking.return_arrival_date) {
-          calendarEvents.push({
-            id: `booking-ret-arr-${booking.id}`,
-            title: `Return Arrival: ${booking.route}`,
-            date: booking.return_arrival_date,
-            type: 'arrival',
-            client_name: `${booking.clients.first_name} ${booking.clients.last_name}`,
-            route: booking.route,
-            status: booking.status,
-            booking_id: booking.id
-          });
+          // Arrival event (if different day)
+          if (!isSameDay(departureDate, arrivalDate)) {
+            calendarEvents.push({
+              id: `booking-arr-${booking.id}`,
+              title: `🛬 Arrival: ${booking.route}`,
+              date: booking.arrival_date,
+              type: 'arrival',
+              client_name: `${booking.clients.first_name} ${booking.clients.last_name}`,
+              route: booking.route,
+              status: booking.status,
+              booking_id: booking.id
+            });
+          }
+
+          // Return events if available and in the future
+          if (booking.return_departure_date) {
+            const returnDepDate = new Date(booking.return_departure_date);
+            if (returnDepDate >= today) {
+              calendarEvents.push({
+                id: `booking-ret-dep-${booking.id}`,
+                title: `✈️ Return Departure`,
+                date: booking.return_departure_date,
+                type: 'departure',
+                client_name: `${booking.clients.first_name} ${booking.clients.last_name}`,
+                route: booking.route,
+                status: booking.status,
+                booking_id: booking.id
+              });
+            }
+          }
+
+          if (booking.return_arrival_date) {
+            const returnArrDate = new Date(booking.return_arrival_date);
+            if (returnArrDate >= today) {
+              calendarEvents.push({
+                id: `booking-ret-arr-${booking.id}`,
+                title: `🛬 Return Arrival`,
+                date: booking.return_arrival_date,
+                type: 'arrival',
+                client_name: `${booking.clients.first_name} ${booking.clients.last_name}`,
+                route: booking.route,
+                status: booking.status,
+                booking_id: booking.id
+              });
+            }
+          }
         }
       });
 
-      // Add request events
+      // Add planned request events (only pending/active ones)
       requests?.forEach(request => {
         calendarEvents.push({
           id: `request-${request.id}`,
-          title: `Travel Request: ${request.origin} → ${request.destination}`,
+          title: `📋 ${request.status === 'pending' ? 'Plan Trip' : 'Quote Ready'}: ${request.origin} → ${request.destination}`,
           date: request.departure_date,
           type: 'request',
           client_name: `${request.clients.first_name} ${request.clients.last_name}`,
@@ -165,7 +184,7 @@ const Calendar = () => {
       setEvents(calendarEvents);
     } catch (error) {
       console.error('Error fetching calendar events:', error);
-      toast.error('Failed to load calendar events');
+      toast.error('Failed to load planned activities');
     } finally {
       setLoadingEvents(false);
     }
@@ -178,9 +197,16 @@ const Calendar = () => {
   };
 
   const getEventsForDate = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for comparison
+    
     return events.filter(event => {
       const eventDate = parseISO(event.date.split('T')[0]);
-      return isSameDay(eventDate, date);
+      const isCorrectDate = isSameDay(eventDate, date);
+      const isFutureOrToday = eventDate >= today;
+      
+      // Only show future events or today's events
+      return isCorrectDate && isFutureOrToday;
     }).filter(event => {
       if (filterType === "all") return true;
       return event.type === filterType;
@@ -189,19 +215,21 @@ const Calendar = () => {
 
   const getEventTypeColor = (type: string) => {
     switch (type) {
-      case 'departure': return 'bg-blue-500 text-white';
-      case 'arrival': return 'bg-green-500 text-white';
-      case 'request': return 'bg-orange-500 text-white';
-      case 'meeting': return 'bg-purple-500 text-white';
-      default: return 'bg-gray-500 text-white';
+      case 'departure': return 'bg-blue-500 text-white border-blue-600';
+      case 'arrival': return 'bg-green-500 text-white border-green-600';
+      case 'request': return 'bg-orange-500 text-white border-orange-600';
+      case 'meeting': return 'bg-purple-500 text-white border-purple-600';
+      default: return 'bg-gray-500 text-white border-gray-600';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'text-green-600';
-      case 'pending': return 'text-orange-600';
-      case 'cancelled': return 'text-red-600';
+      case 'confirmed': return 'text-green-600 font-semibold';
+      case 'pending': return 'text-orange-600 font-semibold';
+      case 'quoted': return 'text-blue-600 font-semibold';
+      case 'approved': return 'text-emerald-600 font-semibold';
+      case 'cancelled': return 'text-red-600 font-semibold';
       default: return 'text-gray-600';
     }
   };
@@ -239,8 +267,8 @@ const Calendar = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Calendar</h1>
-          <p className="text-muted-foreground">Manage your travel schedule and bookings</p>
+          <h1 className="text-3xl font-bold">📅 Travel Calendar</h1>
+          <p className="text-muted-foreground">Your upcoming planned travel activities and bookings</p>
         </div>
         
         <div className="flex items-center gap-2">
@@ -250,7 +278,7 @@ const Calendar = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Events</SelectItem>
+              <SelectItem value="all">All Planned</SelectItem>
               <SelectItem value="departure">Departures</SelectItem>
               <SelectItem value="arrival">Arrivals</SelectItem>
               <SelectItem value="request">Requests</SelectItem>
@@ -289,7 +317,7 @@ const Calendar = () => {
             
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="animate-fade-in">
-                {events.length} events this month
+                {events.length} planned activities this month
               </Badge>
               {loadingEvents && (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
@@ -313,17 +341,20 @@ const Calendar = () => {
               const dayEvents = getEventsForDate(day);
               const isCurrentMonth = isSameMonth(day, currentDate);
               const isTodayDate = isToday(day);
+              const isPastDate = day < new Date() && !isTodayDate;
               
               return (
                 <div
                   key={day.toISOString()}
                   className={`
                     min-h-[100px] p-2 border border-border rounded-lg transition-all hover:bg-accent/50 cursor-pointer
-                    ${!isCurrentMonth ? 'opacity-50' : ''}
+                    ${!isCurrentMonth ? 'opacity-30' : ''}
+                    ${isPastDate ? 'opacity-40 bg-muted/20' : ''}
                     ${isTodayDate ? 'ring-2 ring-primary bg-primary/5' : ''}
+                    ${dayEvents.length > 0 && !isPastDate ? 'border-primary/30 bg-primary/5' : ''}
                   `}
                 >
-                  <div className={`text-sm font-medium mb-1 ${isTodayDate ? 'text-primary' : ''}`}>
+                  <div className={`text-sm font-medium mb-1 ${isTodayDate ? 'text-primary' : isPastDate ? 'text-muted-foreground' : ''}`}>
                     {format(day, 'd')}
                   </div>
                   
@@ -332,7 +363,7 @@ const Calendar = () => {
                       <div
                         key={event.id}
                         className={`
-                          text-xs px-2 py-1 rounded cursor-pointer transition-all hover:scale-105
+                          text-xs px-2 py-1 rounded cursor-pointer transition-all hover:scale-105 hover:shadow-sm border
                           ${getEventTypeColor(event.type)}
                         `}
                         onClick={() => setSelectedEvent(event)}
@@ -341,7 +372,7 @@ const Calendar = () => {
                           {event.title}
                         </div>
                         {event.client_name && (
-                          <div className="truncate opacity-90">
+                          <div className="truncate opacity-90 text-xs">
                             {event.client_name}
                           </div>
                         )}
@@ -349,8 +380,8 @@ const Calendar = () => {
                     ))}
                     
                     {dayEvents.length > 3 && (
-                      <div className="text-xs text-muted-foreground px-2">
-                        +{dayEvents.length - 3} more
+                      <div className="text-xs text-muted-foreground px-2 py-1 bg-accent/50 rounded">
+                        +{dayEvents.length - 3} more planned
                       </div>
                     )}
                   </div>
