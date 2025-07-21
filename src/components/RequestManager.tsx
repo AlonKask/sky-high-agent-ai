@@ -193,10 +193,20 @@ const RequestManager = () => {
   };
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // If departure date is being set and return date exists but is before the new departure date,
+      // update return date to match departure date
+      if (field === 'departureDate' && value && newData.returnDate && newData.returnDate < value) {
+        newData.returnDate = value;
+      }
+      
+      return newData;
+    });
   };
 
   const filteredRequests = requests.filter(request =>
