@@ -52,6 +52,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { SabreParser, ParsedItinerary } from "@/utils/sabreParser";
+import { createNotification } from "@/utils/notifications";
 
 
 const RequestDetail = () => {
@@ -394,6 +395,22 @@ const RequestDetail = () => {
 
         setQuotes(prev => [data, ...prev]);
         toast.success('Quote created successfully');
+
+        // Create a notification for the new quote
+        try {
+          await createNotification({
+            user_id: user.id,
+            title: 'New Quote Created',
+            message: `Quote for ${client?.first_name} ${client?.last_name} - ${parsedFlights.route} ($${totalPrice.toLocaleString()})`,
+            type: 'success',
+            priority: 'medium',
+            action_url: `/request/${requestId}`,
+            related_id: data.id,
+            related_type: 'quote'
+          });
+        } catch (notificationError) {
+          console.error('Failed to create notification:', notificationError);
+        }
       }
 
       // Reset form
