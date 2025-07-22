@@ -81,6 +81,7 @@ const RequestDetail = () => {
     netPrice: '',
     markup: '',
     ckFeeEnabled: false,
+    ckFeeAmount: '',
     pseudoCity: '',
     totalPrice: 0
   });
@@ -291,7 +292,7 @@ const RequestDetail = () => {
   };
 
   const handleCreateQuote = async () => {
-    if (!parsedFlights) {
+    if (!editingQuote && !parsedFlights) {
       toast.error('Please parse flight data first');
       return;
     }
@@ -303,29 +304,70 @@ const RequestDetail = () => {
     const totalPrice = basePrice + ckFee;
 
     try {
-      const { data, error } = await supabase
-        .from('quotes')
-        .insert({
-          user_id: user.id,
-          request_id: requestId,
-          client_id: client.id,
-          route: parsedFlights.route,
-          segments: parsedFlights.segments as any,
-          total_segments: parsedFlights.totalSegments,
-          fare_type: quoteData.fareType,
-          pseudo_city: quoteData.pseudoCity || null,
-          net_price: netPrice,
-          markup: markup,
-          ck_fee_enabled: quoteData.ckFeeEnabled,
-          ck_fee_amount: ckFee,
-          total_price: totalPrice
-        })
-        .select()
-        .single();
+      if (editingQuote) {
+        // Update existing quote
+        const { error } = await supabase
+          .from('quotes')
+          .update({
+            net_price: netPrice,
+            markup: markup,
+            ck_fee_enabled: quoteData.ckFeeEnabled,
+            ck_fee_amount: ckFee,
+            pseudo_city: quoteData.pseudoCity,
+            total_price: totalPrice,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingQuote.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setQuotes(prev => [data, ...prev]);
+        // Update local state
+        setQuotes(prev => prev.map(q => 
+          q.id === editingQuote.id 
+            ? { 
+                ...q, 
+                net_price: netPrice,
+                markup: markup,
+                ck_fee_enabled: quoteData.ckFeeEnabled,
+                ck_fee_amount: ckFee,
+                pseudo_city: quoteData.pseudoCity,
+                total_price: totalPrice,
+                updated_at: new Date().toISOString()
+              }
+            : q
+        ));
+
+        toast.success('Quote updated successfully');
+        setEditingQuote(null);
+      } else {
+        // Create new quote (existing logic)
+        const { data, error } = await supabase
+          .from('quotes')
+          .insert({
+            user_id: user.id,
+            request_id: requestId,
+            client_id: client.id,
+            route: parsedFlights.route,
+            segments: parsedFlights.segments as any,
+            total_segments: parsedFlights.totalSegments,
+            fare_type: quoteData.fareType,
+            pseudo_city: quoteData.pseudoCity || null,
+            net_price: netPrice,
+            markup: markup,
+            ck_fee_enabled: quoteData.ckFeeEnabled,
+            ck_fee_amount: ckFee,
+            total_price: totalPrice
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setQuotes(prev => [data, ...prev]);
+        toast.success('Quote created successfully');
+      }
+
+      // Reset form
       setShowQuoteDialog(false);
       setSabreInput("");
       setParsedFlights(null);
@@ -334,14 +376,13 @@ const RequestDetail = () => {
         netPrice: '',
         markup: '',
         ckFeeEnabled: false,
+        ckFeeAmount: '',
         pseudoCity: '',
         totalPrice: 0
       });
-
-      toast.success('Quote saved successfully');
     } catch (error) {
       console.error('Error saving quote:', error);
-      toast.error('Failed to save quote');
+      toast.error(editingQuote ? 'Failed to update quote' : 'Failed to create quote');
     }
   };
 
@@ -1114,6 +1155,22 @@ const RequestDetail = () => {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => {
+                                      setEditingQuote(quote);
+                                      setQuoteData({
+                                        fareType: quote.fare_type || 'revenue_published',
+                                        netPrice: quote.net_price.toString(),
+                                        markup: quote.markup.toString(),
+                                        ckFeeEnabled: quote.ck_fee_enabled,
+                                        ckFeeAmount: quote.ck_fee_amount.toString(),
+                                        pseudoCity: quote.pseudo_city || '',
+                                        totalPrice: quote.total_price
+                                      });
+                                      setShowQuoteDialog(true);
+                                    }}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Edit Quote
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}>
                                       {quote.is_hidden ? (
                                         <>
@@ -1225,15 +1282,29 @@ const RequestDetail = () => {
             </Card>
 
             {/* Quote Dialog */}
-            <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
+            <Dialog open={showQuoteDialog} onOpenChange={(open) => {
+              setShowQuoteDialog(open);
+              if (!open) {
+                setEditingQuote(null);
+                setQuoteData({
+                  fareType: 'revenue_published',
+                  netPrice: '',
+                  markup: '',
+                  ckFeeEnabled: false,
+                  ckFeeAmount: '',
+                  pseudoCity: '',
+                  totalPrice: 0
+                });
+              }
+            }}>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <DollarSign className="h-5 w-5 text-primary" />
-                    Create Flight Quote
+                    {editingQuote ? 'Edit Quote' : 'Create Flight Quote'}
                   </DialogTitle>
                   <DialogDescription>
-                    Parse Sabre I-format data and configure pricing details
+                    {editingQuote ? 'Update the quote details below' : 'Parse Sabre I-format data and configure pricing details'}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -1406,7 +1477,7 @@ const RequestDetail = () => {
                           disabled={!quoteData.netPrice}
                         >
                           <Save className="h-4 w-4 mr-2" />
-                          Save Quote
+                          {editingQuote ? 'Update Quote' : 'Save Quote'}
                         </Button>
                       </div>
                     </>
