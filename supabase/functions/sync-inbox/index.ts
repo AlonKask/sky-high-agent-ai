@@ -215,6 +215,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sync completed: ${stored} stored, ${updated} updated, ${allEmails.length} total processed`);
 
+    // Update sync status to track when we last synced
+    const folderName = labelIds.includes('SENT') ? 'sent' : 'inbox';
+    await supabaseClient
+      .from('email_sync_status')
+      .upsert({
+        user_id: user.id,
+        folder_name: folderName,
+        last_sync_at: new Date().toISOString(),
+        last_sync_count: allEmails.length,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,folder_name'
+      });
+
     return new Response(
       JSON.stringify({ 
         success: true, 

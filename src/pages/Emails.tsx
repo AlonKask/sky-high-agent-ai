@@ -324,6 +324,31 @@ const Emails = () => {
     }
   };
 
+  // Check if we need to sync based on last sync time
+  const shouldSync = async (folder: string): Promise<boolean> => {
+    try {
+      const { data: syncStatus } = await supabase
+        .from('email_sync_status')
+        .select('last_sync_at, last_sync_count')
+        .eq('user_id', user.id)
+        .eq('folder_name', folder)
+        .single();
+
+      if (!syncStatus) {
+        return true; // Never synced before
+      }
+
+      const lastSyncTime = new Date(syncStatus.last_sync_at);
+      const timeSinceLastSync = Date.now() - lastSyncTime.getTime();
+      
+      // Only sync if it's been more than 10 minutes or if we have no emails
+      return timeSinceLastSync > 10 * 60 * 1000 || emails.length === 0;
+    } catch (error) {
+      console.error('Error checking sync status:', error);
+      return true; // Sync on error
+    }
+  };
+
   // Sync emails from Gmail and store in database
   const fetchEmails = async (token?: string, folder?: string, incremental?: boolean) => {
     const accessToken = token || authToken;
@@ -333,6 +358,15 @@ const Emails = () => {
         description: "Please authenticate with Gmail first",
         variant: "destructive"
       });
+      return;
+    }
+
+    const currentFolder = folder || selectedFolder;
+    
+    // Check if we really need to sync (skip for non-incremental syncs if synced recently)
+    if (!incremental && !(await shouldSync(currentFolder))) {
+      console.log('Skipping sync - synced recently');
+      await loadEmailsFromDB(); // Just reload from local storage
       return;
     }
 
@@ -794,25 +828,28 @@ const Emails = () => {
       // Load from database first
       loadEmailsFromDB();
       
-      // Only sync if we haven't synced recently or have no emails
-      const shouldSync = !lastSyncTime || 
-        (Date.now() - lastSyncTime.getTime()) > AUTO_SYNC_INTERVAL ||
-        emails.length === 0;
-        
-      if (shouldSync) {
-        console.log('Initial sync needed');
-        fetchEmails();
-      }
-      
-      // Set up auto-sync interval for incremental updates only
-      const interval = setInterval(() => {
-        if (isAuthenticated && authToken && emails.length > 0) {
-          console.log('Auto-syncing emails (incremental)...');
-          // Only do incremental sync to get new emails
-          fetchEmails(authToken, selectedFolder, true);
-          setLastSyncTime(new Date());
+      // Check if we need initial sync
+      shouldSync(selectedFolder).then(needsSync => {
+        if (needsSync) {
+          console.log('Initial sync needed for', selectedFolder);
+          fetchEmails();
         }
-      }, AUTO_SYNC_INTERVAL);
+      });
+      
+      // Set up smarter auto-sync interval - only for incremental updates
+      const interval = setInterval(async () => {
+        if (isAuthenticated && authToken && emails.length > 0) {
+          // Only do incremental sync every 15 minutes
+          const lastSync = lastSyncTime?.getTime() || 0;
+          const timeSinceLastSync = Date.now() - lastSync;
+          
+          if (timeSinceLastSync > 15 * 60 * 1000) {
+            console.log('Auto-syncing emails (incremental)...');
+            await fetchEmails(authToken, selectedFolder, true);
+            setLastSyncTime(new Date());
+          }
+        }
+      }, 5 * 60 * 1000); // Check every 5 minutes, but only sync every 15
 
       return () => clearInterval(interval);
     }

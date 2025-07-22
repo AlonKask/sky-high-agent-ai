@@ -227,6 +227,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_sync_status: {
+        Row: {
+          created_at: string
+          folder_name: string
+          gmail_history_id: string | null
+          id: string
+          last_sync_at: string
+          last_sync_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_name: string
+          gmail_history_id?: string | null
+          id?: string
+          last_sync_at?: string
+          last_sync_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_name?: string
+          gmail_history_id?: string | null
+          id?: string
+          last_sync_at?: string
+          last_sync_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gmail_notifications: {
         Row: {
           created_at: string
