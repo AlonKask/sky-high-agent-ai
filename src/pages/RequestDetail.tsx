@@ -277,6 +277,35 @@ const RequestDetail = () => {
     }
   };
 
+  // Helper function to reconstruct Sabre I format from stored segments
+  const reconstructSabreIFormat = (segments: any[]): string => {
+    return segments.map((segment, index) => {
+      const segmentNum = index + 1;
+      const flightNum = segment.flightNumber.replace(segment.airlineCode, '');
+      const date = new Date(segment.flightDate);
+      const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+      const day = date.getDate().toString().padStart(2, '0');
+      const dateStr = `${day}${month}`;
+      
+      // Convert 24h time back to 12h format for display
+      const convertTo12h = (time24: string): string => {
+        const [time, period] = time24.split(' ');
+        if (period) return time24; // Already in 12h format
+        
+        const [hours, minutes] = time.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'P' : 'A';
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return `${displayHour}${minutes}${ampm}`;
+      };
+      
+      const depTime = convertTo12h(segment.departureTime);
+      const arrTime = convertTo12h(segment.arrivalTime);
+      
+      return `${segmentNum} ${segment.airlineCode}  ${flightNum}${segment.bookingClass} ${dateStr} ${segment.dayOfWeek} ${segment.departureAirport}${segment.arrivalAirport} ${segment.statusCode}  ${depTime}  ${arrTime} /DC${segment.airlineCode} /E`;
+    }).join('\n');
+  };
+
   const calculateTotalPrice = () => {
     const netPrice = parseFloat(quoteData.netPrice) || 0;
     const markup = parseFloat(quoteData.markup) || 0;
@@ -1155,19 +1184,31 @@ const RequestDetail = () => {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => {
-                                      setEditingQuote(quote);
-                                      setQuoteData({
-                                        fareType: quote.fare_type || 'revenue_published',
-                                        netPrice: quote.net_price.toString(),
-                                        markup: quote.markup.toString(),
-                                        ckFeeEnabled: quote.ck_fee_enabled,
-                                        ckFeeAmount: quote.ck_fee_amount.toString(),
-                                        pseudoCity: quote.pseudo_city || '',
-                                        totalPrice: quote.total_price
-                                      });
-                                      setShowQuoteDialog(true);
-                                    }}>
+                                     <DropdownMenuItem onClick={() => {
+                                       setEditingQuote(quote);
+                                       setQuoteData({
+                                         fareType: quote.fare_type || 'revenue_published',
+                                         netPrice: quote.net_price.toString(),
+                                         markup: quote.markup.toString(),
+                                         ckFeeEnabled: quote.ck_fee_enabled,
+                                         ckFeeAmount: quote.ck_fee_amount.toString(),
+                                         pseudoCity: quote.pseudo_city || '',
+                                         totalPrice: quote.total_price
+                                       });
+                                       // Reconstruct the original Sabre I format data
+                                       if (quote.segments && quote.segments.length > 0) {
+                                         const reconstructedSabreData = reconstructSabreIFormat(quote.segments);
+                                         setSabreInput(reconstructedSabreData);
+                                         setParsedFlights({
+                                           segments: quote.segments,
+                                           totalSegments: quote.total_segments,
+                                           route: quote.route,
+                                           isRoundTrip: quote.segments.length > 1 && 
+                                             quote.segments[0].departureAirport === quote.segments[quote.segments.length - 1].arrivalAirport
+                                         });
+                                       }
+                                       setShowQuoteDialog(true);
+                                     }}>
                                       <Pencil className="h-4 w-4 mr-2" />
                                       Edit Quote
                                     </DropdownMenuItem>
