@@ -6,6 +6,7 @@ import ClientManager from "@/components/ClientManager";
 import RequestManager from "@/components/RequestManager";
 import BookingManager from "@/components/BookingManager";
 import EmailManager from "@/components/EmailManager";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, User, Settings as SettingsIcon, Bell } from "lucide-react";
@@ -34,49 +35,7 @@ const Index = () => {
       case "email":
         return <EmailManager />;
       case "notifications":
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold text-gradient">Notifications Center</h1>
-              <Badge variant="destructive" className="text-sm px-3 py-1">3 New</Badge>
-            </div>
-            <div className="grid gap-4">
-              <div className="p-6 border-2 rounded-xl bg-gradient-to-r from-red-50 to-red-100 border-red-200 hover:shadow-lg transition-all duration-200">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-red-800 flex items-center gap-2">
-                      <Bell className="h-4 w-4" />
-                      Urgent: High-Value Client Request
-                    </h3>
-                    <p className="text-sm text-red-700 mt-2">John Smith (VIP) requested quote for NYC → LHR Business Class</p>
-                    <p className="text-xs text-red-600 mt-2 font-medium">2 hours ago • Response time: 94% SLA remaining</p>
-                  </div>
-                  <Badge variant="destructive" className="text-xs">High Priority</Badge>
-                </div>
-              </div>
-              <div className="p-6 border-2 rounded-xl bg-gradient-to-r from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-200">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-green-800">Payment Received</h3>
-                    <p className="text-sm text-green-700 mt-2">Payment of $12,000 received from Sarah Johnson for LAX → NRT</p>
-                    <p className="text-xs text-green-600 mt-2">5 hours ago • Booking confirmed automatically</p>
-                  </div>
-                  <Badge className="bg-green-500 text-white text-xs">Completed</Badge>
-                </div>
-              </div>
-              <div className="p-6 border-2 rounded-xl bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-all duration-200">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-orange-800">Quote Expiring Soon</h3>
-                    <p className="text-sm text-orange-700 mt-2">Quote for Michael Chen expires in 24 hours - follow up recommended</p>
-                    <p className="text-xs text-orange-600 mt-2">1 day ago • $7,800 quote value</p>
-                  </div>
-                  <Badge className="bg-orange-500 text-white text-xs">Action Required</Badge>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return <NotificationCenter />;
       case "settings":
         return (
           <div className="space-y-6">

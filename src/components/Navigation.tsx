@@ -45,11 +45,12 @@ const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
     if (!user) return;
 
     try {
-      const [clientsResult, requestsResult, bookingsResult, emailsResult] = await Promise.all([
+      const [clientsResult, requestsResult, bookingsResult, emailsResult, notificationsResult] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact' }).eq('user_id', user.id),
         supabase.from('requests').select('id', { count: 'exact' }).eq('user_id', user.id).in('status', ['pending', 'researching', 'quote_sent']),
         supabase.from('bookings').select('id', { count: 'exact' }).eq('user_id', user.id).gte('departure_date', new Date().toISOString().split('T')[0]),
-        supabase.from('email_exchanges').select('id', { count: 'exact' }).eq('user_id', user.id).eq('direction', 'incoming').eq('status', 'unread')
+        supabase.from('email_exchanges').select('id', { count: 'exact' }).eq('user_id', user.id).eq('direction', 'incoming').eq('status', 'unread'),
+        supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user.id).eq('read', false)
       ]);
 
       setCounts({
@@ -57,7 +58,7 @@ const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
         requests: requestsResult.count || 0,
         bookings: bookingsResult.count || 0,
         emails: emailsResult.count || 0,
-        notifications: 3 // Keep this as a static number for demo purposes
+        notifications: notificationsResult.count || 0
       });
     } catch (error) {
       console.error('Error fetching navigation counts:', error);
