@@ -1192,15 +1192,6 @@ Best regards,
                   >
                     <Brain className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsInboxMinimized(!isInboxMinimized)}
-                    className="w-full h-8"
-                    title="Toggle Inbox"
-                  >
-                    <Minimize2 className="h-4 w-4" />
-                  </Button>
                 </>
               )}
             </div>
