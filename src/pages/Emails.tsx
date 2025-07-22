@@ -1187,10 +1187,10 @@ Best regards,
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsInboxMinimized(!isInboxMinimized)}
-              title={isInboxMinimized ? "Expand Inbox" : "Minimize Inbox"}
+              onClick={() => setIsInboxMinimized(true)}
+              title="Close Inbox"
             >
-              {isInboxMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+              <X className="h-4 w-4" />
             </Button>
           </div>
           {!isInboxMinimized ? (
