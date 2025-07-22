@@ -10,17 +10,65 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, User, Settings as SettingsIcon, Bell } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading, signOut } = useAuth();
   const [currentView, setCurrentView] = useState("dashboard");
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  // Fetch unread notifications count
+  useEffect(() => {
+    if (user) {
+      fetchUnreadNotificationsCount();
+      setupNotificationSubscription();
+    }
+  }, [user]);
+
+  const fetchUnreadNotificationsCount = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('read', false);
+
+      if (error) throw error;
+      setUnreadNotificationsCount(data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching notification count:', error);
+    }
+  };
+
+  const setupNotificationSubscription = () => {
+    const channel = supabase
+      .channel('notification-count')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          // Refetch count when notifications change
+          fetchUnreadNotificationsCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -128,11 +176,13 @@ const Index = () => {
           <p className="font-medium">{user.email}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setCurrentView("notifications")}>
+          <Button variant="ghost" size="sm" onClick={() => setCurrentView("notifications")} className="relative">
             <Bell className="h-4 w-4" />
-            <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 text-xs">
-              3
-            </Badge>
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-foreground text-background text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+              </span>
+            )}
           </Button>
           <Button variant="ghost" size="sm" onClick={signOut}>
             <LogOut className="h-4 w-4" />
