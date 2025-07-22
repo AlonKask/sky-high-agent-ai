@@ -1255,6 +1255,122 @@ Best regards,
       {/* Main Content Area */}
       <div className="flex-1 flex">
         {/* Email List */}
+        <div className="w-96 border-r bg-card/50">
+          {/* Email List Header */}
+          <div className="p-4 border-b bg-background/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-lg">
+                {selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1)}
+              </h2>
+              <Badge variant="outline" className="text-xs">
+                {filteredEmails.length}
+              </Badge>
+            </div>
+            {filteredEmails.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {filteredEmails.filter(email => !email.isRead).length} unread
+              </p>
+            )}
+          </div>
+
+          {/* Email List Content */}
+          <ScrollArea className="h-[calc(100vh-140px)]">
+            {filteredEmails.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                {!isAuthenticated ? (
+                  <div className="space-y-3">
+                    <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+                      <Mail className="h-8 w-8 opacity-50" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium mb-1">Connect Gmail</h3>
+                      <p className="text-sm">Connect your Gmail account to view emails</p>
+                    </div>
+                  </div>
+                ) : isSyncing ? (
+                  <div className="space-y-3">
+                    <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+                      <RefreshCw className="h-8 w-8 opacity-50 animate-spin" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium mb-1">Loading emails...</h3>
+                      <p className="text-sm">Syncing your {selectedFolder} folder</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+                      <Mail className="h-8 w-8 opacity-50" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium mb-1">No emails found</h3>
+                      <p className="text-sm">No emails in your {selectedFolder} folder</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-2 space-y-1">
+                {filteredEmails.map((email, index) => (
+                  <div
+                    key={email.id}
+                    className={`group p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-accent/50 ${
+                      selectedEmail?.id === email.id 
+                        ? 'bg-accent border-l-4 border-l-primary shadow-sm' 
+                        : 'hover:shadow-sm'
+                    } ${!email.isRead ? 'bg-muted/30' : ''}`}
+                    onClick={() => {
+                      setSelectedEmail(email);
+                      if (!email.isRead) {
+                        markAsRead(email.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className={`w-2 h-2 rounded-full ${!email.isRead ? 'bg-primary' : 'bg-transparent'}`} />
+                        <span className={`text-sm truncate flex-1 ${!email.isRead ? 'font-semibold' : 'font-medium'}`}>
+                          {email.from.split('<')[0].trim() || email.from.split('@')[0]}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {email.isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                          {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+                        </div>
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                        {new Date(email.date).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric',
+                          year: new Date(email.date).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                        })}
+                      </span>
+                    </div>
+                    <div className={`text-sm mb-1 truncate ${!email.isRead ? 'font-medium' : ''}`}>
+                      {email.subject || '(No Subject)'}
+                    </div>
+                    <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      {email.snippet}
+                    </div>
+                    {email.labels && email.labels.length > 0 && (
+                      <div className="flex gap-1 mt-2">
+                        {email.labels.slice(0, 2).map((label, labelIndex) => (
+                          <Badge key={labelIndex} variant="outline" className="text-xs px-1 py-0">
+                            {label.replace('CATEGORY_', '').replace('LABEL_', '').toLowerCase()}
+                          </Badge>
+                        ))}
+                        {email.labels.length > 2 && (
+                          <Badge variant="outline" className="text-xs px-1 py-0">
+                            +{email.labels.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
 
         {/* Email Content - Use EmailContentProcessor */}
         <EmailContentProcessor 
