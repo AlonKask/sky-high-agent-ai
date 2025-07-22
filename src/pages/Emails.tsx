@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,7 +38,8 @@ import {
   AlertCircle,
   Users,
   UserPlus,
-  FileSearch
+  FileSearch,
+  MoreVertical
 } from 'lucide-react';
 
 // Extend Window interface for Google APIs
@@ -943,19 +945,34 @@ Best regards,
                 <Plus className="h-4 w-4 mr-2" />
                 Compose
               </Button>
-              <Button onClick={() => fetchEmails()} disabled={isSyncing} variant="outline" className="w-full">
-                <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'Syncing...' : 'Sync'}
-              </Button>
-              <Button 
-                onClick={findPotentialClients} 
-                disabled={isAnalyzing || !emails.length} 
-                variant="outline" 
-                className="w-full"
-              >
-                <FileSearch className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                {isAnalyzing ? 'Analyzing...' : 'Find Clients'}
-              </Button>
+              
+              {/* Dropdown menu for actions */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full">
+                    <MoreVertical className="h-4 w-4 mr-2" />
+                    Actions
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem 
+                    onClick={() => fetchEmails()} 
+                    disabled={isSyncing}
+                    className="cursor-pointer"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing...' : 'Sync Emails'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={findPotentialClients} 
+                    disabled={isAnalyzing || !emails.length}
+                    className="cursor-pointer"
+                  >
+                    <FileSearch className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                    {isAnalyzing ? 'Analyzing...' : 'Find Clients'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 
