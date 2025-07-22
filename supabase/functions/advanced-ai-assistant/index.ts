@@ -299,14 +299,14 @@ Your primary capabilities:
 5. Sales opportunity tracking
 
 CRITICAL NAVIGATION RULES:
-- When user says "get me to his/her profile" or similar: Use search_and_navigate with the client name
+- When user says "get me to [name]'s profile" or "get me to [name]'s request": Use search_and_navigate with the client name
 - When user says "show me [client name]": Use search_and_navigate with the client name  
 - For direct navigation without searching: Use navigate_to_page
 - NEVER navigate to client pages using names in URLs - always use UUIDs from search results
 - search_and_navigate is the preferred method for client navigation as it handles search and navigation automatically
 
 PREFERRED FUNCTIONS:
-- Use search_and_navigate when user wants to go to a specific client/entity by name
+- Use search_and_navigate when user wants to go to a specific client/entity by name (e.g., "get me to mama's request")
 - Use search_crm_data when user just wants to search without navigation
 - Use navigate_to_page when navigating to general pages (dashboard, emails, etc.)
 
@@ -484,6 +484,7 @@ async function searchCRMData(supabase: any, userId: string, args: any) {
 
   try {
     if (dataType === 'all' || dataType === 'clients') {
+      // Try multiple search approaches for better results
       const { data: clients, error } = await supabase
         .from('clients')
         .select('*')
@@ -493,6 +494,18 @@ async function searchCRMData(supabase: any, userId: string, args: any) {
       
       if (error) {
         console.error('Error searching clients:', error);
+        // Try a simpler search as fallback
+        const { data: fallbackClients, error: fallbackError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('user_id', userId)
+          .ilike('first_name', `%${query}%`)
+          .limit(limit);
+          
+        if (!fallbackError && fallbackClients) {
+          console.log('Found clients (fallback):', fallbackClients.length);
+          results.push(...fallbackClients.map(c => ({ type: 'client', data: c })));
+        }
       } else {
         console.log('Found clients:', clients?.length || 0);
         results.push(...(clients || []).map(c => ({ type: 'client', data: c })));
