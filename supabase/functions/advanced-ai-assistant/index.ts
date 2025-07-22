@@ -122,6 +122,26 @@ serve(async (req) => {
           {
             type: 'function',
             function: {
+              name: 'search_and_navigate',
+              description: 'Search for a client/entity and immediately navigate to their page. Use this when user wants to go to a specific client profile.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  query: { type: 'string', description: 'Name or identifier to search for' },
+                  targetType: { 
+                    type: 'string', 
+                    enum: ['client', 'request', 'booking'],
+                    default: 'client',
+                    description: 'Type of entity to search and navigate to'
+                  }
+                },
+                required: ['query']
+              }
+            }
+          },
+          {
+            type: 'function',
+            function: {
               name: 'get_page_context',
               description: 'Get relevant data for the current page context',
               parameters: {
@@ -279,16 +299,16 @@ Your primary capabilities:
 5. Sales opportunity tracking
 
 CRITICAL NAVIGATION RULES:
-- When user says "get me to his/her profile" or similar, use navigate_to_page with page="clients" and the clientId
-- When user says "show me [client name]", first search for the client, then navigate to their profile
-- When user asks about going to requests, use navigate_to_page with page="requests"
-- When user wants to see emails, use navigate_to_page with page="emails"
-- When user wants dashboard, use navigate_to_page with page="dashboard"
+- When user says "get me to his/her profile" or similar: Use search_and_navigate with the client name
+- When user says "show me [client name]": Use search_and_navigate with the client name  
+- For direct navigation without searching: Use navigate_to_page
+- NEVER navigate to client pages using names in URLs - always use UUIDs from search results
+- search_and_navigate is the preferred method for client navigation as it handles search and navigation automatically
 
-CRITICAL SEARCH RULES:
-- When user asks "do I have a client called [name]", use search_crm_data with query=[name]
-- Always search before navigating to specific clients
-- Be thorough in search results - include client details
+PREFERRED FUNCTIONS:
+- Use search_and_navigate when user wants to go to a specific client/entity by name
+- Use search_crm_data when user just wants to search without navigation
+- Use navigate_to_page when navigating to general pages (dashboard, emails, etc.)
 
 MEMORY CONTEXT:
 `;
@@ -328,14 +348,20 @@ Key Preferences: ${JSON.stringify(memoryContext.userMemory.key_preferences)}
   prompt += `
 
 IMPORTANT BEHAVIORAL RULES:
-- ALWAYS use the appropriate function for user requests
-- If user wants to navigate, use navigate_to_page immediately
-- If user wants to search/find, use search_crm_data immediately
+- ALWAYS search first when dealing with specific clients, then navigate with their actual ID
+- Use search_crm_data to find clients by name, then extract their ID for navigation
+- NEVER use client names in navigation URLs - always use UUIDs
 - Be conversational but functional - always take action when requested
 - Use memory context to provide personalized responses
-- When navigating to a specific client, always include their clientId from search results
+- When asked about a specific client, provide their full details from search results
 
-Remember: You are action-oriented. When users make requests, fulfill them with the appropriate functions immediately.`;
+EXAMPLE WORKFLOW:
+User: "get me to mama's profile"
+1. Use search_crm_data with query="mama" 
+2. Extract client ID from results (e.g., "fa0494bf-6aaf-4b9e-8468-6a53d85376db")
+3. Use navigate_to_page with page="clients" and clientId="fa0494bf-6aaf-4b9e-8468-6a53d85376db"
+
+Remember: You are action-oriented and must use proper UUIDs for navigation.`;
 
   return prompt;
 }
@@ -377,6 +403,49 @@ async function handleFunctionCall(supabase: any, userId: string, functionCall: a
       };
       console.log('Search result:', result);
       return result;
+
+    case 'search_and_navigate':
+      // Search for the entity first
+      const searchQuery = { query: parsedArgs.query, dataType: parsedArgs.targetType === 'client' ? 'clients' : parsedArgs.targetType };
+      const searchData = await searchCRMData(supabase, userId, searchQuery);
+      
+      if (searchData.length === 0) {
+        return {
+          function: 'search_and_navigate',
+          success: false,
+          message: `No ${parsedArgs.targetType} found matching "${parsedArgs.query}"`
+        };
+      }
+      
+      // Get the first result and navigate to it
+      const firstResult = searchData[0];
+      const entityId = firstResult.data.id;
+      
+      let navigationArgs;
+      switch (parsedArgs.targetType) {
+        case 'client':
+          navigationArgs = { page: 'clients', clientId: entityId };
+          break;
+        case 'request':
+          navigationArgs = { page: 'requests', requestId: entityId };
+          break;
+        case 'booking':
+          navigationArgs = { page: 'bookings', bookingId: entityId };
+          break;
+        default:
+          navigationArgs = { page: 'clients', clientId: entityId };
+      }
+      
+      return {
+        function: 'search_and_navigate',
+        success: true,
+        navigation: {
+          page: navigationArgs.page,
+          url: buildNavigationUrl(navigationArgs)
+        },
+        results: searchData,
+        message: `Found ${firstResult.data.first_name || 'entity'} and navigating to their profile`
+      };
 
     case 'get_page_context':
       const pageContext = await getPageContext(supabase, userId, parsedArgs);

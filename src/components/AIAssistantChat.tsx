@@ -137,7 +137,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       // Handle navigation if requested
       if (data.functionResults) {
         data.functionResults.forEach((result: any) => {
-          if (result.function === 'navigate_to_page' && result.navigation?.url) {
+          if ((result.function === 'navigate_to_page' || result.function === 'search_and_navigate') && result.navigation?.url) {
             toast({
               title: "Navigating",
               description: result.message
