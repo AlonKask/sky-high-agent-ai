@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -99,6 +100,11 @@ const Emails = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [potentialClients, setPotentialClients] = useState<any[]>([]);
   const [showClientsDialog, setShowClientsDialog] = useState(false);
+  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
+
+  // Auto-sync functionality
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
   // Check for stored authentication on component mount
   useEffect(() => {
@@ -558,9 +564,62 @@ Best regards,
     }
   };
 
-  // Create client from potential client data
+  // Check for duplicate clients and requests
+  const checkForDuplicates = async (potentialClient: any) => {
+    try {
+      // Check if client exists
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id, email')
+        .eq('email', potentialClient.email)
+        .eq('user_id', user?.id)
+        .single();
+
+      // Check if similar request exists
+      let existingRequest = null;
+      if (existingClient && potentialClient.travelInfo?.destination) {
+        const { data: requestData } = await supabase
+          .from('requests')
+          .select('id, destination, status')
+          .eq('client_id', existingClient.id)
+          .eq('destination', potentialClient.travelInfo.destination)
+          .eq('user_id', user?.id)
+          .single();
+        
+        existingRequest = requestData;
+      }
+
+      return {
+        clientExists: !!existingClient,
+        requestExists: !!existingRequest,
+        existingClient,
+        existingRequest
+      };
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      return {
+        clientExists: false,
+        requestExists: false,
+        existingClient: null,
+        existingRequest: null
+      };
+    }
+  };
+
+  // Create client from potential client data with duplicate checking
   const createClientFromPotential = async (potentialClient: any) => {
     try {
+      const duplicateCheck = await checkForDuplicates(potentialClient);
+      
+      if (duplicateCheck.clientExists) {
+        toast({
+          title: "Client Already Exists",
+          description: `${potentialClient.email} is already in your client database`,
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { data, error } = await supabase
         .from('clients')
         .insert({
@@ -582,8 +641,13 @@ Best regards,
         description: `Added ${potentialClient.email} as a new client`,
       });
 
-      // Remove from potential clients list
+      // Remove from potential clients list and selected
       setPotentialClients(prev => prev.filter(client => client.email !== potentialClient.email));
+      setSelectedClients(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(potentialClient.email);
+        return newSet;
+      });
     } catch (error) {
       console.error('Error creating client:', error);
       toast({
@@ -594,18 +658,21 @@ Best regards,
     }
   };
 
-  // Create request from potential client data
+  // Create request from potential client data with duplicate checking
   const createRequestFromPotential = async (potentialClient: any) => {
     try {
-      // First create the client if they don't exist
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('email', potentialClient.email)
-        .eq('user_id', user?.id)
-        .single();
+      const duplicateCheck = await checkForDuplicates(potentialClient);
+      
+      if (duplicateCheck.requestExists) {
+        toast({
+          title: "Similar Request Exists",
+          description: `A request for ${potentialClient.travelInfo?.destination} already exists for this client`,
+          variant: "destructive"
+        });
+        return;
+      }
 
-      let clientId = existingClient?.id;
+      let clientId = duplicateCheck.existingClient?.id;
 
       if (!clientId) {
         const { data: newClient, error: clientError } = await supabase
@@ -652,8 +719,13 @@ Best regards,
         description: `Created travel request for ${potentialClient.email}`,
       });
 
-      // Remove from potential clients list
+      // Remove from potential clients list and selected
       setPotentialClients(prev => prev.filter(client => client.email !== potentialClient.email));
+      setSelectedClients(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(potentialClient.email);
+        return newSet;
+      });
     } catch (error) {
       console.error('Error creating request:', error);
       toast({
@@ -663,6 +735,46 @@ Best regards,
       });
     }
   };
+
+  // Bulk actions for selected clients
+  const bulkCreateClients = async () => {
+    const selectedClientsList = potentialClients.filter(client => 
+      selectedClients.has(client.email)
+    );
+
+    for (const client of selectedClientsList) {
+      await createClientFromPotential(client);
+    }
+  };
+
+  const bulkCreateRequests = async () => {
+    const selectedClientsList = potentialClients.filter(client => 
+      selectedClients.has(client.email)
+    );
+
+    for (const client of selectedClientsList) {
+      await createRequestFromPotential(client);
+    }
+  };
+
+  // Auto-sync functionality
+  useEffect(() => {
+    if (isAuthenticated && authToken) {
+      // Initial sync when authenticated
+      fetchEmails();
+      
+      // Set up auto-sync interval
+      const interval = setInterval(() => {
+        if (isAuthenticated && authToken) {
+          console.log('Auto-syncing emails...');
+          fetchEmails();
+          setLastSyncTime(new Date());
+        }
+      }, AUTO_SYNC_INTERVAL);
+
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, authToken]);
 
   useEffect(() => {
     fetchTemplates();
@@ -1141,9 +1253,50 @@ Best regards,
       <Dialog open={showClientsDialog} onOpenChange={setShowClientsDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Potential Clients Found ({potentialClients.length})
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Potential Clients Found ({potentialClients.length})
+              </div>
+              
+              {/* Bulk Actions */}
+              {potentialClients.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mr-4">
+                    <Checkbox
+                      checked={selectedClients.size === potentialClients.length && potentialClients.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedClients(new Set(potentialClients.map(client => client.email)));
+                        } else {
+                          setSelectedClients(new Set());
+                        }
+                      }}
+                    />
+                    <span className="text-sm">Select All</span>
+                  </div>
+                  
+                  {selectedClients.size > 0 && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={bulkCreateClients}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Selected ({selectedClients.size})
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={bulkCreateRequests}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Create Requests ({selectedClients.size})
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
@@ -1156,81 +1309,102 @@ Best regards,
               <div className="space-y-4">
                 {potentialClients.map((client, index) => (
                   <Card key={index} className="p-4">
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-4">
+                      {/* Checkbox for individual selection */}
+                      <Checkbox
+                        checked={selectedClients.has(client.email)}
+                        onCheckedChange={(checked) => {
+                          setSelectedClients(prev => {
+                            const newSet = new Set(prev);
+                            if (checked) {
+                              newSet.add(client.email);
+                            } else {
+                              newSet.delete(client.email);
+                            }
+                            return newSet;
+                          });
+                        }}
+                        className="mt-1"
+                      />
+                      
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold">{client.name || 'Unknown Name'}</h3>
-                          <Badge variant="secondary">
-                            {client.confidence}% confidence
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          <strong>Email:</strong> {client.email}
-                        </p>
-                        {client.company && (
-                          <p className="text-sm text-muted-foreground mb-1">
-                            <strong>Company:</strong> {client.company}
-                          </p>
-                        )}
-                        {client.phone && (
-                          <p className="text-sm text-muted-foreground mb-1">
-                            <strong>Phone:</strong> {client.phone}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => createClientFromPotential(client)}
-                        >
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Add Client
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => createRequestFromPotential(client)}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Create Request
-                        </Button>
-                      </div>
-                    </div>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold">{client.name || 'Unknown Name'}</h3>
+                              <Badge variant="secondary">
+                                {client.confidence}% confidence
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-1">
+                              <strong>Email:</strong> {client.email}
+                            </p>
+                            {client.company && (
+                              <p className="text-sm text-muted-foreground mb-1">
+                                <strong>Company:</strong> {client.company}
+                              </p>
+                            )}
+                            {client.phone && (
+                              <p className="text-sm text-muted-foreground mb-1">
+                                <strong>Phone:</strong> {client.phone}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createClientFromPotential(client)}
+                            >
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              Add Client
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => createRequestFromPotential(client)}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Create Request
+                            </Button>
+                          </div>
+                         </div>
 
-                    {/* Travel Information */}
-                    {client.travelInfo && Object.keys(client.travelInfo).length > 0 && (
-                      <div className="bg-muted/50 p-3 rounded-lg mb-3">
-                        <h4 className="font-medium text-sm mb-2">Travel Requirements:</h4>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {client.travelInfo.origin && (
-                            <div><strong>Origin:</strong> {client.travelInfo.origin}</div>
-                          )}
-                          {client.travelInfo.destination && (
-                            <div><strong>Destination:</strong> {client.travelInfo.destination}</div>
-                          )}
-                          {client.travelInfo.dates && (
-                            <div><strong>Dates:</strong> {client.travelInfo.dates}</div>
-                          )}
-                          {client.travelInfo.passengers && (
-                            <div><strong>Passengers:</strong> {client.travelInfo.passengers}</div>
-                          )}
-                          {client.travelInfo.classPreference && (
-                            <div><strong>Class:</strong> {client.travelInfo.classPreference}</div>
-                          )}
-                          {client.travelInfo.budget && (
-                            <div><strong>Budget:</strong> {client.travelInfo.budget}</div>
-                          )}
+                        {/* Travel Information */}
+                        {client.travelInfo && Object.keys(client.travelInfo).length > 0 && (
+                          <div className="bg-muted/50 p-3 rounded-lg mb-3">
+                            <h4 className="font-medium text-sm mb-2">Travel Requirements:</h4>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {client.travelInfo.origin && (
+                                <div><strong>Origin:</strong> {client.travelInfo.origin}</div>
+                              )}
+                              {client.travelInfo.destination && (
+                                <div><strong>Destination:</strong> {client.travelInfo.destination}</div>
+                              )}
+                              {client.travelInfo.dates && (
+                                <div><strong>Dates:</strong> {client.travelInfo.dates}</div>
+                              )}
+                              {client.travelInfo.passengers && (
+                                <div><strong>Passengers:</strong> {client.travelInfo.passengers}</div>
+                              )}
+                              {client.travelInfo.classPreference && (
+                                <div><strong>Class:</strong> {client.travelInfo.classPreference}</div>
+                              )}
+                              {client.travelInfo.budget && (
+                                <div><strong>Budget:</strong> {client.travelInfo.budget}</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Email Context */}
+                        <div className="border-t pt-3">
+                          <p className="text-sm font-medium mb-1">Email: {client.emailSubject}</p>
+                          <p className="text-xs text-muted-foreground mb-2">"{client.emailSnippet}"</p>
+                          <p className="text-xs text-muted-foreground">
+                            <strong>Why this is a potential client:</strong> {client.reason}
+                          </p>
                         </div>
                       </div>
-                    )}
-
-                    {/* Email Context */}
-                    <div className="border-t pt-3">
-                      <p className="text-sm font-medium mb-1">Email: {client.emailSubject}</p>
-                      <p className="text-xs text-muted-foreground mb-2">"{client.emailSnippet}"</p>
-                      <p className="text-xs text-muted-foreground">
-                        <strong>Why this is a potential client:</strong> {client.reason}
-                      </p>
                     </div>
                   </Card>
                 ))}

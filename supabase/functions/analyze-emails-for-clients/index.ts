@@ -131,7 +131,17 @@ Response format:
       const content = data.choices[0].message.content;
 
       try {
-        const batchResults = JSON.parse(content);
+        // Remove markdown code blocks if present
+        let cleanContent = content.trim();
+        if (cleanContent.startsWith('```json')) {
+          cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanContent.startsWith('```')) {
+          cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        
+        console.log('Cleaned content:', cleanContent);
+        
+        const batchResults = JSON.parse(cleanContent);
         if (Array.isArray(batchResults)) {
           potentialClients.push(...batchResults);
         }
