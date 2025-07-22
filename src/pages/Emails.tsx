@@ -92,6 +92,29 @@ const Emails = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
 
+  // Check for stored authentication on component mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem('gmail_auth_token');
+    const storedExpiry = localStorage.getItem('gmail_auth_expiry');
+    
+    if (storedToken && storedExpiry) {
+      const expiryTime = parseInt(storedExpiry);
+      const currentTime = Date.now();
+      
+      // Check if token is still valid (not expired)
+      if (currentTime < expiryTime) {
+        setAuthToken(storedToken);
+        setIsAuthenticated(true);
+        console.log('Restored Gmail authentication from storage');
+      } else {
+        // Token expired, clean up
+        localStorage.removeItem('gmail_auth_token');
+        localStorage.removeItem('gmail_auth_expiry');
+        console.log('Stored Gmail token expired, removed from storage');
+      }
+    }
+  }, []);
+
   // Compose email state
   const [composeEmail, setComposeEmail] = useState({
     to: [] as string[],
@@ -132,6 +155,13 @@ const Emails = () => {
               if (response.access_token) {
                 setAuthToken(response.access_token);
                 setIsAuthenticated(true);
+                
+                // Store token and expiration in localStorage
+                localStorage.setItem('gmail_auth_token', response.access_token);
+                // OAuth tokens typically expire in 1 hour, but we'll use the expires_in value if available
+                const expirationTime = Date.now() + (response.expires_in ? response.expires_in * 1000 : 3600000); // Default 1 hour
+                localStorage.setItem('gmail_auth_expiry', expirationTime.toString());
+                
                 toast({
                   title: "Connected to Gmail",
                   description: "Successfully authenticated with Gmail",
@@ -507,7 +537,24 @@ Best regards,
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold">Gmail Integration</h1>
-            <Button variant="ghost" size="sm">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                // Clear authentication
+                setIsAuthenticated(false);
+                setAuthToken(null);
+                localStorage.removeItem('gmail_auth_token');
+                localStorage.removeItem('gmail_auth_expiry');
+                setEmails([]);
+                setSelectedEmail(null);
+                toast({
+                  title: "Disconnected",
+                  description: "Gmail connection has been cleared",
+                });
+              }}
+              className={isAuthenticated ? 'text-destructive hover:text-destructive' : ''}
+            >
               <Settings className="h-4 w-4" />
             </Button>
           </div>
