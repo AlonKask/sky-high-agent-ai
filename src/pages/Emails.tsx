@@ -32,6 +32,7 @@ import {
   Eye,
   EyeOff,
   Filter,
+  X,
   SortAsc,
   SortDesc,
   FileText,
@@ -45,8 +46,7 @@ import {
   ChevronRight,
   Brain,
   Minimize2,
-  Maximize2,
-  X
+  Maximize2
 } from 'lucide-react';
 
 // Extend Window interface for Google APIs
@@ -125,6 +125,7 @@ const Emails = () => {
   const [isAIProcessingEnabled, setIsAIProcessingEnabled] = useState(true);
   const [isInboxMinimized, setIsInboxMinimized] = useState(false);
   const [isEmailViewMinimized, setIsEmailViewMinimized] = useState(false);
+  const [showInboxColumn, setShowInboxColumn] = useState(true);
 
   // Show/hide CC and BCC fields
   const [showCc, setShowCc] = useState(false);
@@ -1330,6 +1331,7 @@ Best regards,
       {/* Main Content Area */}
       <div className="flex-1 flex">
         {/* Email List */}
+        {showInboxColumn && (
         <div className="w-96 border-r bg-card/50">
           {/* Email List Header */}
           <div className="p-4 border-b bg-background/50 backdrop-blur-sm">
@@ -1337,9 +1339,19 @@ Best regards,
               <h2 className="font-semibold text-lg">
                 {selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1)}
               </h2>
-              <Badge variant="outline" className="text-xs">
-                {filteredEmails.length}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {filteredEmails.length}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowInboxColumn(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             {filteredEmails.length > 0 && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -1446,6 +1458,7 @@ Best regards,
             )}
           </ScrollArea>
         </div>
+        )}
 
         {/* Email Content - Use EmailContentProcessor */}
         <EmailContentProcessor 
