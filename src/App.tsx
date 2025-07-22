@@ -22,6 +22,7 @@ import Clients from "./pages/Clients";
 import Calendar from "./pages/Calendar";
 import Bookings from "./pages/Bookings";
 import Emails from "./pages/Emails";
+import Messages from "./pages/Messages";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => {
                       <Route path="/clients" element={<Clients />} />
                       <Route path="/bookings" element={<Bookings />} />
                       <Route path="/emails" element={<Emails />} />
+                      <Route path="/messages" element={<Messages />} />
                       <Route path="/calendar" element={<Calendar />} />
                       <Route path="/analytics/:type" element={<Analytics />} />
                       <Route path="/booking/:bookingId" element={<BookingDetail />} />

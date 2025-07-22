@@ -379,6 +379,63 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          attachments: Json | null
+          contact_name: string | null
+          content: string
+          conversation_id: string | null
+          created_at: string
+          direction: string
+          id: string
+          message_id: string | null
+          message_type: string
+          metadata: Json | null
+          phone_number: string
+          read_status: boolean | null
+          status: string
+          thread_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          contact_name?: string | null
+          content: string
+          conversation_id?: string | null
+          created_at?: string
+          direction: string
+          id?: string
+          message_id?: string | null
+          message_type?: string
+          metadata?: Json | null
+          phone_number: string
+          read_status?: boolean | null
+          status?: string
+          thread_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          contact_name?: string | null
+          content?: string
+          conversation_id?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          message_id?: string | null
+          message_type?: string
+          metadata?: Json | null
+          phone_number?: string
+          read_status?: boolean | null
+          status?: string
+          thread_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
