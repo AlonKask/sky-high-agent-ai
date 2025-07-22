@@ -167,19 +167,15 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
 
   if (isMinimized) {
     return (
-      <Card className="fixed bottom-4 right-4 w-80 bg-background border shadow-lg">
-        <div className="flex items-center justify-between p-3 border-b">
-          <div className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-primary" />
-            <span className="font-medium text-sm">AI Assistant</span>
-            <Badge variant="secondary" className="text-xs">Minimized</Badge>
-          </div>
+      <Card className="fixed bottom-4 right-4 w-16 h-16 bg-background border shadow-lg flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
+        <div className="flex flex-col items-center justify-center gap-1">
+          <Bot className="h-6 w-6 text-primary" />
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggleMinimize}
-              className="h-6 w-6 p-0"
+              className="h-4 w-4 p-0 hover:bg-transparent"
             >
               <Maximize2 className="h-3 w-3" />
             </Button>
@@ -187,7 +183,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="h-6 w-6 p-0"
+              className="h-4 w-4 p-0 hover:bg-transparent"
             >
               <X className="h-3 w-3" />
             </Button>
