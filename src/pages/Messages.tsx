@@ -16,7 +16,10 @@ import {
   User,
   Clock,
   Check,
-  CheckCheck
+  CheckCheck,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneOutgoing
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -115,23 +118,32 @@ const Messages = () => {
   const syncMessages = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ringcentral-messages', {
-        body: { action: 'sync' }
-      });
+      // Sync both messages and calls
+      const [messagesResult, callsResult] = await Promise.all([
+        supabase.functions.invoke('ringcentral-messages', {
+          body: { action: 'syncMessages' }
+        }),
+        supabase.functions.invoke('ringcentral-messages', {
+          body: { action: 'syncCalls' }
+        })
+      ]);
 
-      if (error) throw error;
+      if (messagesResult.error) throw messagesResult.error;
+      if (callsResult.error) throw callsResult.error;
+      
+      const totalSynced = (messagesResult.data?.synced || 0) + (callsResult.data?.synced || 0);
       
       toast({
         title: "Success",
-        description: `Synced ${data.synced} messages from RingCentral`,
+        description: `Synced ${totalSynced} items from RingCentral (${messagesResult.data?.synced || 0} messages, ${callsResult.data?.synced || 0} calls)`,
       });
       
       await loadConversations();
     } catch (error: any) {
-      console.error('Error syncing messages:', error);
+      console.error('Error syncing:', error);
       toast({
         title: "Error",
-        description: "Failed to sync messages from RingCentral",
+        description: "Failed to sync from RingCentral: " + error.message,
         variant: "destructive",
       });
     } finally {
@@ -218,8 +230,17 @@ const Messages = () => {
     return phone;
   };
 
+  const getMessageIcon = (message: Message) => {
+    if (message.message_type === 'Call') {
+      return message.direction === 'inbound' 
+        ? <PhoneIncoming className="h-3 w-3 text-green-500" />
+        : <PhoneOutgoing className="h-3 w-3 text-blue-500" />;
+    }
+    return null;
+  };
+
   const getMessageStatus = (message: Message) => {
-    if (message.direction === 'outbound') {
+    if (message.direction === 'outbound' && message.message_type !== 'Call') {
       switch (message.status) {
         case 'sent':
           return <Check className="h-3 w-3 text-muted-foreground" />;
@@ -366,10 +387,15 @@ const Messages = () => {
                       className={`max-w-[70%] rounded-lg p-3 ${
                         message.direction === 'outbound'
                           ? 'bg-primary text-primary-foreground'
+                          : message.message_type === 'Call'
+                          ? 'bg-accent border'
                           : 'bg-muted'
                       }`}
                     >
-                      <p className="text-sm">{message.content}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        {getMessageIcon(message)}
+                        <p className="text-sm">{message.content}</p>
+                      </div>
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-xs opacity-70">
                           {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}

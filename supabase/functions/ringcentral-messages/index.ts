@@ -20,15 +20,29 @@ interface SendMessageRequest {
   from?: string;
 }
 
-interface Message {
+interface RingCentralMessage {
   id: string;
+  uri: string;
   direction: string;
+  type: string;
   from: { phoneNumber: string; name?: string };
-  to: [{ phoneNumber: string; name?: string }];
+  to: Array<{ phoneNumber: string; name?: string }>;
   subject: string;
   creationTime: string;
   readStatus: string;
   conversationId: string;
+  lastModifiedTime: string;
+}
+
+interface RingCentralCall {
+  id: string;
+  direction: string;
+  from: { phoneNumber: string; name?: string };
+  to: { phoneNumber: string; name?: string };
+  startTime: string;
+  duration: number;
+  result: string;
+  telephonyStatus: string;
   type: string;
 }
 
@@ -40,6 +54,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 class RingCentralAPI {
   private config: RingCentralConfig;
   private accessToken: string | null = null;
+  private tokenExpiry: number = 0;
 
   constructor() {
     this.config = {
@@ -48,41 +63,64 @@ class RingCentralAPI {
       jwtToken: Deno.env.get("RINGCENTRAL_JWT_TOKEN")!,
       server: "https://platform.ringcentral.com", // Production server
     };
+
+    console.log("RingCentral config initialized:", {
+      clientId: this.config.clientId ? "✓" : "✗",
+      clientSecret: this.config.clientSecret ? "✓" : "✗",
+      jwtToken: this.config.jwtToken ? "✓" : "✗",
+    });
   }
 
   async authenticate(): Promise<void> {
-    const response = await fetch(`${this.config.server}/restapi/oauth/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${btoa(`${this.config.clientId}:${this.config.clientSecret}`)}`,
-      },
-      body: new URLSearchParams({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion: this.config.jwtToken,
-      }),
-    });
+    console.log("Attempting RingCentral authentication...");
+    
+    try {
+      const response = await fetch(`${this.config.server}/restapi/oauth/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${btoa(`${this.config.clientId}:${this.config.clientSecret}`)}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          assertion: this.config.jwtToken,
+        }),
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Authentication failed: ${error}`);
+      const responseText = await response.text();
+      console.log("Auth response status:", response.status);
+      console.log("Auth response:", responseText.substring(0, 200));
+
+      if (!response.ok) {
+        throw new Error(`Authentication failed: ${response.status} - ${responseText}`);
+      }
+
+      const data = JSON.parse(responseText);
+      this.accessToken = data.access_token;
+      this.tokenExpiry = Date.now() + (data.expires_in * 1000);
+      console.log("RingCentral authentication successful, token expires in:", data.expires_in, "seconds");
+    } catch (error) {
+      console.error("Authentication error:", error);
+      throw error;
     }
+  }
 
-    const data = await response.json();
-    this.accessToken = data.access_token;
-    console.log("RingCentral authentication successful");
+  async ensureAuth(): Promise<void> {
+    if (!this.accessToken || Date.now() >= this.tokenExpiry - 60000) {
+      await this.authenticate();
+    }
   }
 
   async sendMessage(request: SendMessageRequest): Promise<any> {
-    if (!this.accessToken) {
-      await this.authenticate();
-    }
+    await this.ensureAuth();
 
     const messageData = {
       from: { phoneNumber: request.from || "+1XXXXXXXXXX" }, // Default from number
       to: [{ phoneNumber: request.to }],
       text: request.text,
     };
+
+    console.log("Sending message:", messageData);
 
     const response = await fetch(
       `${this.config.server}/restapi/v1.0/account/~/extension/~/sms`,
@@ -96,28 +134,33 @@ class RingCentralAPI {
       }
     );
 
+    const responseText = await response.text();
+    console.log("Send message response:", response.status, responseText.substring(0, 200));
+
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Send message failed: ${error}`);
+      throw new Error(`Send message failed: ${response.status} - ${responseText}`);
     }
 
-    return await response.json();
+    return JSON.parse(responseText);
   }
 
-  async getMessages(dateFrom?: string): Promise<Message[]> {
-    if (!this.accessToken) {
-      await this.authenticate();
-    }
+  async getMessages(dateFrom?: string, dateTo?: string, perPage: number = 1000): Promise<RingCentralMessage[]> {
+    await this.ensureAuth();
 
     const params = new URLSearchParams({
-      messageType: "SMS",
+      messageType: ["SMS", "MMS"],
       readStatus: "All",
-      perPage: "100",
+      perPage: perPage.toString(),
     });
 
     if (dateFrom) {
       params.append("dateFrom", dateFrom);
     }
+    if (dateTo) {
+      params.append("dateTo", dateTo);
+    }
+
+    console.log("Fetching messages with params:", params.toString());
 
     const response = await fetch(
       `${this.config.server}/restapi/v1.0/account/~/extension/~/message-store?${params}`,
@@ -128,24 +171,72 @@ class RingCentralAPI {
       }
     );
 
+    const responseText = await response.text();
+    console.log("Get messages response:", response.status, responseText.substring(0, 200));
+
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Get messages failed: ${error}`);
+      throw new Error(`Get messages failed: ${response.status} - ${responseText}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseText);
+    console.log("Retrieved", data.records?.length || 0, "messages");
+    return data.records || [];
+  }
+
+  async getCallLog(dateFrom?: string, dateTo?: string, perPage: number = 1000): Promise<RingCentralCall[]> {
+    await this.ensureAuth();
+
+    const params = new URLSearchParams({
+      type: "Voice",
+      perPage: perPage.toString(),
+    });
+
+    if (dateFrom) {
+      params.append("dateFrom", dateFrom);
+    }
+    if (dateTo) {
+      params.append("dateTo", dateTo);
+    }
+
+    console.log("Fetching call log with params:", params.toString());
+
+    const response = await fetch(
+      `${this.config.server}/restapi/v1.0/account/~/extension/~/call-log?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+        },
+      }
+    );
+
+    const responseText = await response.text();
+    console.log("Get call log response:", response.status, responseText.substring(0, 200));
+
+    if (!response.ok) {
+      throw new Error(`Get call log failed: ${response.status} - ${responseText}`);
+    }
+
+    const data = JSON.parse(responseText);
+    console.log("Retrieved", data.records?.length || 0, "call records");
     return data.records || [];
   }
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("RingCentral function called with method:", req.method);
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { action, ...params } = await req.json();
+    const requestBody = await req.text();
+    console.log("Request body:", requestBody);
+    
+    const { action, ...params } = JSON.parse(requestBody);
+    console.log("Action:", action, "Params:", params);
+    
     const api = new RingCentralAPI();
 
     // Get user from request
@@ -158,8 +249,11 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
+      console.error("Auth error:", authError);
       throw new Error("Unauthorized");
     }
+
+    console.log("User authenticated:", user.id);
 
     switch (action) {
       case "send": {
@@ -169,7 +263,7 @@ const handler = async (req: Request): Promise<Response> => {
         const result = await api.sendMessage({ to, text, from });
         
         // Store in database
-        await supabase.from("messages").insert({
+        const { error: insertError } = await supabase.from("messages").insert({
           user_id: user.id,
           message_id: result.id?.toString(),
           direction: "outbound",
@@ -181,12 +275,16 @@ const handler = async (req: Request): Promise<Response> => {
           metadata: result,
         });
 
+        if (insertError) {
+          console.error("Error storing message:", insertError);
+        }
+
         return new Response(JSON.stringify(result), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
 
-      case "sync": {
+      case "syncMessages": {
         console.log("Syncing messages from RingCentral");
         
         // Get last sync time from database
@@ -198,39 +296,124 @@ const handler = async (req: Request): Promise<Response> => {
           .limit(1);
 
         const dateFrom = lastSync?.[0]?.created_at || 
-          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // Last 7 days
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // Last 30 days
 
         const messages = await api.getMessages(dateFrom);
         console.log(`Found ${messages.length} messages to sync`);
 
+        let syncedCount = 0;
+        
         // Store messages in database
         for (const message of messages) {
-          const phoneNumber = message.direction === "Inbound" 
-            ? message.from.phoneNumber 
-            : message.to[0].phoneNumber;
+          try {
+            const phoneNumber = message.direction === "Inbound" 
+              ? message.from.phoneNumber 
+              : message.to[0]?.phoneNumber;
 
-          await supabase.from("messages").upsert({
-            user_id: user.id,
-            message_id: message.id,
-            direction: message.direction.toLowerCase(),
-            phone_number: phoneNumber,
-            contact_name: message.direction === "Inbound" 
-              ? message.from.name 
-              : message.to[0].name,
-            content: message.subject,
-            message_type: message.type,
-            status: "received",
-            read_status: message.readStatus === "Read",
-            conversation_id: message.conversationId,
-            metadata: message,
-            created_at: message.creationTime,
-          }, {
-            onConflict: "message_id",
-            ignoreDuplicates: true,
-          });
+            if (!phoneNumber) continue;
+
+            const { error } = await supabase.from("messages").upsert({
+              user_id: user.id,
+              message_id: message.id,
+              direction: message.direction.toLowerCase(),
+              phone_number: phoneNumber,
+              contact_name: message.direction === "Inbound" 
+                ? message.from.name 
+                : message.to[0]?.name,
+              content: message.subject,
+              message_type: message.type,
+              status: "received",
+              read_status: message.readStatus === "Read",
+              conversation_id: message.conversationId,
+              metadata: message,
+              created_at: message.creationTime,
+              updated_at: message.lastModifiedTime,
+            }, {
+              onConflict: "message_id",
+              ignoreDuplicates: false,
+            });
+
+            if (!error) {
+              syncedCount++;
+            } else {
+              console.error("Error syncing message:", message.id, error);
+            }
+          } catch (error) {
+            console.error("Error processing message:", message.id, error);
+          }
         }
 
-        return new Response(JSON.stringify({ synced: messages.length }), {
+        console.log(`Successfully synced ${syncedCount} messages`);
+
+        return new Response(JSON.stringify({ synced: syncedCount, total: messages.length }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      case "syncCalls": {
+        console.log("Syncing call log from RingCentral");
+        
+        // Get last sync time for calls
+        const { data: lastCallSync } = await supabase
+          .from("messages")
+          .select("created_at")
+          .eq("user_id", user.id)
+          .eq("message_type", "Call")
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const dateFrom = lastCallSync?.[0]?.created_at || 
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // Last 30 days
+
+        const calls = await api.getCallLog(dateFrom);
+        console.log(`Found ${calls.length} calls to sync`);
+
+        let syncedCount = 0;
+        
+        // Store calls in database as messages
+        for (const call of calls) {
+          try {
+            const phoneNumber = call.direction === "Inbound" 
+              ? call.from.phoneNumber 
+              : call.to.phoneNumber;
+
+            if (!phoneNumber) continue;
+
+            const callContent = `${call.direction} call - ${call.result} (${Math.floor(call.duration / 60)}:${(call.duration % 60).toString().padStart(2, '0')})`;
+
+            const { error } = await supabase.from("messages").upsert({
+              user_id: user.id,
+              message_id: call.id,
+              direction: call.direction.toLowerCase(),
+              phone_number: phoneNumber,
+              contact_name: call.direction === "Inbound" 
+                ? call.from.name 
+                : call.to.name,
+              content: callContent,
+              message_type: "Call",
+              status: call.result.toLowerCase(),
+              read_status: true,
+              conversation_id: `call_${call.id}`,
+              metadata: call,
+              created_at: call.startTime,
+            }, {
+              onConflict: "message_id",
+              ignoreDuplicates: false,
+            });
+
+            if (!error) {
+              syncedCount++;
+            } else {
+              console.error("Error syncing call:", call.id, error);
+            }
+          } catch (error) {
+            console.error("Error processing call:", call.id, error);
+          }
+        }
+
+        console.log(`Successfully synced ${syncedCount} calls`);
+
+        return new Response(JSON.stringify({ synced: syncedCount, total: calls.length }), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
@@ -244,7 +427,12 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Database error:", error);
+          throw error;
+        }
+
+        console.log("Found", conversations?.length || 0, "total messages");
 
         // Group by phone number/conversation
         const groupedConversations = conversations.reduce((acc: any, message: any) => {
@@ -271,7 +459,10 @@ const handler = async (req: Request): Promise<Response> => {
           return acc;
         }, {});
 
-        return new Response(JSON.stringify(Object.values(groupedConversations)), {
+        const result = Object.values(groupedConversations);
+        console.log("Returning", result.length, "conversations");
+
+        return new Response(JSON.stringify(result), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
@@ -286,7 +477,10 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", user.id)
           .in("id", messageIds);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error marking as read:", error);
+          throw error;
+        }
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
