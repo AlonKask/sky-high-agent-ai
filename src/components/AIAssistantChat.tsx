@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   X, 
   Send, 
@@ -16,7 +17,9 @@ import {
   Database,
   Search,
   Calendar,
-  Mail
+  Mail,
+  Navigation,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,10 +48,12 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   onToggleMinimize,
   onClose,
   initialContext
-}) => {
+ }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -90,15 +95,26 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
     setIsLoading(true);
 
     try {
+      // Extract current page context
+      const currentPage = location.pathname.split('/')[1] || 'dashboard';
+      const pathParams = location.pathname.split('/');
+      const contextData = {
+        currentPage,
+        clientId: pathParams[1] === 'client' ? pathParams[2] : null,
+        requestId: pathParams[1] === 'request' ? pathParams[2] : null,
+        bookingId: pathParams[1] === 'booking' ? pathParams[2] : null
+      };
+
       const { data, error } = await supabase.functions.invoke('advanced-ai-assistant', {
         body: {
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content
           })),
-          context: initialContext,
-          clientId: null, // Can be set based on current page context
-          requestId: null // Can be set based on current page context
+          context: `${initialContext} | Current page: ${currentPage} | Path: ${location.pathname}`,
+          clientId: contextData.clientId,
+          requestId: contextData.requestId,
+          currentPage
         }
       });
 
@@ -108,10 +124,28 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: data.response,
-        timestamp: new Date()
+        timestamp: new Date(),
+        metadata: {
+          tools_used: data.functionResults?.map((r: any) => r.function) || [],
+          memory_accessed: data.memoryUpdated || false,
+          external_data: data.context
+        }
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Handle navigation if requested
+      if (data.functionResults) {
+        data.functionResults.forEach((result: any) => {
+          if (result.function === 'navigate_to_page' && result.navigation?.url) {
+            toast({
+              title: "Navigating",
+              description: result.message
+            });
+            setTimeout(() => navigate(result.navigation.url), 1000);
+          }
+        });
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
