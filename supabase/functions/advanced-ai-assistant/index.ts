@@ -24,7 +24,9 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, context, clientId, requestId } = await req.json();
+    const { messages, context, clientId, requestId, currentPage } = await req.json();
+    
+    console.log('AI Assistant called with:', { currentPage, clientId, requestId, messagesCount: messages.length });
     
     // Get user from auth
     const authHeader = req.headers.get('authorization');
@@ -36,15 +38,30 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     
     if (authError || !user) {
+      console.error('Auth error:', authError);
       throw new Error('Invalid authentication');
     }
 
+    console.log('User authenticated:', user.id);
+
     // Fetch comprehensive memory context
     const memoryContext = await fetchMemoryContext(supabase, user.id, clientId, requestId);
+    console.log('Memory context loaded:', {
+      hasUserMemory: !!memoryContext.userMemory,
+      clientMemoriesCount: memoryContext.clientMemories?.length || 0,
+      salesMemoriesCount: memoryContext.salesMemories?.length || 0
+    });
     
     // Build enhanced system prompt with memory
-    const systemPrompt = buildSystemPromptWithMemory(memoryContext, context);
+    const systemPrompt = buildSystemPromptWithMemory(memoryContext, context, currentPage, clientId);
     
+    // Determine if this looks like a navigation or search request
+    const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+    const isNavigationRequest = lastMessage.includes('get me to') || lastMessage.includes('go to') || lastMessage.includes('show me') || lastMessage.includes('navigate to') || lastMessage.includes('take me to');
+    const isSearchRequest = lastMessage.includes('do i have') || lastMessage.includes('find') || lastMessage.includes('search for') || lastMessage.includes('look for');
+    
+    console.log('Request analysis:', { isNavigationRequest, isSearchRequest, lastMessage });
+
     // Call OpenAI with memory-enhanced context
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -58,137 +75,125 @@ serve(async (req) => {
           { role: 'system', content: systemPrompt },
           ...messages
         ],
-        temperature: 0.7,
+        temperature: 0.3,
         max_tokens: 1500,
-        functions: [
+        tools: [
           {
-            name: 'navigate_to_page',
-            description: 'Navigate user to a specific page in the CRM',
-            parameters: {
-              type: 'object',
-              properties: {
-                page: { 
-                  type: 'string', 
-                  enum: ['dashboard', 'requests', 'clients', 'bookings', 'emails', 'calendar', 'analytics'],
-                  description: 'The page to navigate to'
+            type: 'function',
+            function: {
+              name: 'navigate_to_page',
+              description: 'Navigate user to a specific page in the CRM. Use this when user wants to go to, see, or view any page or specific item.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  page: { 
+                    type: 'string', 
+                    enum: ['dashboard', 'requests', 'clients', 'bookings', 'emails', 'calendar', 'analytics'],
+                    description: 'The page to navigate to'
+                  },
+                  clientId: { type: 'string', description: 'Client ID if navigating to a specific client' },
+                  requestId: { type: 'string', description: 'Request ID if navigating to a specific request' },
+                  bookingId: { type: 'string', description: 'Booking ID if navigating to a specific booking' }
                 },
-                clientId: { type: 'string', description: 'Optional client ID for client-specific pages' },
-                requestId: { type: 'string', description: 'Optional request ID for request-specific pages' },
-                bookingId: { type: 'string', description: 'Optional booking ID for booking-specific pages' }
-              },
-              required: ['page']
+                required: ['page']
+              }
             }
           },
           {
-            name: 'search_crm_data',
-            description: 'Search across all CRM data (clients, requests, bookings, emails)',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: { type: 'string', description: 'Search query' },
-                dataType: { 
-                  type: 'string', 
-                  enum: ['all', 'clients', 'requests', 'bookings', 'emails'],
-                  description: 'Type of data to search'
+            type: 'function',
+            function: {
+              name: 'search_crm_data',
+              description: 'Search for clients, requests, emails, or other CRM data. Use this when user asks about having clients, finding information, etc.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  query: { type: 'string', description: 'Search term or client name' },
+                  dataType: { 
+                    type: 'string', 
+                    enum: ['all', 'clients', 'requests', 'emails', 'bookings'],
+                    default: 'all'
+                  },
+                  limit: { type: 'number', default: 10 }
                 },
-                limit: { type: 'number', description: 'Number of results to return', default: 10 }
-              },
-              required: ['query']
+                required: ['query']
+              }
             }
           },
           {
-            name: 'get_page_context',
-            description: 'Get relevant data for the current page context',
-            parameters: {
-              type: 'object',
-              properties: {
-                page: { type: 'string', description: 'Current page name' },
-                filters: { type: 'object', description: 'Any filters to apply' }
-              },
-              required: ['page']
-            }
-          },
-          {
-            name: 'update_client_memory',
-            description: 'Update memory about a specific client based on conversation',
-            parameters: {
-              type: 'object',
-              properties: {
-                clientId: { type: 'string' },
-                interactionSummary: { type: 'string' },
-                preferences: { type: 'object' },
-                painPoints: { type: 'array', items: { type: 'string' } }
-              },
-              required: ['clientId', 'interactionSummary']
-            }
-          },
-          {
-            name: 'create_follow_up_task',
-            description: 'Create a follow-up task or reminder',
-            parameters: {
-              type: 'object',
-              properties: {
-                task: { type: 'string' },
-                dueDate: { type: 'string' },
-                priority: { type: 'string', enum: ['low', 'medium', 'high'] },
-                clientId: { type: 'string' }
-              },
-              required: ['task']
-            }
-          },
-          {
-            name: 'create_quick_action',
-            description: 'Create quick actions like new requests, client records, or bookings',
-            parameters: {
-              type: 'object',
-              properties: {
-                actionType: { 
-                  type: 'string', 
-                  enum: ['new_client', 'new_request', 'new_booking', 'send_email'],
-                  description: 'Type of action to create'
+            type: 'function',
+            function: {
+              name: 'get_page_context',
+              description: 'Get relevant data for the current page context',
+              parameters: {
+                type: 'object',
+                properties: {
+                  page: { type: 'string', description: 'Current page name' },
+                  filters: { type: 'object', description: 'Any filters to apply' }
                 },
-                data: { type: 'object', description: 'Data for the action' }
-              },
-              required: ['actionType']
+                required: ['page']
+              }
             }
           }
         ],
-        function_call: 'auto'
+        tool_choice: 'auto'
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('OpenAI response:', {
+      hasContent: !!data.choices[0].message.content,
+      hasToolCalls: !!data.choices[0].message.tool_calls,
+      toolCallsCount: data.choices[0].message.tool_calls?.length || 0
+    });
+    
     const assistantMessage = data.choices[0].message;
     
     // Handle function calls if present
     let functionResults = [];
-    if (assistantMessage.function_call) {
-      const functionResult = await handleFunctionCall(
-        supabase, 
-        user.id, 
-        assistantMessage.function_call, 
-        clientId
-      );
-      functionResults.push(functionResult);
+    if (assistantMessage.tool_calls) {
+      console.log('Processing tool calls:', assistantMessage.tool_calls.map(tc => tc.function.name));
+      
+      for (const toolCall of assistantMessage.tool_calls) {
+        const functionResult = await handleFunctionCall(
+          supabase, 
+          user.id, 
+          toolCall.function, 
+          clientId
+        );
+        functionResults.push(functionResult);
+      }
       
       // If we have function results but no content, create a response
-      if (!assistantMessage.content && functionResult.success) {
-        assistantMessage.content = functionResult.message || "I've completed that action for you.";
+      if (!assistantMessage.content && functionResults.length > 0) {
+        const mainResult = functionResults[0];
+        if (mainResult.success) {
+          assistantMessage.content = mainResult.message || "I've completed that action for you.";
+        }
       }
     }
 
-    // Update user memory with conversation context
-    await updateUserMemory(supabase, user.id, messages, assistantMessage.content);
+    // Update user memory with conversation context if substantial interaction
+    if (messages.length > 1) {
+      await updateUserMemory(supabase, user.id, messages, assistantMessage.content);
+    }
     
     // Log memory interaction
     await logMemoryInteraction(supabase, user.id, 'conversation', context);
 
+    console.log('Response prepared:', {
+      content: assistantMessage.content?.substring(0, 100) + '...',
+      functionResultsCount: functionResults.length,
+      memoryUpdated: true
+    });
+
     return new Response(JSON.stringify({ 
-      response: assistantMessage.content,
+      response: assistantMessage.content || "I'm here to help with your CRM needs.",
       functionResults,
       memoryUpdated: true,
       context: {
@@ -212,69 +217,78 @@ serve(async (req) => {
 async function fetchMemoryContext(supabase: any, userId: string, clientId?: string, requestId?: string): Promise<MemoryContext> {
   const context: MemoryContext = {};
 
-  // Fetch user memory
-  const { data: userMemory } = await supabase
-    .from('user_memories')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-  
-  context.userMemory = userMemory;
+  try {
+    // Fetch user memory
+    const { data: userMemory } = await supabase
+      .from('user_memories')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    context.userMemory = userMemory;
 
-  // Fetch client memories (recent and relevant)
-  const { data: clientMemories } = await supabase
-    .from('client_memories')
-    .select('*, clients(*)')
-    .eq('user_id', userId)
-    .order('last_updated', { ascending: false })
-    .limit(clientId ? 1 : 5);
-  
-  context.clientMemories = clientMemories || [];
+    // Fetch client memories (recent and relevant)
+    const { data: clientMemories } = await supabase
+      .from('client_memories')
+      .select('*, clients(*)')
+      .eq('user_id', userId)
+      .order('last_updated', { ascending: false })
+      .limit(clientId ? 1 : 5);
+    
+    context.clientMemories = clientMemories || [];
 
-  // Fetch sales memories
-  const { data: salesMemories } = await supabase
-    .from('sales_memories')
-    .select('*, clients(*), requests(*)')
-    .eq('user_id', userId)
-    .order('last_updated', { ascending: false })
-    .limit(requestId ? 1 : 3);
-  
-  context.salesMemories = salesMemories || [];
+    // Fetch sales memories
+    const { data: salesMemories } = await supabase
+      .from('sales_memories')
+      .select('*, clients(*), requests(*)')
+      .eq('user_id', userId)
+      .order('last_updated', { ascending: false })
+      .limit(requestId ? 1 : 3);
+    
+    context.salesMemories = salesMemories || [];
 
-  // Fetch recent interactions
-  const { data: recentInteractions } = await supabase
-    .from('memory_interactions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(10);
-  
-  context.recentInteractions = recentInteractions || [];
+    // Fetch recent interactions
+    const { data: recentInteractions } = await supabase
+      .from('memory_interactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    context.recentInteractions = recentInteractions || [];
+  } catch (error) {
+    console.error('Error fetching memory context:', error);
+  }
 
   return context;
 }
 
-function buildSystemPromptWithMemory(memoryContext: MemoryContext, additionalContext?: string): string {
+function buildSystemPromptWithMemory(memoryContext: MemoryContext, additionalContext?: string, currentPage?: string, currentClientId?: string): string {
   let prompt = `You are an advanced AI sales assistant with comprehensive memory capabilities and full CRM navigation control. You have access to the user's conversation history, client relationships, and ongoing sales opportunities.
 
+CURRENT CONTEXT:
+- Current Page: ${currentPage || 'unknown'}
+- Current Client ID: ${currentClientId || 'none'}
+- Additional Context: ${additionalContext || 'none'}
+
 Your primary capabilities:
-1. Navigate the CRM system - when users ask to "go to", "show me", "take me to", or "navigate to" any page or client
-2. Email analysis and sales intelligence
-3. Personalized sales email composition
+1. Navigate the CRM system - ALWAYS use navigate_to_page when users ask to "go to", "show me", "take me to", "get me to", or "navigate to" any page or client
+2. Search CRM data - ALWAYS use search_crm_data when users ask "do I have", "find", "search for", or "look for" clients/data
+3. Email analysis and sales intelligence
 4. Client relationship management with search capabilities
 5. Sales opportunity tracking
-6. Task and follow-up management
 
-NAVIGATION COMMANDS - Use these functions when users want to:
-- Go to dashboard: use navigate_to_page with page="dashboard"
-- See a specific client: use navigate_to_page with page="clients" and clientId if known
-- View requests: use navigate_to_page with page="requests"
-- Check bookings: use navigate_to_page with page="bookings"  
-- Look at emails: use navigate_to_page with page="emails"
-- View calendar: use navigate_to_page with page="calendar"
-- See analytics: use navigate_to_page with page="analytics"
+CRITICAL NAVIGATION RULES:
+- When user says "get me to his/her profile" or similar, use navigate_to_page with page="clients" and the clientId
+- When user says "show me [client name]", first search for the client, then navigate to their profile
+- When user asks about going to requests, use navigate_to_page with page="requests"
+- When user wants to see emails, use navigate_to_page with page="emails"
+- When user wants dashboard, use navigate_to_page with page="dashboard"
 
-SEARCH COMMANDS - Use search_crm_data when users want to find specific clients, requests, or data.
+CRITICAL SEARCH RULES:
+- When user asks "do I have a client called [name]", use search_crm_data with query=[name]
+- Always search before navigating to specific clients
+- Be thorough in search results - include client details
 
 MEMORY CONTEXT:
 `;
@@ -291,7 +305,7 @@ Key Preferences: ${JSON.stringify(memoryContext.userMemory.key_preferences)}
   if (memoryContext.clientMemories?.length > 0) {
     prompt += `\nCLIENT RELATIONSHIPS:`;
     memoryContext.clientMemories.forEach((client, index) => {
-      prompt += `\n${index + 1}. ${client.clients?.first_name} ${client.clients?.last_name} (${client.clients?.company || 'No company'})
+      prompt += `\n${index + 1}. ${client.clients?.first_name} ${client.clients?.last_name} (${client.clients?.company || 'No company'}) - ID: ${client.clients?.id}
    Relationship: ${client.relationship_summary}
    Pain Points: ${JSON.stringify(client.pain_points)}
    Preferences: ${JSON.stringify(client.preferences)}
@@ -313,24 +327,31 @@ Key Preferences: ${JSON.stringify(memoryContext.userMemory.key_preferences)}
 
   prompt += `
 
-IMPORTANT: 
-- ALWAYS use navigation functions when users ask to go anywhere or see any page
-- Use the memory context to provide personalized, relevant responses
-- Reference past conversations and client interactions naturally
-- Suggest actions based on client history and sales stage
-- Update memories when new information is learned
-- Be proactive in identifying opportunities and next steps
+IMPORTANT BEHAVIORAL RULES:
+- ALWAYS use the appropriate function for user requests
+- If user wants to navigate, use navigate_to_page immediately
+- If user wants to search/find, use search_crm_data immediately
+- Be conversational but functional - always take action when requested
+- Use memory context to provide personalized responses
+- When navigating to a specific client, always include their clientId from search results
 
-Additional Context: ${additionalContext || 'None provided'}
-
-Always respond in a helpful, professional manner while leveraging the rich context you have about the user's business relationships. When users ask to navigate or want to see something, immediately use the appropriate navigation function.`;
+Remember: You are action-oriented. When users make requests, fulfill them with the appropriate functions immediately.`;
 
   return prompt;
 }
 
 async function handleFunctionCall(supabase: any, userId: string, functionCall: any, clientId?: string) {
   const { name, arguments: args } = functionCall;
-  const parsedArgs = JSON.parse(args);
+  let parsedArgs;
+  
+  try {
+    parsedArgs = JSON.parse(args);
+  } catch (error) {
+    console.error('Failed to parse function arguments:', args);
+    return { function: name, success: false, message: 'Invalid function arguments' };
+  }
+
+  console.log(`Executing function: ${name}`, parsedArgs);
 
   switch (name) {
     case 'navigate_to_page':
@@ -341,18 +362,21 @@ async function handleFunctionCall(supabase: any, userId: string, functionCall: a
           page: parsedArgs.page,
           url: buildNavigationUrl(parsedArgs)
         },
-        message: `Navigating to ${parsedArgs.page} page`
+        message: `Navigating to ${parsedArgs.page} page${parsedArgs.clientId ? ` for client ${parsedArgs.clientId}` : ''}`
       };
+      console.log('Navigation result:', navigationResult);
       return navigationResult;
 
     case 'search_crm_data':
       const searchResults = await searchCRMData(supabase, userId, parsedArgs);
-      return { 
+      const result = { 
         function: 'search_crm_data', 
         success: true, 
         results: searchResults,
         message: `Found ${searchResults.length} results for "${parsedArgs.query}"`
       };
+      console.log('Search result:', result);
+      return result;
 
     case 'get_page_context':
       const pageContext = await getPageContext(supabase, userId, parsedArgs);
@@ -362,37 +386,6 @@ async function handleFunctionCall(supabase: any, userId: string, functionCall: a
         context: pageContext,
         message: `Retrieved context for ${parsedArgs.page} page`
       };
-
-    case 'create_quick_action':
-      const actionResult = await createQuickAction(supabase, userId, parsedArgs);
-      return { 
-        function: 'create_quick_action', 
-        success: true, 
-        result: actionResult,
-        message: `Created ${parsedArgs.actionType} action`
-      };
-
-    case 'update_client_memory':
-      await supabase.rpc('update_client_memory', {
-        p_user_id: userId,
-        p_client_id: parsedArgs.clientId,
-        p_interaction_summary: parsedArgs.interactionSummary,
-        p_preferences: parsedArgs.preferences || {},
-        p_pain_points: parsedArgs.painPoints || []
-      });
-      return { function: 'update_client_memory', success: true, message: 'Client memory updated' };
-
-    case 'create_follow_up_task':
-      await supabase.rpc('create_notification', {
-        p_user_id: userId,
-        p_title: 'Follow-up Task',
-        p_message: parsedArgs.task,
-        p_type: 'task',
-        p_priority: parsedArgs.priority || 'medium',
-        p_related_id: parsedArgs.clientId || null,
-        p_related_type: parsedArgs.clientId ? 'client' : null
-      });
-      return { function: 'create_follow_up_task', success: true, message: 'Follow-up task created' };
 
     default:
       return { function: name, success: false, message: 'Unknown function' };
@@ -418,126 +411,127 @@ async function searchCRMData(supabase: any, userId: string, args: any) {
   const { query, dataType = 'all', limit = 10 } = args;
   const results: any[] = [];
 
-  if (dataType === 'all' || dataType === 'clients') {
-    const { data: clients } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('user_id', userId)
-      .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,company.ilike.%${query}%,email.ilike.%${query}%`)
-      .limit(limit);
-    
-    results.push(...(clients || []).map(c => ({ type: 'client', data: c })));
+  console.log('Searching CRM data:', { query, dataType, limit });
+
+  try {
+    if (dataType === 'all' || dataType === 'clients') {
+      const { data: clients, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', userId)
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,company.ilike.%${query}%,email.ilike.%${query}%`)
+        .limit(limit);
+      
+      if (error) {
+        console.error('Error searching clients:', error);
+      } else {
+        console.log('Found clients:', clients?.length || 0);
+        results.push(...(clients || []).map(c => ({ type: 'client', data: c })));
+      }
+    }
+
+    if (dataType === 'all' || dataType === 'requests') {
+      const { data: requests, error } = await supabase
+        .from('requests')
+        .select('*, clients(*)')
+        .eq('user_id', userId)
+        .or(`origin.ilike.%${query}%,destination.ilike.%${query}%,notes.ilike.%${query}%`)
+        .limit(limit);
+      
+      if (error) {
+        console.error('Error searching requests:', error);
+      } else {
+        console.log('Found requests:', requests?.length || 0);
+        results.push(...(requests || []).map(r => ({ type: 'request', data: r })));
+      }
+    }
+
+    if (dataType === 'all' || dataType === 'emails') {
+      const { data: emails, error } = await supabase
+        .from('email_exchanges')
+        .select('*')
+        .eq('user_id', userId)
+        .or(`subject.ilike.%${query}%,body.ilike.%${query}%,sender_email.ilike.%${query}%`)
+        .limit(limit);
+      
+      if (error) {
+        console.error('Error searching emails:', error);
+      } else {
+        console.log('Found emails:', emails?.length || 0);
+        results.push(...(emails || []).map(e => ({ type: 'email', data: e })));
+      }
+    }
+  } catch (error) {
+    console.error('Error in searchCRMData:', error);
   }
 
-  if (dataType === 'all' || dataType === 'requests') {
-    const { data: requests } = await supabase
-      .from('requests')
-      .select('*, clients(*)')
-      .eq('user_id', userId)
-      .or(`origin.ilike.%${query}%,destination.ilike.%${query}%,notes.ilike.%${query}%`)
-      .limit(limit);
-    
-    results.push(...(requests || []).map(r => ({ type: 'request', data: r })));
-  }
-
-  if (dataType === 'all' || dataType === 'emails') {
-    const { data: emails } = await supabase
-      .from('email_exchanges')
-      .select('*')
-      .eq('user_id', userId)
-      .or(`subject.ilike.%${query}%,body.ilike.%${query}%,sender_email.ilike.%${query}%`)
-      .limit(limit);
-    
-    results.push(...(emails || []).map(e => ({ type: 'email', data: e })));
-  }
-
+  console.log('Total search results:', results.length);
   return results.slice(0, limit);
 }
 
 async function getPageContext(supabase: any, userId: string, args: any) {
   const { page, filters = {} } = args;
   
-  switch (page) {
-    case 'dashboard':
-      const [clients, requests, bookings, recentEmails] = await Promise.all([
-        supabase.from('clients').select('count').eq('user_id', userId),
-        supabase.from('requests').select('count').eq('user_id', userId),
-        supabase.from('bookings').select('count').eq('user_id', userId),
-        supabase.from('email_exchanges').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(5)
-      ]);
-      
-      return {
-        stats: {
-          totalClients: clients.data?.[0]?.count || 0,
-          totalRequests: requests.data?.[0]?.count || 0,
-          totalBookings: bookings.data?.[0]?.count || 0
-        },
-        recentActivity: recentEmails.data || []
-      };
+  try {
+    switch (page) {
+      case 'dashboard':
+        const [clientsCount, requestsCount, bookingsCount] = await Promise.all([
+          supabase.from('clients').select('count').eq('user_id', userId),
+          supabase.from('requests').select('count').eq('user_id', userId),
+          supabase.from('bookings').select('count').eq('user_id', userId)
+        ]);
+        
+        return {
+          totalClients: clientsCount.count || 0,
+          totalRequests: requestsCount.count || 0,
+          totalBookings: bookingsCount.count || 0
+        };
 
-    case 'clients':
-      const { data: clientList } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      
-      return { clients: clientList || [] };
+      case 'clients':
+        const { data: clients } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        
+        return { clients: clients || [] };
 
-    default:
-      return { message: `Context for ${page} not implemented yet` };
+      default:
+        return {};
+    }
+  } catch (error) {
+    console.error('Error getting page context:', error);
+    return {};
   }
 }
 
-async function createQuickAction(supabase: any, userId: string, args: any) {
-  const { actionType, data = {} } = args;
-  
-  switch (actionType) {
-    case 'new_client':
-      const { data: newClient, error: clientError } = await supabase
-        .from('clients')
-        .insert({
-          user_id: userId,
-          first_name: data.firstName || 'New',
-          last_name: data.lastName || 'Client',
-          email: data.email || 'email@example.com',
-          company: data.company || ''
-        })
-        .select()
-        .single();
-      
-      if (clientError) throw clientError;
-      return { clientId: newClient.id, message: 'New client created' };
-
-    case 'send_email':
-      return { message: 'Email composition interface would open here' };
-
-    default:
-      return { message: `Action ${actionType} not implemented yet` };
+async function updateUserMemory(supabase: any, userId: string, messages: any[], assistantResponse?: string) {
+  try {
+    const conversationSummary = messages.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n');
+    
+    await supabase.rpc('update_user_memory', {
+      p_user_id: userId,
+      p_new_context: conversationSummary,
+      p_interaction_type: 'conversation'
+    });
+  } catch (error) {
+    console.error('Error updating user memory:', error);
   }
-}
-
-async function updateUserMemory(supabase: any, userId: string, messages: any[], response: string) {
-  const lastUserMessage = messages[messages.length - 1]?.content || '';
-  const memoryUpdate = `User: ${lastUserMessage}\nAssistant: ${response}`;
-  
-  await supabase.rpc('update_user_memory', {
-    p_user_id: userId,
-    p_new_context: memoryUpdate,
-    p_interaction_type: 'ai_conversation'
-  });
 }
 
 async function logMemoryInteraction(supabase: any, userId: string, interactionType: string, context: any) {
-  await supabase
-    .from('memory_interactions')
-    .insert({
-      user_id: userId,
-      interaction_type: 'read',
-      memory_type: 'user',
-      memory_id: userId,
-      context: { interaction_type: interactionType, context },
-      ai_reasoning: 'Conversation context loaded for response generation'
-    });
+  try {
+    await supabase
+      .from('memory_interactions')
+      .insert({
+        user_id: userId,
+        memory_type: 'user',
+        interaction_type: interactionType,
+        context: { context },
+        memory_id: userId
+      });
+  } catch (error) {
+    console.error('Error logging memory interaction:', error);
+  }
 }
