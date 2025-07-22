@@ -1566,17 +1566,16 @@ Best regards,
                         )}
                       </div>
                     )}
-                   </div>
-                         </div>
                        </div>
                      </div>
-                   ))}
-                </div>
-              </>
-            )}
-          </ScrollArea>
-        </div>
-        )}
+                   </div>
+                 ))}
+               </div>
+             </>
+           )}
+         </ScrollArea>
+       </div>
+       )}
 
         {/* AI Assistant Chat */}
         {showAIChat && (
