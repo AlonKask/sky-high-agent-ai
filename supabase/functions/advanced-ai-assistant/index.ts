@@ -53,7 +53,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
@@ -174,6 +174,11 @@ serve(async (req) => {
         clientId
       );
       functionResults.push(functionResult);
+      
+      // If we have function results but no content, create a response
+      if (!assistantMessage.content && functionResult.success) {
+        assistantMessage.content = functionResult.message || "I've completed that action for you.";
+      }
     }
 
     // Update user memory with conversation context
