@@ -721,16 +721,16 @@ const RequestDetail = () => {
                 className="hover:scale-105 transition-transform"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Requests
+                Requests
               </Button>
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-full bg-primary/10">
                   <Plane className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">✈️ Flight Request Details</h1>
+                  <h1 className="text-2xl font-bold">{client?.first_name} {client?.last_name}</h1>
                   <p className="text-muted-foreground">
-                    {client?.first_name} {client?.last_name} • {request.origin} → {request.destination}
+                    {request.origin} → {request.destination}
                   </p>
                 </div>
               </div>
@@ -768,8 +768,7 @@ const RequestDetail = () => {
                   <div className="flex items-center gap-2">
                     {!editing ? (
                       <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
+                        <Edit className="h-4 w-4" />
                       </Button>
                     ) : (
                       <>
