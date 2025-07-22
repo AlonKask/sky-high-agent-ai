@@ -11,16 +11,26 @@ import {
   User, 
   Loader2,
   Minimize2,
-  Maximize2 
+  Maximize2,
+  Brain,
+  Database,
+  Search,
+  Calendar,
+  Mail
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  metadata?: {
+    tools_used?: string[];
+    memory_accessed?: boolean;
+    external_data?: any;
+  };
 }
 
 interface AIAssistantChatProps {
