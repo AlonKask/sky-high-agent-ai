@@ -355,11 +355,12 @@ IMPORTANT BEHAVIORAL RULES:
 - Use memory context to provide personalized responses
 - When asked about a specific client, provide their full details from search results
 
-EXAMPLE WORKFLOW:
-User: "get me to mama's profile"
-1. Use search_crm_data with query="mama" 
-2. Extract client ID from results (e.g., "fa0494bf-6aaf-4b9e-8468-6a53d85376db")
-3. Use navigate_to_page with page="clients" and clientId="fa0494bf-6aaf-4b9e-8468-6a53d85376db"
+EXAMPLE WORKFLOWS:
+User: "get me to mama's profile" -> Use search_and_navigate with query="mama" and targetType="client"
+User: "get me to mama's request" -> Use search_and_navigate with query="mama" and targetType="client" (then navigate to their profile to see requests)
+User: "do I have a client called mama?" -> Use search_crm_data with query="mama"
+
+When users say "get me to [name]'s request", interpret this as wanting to see that client's profile where they can view requests.
 
 Remember: You are action-oriented and must use proper UUIDs for navigation.`;
 
@@ -480,39 +481,38 @@ async function searchCRMData(supabase: any, userId: string, args: any) {
   const { query, dataType = 'all', limit = 10 } = args;
   const results: any[] = [];
 
-  console.log('Searching CRM data:', { query, dataType, limit });
+  console.log('=== CRM SEARCH START ===');
+  console.log('Search params:', { query, dataType, limit, userId });
 
   try {
     if (dataType === 'all' || dataType === 'clients') {
-      // Try multiple search approaches for better results
-      const { data: clients, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('user_id', userId)
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,company.ilike.%${query}%,email.ilike.%${query}%`)
-        .limit(limit);
+      console.log('Searching clients...');
       
-      if (error) {
-        console.error('Error searching clients:', error);
-        // Try a simpler search as fallback
-        const { data: fallbackClients, error: fallbackError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('user_id', userId)
-          .ilike('first_name', `%${query}%`)
-          .limit(limit);
-          
-        if (!fallbackError && fallbackClients) {
-          console.log('Found clients (fallback):', fallbackClients.length);
-          results.push(...fallbackClients.map(c => ({ type: 'client', data: c })));
+      // Use simple individual queries instead of complex OR logic
+      const searches = await Promise.all([
+        supabase.from('clients').select('*').eq('user_id', userId).ilike('first_name', `%${query}%`),
+        supabase.from('clients').select('*').eq('user_id', userId).ilike('last_name', `%${query}%`),
+        supabase.from('clients').select('*').eq('user_id', userId).ilike('company', `%${query}%`),
+        supabase.from('clients').select('*').eq('user_id', userId).ilike('email', `%${query}%`)
+      ]);
+      
+      const allClients = new Map();
+      searches.forEach(({ data, error }) => {
+        if (error) {
+          console.error('Search error:', error);
+        } else if (data) {
+          console.log('Found in this search:', data.length);
+          data.forEach(client => allClients.set(client.id, client));
         }
-      } else {
-        console.log('Found clients:', clients?.length || 0);
-        results.push(...(clients || []).map(c => ({ type: 'client', data: c })));
-      }
+      });
+      
+      const uniqueClients = Array.from(allClients.values());
+      console.log('Total unique clients found:', uniqueClients.length);
+      results.push(...uniqueClients.map(c => ({ type: 'client', data: c })));
     }
 
     if (dataType === 'all' || dataType === 'requests') {
+      console.log('Searching requests...');
       const { data: requests, error } = await supabase
         .from('requests')
         .select('*, clients(*)')
@@ -529,6 +529,7 @@ async function searchCRMData(supabase: any, userId: string, args: any) {
     }
 
     if (dataType === 'all' || dataType === 'emails') {
+      console.log('Searching emails...');
       const { data: emails, error } = await supabase
         .from('email_exchanges')
         .select('*')
@@ -547,7 +548,8 @@ async function searchCRMData(supabase: any, userId: string, args: any) {
     console.error('Error in searchCRMData:', error);
   }
 
-  console.log('Total search results:', results.length);
+  console.log('=== CRM SEARCH END ===');
+  console.log('Final results count:', results.length);
   return results.slice(0, limit);
 }
 
