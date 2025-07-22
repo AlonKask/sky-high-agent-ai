@@ -171,6 +171,13 @@ const Emails = () => {
     }
   }, []);
 
+  // Load emails when folder changes
+  useEffect(() => {
+    if (isAuthenticated && authToken) {
+      loadEmailsFromDB();
+    }
+  }, [selectedFolder, isAuthenticated, authToken]);
+
   // Gmail authentication
   const authenticateGmail = async () => {
     try {
@@ -273,7 +280,8 @@ const Emails = () => {
         };
         const labelId = folderLabelMap[selectedFolder];
         if (labelId) {
-          query = query.contains('metadata->gmail_labels', [labelId]);
+          // Use a more flexible approach to filter by Gmail labels
+          query = query.or(`metadata->gmail_labels @> '"${labelId}"', metadata->gmail_labels @> '["${labelId}"]'`);
         }
       }
 
@@ -342,6 +350,8 @@ const Emails = () => {
       
       const currentFolder = folder || selectedFolder;
       const labelIds = folderLabelMap[currentFolder] || ['INBOX'];
+      
+      console.log('Syncing folder:', currentFolder, 'with labels:', labelIds);
       
       // Use the new comprehensive sync endpoint with folder support
       const { data, error } = await supabase.functions.invoke('sync-inbox', {
@@ -1145,12 +1155,23 @@ Best regards,
                   )}
                 </div>
                 {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
-                  const unreadCount = emails.filter(email => 
-                    !email.isRead && 
-                    (folder === 'inbox' || email.labels?.some(label => 
-                      label.toLowerCase().includes(folder.toUpperCase())
-                    ))
-                  ).length;
+                  // Calculate unread count for this folder
+                  const unreadCount = emails.filter(email => {
+                    if (!email.isRead) {
+                      if (folder === 'inbox') {
+                        return !email.labels || email.labels.includes('INBOX');
+                      } else {
+                        const folderLabelMap: Record<string, string> = {
+                          'sent': 'SENT',
+                          'drafts': 'DRAFT', 
+                          'spam': 'SPAM',
+                          'trash': 'TRASH'
+                        };
+                        return email.labels?.includes(folderLabelMap[folder]);
+                      }
+                    }
+                    return false;
+                  }).length;
                   
                   return (
                     <Button
@@ -1158,6 +1179,8 @@ Best regards,
                       variant={selectedFolder === folder ? "secondary" : "ghost"}
                       className="w-full justify-between group hover:bg-accent transition-colors"
                       onClick={async () => {
+                        console.log('Switching to folder:', folder);
+                        setSelectedEmail(null); // Clear selected email when switching folders
                         setSelectedFolder(folder);
                         if (isAuthenticated) {
                           // First load from database
