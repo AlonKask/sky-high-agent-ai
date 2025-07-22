@@ -1110,25 +1110,78 @@ Best regards,
 
               {/* Folders */}
               <div className="space-y-1">
-                <Label className="text-sm font-medium">Folders</Label>
-                {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => (
-                  <Button
-                    key={folder}
-                    variant={selectedFolder === folder ? "secondary" : "ghost"}
-                    className="w-full justify-start"
-                    onClick={async () => {
-                      setSelectedFolder(folder);
-                      if (isAuthenticated) {
-                        // First load from database
-                        await loadEmailsFromDB();
-                        // Then sync fresh emails from Gmail for this folder
-                        await fetchEmails(authToken, folder);
-                      }
-                    }}
-                  >
-                    {folder.charAt(0).toUpperCase() + folder.slice(1)}
-                  </Button>
-                ))}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Folders</Label>
+                  {isAuthenticated && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        setIsSyncing(true);
+                        try {
+                          // Sync all folders
+                          for (const folder of ['inbox', 'sent', 'drafts', 'spam', 'trash']) {
+                            await fetchEmails(authToken, folder);
+                          }
+                          toast({
+                            title: "All Folders Synced",
+                            description: "Successfully synced all email folders",
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Sync Failed",
+                            description: "Failed to sync some folders",
+                            variant: "destructive"
+                          });
+                        } finally {
+                          setIsSyncing(false);
+                        }
+                      }}
+                      disabled={isSyncing}
+                      title="Sync All Folders"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                    </Button>
+                  )}
+                </div>
+                {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
+                  const unreadCount = emails.filter(email => 
+                    !email.isRead && 
+                    (folder === 'inbox' || email.labels?.some(label => 
+                      label.toLowerCase().includes(folder.toUpperCase())
+                    ))
+                  ).length;
+                  
+                  return (
+                    <Button
+                      key={folder}
+                      variant={selectedFolder === folder ? "secondary" : "ghost"}
+                      className="w-full justify-between group hover:bg-accent transition-colors"
+                      onClick={async () => {
+                        setSelectedFolder(folder);
+                        if (isAuthenticated) {
+                          // First load from database
+                          await loadEmailsFromDB();
+                          // Then sync fresh emails from Gmail for this folder
+                          await fetchEmails(authToken, folder);
+                        }
+                      }}
+                      disabled={isSyncing}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{folder.charAt(0).toUpperCase() + folder.slice(1)}</span>
+                        {selectedFolder === folder && isSyncing && (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        )}
+                      </span>
+                      {unreadCount > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  );
+                })}
               </div>
 
               <Separator />
