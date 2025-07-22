@@ -107,6 +107,59 @@ export type Database = {
           },
         ]
       }
+      client_memories: {
+        Row: {
+          client_id: string
+          communication_history: Json | null
+          created_at: string
+          id: string
+          last_interaction: string | null
+          last_updated: string
+          memory_version: number | null
+          opportunities: Json | null
+          pain_points: Json | null
+          preferences: Json | null
+          relationship_summary: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          communication_history?: Json | null
+          created_at?: string
+          id?: string
+          last_interaction?: string | null
+          last_updated?: string
+          memory_version?: number | null
+          opportunities?: Json | null
+          pain_points?: Json | null
+          preferences?: Json | null
+          relationship_summary?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          communication_history?: Json | null
+          created_at?: string
+          id?: string
+          last_interaction?: string | null
+          last_updated?: string
+          memory_version?: number | null
+          opportunities?: Json | null
+          pain_points?: Json | null
+          preferences?: Json | null
+          relationship_summary?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_memories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           company: string | null
@@ -289,6 +342,39 @@ export type Database = {
           notification_data?: Json
           processed?: boolean
           processed_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      memory_interactions: {
+        Row: {
+          ai_reasoning: string | null
+          context: Json | null
+          created_at: string
+          id: string
+          interaction_type: string
+          memory_id: string
+          memory_type: string
+          user_id: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          context?: Json | null
+          created_at?: string
+          id?: string
+          interaction_type: string
+          memory_id: string
+          memory_type: string
+          user_id: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          context?: Json | null
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          memory_id?: string
+          memory_type?: string
           user_id?: string
         }
         Relationships: []
@@ -514,6 +600,105 @@ export type Database = {
           },
         ]
       }
+      sales_memories: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          last_updated: string
+          memory_version: number | null
+          next_actions: Json | null
+          objections_handled: Json | null
+          opportunity_summary: string
+          request_id: string | null
+          stage: string
+          success_probability: number | null
+          timeline: Json | null
+          user_id: string
+          value_proposition: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          memory_version?: number | null
+          next_actions?: Json | null
+          objections_handled?: Json | null
+          opportunity_summary?: string
+          request_id?: string | null
+          stage?: string
+          success_probability?: number | null
+          timeline?: Json | null
+          user_id: string
+          value_proposition?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          memory_version?: number | null
+          next_actions?: Json | null
+          objections_handled?: Json | null
+          opportunity_summary?: string
+          request_id?: string | null
+          stage?: string
+          success_probability?: number | null
+          timeline?: Json | null
+          user_id?: string
+          value_proposition?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_memories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_memories_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_memories: {
+        Row: {
+          created_at: string
+          id: string
+          interaction_patterns: Json | null
+          key_preferences: Json | null
+          last_updated: string
+          memory_version: number | null
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interaction_patterns?: Json | null
+          key_preferences?: Json | null
+          last_updated?: string
+          memory_version?: number | null
+          summary?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interaction_patterns?: Json | null
+          key_preferences?: Json | null
+          last_updated?: string
+          memory_version?: number | null
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           commission_rate: number | null
@@ -614,6 +799,24 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      update_client_memory: {
+        Args: {
+          p_user_id: string
+          p_client_id: string
+          p_interaction_summary: string
+          p_preferences?: Json
+          p_pain_points?: Json
+        }
+        Returns: undefined
+      }
+      update_user_memory: {
+        Args: {
+          p_user_id: string
+          p_new_context: string
+          p_interaction_type?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
