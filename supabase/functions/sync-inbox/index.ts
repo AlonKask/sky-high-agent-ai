@@ -183,19 +183,28 @@ const handler = async (req: Request): Promise<Response> => {
             stored++;
           }
         } else {
-          // Update existing email if needed
-          const { error: updateError } = await supabaseClient
-            .from('email_exchanges')
-            .update({
-              ...emailData,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existingEmail.id);
+          // Only update if there are meaningful changes to avoid unnecessary DB operations
+          const needsUpdate = 
+            JSON.stringify(existingEmail.metadata?.gmail_labels) !== JSON.stringify(email.labels) ||
+            existingEmail.metadata?.is_read !== email.isRead ||
+            existingEmail.metadata?.is_starred !== email.isStarred;
             
-          if (updateError) {
-            console.error('Error updating email:', updateError);
-          } else {
-            updated++;
+          if (needsUpdate) {
+            const { error: updateError } = await supabaseClient
+              .from('email_exchanges')
+              .update({
+                metadata: emailData.metadata,
+                status: email.isRead ? 'read' : 'unread',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingEmail.id);
+              
+            if (updateError) {
+              console.error('Error updating email:', updateError);
+            } else {
+              updated++;
+              console.log(`Updated email: ${email.subject}`);
+            }
           }
         }
       } catch (dbError) {

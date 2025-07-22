@@ -280,8 +280,8 @@ const Emails = () => {
         };
         const labelId = folderLabelMap[selectedFolder];
         if (labelId) {
-          // Use a more flexible approach to filter by Gmail labels
-          query = query.or(`metadata->gmail_labels @> '"${labelId}"', metadata->gmail_labels @> '["${labelId}"]'`);
+          // Fix the Gmail labels query syntax - use contains operation
+          query = query.contains('metadata', { gmail_labels: [labelId] });
         }
       }
 
@@ -325,7 +325,7 @@ const Emails = () => {
   };
 
   // Sync emails from Gmail and store in database
-  const fetchEmails = async (token?: string, folder?: string) => {
+  const fetchEmails = async (token?: string, folder?: string, incremental?: boolean) => {
     const accessToken = token || authToken;
     if (!accessToken) {
       toast({
@@ -357,8 +357,8 @@ const Emails = () => {
       const { data, error } = await supabase.functions.invoke('sync-inbox', {
         body: {
           accessToken,
-          incremental: false,
-          maxResults: 200,
+          incremental: incremental || false,
+          maxResults: incremental ? 50 : 200, // Fewer emails for incremental sync
           labelIds
         }
       });
@@ -369,13 +369,18 @@ const Emails = () => {
 
       const { totalProcessed, stored, updated } = data;
       
+      console.log(`Sync results for ${currentFolder}:`, { totalProcessed, stored, updated, incremental });
+      
       // Refresh emails from database after sync
       await loadEmailsFromDB();
       
-      toast({
-        title: `${currentFolder.charAt(0).toUpperCase() + currentFolder.slice(1)} Sync Complete`,
-        description: `Processed ${totalProcessed} emails. ${stored} new, ${updated} updated.`,
-      });
+      // Only show toast for non-incremental syncs or when there are actual changes
+      if (!incremental || stored > 0 || updated > 0) {
+        toast({
+          title: `${currentFolder.charAt(0).toUpperCase() + currentFolder.slice(1)} Sync Complete`,
+          description: `Processed ${totalProcessed} emails. ${stored} new, ${updated} updated.`,
+        });
+      }
     } catch (error) {
       console.error('Error syncing emails:', error);
       toast({
@@ -786,15 +791,25 @@ const Emails = () => {
   // Auto-sync functionality
   useEffect(() => {
     if (isAuthenticated && authToken) {
-      // Load from database first, then sync from Gmail
+      // Load from database first
       loadEmailsFromDB();
-      fetchEmails();
       
-      // Set up auto-sync interval for incremental updates
+      // Only sync if we haven't synced recently or have no emails
+      const shouldSync = !lastSyncTime || 
+        (Date.now() - lastSyncTime.getTime()) > AUTO_SYNC_INTERVAL ||
+        emails.length === 0;
+        
+      if (shouldSync) {
+        console.log('Initial sync needed');
+        fetchEmails();
+      }
+      
+      // Set up auto-sync interval for incremental updates only
       const interval = setInterval(() => {
-        if (isAuthenticated && authToken) {
-          console.log('Auto-syncing emails...');
-          fetchEmails();
+        if (isAuthenticated && authToken && emails.length > 0) {
+          console.log('Auto-syncing emails (incremental)...');
+          // Only do incremental sync to get new emails
+          fetchEmails(authToken, selectedFolder, true);
           setLastSyncTime(new Date());
         }
       }, AUTO_SYNC_INTERVAL);
