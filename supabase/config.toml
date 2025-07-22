@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.fetch-gmail-emails]
 verify_jwt = true
+
+[functions.gmail-integration]
+verify_jwt = false

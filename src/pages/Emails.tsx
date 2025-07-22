@@ -32,8 +32,17 @@ import {
   SortAsc,
   SortDesc,
   FileText,
-  Download
+  Download,
+  AlertCircle
 } from 'lucide-react';
+
+// Extend Window interface for Google APIs
+declare global {
+  interface Window {
+    google: any;
+    gapi: any;
+  }
+}
 
 interface GmailMessage {
   id: string;
@@ -62,6 +71,8 @@ interface EmailTemplate {
   created_at: string;
 }
 
+const GOOGLE_CLIENT_ID = '871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com';
+
 const Emails = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -80,7 +91,6 @@ const Emails = () => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
 
   // Compose email state
   const [composeEmail, setComposeEmail] = useState({
@@ -109,32 +119,60 @@ const Emails = () => {
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.onload = () => {
-        // @ts-ignore
-        window.google.accounts.oauth2.initTokenClient({
-          client_id: 'YOUR_GOOGLE_CLIENT_ID', // This will need to be configured
-          scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify',
-          callback: (response: any) => {
-            if (response.access_token) {
-              setAuthToken(response.access_token);
-              setIsAuthenticated(true);
+        try {
+          // @ts-ignore
+          const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify',
+            callback: (response: any) => {
+              if (response.access_token) {
+                setAuthToken(response.access_token);
+                setIsAuthenticated(true);
+                toast({
+                  title: "Connected to Gmail",
+                  description: "Successfully authenticated with Gmail",
+                });
+                fetchEmails(response.access_token);
+              } else {
+                toast({
+                  title: "Authentication Failed", 
+                  description: "No access token received",
+                  variant: "destructive"
+                });
+              }
+            },
+            error_callback: (error: any) => {
+              console.error('Google Auth error:', error);
               toast({
-                title: "Connected to Gmail",
-                description: "Successfully authenticated with Gmail",
+                title: "Authentication Failed",
+                description: `Failed to authenticate with Gmail: ${error.type || 'Unknown error'}`,
+                variant: "destructive"
               });
-              fetchEmails(response.access_token);
             }
-          },
-          error_callback: (error: any) => {
-            toast({
-              title: "Authentication Failed",
-              description: "Failed to authenticate with Gmail",
-              variant: "destructive"
-            });
-          }
-        }).requestAccessToken();
+          });
+          
+          client.requestAccessToken();
+        } catch (error) {
+          console.error('Error initializing Google Auth:', error);
+          toast({
+            title: "Initialization Error",
+            description: "Failed to initialize Google authentication",
+            variant: "destructive"
+          });
+        }
       };
+      
+      script.onerror = () => {
+        toast({
+          title: "Script Load Error",
+          description: "Failed to load Google authentication services",
+          variant: "destructive"
+        });
+      };
+      
       document.head.appendChild(script);
     } catch (error) {
+      console.error('Authentication error:', error);
       toast({
         title: "Error",
         description: "Failed to initialize Gmail authentication",
@@ -184,9 +222,12 @@ const Emails = () => {
       console.error('Error fetching emails:', error);
       toast({
         title: "Sync Failed",
-        description: "Failed to fetch emails from Gmail",
+        description: "Failed to fetch emails from Gmail. Please try authenticating again.",
         variant: "destructive"
       });
+      // Reset auth state on error
+      setIsAuthenticated(false);
+      setAuthToken(null);
     } finally {
       setIsSyncing(false);
     }
@@ -206,7 +247,7 @@ const Emails = () => {
     if (!composeEmail.to || !composeEmail.subject || !composeEmail.body) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields (To, Subject, and Message)",
         variant: "destructive"
       });
       return;
@@ -249,7 +290,7 @@ const Emails = () => {
       console.error('Error sending email:', error);
       toast({
         title: "Send Failed",
-        description: "Failed to send email",
+        description: "Failed to send email. Please check your connection and try again.",
         variant: "destructive"
       });
     } finally {
@@ -260,51 +301,49 @@ const Emails = () => {
   // Load email templates
   const fetchTemplates = async () => {
     try {
-      // For now, we'll use mock templates. In a real implementation, 
-      // these would be stored in the database
       const mockTemplates: EmailTemplate[] = [
         {
           id: '1',
           name: 'Flight Quote',
-          subject: 'Your Flight Quote - {{destination}}',
-          body: `Dear \{\{client_name\}\},
+          subject: 'Your Flight Quote - [Destination]',
+          body: `Dear [Client Name],
 
 Thank you for your travel request. Please find your flight quote below:
 
-Route: \{\{origin\}\} → \{\{destination\}\}
-Departure: \{\{departure_date\}\}
-Return: \{\{return_date\}\}
-Class: \{\{travel_class\}\}
-Passengers: \{\{passenger_count\}\}
+Route: [Origin] → [Destination]
+Departure: [Departure Date]
+Return: [Return Date]
+Class: [Travel Class]
+Passengers: [Passenger Count]
 
-Total Price: $\{\{total_price\}\}
+Total Price: $[Total Price]
 
-This quote is valid until \{\{expiry_date\}\}.
+This quote is valid until [Expiry Date].
 
 Best regards,
-\{\{agent_name\}\}`,
+[Agent Name]`,
           type: 'quote',
           created_at: new Date().toISOString()
         },
         {
           id: '2',
           name: 'Booking Confirmation',
-          subject: 'Booking Confirmed - \{\{booking_reference\}\}',
-          body: `Dear \{\{client_name\}\},
+          subject: 'Booking Confirmed - [Booking Reference]',
+          body: `Dear [Client Name],
 
 Your booking has been confirmed! Here are your details:
 
-Booking Reference: \{\{booking_reference\}\}
-Flight: \{\{flight_details\}\}
-Departure: \{\{departure_info\}\}
-Return: \{\{return_info\}\}
+Booking Reference: [Booking Reference]
+Flight: [Flight Details]
+Departure: [Departure Info]
+Return: [Return Info]
 
 Please arrive at the airport at least 2 hours before domestic flights and 3 hours before international flights.
 
 Have a wonderful trip!
 
 Best regards,
-\{\{agent_name\}\}`,
+[Agent Name]`,
           type: 'confirmation',
           created_at: new Date().toISOString()
         },
@@ -312,16 +351,16 @@ Best regards,
           id: '3',
           name: 'Follow Up',
           subject: 'Following up on your travel inquiry',
-          body: `Dear \{\{client_name\}\},
+          body: `Dear [Client Name],
 
 I hope this email finds you well. I wanted to follow up on your recent travel inquiry.
 
-\{\{custom_message\}\}
+[Custom Message]
 
 Please don't hesitate to reach out if you have any questions or if you'd like to proceed with the booking.
 
 Best regards,
-\{\{agent_name\}\}`,
+[Agent Name]`,
           type: 'follow_up',
           created_at: new Date().toISOString()
         }
@@ -341,39 +380,97 @@ Best regards,
       body: template.body
     }));
     setShowTemplateDialog(false);
+    toast({
+      title: "Template Applied",
+      description: `Applied "${template.name}" template to your email`,
+    });
   };
 
   // Email actions
   const markAsRead = async (emailId: string) => {
-    // Implementation for marking email as read
-    setEmails(prev => prev.map(email => 
-      email.id === emailId ? { ...email, isRead: true } : email
-    ));
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'markAsRead',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.map(email => 
+        email.id === emailId ? { ...email, isRead: true } : email
+      ));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
   };
 
   const markAsStarred = async (emailId: string) => {
-    // Implementation for starring email
-    setEmails(prev => prev.map(email => 
-      email.id === emailId ? { ...email, isStarred: !email.isStarred } : email
-    ));
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'markAsStarred',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.map(email => 
+        email.id === emailId ? { ...email, isStarred: !email.isStarred } : email
+      ));
+    } catch (error) {
+      console.error('Error starring email:', error);
+    }
   };
 
   const archiveEmail = async (emailId: string) => {
-    // Implementation for archiving email
-    setEmails(prev => prev.filter(email => email.id !== emailId));
-    toast({
-      title: "Email Archived",
-      description: "Email has been archived",
-    });
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'archiveEmail',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.filter(email => email.id !== emailId));
+      setSelectedEmail(null);
+      toast({
+        title: "Email Archived",
+        description: "Email has been archived",
+      });
+    } catch (error) {
+      console.error('Error archiving email:', error);
+    }
   };
 
   const deleteEmail = async (emailId: string) => {
-    // Implementation for deleting email
-    setEmails(prev => prev.filter(email => email.id !== emailId));
-    toast({
-      title: "Email Deleted",
-      description: "Email has been moved to trash",
-    });
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'deleteEmail',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.filter(email => email.id !== emailId));
+      setSelectedEmail(null);
+      toast({
+        title: "Email Deleted",
+        description: "Email has been moved to trash",
+      });
+    } catch (error) {
+      console.error('Error deleting email:', error);
+    }
   };
 
   useEffect(() => {
@@ -410,10 +507,20 @@ Best regards,
           </div>
 
           {!isAuthenticated ? (
-            <Button onClick={authenticateGmail} disabled={isLoading} className="w-full">
-              <Mail className="h-4 w-4 mr-2" />
-              Connect Gmail
-            </Button>
+            <div className="space-y-3">
+              <Button onClick={authenticateGmail} disabled={isLoading} className="w-full">
+                <Mail className="h-4 w-4 mr-2" />
+                {isLoading ? 'Connecting...' : 'Connect Gmail'}
+              </Button>
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    Click to authenticate with your Gmail account and access full email functionality.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="space-y-2">
               <Button onClick={() => setIsComposing(true)} className="w-full">
@@ -422,7 +529,7 @@ Best regards,
               </Button>
               <Button onClick={() => fetchEmails()} disabled={isSyncing} variant="outline" className="w-full">
                 <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                Sync
+                {isSyncing ? 'Syncing...' : 'Sync'}
               </Button>
             </div>
           )}
@@ -437,7 +544,10 @@ Best regards,
                 key={folder}
                 variant={selectedFolder === folder ? "secondary" : "ghost"}
                 className="w-full justify-start"
-                onClick={() => setSelectedFolder(folder)}
+                onClick={() => {
+                  setSelectedFolder(folder);
+                  if (isAuthenticated) fetchEmails();
+                }}
               >
                 {folder.charAt(0).toUpperCase() + folder.slice(1)}
               </Button>
@@ -489,43 +599,69 @@ Best regards,
             </h2>
           </div>
           <ScrollArea className="h-[calc(100vh-120px)]">
-            <div className="space-y-1 p-2">
-              {filteredEmails.map((email) => (
-                <div
-                  key={email.id}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent ${
-                    selectedEmail?.id === email.id ? 'bg-accent' : ''
-                  } ${!email.isRead ? 'bg-muted/50' : ''}`}
-                  onClick={() => setSelectedEmail(email)}
-                >
-                  <div className="flex items-start justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm ${!email.isRead ? 'font-semibold' : ''}`}>
-                        {email.from.split('<')[0].trim() || email.from}
+            {filteredEmails.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                {!isAuthenticated ? (
+                  <div className="space-y-2">
+                    <Mail className="h-8 w-8 mx-auto opacity-50" />
+                    <p>Connect Gmail to view your emails</p>
+                  </div>
+                ) : isSyncing ? (
+                  <div className="space-y-2">
+                    <RefreshCw className="h-8 w-8 mx-auto animate-spin opacity-50" />
+                    <p>Loading emails...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Mail className="h-8 w-8 mx-auto opacity-50" />
+                    <p>No emails found</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1 p-2">
+                {filteredEmails.map((email) => (
+                  <div
+                    key={email.id}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent ${
+                      selectedEmail?.id === email.id ? 'bg-accent' : ''
+                    } ${!email.isRead ? 'bg-muted/50' : ''}`}
+                    onClick={() => {
+                      setSelectedEmail(email);
+                      if (!email.isRead) {
+                        markAsRead(email.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm truncate max-w-32 ${!email.isRead ? 'font-semibold' : ''}`}>
+                          {email.from.split('<')[0].trim() || email.from}
+                        </span>
+                        {email.isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                        {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(email.date).toLocaleDateString()}
                       </span>
-                      {email.isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
-                      {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(email.date).toLocaleDateString()}
-                    </span>
+                    <div className={`text-sm mb-1 truncate ${!email.isRead ? 'font-medium' : ''}`}>
+                      {email.subject}
+                    </div>
+                    <div className="text-xs text-muted-foreground line-clamp-2">
+                      {email.snippet}
+                    </div>
+                    <div className="flex gap-1 mt-2">
+                      {email.labels.slice(0, 2).map((label) => (
+                        <Badge key={label} variant="outline" className="text-xs">
+                          {label.replace('CATEGORY_', '').toLowerCase()}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                  <div className={`text-sm mb-1 ${!email.isRead ? 'font-medium' : ''}`}>
-                    {email.subject}
-                  </div>
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {email.snippet}
-                  </div>
-                  <div className="flex gap-1 mt-2">
-                    {email.labels.map((label) => (
-                      <Badge key={label} variant="outline" className="text-xs">
-                        {label}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
         </div>
 
@@ -535,32 +671,35 @@ Best regards,
             <>
               <div className="p-4 border-b bg-card">
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h2 className="text-lg font-semibold mb-1">{selectedEmail.subject}</h2>
-                    <div className="text-sm text-muted-foreground">
-                      <p>From: {selectedEmail.from}</p>
-                      <p>To: {selectedEmail.to.join(', ')}</p>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-semibold mb-1 pr-4">{selectedEmail.subject}</h2>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p className="truncate">From: {selectedEmail.from}</p>
+                      <p className="truncate">To: {selectedEmail.to.join(', ')}</p>
                       {selectedEmail.cc && selectedEmail.cc.length > 0 && (
-                        <p>CC: {selectedEmail.cc.join(', ')}</p>
+                        <p className="truncate">CC: {selectedEmail.cc.join(', ')}</p>
                       )}
                       <p>Date: {new Date(selectedEmail.date).toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => markAsStarred(selectedEmail.id)}>
                       <Star className={`h-4 w-4 ${selectedEmail.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => markAsRead(selectedEmail.id)}>
-                      {selectedEmail.isRead ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setComposeEmail(prev => ({
+                          ...prev,
+                          to: selectedEmail.from,
+                          subject: `Re: ${selectedEmail.subject}`,
+                          body: `\n\n--- Original Message ---\nFrom: ${selectedEmail.from}\nDate: ${new Date(selectedEmail.date).toLocaleString()}\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.snippet}`
+                        }));
+                        setIsComposing(true);
+                      }}
+                    >
                       <Reply className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <ReplyAll className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Forward className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => archiveEmail(selectedEmail.id)}>
                       <Archive className="h-4 w-4" />
@@ -572,10 +711,9 @@ Best regards,
                 </div>
               </div>
               <ScrollArea className="flex-1 p-4">
-                <div 
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: selectedEmail.body }}
-                />
+                <div className="prose max-w-none">
+                  <div dangerouslySetInnerHTML={{ __html: selectedEmail.body || selectedEmail.snippet }} />
+                </div>
               </ScrollArea>
             </>
           ) : (
@@ -658,10 +796,11 @@ Best regards,
             </div>
             <div className="flex justify-between">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" disabled>
                   <Paperclip className="h-4 w-4 mr-2" />
                   Attach Files
                 </Button>
+                <span className="text-xs text-muted-foreground">(Coming soon)</span>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setIsComposing(false)}>
