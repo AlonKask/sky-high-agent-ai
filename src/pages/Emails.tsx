@@ -1509,26 +1509,26 @@ Best regards,
                         ? 'bg-accent border-l-4 border-l-primary shadow-sm' 
                         : 'hover:shadow-sm'
                     } ${!email.isRead ? 'bg-muted/30' : ''}`}
-                     onClick={(e) => {
-                       const target = e.target as HTMLElement;
-                       if (target.closest('.checkbox-container')) return;
-                       setSelectedEmail(email);
-                       if (!email.isRead) {
-                         markAsRead(email.id);
-                       }
-                     }}
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      if (target.closest('.checkbox-container')) return;
+                      setSelectedEmail(email);
+                      if (!email.isRead) {
+                        markAsRead(email.id);
+                      }
+                    }}
                   >
-                     <div className="flex items-start gap-3">
-                       <div className="checkbox-container mt-1">
-                         <Checkbox
-                           checked={selectedEmails.has(email.id)}
-                           onCheckedChange={(checked) => handleEmailSelect(email.id, checked as boolean)}
-                           onClick={(e) => e.stopPropagation()}
-                         />
-                       </div>
-                       <div className="flex-1 min-w-0">
-                         <div className="flex items-start justify-between mb-2">
-                           <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="flex items-start gap-3">
+                      <div className="checkbox-container mt-1">
+                        <Checkbox
+                          checked={selectedEmails.has(email.id)}
+                          onCheckedChange={(checked) => handleEmailSelect(email.id, checked as boolean)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div className={`w-2 h-2 rounded-full ${!email.isRead ? 'bg-primary' : 'bg-transparent'}`} />
                         <span className={`text-sm truncate flex-1 ${!email.isRead ? 'font-semibold' : 'font-medium'}`}>
                           {email.from.split('<')[0].trim() || email.from.split('@')[0]}
@@ -1566,8 +1566,11 @@ Best regards,
                         )}
                       </div>
                     )}
-                  </div>
-                  ))}
+                   </div>
+                         </div>
+                       </div>
+                     </div>
+                   ))}
                 </div>
               </>
             )}
