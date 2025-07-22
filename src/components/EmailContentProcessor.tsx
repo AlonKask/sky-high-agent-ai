@@ -15,7 +15,10 @@ import {
   CheckSquare,
   User,
   Sparkles,
-  Loader2
+  Loader2,
+  Minimize2,
+  Maximize2,
+  X
 } from 'lucide-react';
 
 interface ProcessedEmailContent {
@@ -44,11 +47,17 @@ interface EmailContentProcessorProps {
     snippet: string;
   } | null;
   isProcessingEnabled: boolean;
+  isMinimized?: boolean;
+  onMinimizeToggle?: () => void;
+  onClose?: () => void;
 }
 
 const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({ 
   email, 
-  isProcessingEnabled 
+  isProcessingEnabled,
+  isMinimized = false,
+  onMinimizeToggle,
+  onClose
 }) => {
   const { toast } = useToast();
   const [processedContent, setProcessedContent] = useState<ProcessedEmailContent | null>(null);
@@ -125,11 +134,11 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className={`flex-1 flex flex-col transition-all duration-300 ${isMinimized ? 'w-12' : ''}`}>
       {/* Email Header */}
       <div className="p-4 border-b bg-card">
         <div className="flex items-start justify-between mb-4">
-          <div className="flex-1 min-w-0">
+          <div className={`flex-1 min-w-0 ${isMinimized ? 'hidden' : ''}`}>
             <h2 className="text-lg font-semibold mb-1 pr-4">{email.subject}</h2>
             <div className="text-sm text-muted-foreground space-y-1">
               <p className="truncate">From: {email.from}</p>
@@ -138,7 +147,7 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
             </div>
           </div>
           <div className="flex gap-2">
-            {isProcessingEnabled && (
+            {!isMinimized && isProcessingEnabled && (
               <Button
                 variant="outline"
                 size="sm"
@@ -153,7 +162,7 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
                 {isProcessing ? 'Processing...' : 'AI Process'}
               </Button>
             )}
-            {processedContent && (
+            {!isMinimized && processedContent && (
               <Button
                 variant={showProcessed ? "default" : "outline"}
                 size="sm"
@@ -163,145 +172,173 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
                 {showProcessed ? 'Show Raw' : 'Show Processed'}
               </Button>
             )}
+            {onMinimizeToggle && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onMinimizeToggle}
+                title={isMinimized ? "Expand Email" : "Minimize Email"}
+              >
+                {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+              </Button>
+            )}
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                title="Close Email"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
+        {isMinimized && (
+          <div className="text-center">
+            <Mail className="h-6 w-6 mx-auto text-muted-foreground" />
+            <p className="text-xs text-muted-foreground mt-1 truncate">{email.subject}</p>
+          </div>
+        )}
       </div>
 
       {/* Email Content */}
-      <ScrollArea className="flex-1 p-4">
-        {showProcessed && processedContent ? (
-          <div className="space-y-6">
-            {/* Readability Score */}
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                Readability: {processedContent.readabilityScore}/10
-              </Badge>
-              <Badge variant="outline">
-                <Brain className="h-3 w-3 mr-1" />
-                AI Processed
-              </Badge>
-            </div>
+      {!isMinimized && (
+        <ScrollArea className="flex-1 p-4">
+          {showProcessed && processedContent ? (
+            <div className="space-y-6">
+              {/* Readability Score */}
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  Readability: {processedContent.readabilityScore}/10
+                </Badge>
+                <Badge variant="outline">
+                  <Brain className="h-3 w-3 mr-1" />
+                  AI Processed
+                </Badge>
+              </div>
 
-            {/* Key Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Key Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium mb-2">Main Content:</p>
-                  <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                    {processedContent.keyInformation.mainContent}
-                  </p>
-                </div>
-
-                {processedContent.keyInformation.actionItems.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                      <CheckSquare className="h-4 w-4" />
-                      Action Items:
-                    </p>
-                    <ul className="text-sm space-y-1">
-                      {processedContent.keyInformation.actionItems.map((item, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <span className="text-muted-foreground">•</span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {processedContent.keyInformation.importantDates.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Important Dates:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {processedContent.keyInformation.importantDates.map((date, index) => (
-                        <Badge key={index} variant="outline">{date}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {processedContent.keyInformation.contactInfo.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      Contact Information:
-                    </p>
-                    <div className="space-y-1">
-                      {processedContent.keyInformation.contactInfo.map((contact, index) => (
-                        <p key={index} className="text-sm text-muted-foreground">{contact}</p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Cleaned Content */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Cleaned Content</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="prose max-w-none text-sm">
-                  <div className="whitespace-pre-wrap bg-muted/50 p-4 rounded">
-                    {processedContent.cleanedBody}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Signature */}
-            {processedContent.extractedSignature && (
+              {/* Key Information */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Signature
+                    <FileText className="h-4 w-4" />
+                    Key Information
                   </CardTitle>
                 </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-2">Main Content:</p>
+                    <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+                      {processedContent.keyInformation.mainContent}
+                    </p>
+                  </div>
+
+                  {processedContent.keyInformation.actionItems.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <CheckSquare className="h-4 w-4" />
+                        Action Items:
+                      </p>
+                      <ul className="text-sm space-y-1">
+                        {processedContent.keyInformation.actionItems.map((item, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <span className="text-muted-foreground">•</span>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {processedContent.keyInformation.importantDates.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Important Dates:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {processedContent.keyInformation.importantDates.map((date, index) => (
+                          <Badge key={index} variant="outline">{date}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {processedContent.keyInformation.contactInfo.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Contact Information:
+                      </p>
+                      <div className="space-y-1">
+                        {processedContent.keyInformation.contactInfo.map((contact, index) => (
+                          <p key={index} className="text-sm text-muted-foreground">{contact}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Cleaned Content */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Cleaned Content</CardTitle>
+                </CardHeader>
                 <CardContent>
-                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                    {processedContent.extractedSignature}
+                  <div className="prose max-w-none text-sm">
+                    <div className="whitespace-pre-wrap bg-muted/50 p-4 rounded">
+                      {processedContent.cleanedBody}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
 
-            {/* Attachments */}
-            {processedContent.attachmentsSummary.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Attachments Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="text-sm space-y-1">
-                    {processedContent.attachmentsSummary.map((attachment, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <span className="text-muted-foreground">📎</span>
-                        {attachment}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        ) : (
-          /* Raw Email Content */
-          <div className="prose max-w-none">
-            <div dangerouslySetInnerHTML={{ __html: email.body || email.snippet }} />
-          </div>
-        )}
-      </ScrollArea>
+              {/* Signature */}
+              {processedContent.extractedSignature && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Signature
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
+                      {processedContent.extractedSignature}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Attachments */}
+              {processedContent.attachmentsSummary.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Attachments Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="text-sm space-y-1">
+                      {processedContent.attachmentsSummary.map((attachment, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-muted-foreground">📎</span>
+                          {attachment}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : (
+            /* Raw Email Content */
+            <div className="prose max-w-none">
+              <div dangerouslySetInnerHTML={{ __html: email.body || email.snippet }} />
+            </div>
+          )}
+        </ScrollArea>
+      )}
     </div>
   );
 };

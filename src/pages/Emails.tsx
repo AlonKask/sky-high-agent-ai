@@ -43,7 +43,10 @@ import {
   MoreVertical,
   ChevronLeft,
   ChevronRight,
-  Brain
+  Brain,
+  Minimize2,
+  Maximize2,
+  X
 } from 'lucide-react';
 
 // Extend Window interface for Google APIs
@@ -120,6 +123,8 @@ const Emails = () => {
   // Sidebar and AI processing state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAIProcessingEnabled, setIsAIProcessingEnabled] = useState(true);
+  const [isInboxMinimized, setIsInboxMinimized] = useState(false);
+  const [isEmailViewMinimized, setIsEmailViewMinimized] = useState(false);
 
   // Show/hide CC and BCC fields
   const [showCc, setShowCc] = useState(false);
@@ -1145,15 +1150,26 @@ Best regards,
                 <Mail className="h-4 w-4" />
               </Button>
               {isAuthenticated && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsAIProcessingEnabled(!isAIProcessingEnabled)}
-                  className={`w-full h-8 ${isAIProcessingEnabled ? 'text-primary' : 'text-muted-foreground'}`}
-                  title="Toggle AI Processing"
-                >
-                  <Brain className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAIProcessingEnabled(!isAIProcessingEnabled)}
+                    className={`w-full h-8 ${isAIProcessingEnabled ? 'text-primary' : 'text-muted-foreground'}`}
+                    title="Toggle AI Processing"
+                  >
+                    <Brain className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsInboxMinimized(!isInboxMinimized)}
+                    className="w-full h-8"
+                    title="Toggle Inbox"
+                  >
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -1163,83 +1179,115 @@ Best regards,
       {/* Main Content Area */}
       <div className="flex-1 flex">
         {/* Email List */}
-        <div className="w-96 border-r bg-card">
-          <div className="p-4 border-b">
-            <h2 className="font-semibold">
+        <div className={`transition-all duration-300 ${isInboxMinimized ? 'w-12' : 'w-96'} border-r bg-card`}>
+          <div className="p-4 border-b flex items-center justify-between">
+            <h2 className={`font-semibold ${isInboxMinimized ? 'hidden' : ''}`}>
               {selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1)} ({filteredEmails.length})
             </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsInboxMinimized(!isInboxMinimized)}
+              title={isInboxMinimized ? "Expand Inbox" : "Minimize Inbox"}
+            >
+              {isInboxMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+            </Button>
           </div>
-          <ScrollArea className="h-[calc(100vh-120px)]">
-            {filteredEmails.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                {!isAuthenticated ? (
-                  <div className="space-y-2">
-                    <Mail className="h-8 w-8 mx-auto opacity-50" />
-                    <p>Connect Gmail to view your emails</p>
-                  </div>
-                ) : isSyncing ? (
-                  <div className="space-y-2">
-                    <RefreshCw className="h-8 w-8 mx-auto animate-spin opacity-50" />
-                    <p>Loading emails...</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Mail className="h-8 w-8 mx-auto opacity-50" />
-                    <p>No emails found</p>
-                  </div>
+          {!isInboxMinimized ? (
+            <ScrollArea className="h-[calc(100vh-120px)]">
+              {filteredEmails.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  {!isAuthenticated ? (
+                    <div className="space-y-2">
+                      <Mail className="h-8 w-8 mx-auto opacity-50" />
+                      <p>Connect Gmail to view your emails</p>
+                    </div>
+                  ) : isSyncing ? (
+                    <div className="space-y-2">
+                      <RefreshCw className="h-8 w-8 mx-auto animate-spin opacity-50" />
+                      <p>Loading emails...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Mail className="h-8 w-8 mx-auto opacity-50" />
+                      <p>No emails found</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1 p-2">
+                  {filteredEmails.map((email) => (
+                    <div
+                      key={email.id}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent ${
+                        selectedEmail?.id === email.id ? 'bg-accent' : ''
+                      } ${!email.isRead ? 'bg-muted/50' : ''}`}
+                      onClick={() => {
+                        setSelectedEmail(email);
+                        if (!email.isRead) {
+                          markAsRead(email.id);
+                        }
+                      }}
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm truncate max-w-32 ${!email.isRead ? 'font-semibold' : ''}`}>
+                            {email.from.split('<')[0].trim() || email.from}
+                          </span>
+                          {email.isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                          {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(email.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className={`text-sm mb-1 truncate ${!email.isRead ? 'font-medium' : ''}`}>
+                        {email.subject}
+                      </div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">
+                        {email.snippet}
+                      </div>
+                      <div className="flex gap-1 mt-2">
+                        {email.labels.slice(0, 2).map((label) => (
+                          <Badge key={label} variant="outline" className="text-xs">
+                            {label.replace('CATEGORY_', '').toLowerCase()}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          ) : (
+            <div className="p-2 pt-4">
+              <div className="space-y-2">
+                <div className="text-center">
+                  <Mail className="h-6 w-6 mx-auto text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground mt-1">{filteredEmails.length}</p>
+                </div>
+                {selectedEmail && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-8"
+                    title="Selected Email"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
-            ) : (
-              <div className="space-y-1 p-2">
-                {filteredEmails.map((email) => (
-                  <div
-                    key={email.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent ${
-                      selectedEmail?.id === email.id ? 'bg-accent' : ''
-                    } ${!email.isRead ? 'bg-muted/50' : ''}`}
-                    onClick={() => {
-                      setSelectedEmail(email);
-                      if (!email.isRead) {
-                        markAsRead(email.id);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm truncate max-w-32 ${!email.isRead ? 'font-semibold' : ''}`}>
-                          {email.from.split('<')[0].trim() || email.from}
-                        </span>
-                        {email.isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
-                        {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(email.date).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className={`text-sm mb-1 truncate ${!email.isRead ? 'font-medium' : ''}`}>
-                      {email.subject}
-                    </div>
-                    <div className="text-xs text-muted-foreground line-clamp-2">
-                      {email.snippet}
-                    </div>
-                    <div className="flex gap-1 mt-2">
-                      {email.labels.slice(0, 2).map((label) => (
-                        <Badge key={label} variant="outline" className="text-xs">
-                          {label.replace('CATEGORY_', '').toLowerCase()}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+            </div>
+          )}
         </div>
 
         {/* Email Content - Use EmailContentProcessor */}
         <EmailContentProcessor 
           email={selectedEmail}
           isProcessingEnabled={isAIProcessingEnabled}
+          isMinimized={isEmailViewMinimized}
+          onMinimizeToggle={() => setIsEmailViewMinimized(!isEmailViewMinimized)}
+          onClose={() => setSelectedEmail(null)}
         />
       </div>
 
