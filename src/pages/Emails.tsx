@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import EmailContentProcessor from '@/components/EmailContentProcessor';
 import { 
   Mail, 
   Send, 
@@ -39,7 +40,10 @@ import {
   Users,
   UserPlus,
   FileSearch,
-  MoreVertical
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
+  Brain
 } from 'lucide-react';
 
 // Extend Window interface for Google APIs
@@ -113,6 +117,32 @@ const Emails = () => {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
+  // Sidebar and AI processing state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isAIProcessingEnabled, setIsAIProcessingEnabled] = useState(true);
+
+  // Show/hide CC and BCC fields
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
+
+  // Compose email state
+  const [composeEmail, setComposeEmail] = useState({
+    to: [] as string[],
+    cc: [] as string[],
+    bcc: [] as string[],
+    subject: '',
+    body: '',
+    attachments: [] as File[]
+  });
+
+  // Template management state
+  const [newTemplate, setNewTemplate] = useState({
+    name: '',
+    subject: '',
+    body: '',
+    type: 'general' as const
+  });
+
   // Check for stored authentication on component mount
   useEffect(() => {
     const storedToken = localStorage.getItem('gmail_auth_token');
@@ -135,28 +165,6 @@ const Emails = () => {
       }
     }
   }, []);
-
-  // Compose email state
-  const [composeEmail, setComposeEmail] = useState({
-    to: [] as string[],
-    cc: [] as string[],
-    bcc: [] as string[],
-    subject: '',
-    body: '',
-    attachments: [] as File[]
-  });
-
-  // Show/hide CC and BCC fields
-  const [showCc, setShowCc] = useState(false);
-  const [showBcc, setShowBcc] = useState(false);
-
-  // Template management state
-  const [newTemplate, setNewTemplate] = useState({
-    name: '',
-    subject: '',
-    body: '',
-    type: 'general' as const
-  });
 
   // Gmail authentication
   const authenticateGmail = async () => {
@@ -352,181 +360,6 @@ const Emails = () => {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Load email templates
-  const fetchTemplates = async () => {
-    try {
-      const mockTemplates: EmailTemplate[] = [
-        {
-          id: '1',
-          name: 'Flight Quote',
-          subject: 'Your Flight Quote - [Destination]',
-          body: `Dear [Client Name],
-
-Thank you for your travel request. Please find your flight quote below:
-
-Route: [Origin] → [Destination]
-Departure: [Departure Date]
-Return: [Return Date]
-Class: [Travel Class]
-Passengers: [Passenger Count]
-
-Total Price: $[Total Price]
-
-This quote is valid until [Expiry Date].
-
-Best regards,
-[Agent Name]`,
-          type: 'quote',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          name: 'Booking Confirmation',
-          subject: 'Booking Confirmed - [Booking Reference]',
-          body: `Dear [Client Name],
-
-Your booking has been confirmed! Here are your details:
-
-Booking Reference: [Booking Reference]
-Flight: [Flight Details]
-Departure: [Departure Info]
-Return: [Return Info]
-
-Please arrive at the airport at least 2 hours before domestic flights and 3 hours before international flights.
-
-Have a wonderful trip!
-
-Best regards,
-[Agent Name]`,
-          type: 'confirmation',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          name: 'Follow Up',
-          subject: 'Following up on your travel inquiry',
-          body: `Dear [Client Name],
-
-I hope this email finds you well. I wanted to follow up on your recent travel inquiry.
-
-[Custom Message]
-
-Please don't hesitate to reach out if you have any questions or if you'd like to proceed with the booking.
-
-Best regards,
-[Agent Name]`,
-          type: 'follow_up',
-          created_at: new Date().toISOString()
-        }
-      ];
-      
-      setTemplates(mockTemplates);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    }
-  };
-
-  // Apply template to compose
-  const applyTemplate = (template: EmailTemplate) => {
-    setComposeEmail(prev => ({
-      ...prev,
-      subject: template.subject,
-      body: template.body
-    }));
-    setShowTemplateDialog(false);
-    toast({
-      title: "Template Applied",
-      description: `Applied "${template.name}" template to your email`,
-    });
-  };
-
-  // Email actions
-  const markAsRead = async (emailId: string) => {
-    if (!authToken) return;
-    
-    try {
-      await supabase.functions.invoke('gmail-integration', {
-        body: {
-          action: 'markAsRead',
-          accessToken: authToken,
-          messageId: emailId
-        }
-      });
-      
-      setEmails(prev => prev.map(email => 
-        email.id === emailId ? { ...email, isRead: true } : email
-      ));
-    } catch (error) {
-      console.error('Error marking as read:', error);
-    }
-  };
-
-  const markAsStarred = async (emailId: string) => {
-    if (!authToken) return;
-    
-    try {
-      await supabase.functions.invoke('gmail-integration', {
-        body: {
-          action: 'markAsStarred',
-          accessToken: authToken,
-          messageId: emailId
-        }
-      });
-      
-      setEmails(prev => prev.map(email => 
-        email.id === emailId ? { ...email, isStarred: !email.isStarred } : email
-      ));
-    } catch (error) {
-      console.error('Error starring email:', error);
-    }
-  };
-
-  const archiveEmail = async (emailId: string) => {
-    if (!authToken) return;
-    
-    try {
-      await supabase.functions.invoke('gmail-integration', {
-        body: {
-          action: 'archiveEmail',
-          accessToken: authToken,
-          messageId: emailId
-        }
-      });
-      
-      setEmails(prev => prev.filter(email => email.id !== emailId));
-      setSelectedEmail(null);
-      toast({
-        title: "Email Archived",
-        description: "Email has been archived",
-      });
-    } catch (error) {
-      console.error('Error archiving email:', error);
-    }
-  };
-
-  const deleteEmail = async (emailId: string) => {
-    if (!authToken) return;
-    
-    try {
-      await supabase.functions.invoke('gmail-integration', {
-        body: {
-          action: 'deleteEmail',
-          accessToken: authToken,
-          messageId: emailId
-        }
-      });
-      
-      setEmails(prev => prev.filter(email => email.id !== emailId));
-      setSelectedEmail(null);
-      toast({
-        title: "Email Deleted",
-        description: "Email has been moved to trash",
-      });
-    } catch (error) {
-      console.error('Error deleting email:', error);
     }
   };
 
@@ -874,6 +707,181 @@ Best regards,
     }
   }, [isAuthenticated, authToken]);
 
+  // Load email templates
+  const fetchTemplates = async () => {
+    try {
+      const mockTemplates: EmailTemplate[] = [
+        {
+          id: '1',
+          name: 'Flight Quote',
+          subject: 'Your Flight Quote - [Destination]',
+          body: `Dear [Client Name],
+
+Thank you for your travel request. Please find your flight quote below:
+
+Route: [Origin] → [Destination]
+Departure: [Departure Date]
+Return: [Return Date]
+Class: [Travel Class]
+Passengers: [Passenger Count]
+
+Total Price: $[Total Price]
+
+This quote is valid until [Expiry Date].
+
+Best regards,
+[Agent Name]`,
+          type: 'quote',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '2',
+          name: 'Booking Confirmation',
+          subject: 'Booking Confirmed - [Booking Reference]',
+          body: `Dear [Client Name],
+
+Your booking has been confirmed! Here are your details:
+
+Booking Reference: [Booking Reference]
+Flight: [Flight Details]
+Departure: [Departure Info]
+Return: [Return Info]
+
+Please arrive at the airport at least 2 hours before domestic flights and 3 hours before international flights.
+
+Have a wonderful trip!
+
+Best regards,
+[Agent Name]`,
+          type: 'confirmation',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '3',
+          name: 'Follow Up',
+          subject: 'Following up on your travel inquiry',
+          body: `Dear [Client Name],
+
+I hope this email finds you well. I wanted to follow up on your recent travel inquiry.
+
+[Custom Message]
+
+Please don't hesitate to reach out if you have any questions or if you'd like to proceed with the booking.
+
+Best regards,
+[Agent Name]`,
+          type: 'follow_up',
+          created_at: new Date().toISOString()
+        }
+      ];
+      
+      setTemplates(mockTemplates);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
+
+  // Apply template to compose
+  const applyTemplate = (template: EmailTemplate) => {
+    setComposeEmail(prev => ({
+      ...prev,
+      subject: template.subject,
+      body: template.body
+    }));
+    setShowTemplateDialog(false);
+    toast({
+      title: "Template Applied",
+      description: `Applied "${template.name}" template to your email`,
+    });
+  };
+
+  // Email actions
+  const markAsRead = async (emailId: string) => {
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'markAsRead',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.map(email => 
+        email.id === emailId ? { ...email, isRead: true } : email
+      ));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
+  const markAsStarred = async (emailId: string) => {
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'markAsStarred',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.map(email => 
+        email.id === emailId ? { ...email, isStarred: !email.isStarred } : email
+      ));
+    } catch (error) {
+      console.error('Error starring email:', error);
+    }
+  };
+
+  const archiveEmail = async (emailId: string) => {
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'archiveEmail',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.filter(email => email.id !== emailId));
+      setSelectedEmail(null);
+      toast({
+        title: "Email Archived",
+        description: "Email has been archived",
+      });
+    } catch (error) {
+      console.error('Error archiving email:', error);
+    }
+  };
+
+  const deleteEmail = async (emailId: string) => {
+    if (!authToken) return;
+    
+    try {
+      await supabase.functions.invoke('gmail-integration', {
+        body: {
+          action: 'deleteEmail',
+          accessToken: authToken,
+          messageId: emailId
+        }
+      });
+      
+      setEmails(prev => prev.filter(email => email.id !== emailId));
+      setSelectedEmail(null);
+      toast({
+        title: "Email Deleted",
+        description: "Email has been moved to trash",
+      });
+    } catch (error) {
+      console.error('Error deleting email:', error);
+    }
+  };
+
   useEffect(() => {
     fetchTemplates();
   }, []);
@@ -897,143 +905,203 @@ Best regards,
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className="w-64 border-r bg-card p-4">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold">Gmail Integration</h1>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => {
-                // Clear authentication
-                setIsAuthenticated(false);
-                setAuthToken(null);
-                localStorage.removeItem('gmail_auth_token');
-                localStorage.removeItem('gmail_auth_expiry');
-                setEmails([]);
-                setSelectedEmail(null);
-                toast({
-                  title: "Disconnected",
-                  description: "Gmail connection has been cleared",
-                });
-              }}
-              className={isAuthenticated ? 'text-destructive hover:text-destructive' : ''}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
+      {/* Collapsible Gmail Integration Sidebar */}
+      <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative`}>
+        {/* Collapse/Expand Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="absolute -right-3 top-4 z-10 h-6 w-6 rounded-full border bg-background shadow-md"
+        >
+          {isSidebarCollapsed ? (
+            <ChevronRight className="h-3 w-3" />
+          ) : (
+            <ChevronLeft className="h-3 w-3" />
+          )}
+        </Button>
 
-          {!isAuthenticated ? (
-            <div className="space-y-3">
-              <Button onClick={authenticateGmail} disabled={isLoading} className="w-full">
-                <Mail className="h-4 w-4 mr-2" />
-                {isLoading ? 'Connecting...' : 'Connect Gmail'}
-              </Button>
-              <div className="p-3 bg-muted rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <p className="text-xs text-muted-foreground">
-                    Click to authenticate with your Gmail account and access full email functionality.
-                  </p>
+        {!isSidebarCollapsed && (
+          <div className="p-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-semibold">Gmail Integration</h1>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    // Clear authentication
+                    setIsAuthenticated(false);
+                    setAuthToken(null);
+                    localStorage.removeItem('gmail_auth_token');
+                    localStorage.removeItem('gmail_auth_expiry');
+                    setEmails([]);
+                    setSelectedEmail(null);
+                    toast({
+                      title: "Disconnected",
+                      description: "Gmail connection has been cleared",
+                    });
+                  }}
+                  className={isAuthenticated ? 'text-destructive hover:text-destructive' : ''}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {!isAuthenticated ? (
+                <div className="space-y-3">
+                  <Button onClick={authenticateGmail} disabled={isLoading} className="w-full">
+                    <Mail className="h-4 w-4 mr-2" />
+                    {isLoading ? 'Connecting...' : 'Connect Gmail'}
+                  </Button>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        Click to authenticate with your Gmail account and access full email functionality.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button onClick={() => setIsComposing(true)} className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Compose
+                  </Button>
+                  
+                  {/* Dropdown menu for actions */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        <MoreVertical className="h-4 w-4 mr-2" />
+                        Actions
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuItem 
+                        onClick={() => fetchEmails()} 
+                        disabled={isSyncing}
+                        className="cursor-pointer"
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                        {isSyncing ? 'Syncing...' : 'Sync Emails'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={findPotentialClients} 
+                        disabled={isAnalyzing || !emails.length}
+                        className="cursor-pointer"
+                      >
+                        <FileSearch className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                        {isAnalyzing ? 'Analyzing...' : 'Find Clients'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
+                  {/* AI Processing Toggle */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">AI Processing</span>
+                    <Button
+                      variant={isAIProcessingEnabled ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsAIProcessingEnabled(!isAIProcessingEnabled)}
+                    >
+                      <Brain className="h-4 w-4 mr-2" />
+                      {isAIProcessingEnabled ? 'On' : 'Off'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Folders */}
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">Folders</Label>
+                {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => (
+                  <Button
+                    key={folder}
+                    variant={selectedFolder === folder ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setSelectedFolder(folder);
+                      if (isAuthenticated) fetchEmails();
+                    }}
+                  >
+                    {folder.charAt(0).toUpperCase() + folder.slice(1)}
+                  </Button>
+                ))}
+              </div>
+
+              <Separator />
+
+              {/* Search and Filter */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search emails..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="subject">Subject</SelectItem>
+                      <SelectItem value="from">From</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  >
+                    {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
             </div>
-          ) : (
+          </div>
+        )}
+
+        {/* Collapsed sidebar content */}
+        {isSidebarCollapsed && (
+          <div className="p-2 pt-16">
             <div className="space-y-2">
-              <Button onClick={() => setIsComposing(true)} className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Compose
-              </Button>
-              
-              {/* Dropdown menu for actions */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full">
-                    <MoreVertical className="h-4 w-4 mr-2" />
-                    Actions
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                  <DropdownMenuItem 
-                    onClick={() => fetchEmails()} 
-                    disabled={isSyncing}
-                    className="cursor-pointer"
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing...' : 'Sync Emails'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={findPotentialClients} 
-                    disabled={isAnalyzing || !emails.length}
-                    className="cursor-pointer"
-                  >
-                    <FileSearch className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                    {isAnalyzing ? 'Analyzing...' : 'Find Clients'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
-          <Separator />
-
-          {/* Folders */}
-          <div className="space-y-1">
-            <Label className="text-sm font-medium">Folders</Label>
-            {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => (
               <Button
-                key={folder}
-                variant={selectedFolder === folder ? "secondary" : "ghost"}
-                className="w-full justify-start"
-                onClick={() => {
-                  setSelectedFolder(folder);
-                  if (isAuthenticated) fetchEmails();
-                }}
-              >
-                {folder.charAt(0).toUpperCase() + folder.slice(1)}
-              </Button>
-            ))}
-          </div>
-
-          <Separator />
-
-          {/* Search and Filter */}
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search emails..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">Date</SelectItem>
-                  <SelectItem value="subject">Subject</SelectItem>
-                  <SelectItem value="from">From</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="w-full h-8"
+                title="Expand Gmail Integration"
               >
-                {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                <Mail className="h-4 w-4" />
               </Button>
+              {isAuthenticated && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsAIProcessingEnabled(!isAIProcessingEnabled)}
+                  className={`w-full h-8 ${isAIProcessingEnabled ? 'text-primary' : 'text-muted-foreground'}`}
+                  title="Toggle AI Processing"
+                >
+                  <Brain className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Email List */}
+      {/* Main Content Area */}
       <div className="flex-1 flex">
+        {/* Email List */}
         <div className="w-96 border-r bg-card">
           <div className="p-4 border-b">
             <h2 className="font-semibold">
@@ -1107,66 +1175,11 @@ Best regards,
           </ScrollArea>
         </div>
 
-        {/* Email Content */}
-        <div className="flex-1 flex flex-col">
-          {selectedEmail ? (
-            <>
-              <div className="p-4 border-b bg-card">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-lg font-semibold mb-1 pr-4">{selectedEmail.subject}</h2>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p className="truncate">From: {selectedEmail.from}</p>
-                      <p className="truncate">To: {selectedEmail.to.join(', ')}</p>
-                      {selectedEmail.cc && selectedEmail.cc.length > 0 && (
-                        <p className="truncate">CC: {selectedEmail.cc.join(', ')}</p>
-                      )}
-                      <p>Date: {new Date(selectedEmail.date).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-wrap">
-                    <Button variant="outline" size="sm" onClick={() => markAsStarred(selectedEmail.id)}>
-                      <Star className={`h-4 w-4 ${selectedEmail.isStarred ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                       onClick={() => {
-                         setComposeEmail(prev => ({
-                           ...prev,
-                           to: [selectedEmail.from],
-                           subject: `Re: ${selectedEmail.subject}`,
-                           body: `\n\n--- Original Message ---\nFrom: ${selectedEmail.from}\nDate: ${new Date(selectedEmail.date).toLocaleString()}\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.snippet}`
-                         }));
-                         setIsComposing(true);
-                       }}
-                    >
-                      <Reply className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => archiveEmail(selectedEmail.id)}>
-                      <Archive className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => deleteEmail(selectedEmail.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <ScrollArea className="flex-1 p-4">
-                <div className="prose max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: selectedEmail.body || selectedEmail.snippet }} />
-                </div>
-              </ScrollArea>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Select an email to view its content</p>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Email Content - Use EmailContentProcessor */}
+        <EmailContentProcessor 
+          email={selectedEmail}
+          isProcessingEnabled={isAIProcessingEnabled}
+        />
       </div>
 
       {/* Compose Dialog */}
@@ -1484,7 +1497,7 @@ Best regards,
                               {isCreatingRequest ? 'Creating...' : 'Create Request'}
                             </Button>
                           </div>
-                         </div>
+                        </div>
 
                         {/* Travel Information */}
                         {client.travelInfo && Object.keys(client.travelInfo).length > 0 && (
