@@ -148,7 +148,7 @@ class RingCentralAPI {
     await this.ensureAuth();
 
     const params = new URLSearchParams({
-      messageType: ["SMS", "MMS"],
+      messageType: "SMS,MMS",
       readStatus: "All",
       perPage: perPage.toString(),
     });

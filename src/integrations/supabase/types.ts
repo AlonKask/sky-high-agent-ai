@@ -382,6 +382,7 @@ export type Database = {
       messages: {
         Row: {
           attachments: Json | null
+          call_duration: number | null
           contact_name: string | null
           content: string
           conversation_id: string | null
@@ -400,6 +401,7 @@ export type Database = {
         }
         Insert: {
           attachments?: Json | null
+          call_duration?: number | null
           contact_name?: string | null
           content: string
           conversation_id?: string | null
@@ -418,6 +420,7 @@ export type Database = {
         }
         Update: {
           attachments?: Json | null
+          call_duration?: number | null
           contact_name?: string | null
           content?: string
           conversation_id?: string | null
