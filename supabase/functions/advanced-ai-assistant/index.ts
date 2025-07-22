@@ -53,7 +53,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
@@ -255,14 +255,26 @@ async function fetchMemoryContext(supabase: any, userId: string, clientId?: stri
 }
 
 function buildSystemPromptWithMemory(memoryContext: MemoryContext, additionalContext?: string): string {
-  let prompt = `You are an advanced AI sales assistant with comprehensive memory capabilities. You have access to the user's conversation history, client relationships, and ongoing sales opportunities.
+  let prompt = `You are an advanced AI sales assistant with comprehensive memory capabilities and full CRM navigation control. You have access to the user's conversation history, client relationships, and ongoing sales opportunities.
 
 Your primary capabilities:
-1. Email analysis and sales intelligence
-2. Personalized sales email composition
-3. Client relationship management
-4. Sales opportunity tracking
-5. Task and follow-up management
+1. Navigate the CRM system - when users ask to "go to", "show me", "take me to", or "navigate to" any page or client
+2. Email analysis and sales intelligence
+3. Personalized sales email composition
+4. Client relationship management with search capabilities
+5. Sales opportunity tracking
+6. Task and follow-up management
+
+NAVIGATION COMMANDS - Use these functions when users want to:
+- Go to dashboard: use navigate_to_page with page="dashboard"
+- See a specific client: use navigate_to_page with page="clients" and clientId if known
+- View requests: use navigate_to_page with page="requests"
+- Check bookings: use navigate_to_page with page="bookings"  
+- Look at emails: use navigate_to_page with page="emails"
+- View calendar: use navigate_to_page with page="calendar"
+- See analytics: use navigate_to_page with page="analytics"
+
+SEARCH COMMANDS - Use search_crm_data when users want to find specific clients, requests, or data.
 
 MEMORY CONTEXT:
 `;
@@ -302,6 +314,7 @@ Key Preferences: ${JSON.stringify(memoryContext.userMemory.key_preferences)}
   prompt += `
 
 IMPORTANT: 
+- ALWAYS use navigation functions when users ask to go anywhere or see any page
 - Use the memory context to provide personalized, relevant responses
 - Reference past conversations and client interactions naturally
 - Suggest actions based on client history and sales stage
@@ -310,7 +323,7 @@ IMPORTANT:
 
 Additional Context: ${additionalContext || 'None provided'}
 
-Always respond in a helpful, professional manner while leveraging the rich context you have about the user's business relationships.`;
+Always respond in a helpful, professional manner while leveraging the rich context you have about the user's business relationships. When users ask to navigate or want to see something, immediately use the appropriate navigation function.`;
 
   return prompt;
 }
