@@ -33,7 +33,10 @@ import {
   SortDesc,
   FileText,
   Download,
-  AlertCircle
+  AlertCircle,
+  Users,
+  UserPlus,
+  FileSearch
 } from 'lucide-react';
 
 // Extend Window interface for Google APIs
@@ -91,6 +94,11 @@ const Emails = () => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+
+  // Find Clients state
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [potentialClients, setPotentialClients] = useState<any[]>([]);
+  const [showClientsDialog, setShowClientsDialog] = useState(false);
 
   // Check for stored authentication on component mount
   useEffect(() => {
@@ -509,6 +517,153 @@ Best regards,
     }
   };
 
+  // Find potential clients using OpenAI
+  const findPotentialClients = async () => {
+    if (!emails.length) {
+      toast({
+        title: "No Emails",
+        description: "Please sync your emails first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsAnalyzing(true);
+      
+      const { data, error } = await supabase.functions.invoke('analyze-emails-for-clients', {
+        body: { emails }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setPotentialClients(data.potentialClients || []);
+      setShowClientsDialog(true);
+      
+      toast({
+        title: "Analysis Complete",
+        description: `Found ${data.potentialClients?.length || 0} potential clients`,
+      });
+    } catch (error) {
+      console.error('Error analyzing emails:', error);
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to analyze emails for potential clients",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Create client from potential client data
+  const createClientFromPotential = async (potentialClient: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert({
+          user_id: user?.id,
+          email: potentialClient.email,
+          first_name: potentialClient.name?.split(' ')[0] || '',
+          last_name: potentialClient.name?.split(' ').slice(1).join(' ') || '',
+          company: potentialClient.company || null,
+          phone: potentialClient.phone || null,
+          notes: `Found via email analysis: ${potentialClient.reason}`,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Client Created",
+        description: `Added ${potentialClient.email} as a new client`,
+      });
+
+      // Remove from potential clients list
+      setPotentialClients(prev => prev.filter(client => client.email !== potentialClient.email));
+    } catch (error) {
+      console.error('Error creating client:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create client",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Create request from potential client data
+  const createRequestFromPotential = async (potentialClient: any) => {
+    try {
+      // First create the client if they don't exist
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', potentialClient.email)
+        .eq('user_id', user?.id)
+        .single();
+
+      let clientId = existingClient?.id;
+
+      if (!clientId) {
+        const { data: newClient, error: clientError } = await supabase
+          .from('clients')
+          .insert({
+            user_id: user?.id,
+            email: potentialClient.email,
+            first_name: potentialClient.name?.split(' ')[0] || '',
+            last_name: potentialClient.name?.split(' ').slice(1).join(' ') || '',
+            company: potentialClient.company || null,
+            phone: potentialClient.phone || null,
+          })
+          .select()
+          .single();
+
+        if (clientError) throw clientError;
+        clientId = newClient.id;
+      }
+
+      // Create the request
+      const travelInfo = potentialClient.travelInfo || {};
+      const { data, error } = await supabase
+        .from('requests')
+        .insert({
+          user_id: user?.id,
+          client_id: clientId,
+          request_type: 'flight',
+          origin: travelInfo.origin || '',
+          destination: travelInfo.destination || '',
+          departure_date: travelInfo.dates ? new Date().toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          passengers: travelInfo.passengers || 1,
+          class_preference: travelInfo.classPreference || 'business',
+          budget_range: travelInfo.budget || null,
+          special_requirements: `Email inquiry: ${potentialClient.reason}`,
+          notes: `Created from email: ${potentialClient.emailSubject}`,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Request Created",
+        description: `Created travel request for ${potentialClient.email}`,
+      });
+
+      // Remove from potential clients list
+      setPotentialClients(prev => prev.filter(client => client.email !== potentialClient.email));
+    } catch (error) {
+      console.error('Error creating request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create travel request",
+        variant: "destructive"
+      });
+    }
+  };
+
   useEffect(() => {
     fetchTemplates();
   }, []);
@@ -583,6 +738,15 @@ Best regards,
               <Button onClick={() => fetchEmails()} disabled={isSyncing} variant="outline" className="w-full">
                 <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
                 {isSyncing ? 'Syncing...' : 'Sync'}
+              </Button>
+              <Button 
+                onClick={findPotentialClients} 
+                disabled={isAnalyzing || !emails.length} 
+                variant="outline" 
+                className="w-full"
+              >
+                <FileSearch className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                {isAnalyzing ? 'Analyzing...' : 'Find Clients'}
               </Button>
             </div>
           )}
@@ -969,6 +1133,109 @@ Best regards,
                 </div>
               ))}
             </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Potential Clients Dialog */}
+      <Dialog open={showClientsDialog} onOpenChange={setShowClientsDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Potential Clients Found ({potentialClients.length})
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            {potentialClients.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No potential clients found in your emails</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {potentialClients.map((client, index) => (
+                  <Card key={index} className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-semibold">{client.name || 'Unknown Name'}</h3>
+                          <Badge variant="secondary">
+                            {client.confidence}% confidence
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          <strong>Email:</strong> {client.email}
+                        </p>
+                        {client.company && (
+                          <p className="text-sm text-muted-foreground mb-1">
+                            <strong>Company:</strong> {client.company}
+                          </p>
+                        )}
+                        {client.phone && (
+                          <p className="text-sm text-muted-foreground mb-1">
+                            <strong>Phone:</strong> {client.phone}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => createClientFromPotential(client)}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add Client
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => createRequestFromPotential(client)}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Create Request
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Travel Information */}
+                    {client.travelInfo && Object.keys(client.travelInfo).length > 0 && (
+                      <div className="bg-muted/50 p-3 rounded-lg mb-3">
+                        <h4 className="font-medium text-sm mb-2">Travel Requirements:</h4>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {client.travelInfo.origin && (
+                            <div><strong>Origin:</strong> {client.travelInfo.origin}</div>
+                          )}
+                          {client.travelInfo.destination && (
+                            <div><strong>Destination:</strong> {client.travelInfo.destination}</div>
+                          )}
+                          {client.travelInfo.dates && (
+                            <div><strong>Dates:</strong> {client.travelInfo.dates}</div>
+                          )}
+                          {client.travelInfo.passengers && (
+                            <div><strong>Passengers:</strong> {client.travelInfo.passengers}</div>
+                          )}
+                          {client.travelInfo.classPreference && (
+                            <div><strong>Class:</strong> {client.travelInfo.classPreference}</div>
+                          )}
+                          {client.travelInfo.budget && (
+                            <div><strong>Budget:</strong> {client.travelInfo.budget}</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Email Context */}
+                    <div className="border-t pt-3">
+                      <p className="text-sm font-medium mb-1">Email: {client.emailSubject}</p>
+                      <p className="text-xs text-muted-foreground mb-2">"{client.emailSnippet}"</p>
+                      <p className="text-xs text-muted-foreground">
+                        <strong>Why this is a potential client:</strong> {client.reason}
+                      </p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </ScrollArea>
         </DialogContent>
       </Dialog>
