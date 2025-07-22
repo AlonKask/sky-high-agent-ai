@@ -102,6 +102,11 @@ const Emails = () => {
   const [showClientsDialog, setShowClientsDialog] = useState(false);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
 
+  // Loading states for better UX
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [isCreatingRequest, setIsCreatingRequest] = useState(false);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
   // Auto-sync functionality
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -525,6 +530,15 @@ Best regards,
 
   // Find potential clients using OpenAI
   const findPotentialClients = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to analyze emails",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!emails.length) {
       toast({
         title: "No Emails",
@@ -566,14 +580,18 @@ Best regards,
 
   // Check for duplicate clients and requests
   const checkForDuplicates = async (potentialClient: any) => {
+    if (!user?.id) {
+      throw new Error('User not authenticated');
+    }
+
     try {
       // Check if client exists
       const { data: existingClient } = await supabase
         .from('clients')
         .select('id, email')
         .eq('email', potentialClient.email)
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
 
       // Check if similar request exists
       let existingRequest = null;
@@ -583,8 +601,8 @@ Best regards,
           .select('id, destination, status')
           .eq('client_id', existingClient.id)
           .eq('destination', potentialClient.travelInfo.destination)
-          .eq('user_id', user?.id)
-          .single();
+          .eq('user_id', user.id)
+          .maybeSingle();
         
         existingRequest = requestData;
       }
@@ -608,7 +626,18 @@ Best regards,
 
   // Create client from potential client data with duplicate checking
   const createClientFromPotential = async (potentialClient: any) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to create clients",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
+      setIsCreatingClient(true);
+      
       const duplicateCheck = await checkForDuplicates(potentialClient);
       
       if (duplicateCheck.clientExists) {
@@ -655,12 +684,25 @@ Best regards,
         description: "Failed to create client",
         variant: "destructive"
       });
+    } finally {
+      setIsCreatingClient(false);
     }
   };
 
   // Create request from potential client data with duplicate checking
   const createRequestFromPotential = async (potentialClient: any) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to create requests",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
+      setIsCreatingRequest(true);
+      
       const duplicateCheck = await checkForDuplicates(potentialClient);
       
       if (duplicateCheck.requestExists) {
@@ -694,12 +736,16 @@ Best regards,
 
       // Create the request
       const travelInfo = potentialClient.travelInfo || {};
+      
+      // Determine request type based on travel info
+      const requestType = travelInfo.dates && travelInfo.dates.includes('return') ? 'round_trip' : 'round_trip';
+      
       const { data, error } = await supabase
         .from('requests')
         .insert({
           user_id: user?.id,
           client_id: clientId,
-          request_type: 'flight',
+          request_type: requestType,
           origin: travelInfo.origin || '',
           destination: travelInfo.destination || '',
           departure_date: travelInfo.dates ? new Date().toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
@@ -733,27 +779,77 @@ Best regards,
         description: "Failed to create travel request",
         variant: "destructive"
       });
+    } finally {
+      setIsCreatingRequest(false);
     }
   };
 
   // Bulk actions for selected clients
   const bulkCreateClients = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to create clients",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const selectedClientsList = potentialClients.filter(client => 
       selectedClients.has(client.email)
     );
 
-    for (const client of selectedClientsList) {
-      await createClientFromPotential(client);
+    if (selectedClientsList.length === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select clients to add",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsBulkProcessing(true);
+      
+      for (const client of selectedClientsList) {
+        await createClientFromPotential(client);
+      }
+    } finally {
+      setIsBulkProcessing(false);
     }
   };
 
   const bulkCreateRequests = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to create requests",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const selectedClientsList = potentialClients.filter(client => 
       selectedClients.has(client.email)
     );
 
-    for (const client of selectedClientsList) {
-      await createRequestFromPotential(client);
+    if (selectedClientsList.length === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select clients to create requests for",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsBulkProcessing(true);
+      
+      for (const client of selectedClientsList) {
+        await createRequestFromPotential(client);
+      }
+    } finally {
+      setIsBulkProcessing(false);
     }
   };
 
@@ -1282,16 +1378,18 @@ Best regards,
                         size="sm"
                         variant="outline"
                         onClick={bulkCreateClients}
+                        disabled={isBulkProcessing || isCreatingClient}
                       >
                         <UserPlus className="h-4 w-4 mr-2" />
-                        Add Selected ({selectedClients.size})
+                        {isBulkProcessing ? 'Processing...' : `Add Selected (${selectedClients.size})`}
                       </Button>
                       <Button
                         size="sm"
                         onClick={bulkCreateRequests}
+                        disabled={isBulkProcessing || isCreatingRequest}
                       >
                         <FileText className="h-4 w-4 mr-2" />
-                        Create Requests ({selectedClients.size})
+                        {isBulkProcessing ? 'Processing...' : `Create Requests (${selectedClients.size})`}
                       </Button>
                     </div>
                   )}
@@ -1355,16 +1453,18 @@ Best regards,
                               size="sm"
                               variant="outline"
                               onClick={() => createClientFromPotential(client)}
+                              disabled={isCreatingClient || isBulkProcessing}
                             >
                               <UserPlus className="h-4 w-4 mr-2" />
-                              Add Client
+                              {isCreatingClient ? 'Adding...' : 'Add Client'}
                             </Button>
                             <Button
                               size="sm"
                               onClick={() => createRequestFromPotential(client)}
+                              disabled={isCreatingRequest || isBulkProcessing}
                             >
                               <FileText className="h-4 w-4 mr-2" />
-                              Create Request
+                              {isCreatingRequest ? 'Creating...' : 'Create Request'}
                             </Button>
                           </div>
                          </div>
