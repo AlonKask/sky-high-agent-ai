@@ -1082,26 +1082,26 @@ const RequestDetail = () => {
             {/* Options Section - Combined Add Quote and Flight Quotes */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Options
-                </CardTitle>
-                <CardDescription>
-                  Create new quotes and manage existing flight options
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Add Quote Button */}
-                <div className="flex items-center justify-center p-6 border border-dashed border-muted-foreground/25 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      Options
+                    </CardTitle>
+                    <CardDescription>
+                      Create new quotes and manage existing flight options
+                    </CardDescription>
+                  </div>
                   <Button 
                     onClick={() => setShowQuoteDialog(true)}
-                    size="lg"
-                    className="flex items-center gap-3"
+                    size="sm"
+                    className="h-8 w-8 p-0 rounded-full"
                   >
-                    <Plus className="h-5 w-5" />
-                    Add New Quote
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 
                 {/* Existing Quotes */}
                 {quotes.length === 0 ? (
