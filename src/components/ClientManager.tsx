@@ -302,6 +302,27 @@ const ClientManager = () => {
                 </div>
               </div>
               
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  onClick={() => {
+                    navigate(`/requests?client=${selectedClient.id}`);
+                  }}
+                  className="flex-1"
+                >
+                  View Requests
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigate(`/bookings?client=${selectedClient.id}`);
+                  }}
+                  className="flex-1"
+                >
+                  View Bookings
+                </Button>
+              </div>
+              
               {selectedClient.notes && (
                 <div>
                   <span className="font-medium">Notes:</span>

@@ -213,11 +213,20 @@ const RequestManager = () => {
     });
   };
 
-  const filteredRequests = requests.filter(request =>
-    `${request.clients?.first_name} ${request.clients?.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    request.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    request.destination.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRequests = requests.filter(request => {
+    // Filter by client ID if provided in URL params
+    const clientFilter = searchParams.get('client');
+    if (clientFilter && request.client_id !== clientFilter) {
+      return false;
+    }
+    
+    // Filter by search term
+    return (
+      `${request.clients?.first_name} ${request.clients?.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.destination.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -266,7 +275,22 @@ const RequestManager = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-semibold">Travel Requests</h1>
-          <p className="text-muted-foreground text-sm">Manage client travel requests and quotes</p>
+          <div className="flex items-center gap-2">
+            <p className="text-muted-foreground text-sm">Manage client travel requests and quotes</p>
+            {searchParams.get('client') && (
+              <Badge variant="secondary" className="text-xs">
+                Filtered by client
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-4 w-4 p-0 ml-1"
+                  onClick={() => navigate('/requests')}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+          </div>
         </div>
         <Button onClick={() => setIsNewRequestDialogOpen(true)} className="bg-primary hover:bg-primary/90 transition-all duration-200 hover:scale-105">
           <Plus className="mr-2 h-4 w-4" />
