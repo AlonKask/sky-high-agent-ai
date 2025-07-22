@@ -227,6 +227,39 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_notifications: {
+        Row: {
+          created_at: string
+          email_address: string
+          history_id: string
+          id: string
+          notification_data: Json
+          processed: boolean
+          processed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_address: string
+          history_id: string
+          id?: string
+          notification_data?: Json
+          processed?: boolean
+          processed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_address?: string
+          history_id?: string
+          id?: string
+          notification_data?: Json
+          processed?: boolean
+          processed_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null

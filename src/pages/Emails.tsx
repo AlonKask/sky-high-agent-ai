@@ -246,7 +246,58 @@ const Emails = () => {
     }
   };
 
-  // Fetch emails from Gmail
+  // Load emails from database
+  const loadEmailsFromDB = async () => {
+    if (!user) return;
+    
+    try {
+      let query = supabase
+        .from('email_exchanges')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (searchQuery) {
+        query = query.or(`subject.ilike.%${searchQuery}%,body.ilike.%${searchQuery}%,sender_email.ilike.%${searchQuery}%`);
+      }
+
+      const { data: emailData, error } = await query;
+
+      if (error) {
+        console.error('Error loading emails from database:', error);
+        return;
+      }
+
+      // Convert database emails to Gmail format for display
+      const formattedEmails = emailData?.map(email => {
+        const metadata = email.metadata as any || {};
+        return {
+          id: email.message_id || email.id,
+          threadId: email.thread_id || '',
+          subject: email.subject || '(No Subject)',
+          snippet: metadata.gmail_snippet || email.body?.substring(0, 150) || '',
+          from: email.sender_email || '',
+          to: email.recipient_emails || [],
+          cc: email.cc_emails || [],
+          bcc: email.bcc_emails || [],
+          date: email.created_at,
+          body: email.body || '',
+          isRead: metadata.is_read || false,
+          isStarred: metadata.is_starred || false,
+          hasAttachments: metadata.has_attachments || false,
+          labels: metadata.gmail_labels || [],
+          messageId: email.message_id || email.id,
+        };
+      }) || [];
+
+      setEmails(formattedEmails);
+    } catch (error) {
+      console.error('Error loading emails:', error);
+    }
+  };
+
+  // Sync emails from Gmail and store in database
   const fetchEmails = async (token?: string) => {
     const accessToken = token || authToken;
     if (!accessToken) {
@@ -261,13 +312,12 @@ const Emails = () => {
     try {
       setIsSyncing(true);
       
-      const { data, error } = await supabase.functions.invoke('gmail-integration', {
+      // Use the new comprehensive sync endpoint
+      const { data, error } = await supabase.functions.invoke('sync-inbox', {
         body: {
-          action: 'fetchEmails',
           accessToken,
-          query: searchQuery,
-          maxResults: 50,
-          labelIds: selectedFolder === 'inbox' ? ['INBOX'] : [selectedFolder.toUpperCase()]
+          incremental: false,
+          maxResults: 500
         }
       });
 
@@ -275,17 +325,20 @@ const Emails = () => {
         throw error;
       }
 
-      setEmails(data.emails || []);
+      const { totalProcessed, stored, updated } = data;
+      
+      // Refresh emails from database after sync
+      await loadEmailsFromDB();
       
       toast({
-        title: "Emails Synced",
-        description: `Fetched ${data.emails?.length || 0} emails from Gmail`,
+        title: "Inbox Sync Complete",
+        description: `Processed ${totalProcessed} emails. ${stored} new, ${updated} updated.`,
       });
     } catch (error) {
-      console.error('Error fetching emails:', error);
+      console.error('Error syncing emails:', error);
       toast({
         title: "Sync Failed",
-        description: "Failed to fetch emails from Gmail. Please try authenticating again.",
+        description: "Failed to sync emails from Gmail. Please try authenticating again.",
         variant: "destructive"
       });
       // Reset auth state on error
@@ -691,10 +744,11 @@ const Emails = () => {
   // Auto-sync functionality
   useEffect(() => {
     if (isAuthenticated && authToken) {
-      // Initial sync when authenticated
+      // Load from database first, then sync from Gmail
+      loadEmailsFromDB();
       fetchEmails();
       
-      // Set up auto-sync interval
+      // Set up auto-sync interval for incremental updates
       const interval = setInterval(() => {
         if (isAuthenticated && authToken) {
           console.log('Auto-syncing emails...');
@@ -706,6 +760,13 @@ const Emails = () => {
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, authToken]);
+
+  // Load emails from database when search changes
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      loadEmailsFromDB();
+    }
+  }, [searchQuery, user, isAuthenticated]);
 
   // Load email templates
   const fetchTemplates = async () => {
