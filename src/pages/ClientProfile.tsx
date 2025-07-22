@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, User, Mail, Phone, Building, Calendar as CalendarIcon, CreditCard, Plane, Loader2, Edit, Save, X } from "lucide-react";
+import { ArrowLeft, User, Mail, Phone, Building, Calendar as CalendarIcon, CreditCard, Plane, Loader2, Edit, Save, X, MapPin, Users, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -22,6 +22,7 @@ const ClientProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   
@@ -79,6 +80,19 @@ const ClientProfile = () => {
         console.error('Error fetching bookings:', bookingsError);
       } else {
         setBookings(bookingsData || []);
+      }
+
+      // Fetch ALL client's requests (active and closed)
+      const { data: requestsData, error: requestsError } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
+      if (requestsError) {
+        console.error('Error fetching requests:', requestsError);
+      } else {
+        setRequests(requestsData || []);
       }
 
       setLoading(false);
@@ -414,6 +428,62 @@ const ClientProfile = () => {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* All Requests - Active and Closed */}
+        <Card className="card-elevated">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              All Requests ({requests.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            {requests.length > 0 ? (
+              <div className="space-y-3">
+                {requests.map((request) => (
+                  <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                       onClick={() => navigate(`/request/${request.id}`)}>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{request.origin || 'TBD'} → {request.destination || 'TBD'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>{request.passengers} pax</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarIcon className="h-4 w-4" />
+                        <span>{new Date(request.departure_date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>Created {new Date(request.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={
+                        request.status === 'pending' ? 'default' : 
+                        request.status === 'quote_sent' ? 'secondary' : 
+                        request.status === 'confirmed' ? 'default' : 
+                        'outline'
+                      }>
+                        {request.status.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                      {request.priority === 'high' && (
+                        <Badge variant="destructive" className="text-xs">HIGH</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                No requests found for this client.
+              </div>
+            )}
           </CardContent>
         </Card>
 
