@@ -59,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { accessToken, historyId, incremental = false, maxResults = 100 }: SyncRequest = await req.json();
+    const { accessToken, historyId, incremental = false, maxResults = 200 }: SyncRequest = await req.json();
 
     console.log('Starting inbox sync for user:', user.id, 'incremental:', incremental);
 
@@ -111,8 +111,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
         break; // History API doesn't have pagination in the same way
       } else if (data.messages) {
-        // Process regular message list
-        const emailPromises = data.messages.slice(0, 20).map(async (message: { id: string }) => {
+        // Process regular message list - process all messages in batch
+        const batchSize = Math.min(data.messages.length, maxResults);
+        const emailPromises = data.messages.slice(0, batchSize).map(async (message: { id: string }) => {
           return await fetchEmailDetail(accessToken, message.id);
         });
 
@@ -126,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         break;
       }
-    } while (nextPageToken && totalSynced < 500); // Limit to prevent timeout
+    } while (nextPageToken && totalSynced < 2000); // Increased limit for comprehensive sync
 
     // Store/update emails in our database
     let stored = 0;

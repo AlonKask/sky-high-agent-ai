@@ -255,8 +255,8 @@ const Emails = () => {
         .from('email_exchanges')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .order('created_at', { ascending: sortOrder === 'desc' })
+        .limit(500);
 
       if (searchQuery) {
         query = query.or(`subject.ilike.%${searchQuery}%,body.ilike.%${searchQuery}%,sender_email.ilike.%${searchQuery}%`);
@@ -281,7 +281,7 @@ const Emails = () => {
           to: email.recipient_emails || [],
           cc: email.cc_emails || [],
           bcc: email.bcc_emails || [],
-          date: email.created_at,
+          date: metadata.gmail_date || email.created_at,
           body: email.body || '',
           isRead: metadata.is_read || false,
           isStarred: metadata.is_starred || false,
@@ -312,12 +312,12 @@ const Emails = () => {
     try {
       setIsSyncing(true);
       
-      // Use the new comprehensive sync endpoint
+      // Use the new comprehensive sync endpoint with higher limits
       const { data, error } = await supabase.functions.invoke('sync-inbox', {
         body: {
           accessToken,
           incremental: false,
-          maxResults: 500
+          maxResults: 200
         }
       });
 
