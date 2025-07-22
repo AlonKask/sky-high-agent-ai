@@ -94,13 +94,17 @@ const Emails = () => {
 
   // Compose email state
   const [composeEmail, setComposeEmail] = useState({
-    to: '',
-    cc: '',
-    bcc: '',
+    to: [] as string[],
+    cc: [] as string[],
+    bcc: [] as string[],
     subject: '',
     body: '',
     attachments: [] as File[]
   });
+
+  // Show/hide CC and BCC fields
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
 
   // Template management state
   const [newTemplate, setNewTemplate] = useState({
@@ -244,7 +248,7 @@ const Emails = () => {
       return;
     }
 
-    if (!composeEmail.to || !composeEmail.subject || !composeEmail.body) {
+    if (composeEmail.to.length === 0 || !composeEmail.subject || !composeEmail.body) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields (To, Subject, and Message)",
@@ -275,13 +279,15 @@ const Emails = () => {
 
       // Reset compose form
       setComposeEmail({
-        to: '',
-        cc: '',
-        bcc: '',
+        to: [],
+        cc: [],
+        bcc: [],
         subject: '',
         body: '',
         attachments: []
       });
+      setShowCc(false);
+      setShowBcc(false);
       setIsComposing(false);
 
       // Refresh emails
@@ -689,15 +695,15 @@ Best regards,
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => {
-                        setComposeEmail(prev => ({
-                          ...prev,
-                          to: selectedEmail.from,
-                          subject: `Re: ${selectedEmail.subject}`,
-                          body: `\n\n--- Original Message ---\nFrom: ${selectedEmail.from}\nDate: ${new Date(selectedEmail.date).toLocaleString()}\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.snippet}`
-                        }));
-                        setIsComposing(true);
-                      }}
+                       onClick={() => {
+                         setComposeEmail(prev => ({
+                           ...prev,
+                           to: [selectedEmail.from],
+                           subject: `Re: ${selectedEmail.subject}`,
+                           body: `\n\n--- Original Message ---\nFrom: ${selectedEmail.from}\nDate: ${new Date(selectedEmail.date).toLocaleString()}\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.snippet}`
+                         }));
+                         setIsComposing(true);
+                       }}
                     >
                       <Reply className="h-4 w-4" />
                     </Button>
@@ -746,34 +752,108 @@ Best regards,
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* To field with CC/BCC toggles */}
+            <div className="space-y-3">
               <div>
                 <Label htmlFor="to">To *</Label>
                 <Input
                   id="to"
-                  value={composeEmail.to}
-                  onChange={(e) => setComposeEmail(prev => ({ ...prev, to: e.target.value }))}
-                  placeholder="recipient@example.com"
+                  value={composeEmail.to.join(', ')}
+                  onChange={(e) => {
+                    const emails = e.target.value.split(',').map(email => email.trim()).filter(Boolean);
+                    setComposeEmail(prev => ({ ...prev, to: emails }));
+                  }}
+                  placeholder="recipient@example.com, another@example.com"
                 />
               </div>
-              <div>
-                <Label htmlFor="cc">CC</Label>
-                <Input
-                  id="cc"
-                  value={composeEmail.cc}
-                  onChange={(e) => setComposeEmail(prev => ({ ...prev, cc: e.target.value }))}
-                  placeholder="cc@example.com"
-                />
+              
+              {/* CC/BCC Toggle Buttons */}
+              <div className="flex gap-2">
+                {!showCc && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCc(true)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    CC
+                  </Button>
+                )}
+                {!showBcc && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowBcc(true)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    BCC
+                  </Button>
+                )}
               </div>
-              <div>
-                <Label htmlFor="bcc">BCC</Label>
-                <Input
-                  id="bcc"
-                  value={composeEmail.bcc}
-                  onChange={(e) => setComposeEmail(prev => ({ ...prev, bcc: e.target.value }))}
-                  placeholder="bcc@example.com"
-                />
-              </div>
+              
+              {/* CC Field */}
+              {showCc && (
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="cc" className="flex-shrink-0">CC</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowCc(false);
+                        setComposeEmail(prev => ({ ...prev, cc: [] }));
+                      }}
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                  <Input
+                    id="cc"
+                    value={composeEmail.cc.join(', ')}
+                    onChange={(e) => {
+                      const emails = e.target.value.split(',').map(email => email.trim()).filter(Boolean);
+                      setComposeEmail(prev => ({ ...prev, cc: emails }));
+                    }}
+                    placeholder="cc@example.com, another@example.com"
+                  />
+                </div>
+              )}
+              
+              {/* BCC Field */}
+              {showBcc && (
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="bcc" className="flex-shrink-0">BCC</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowBcc(false);
+                        setComposeEmail(prev => ({ ...prev, bcc: [] }));
+                      }}
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                  <Input
+                    id="bcc"
+                    value={composeEmail.bcc.join(', ')}
+                    onChange={(e) => {
+                      const emails = e.target.value.split(',').map(email => email.trim()).filter(Boolean);
+                      setComposeEmail(prev => ({ ...prev, bcc: emails }));
+                    }}
+                    placeholder="bcc@example.com, another@example.com"
+                  />
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor="subject">Subject *</Label>
