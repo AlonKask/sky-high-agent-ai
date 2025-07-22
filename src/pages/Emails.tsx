@@ -12,6 +12,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { EmailSelectionActions } from '@/components/EmailSelectionActions';
+import { AIAssistantChat } from '@/components/AIAssistantChat';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import EmailContentProcessor from '@/components/EmailContentProcessor';
@@ -46,7 +48,9 @@ import {
   ChevronRight,
   Brain,
   Minimize2,
-  Maximize2
+  Maximize2,
+  MessageSquare,
+  Zap
 } from 'lucide-react';
 
 // Extend Window interface for Google APIs
@@ -126,10 +130,100 @@ const Emails = () => {
   const [isInboxMinimized, setIsInboxMinimized] = useState(false);
   const [isEmailViewMinimized, setIsEmailViewMinimized] = useState(false);
   const [showInboxColumn, setShowInboxColumn] = useState(true);
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [isAIChatMinimized, setIsAIChatMinimized] = useState(false);
 
   // Show/hide CC and BCC fields
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+
+  // Email selection handlers
+  const handleEmailSelect = (emailId: string, checked: boolean) => {
+    setSelectedEmails(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(emailId);
+      } else {
+        newSet.delete(emailId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedEmails(new Set(filteredEmails.map(email => email.id)));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedEmails(new Set());
+  };
+
+  const handleMarkAsRead = async () => {
+    if (selectedEmails.size === 0) return;
+
+    try {
+      const emailIds = Array.from(selectedEmails);
+      const { error } = await supabase
+        .from('email_exchanges')
+        .update({ status: 'read' })
+        .in('id', emailIds);
+
+      if (error) throw error;
+
+      // Update local state
+      setEmails(prev => prev.map(email => 
+        selectedEmails.has(email.id) 
+          ? { ...email, status: 'read' }
+          : email
+      ));
+
+      setSelectedEmails(new Set());
+      toast({
+        title: "Success",
+        description: `Marked ${emailIds.length} emails as read.`
+      });
+    } catch (error) {
+      console.error('Error marking emails as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark emails as read.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSendToAI = async () => {
+    if (selectedEmails.size === 0) return;
+
+    try {
+      const selectedEmailData = filteredEmails.filter(email => 
+        selectedEmails.has(email.id)
+      );
+
+      const emailContext = selectedEmailData.map(email => ({
+        subject: email.subject,
+        sender: email.from,
+        body: email.body || email.snippet,
+        date: new Date().toISOString()
+      }));
+
+      setShowAIChat(true);
+      setIsAIChatMinimized(false);
+
+      toast({
+        title: "Success",
+        description: `Sent ${selectedEmails.size} emails to AI assistant.`
+      });
+    } catch (error) {
+      console.error('Error sending emails to AI:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send emails to AI.",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Compose email state
   const [composeEmail, setComposeEmail] = useState({
@@ -1397,8 +1491,17 @@ Best regards,
                 )}
               </div>
             ) : (
-              <div className="p-2 space-y-1">
-                {filteredEmails.map((email, index) => (
+              <>
+                <EmailSelectionActions
+                  selectedEmails={selectedEmails}
+                  onSelectAll={handleSelectAll}
+                  onDeselectAll={handleDeselectAll}
+                  onMarkAsRead={handleMarkAsRead}
+                  onSendToAI={handleSendToAI}
+                  totalEmails={filteredEmails.length}
+                />
+                <div className="p-2 space-y-1">
+                  {filteredEmails.map((email, index) => (
                   <div
                     key={email.id}
                     className={`group p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-accent/50 ${
@@ -1406,15 +1509,26 @@ Best regards,
                         ? 'bg-accent border-l-4 border-l-primary shadow-sm' 
                         : 'hover:shadow-sm'
                     } ${!email.isRead ? 'bg-muted/30' : ''}`}
-                    onClick={() => {
-                      setSelectedEmail(email);
-                      if (!email.isRead) {
-                        markAsRead(email.id);
-                      }
-                    }}
+                     onClick={(e) => {
+                       const target = e.target as HTMLElement;
+                       if (target.closest('.checkbox-container')) return;
+                       setSelectedEmail(email);
+                       if (!email.isRead) {
+                         markAsRead(email.id);
+                       }
+                     }}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                     <div className="flex items-start gap-3">
+                       <div className="checkbox-container mt-1">
+                         <Checkbox
+                           checked={selectedEmails.has(email.id)}
+                           onCheckedChange={(checked) => handleEmailSelect(email.id, checked as boolean)}
+                           onClick={(e) => e.stopPropagation()}
+                         />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-start justify-between mb-2">
+                           <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div className={`w-2 h-2 rounded-full ${!email.isRead ? 'bg-primary' : 'bg-transparent'}`} />
                         <span className={`text-sm truncate flex-1 ${!email.isRead ? 'font-semibold' : 'font-medium'}`}>
                           {email.from.split('<')[0].trim() || email.from.split('@')[0]}
@@ -1453,11 +1567,33 @@ Best regards,
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </ScrollArea>
         </div>
+        )}
+
+        {/* AI Assistant Chat */}
+        {showAIChat && (
+          <AIAssistantChat
+            isMinimized={isAIChatMinimized}
+            onToggleMinimize={() => setIsAIChatMinimized(!isAIChatMinimized)}
+            onClose={() => setShowAIChat(false)}
+            initialContext={selectedEmails.size > 0 ? `Selected ${selectedEmails.size} emails for analysis` : undefined}
+          />
+        )}
+
+        {/* Floating AI Assistant Button */}
+        {!showAIChat && (
+          <Button
+            onClick={() => setShowAIChat(true)}
+            className="fixed bottom-4 right-4 h-12 w-12 rounded-full shadow-lg"
+            size="icon"
+          >
+            <MessageSquare className="h-5 w-5" />
+          </Button>
         )}
 
         {/* Email Content - Use EmailContentProcessor */}
