@@ -65,8 +65,12 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       setMessages([{
         id: Date.now().toString(),
         role: 'assistant',
-        content: `I'm here to help you with your emails. I can see you've selected some emails for analysis. How can I assist you?`,
-        timestamp: new Date()
+        content: `Hi! I'm your AI assistant with access to your complete business context, client relationships, and sales pipeline. I can help you with email analysis, sales strategies, client management, and more. How can I assist you today?`,
+        timestamp: new Date(),
+        metadata: {
+          memory_accessed: true,
+          tools_used: ['memory_system']
+        }
       }]);
     }
   }, [initialContext]);
@@ -86,13 +90,15 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant-chat', {
+      const { data, error } = await supabase.functions.invoke('advanced-ai-assistant', {
         body: {
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content
           })),
-          context: initialContext
+          context: initialContext,
+          clientId: null, // Can be set based on current page context
+          requestId: null // Can be set based on current page context
         }
       });
 
