@@ -263,6 +263,20 @@ const Emails = () => {
         .order('created_at', { ascending: sortOrder === 'desc' })
         .limit(500);
 
+      // Filter by folder/label if not inbox
+      if (selectedFolder !== 'inbox') {
+        const folderLabelMap: Record<string, string> = {
+          'sent': 'SENT',
+          'drafts': 'DRAFT', 
+          'spam': 'SPAM',
+          'trash': 'TRASH'
+        };
+        const labelId = folderLabelMap[selectedFolder];
+        if (labelId) {
+          query = query.contains('metadata->gmail_labels', [labelId]);
+        }
+      }
+
       if (searchQuery) {
         query = query.or(`subject.ilike.%${searchQuery}%,body.ilike.%${searchQuery}%,sender_email.ilike.%${searchQuery}%`);
       }
@@ -303,7 +317,7 @@ const Emails = () => {
   };
 
   // Sync emails from Gmail and store in database
-  const fetchEmails = async (token?: string) => {
+  const fetchEmails = async (token?: string, folder?: string) => {
     const accessToken = token || authToken;
     if (!accessToken) {
       toast({
@@ -317,12 +331,25 @@ const Emails = () => {
     try {
       setIsSyncing(true);
       
-      // Use the new comprehensive sync endpoint with higher limits
+      // Map folder names to Gmail label IDs
+      const folderLabelMap: Record<string, string[]> = {
+        'inbox': ['INBOX'],
+        'sent': ['SENT'],
+        'drafts': ['DRAFT'],
+        'spam': ['SPAM'],
+        'trash': ['TRASH']
+      };
+      
+      const currentFolder = folder || selectedFolder;
+      const labelIds = folderLabelMap[currentFolder] || ['INBOX'];
+      
+      // Use the new comprehensive sync endpoint with folder support
       const { data, error } = await supabase.functions.invoke('sync-inbox', {
         body: {
           accessToken,
           incremental: false,
-          maxResults: 200
+          maxResults: 200,
+          labelIds
         }
       });
 
@@ -336,7 +363,7 @@ const Emails = () => {
       await loadEmailsFromDB();
       
       toast({
-        title: "Inbox Sync Complete",
+        title: `${currentFolder.charAt(0).toUpperCase() + currentFolder.slice(1)} Sync Complete`,
         description: `Processed ${totalProcessed} emails. ${stored} new, ${updated} updated.`,
       });
     } catch (error) {
@@ -1089,9 +1116,14 @@ Best regards,
                     key={folder}
                     variant={selectedFolder === folder ? "secondary" : "ghost"}
                     className="w-full justify-start"
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedFolder(folder);
-                      if (isAuthenticated) fetchEmails();
+                      if (isAuthenticated) {
+                        // First load from database
+                        await loadEmailsFromDB();
+                        // Then sync fresh emails from Gmail for this folder
+                        await fetchEmails(authToken, folder);
+                      }
                     }}
                   >
                     {folder.charAt(0).toUpperCase() + folder.slice(1)}

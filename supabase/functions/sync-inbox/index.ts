@@ -11,6 +11,7 @@ interface SyncRequest {
   historyId?: string;
   incremental?: boolean;
   maxResults?: number;
+  labelIds?: string[];
 }
 
 interface GmailMessage {
@@ -59,17 +60,17 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { accessToken, historyId, incremental = false, maxResults = 200 }: SyncRequest = await req.json();
+    const { accessToken, historyId, incremental = false, maxResults = 200, labelIds = ['INBOX'] }: SyncRequest = await req.json();
 
-    console.log('Starting inbox sync for user:', user.id, 'incremental:', incremental);
+    console.log('Starting inbox sync for user:', user.id, 'incremental:', incremental, 'labelIds:', labelIds);
 
     let allEmails: any[] = [];
     let nextPageToken: string | undefined;
     let totalSynced = 0;
 
     do {
-      // Fetch emails from Gmail API
-      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX`;
+      // Fetch emails from Gmail API with specified labels
+      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=${labelIds.join(',')}`;
       
       if (nextPageToken) {
         url += `&pageToken=${nextPageToken}`;
