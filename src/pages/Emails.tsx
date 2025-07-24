@@ -1655,7 +1655,7 @@ Best regards,
         )}
 
         {/* Email Content - Use EmailContentProcessor */}
-        {showEmailContent && (
+        {showEmailContent && selectedEmail && (
           <EmailContentProcessor 
             email={selectedEmail}
             isProcessingEnabled={isAIProcessingEnabled}
