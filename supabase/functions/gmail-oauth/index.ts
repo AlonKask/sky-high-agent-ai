@@ -30,54 +30,74 @@ serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get('action') || 'start';
     
-    // Extract user ID from JWT token in Authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log(`❌ Missing or invalid Authorization header`);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Authentication required - missing token',
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Decode JWT to get user ID (simple base64 decode of payload)
     let userId: string;
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        throw new Error('Invalid JWT format');
+    
+    // Callback action doesn't require authentication (called by Google)
+    if (action === 'callback') {
+      const state = url.searchParams.get('state');
+      if (!state) {
+        console.log(`❌ Missing state parameter in callback`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing state parameter',
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
       }
-      
-      const payload = JSON.parse(atob(parts[1]));
-      userId = payload.sub;
-      
-      if (!userId) {
-        throw new Error('No user ID in token');
+      userId = state;
+      console.log(`👤 User ID from state: ${userId}`);
+    } else {
+      // For start and exchange actions, require authentication
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log(`❌ Missing or invalid Authorization header`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Authentication required - missing token',
+          }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
       }
+
+      const token = authHeader.replace('Bearer ', '');
       
-      console.log(`👤 Authenticated user: ${userId}`);
-    } catch (error) {
-      console.log(`❌ Failed to decode JWT token: ${error.message}`);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Invalid authentication token',
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      // Decode JWT to get user ID (simple base64 decode of payload)
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          throw new Error('Invalid JWT format');
         }
-      );
+        
+        const payload = JSON.parse(atob(parts[1]));
+        userId = payload.sub;
+        
+        if (!userId) {
+          throw new Error('No user ID in token');
+        }
+        
+        console.log(`👤 Authenticated user: ${userId}`);
+      } catch (error) {
+        console.log(`❌ Failed to decode JWT token: ${error.message}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Invalid authentication token',
+          }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
     }
-    console.log(`👤 Authenticated user: ${userId}`);
     
     // Parse additional parameters from body if needed
     let bodyData: any = {};
