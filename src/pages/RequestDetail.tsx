@@ -1459,21 +1459,24 @@ const RequestDetail = () => {
                     </div>
 
                     <div className="space-y-3">
-                      {quotes.filter(q => !q.is_hidden).map((quote) => (
-                        <QuoteCard
-                          key={quote.id}
-                          quote={quote}
-                          isSelected={selectedQuotes.has(quote.id)}
-                          isExpanded={expandedQuotes.has(quote.id)}
-                          onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
-                          onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
-                          onEdit={() => handleEditQuote(quote)}
-                          onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
-                          onDelete={() => handleDeleteQuote(quote.id)}
-                          onSendToEmail={() => handleSendQuoteToEmail(quote)}
-                          generateIFormatDisplay={generateIFormatDisplay}
-                        />
-                      ))}
+                      {quotes.filter(q => !q.is_hidden).map((quote) => {
+                        console.log('Rendering quote:', quote); // Debug log
+                        return (
+                          <QuoteCard
+                            key={quote.id}
+                            quote={quote}
+                            isSelected={selectedQuotes.has(quote.id)}
+                            isExpanded={expandedQuotes.has(quote.id)}
+                            onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
+                            onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
+                            onEdit={() => handleEditQuote(quote)}
+                            onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
+                            onDelete={() => handleDeleteQuote(quote.id)}
+                            onSendToEmail={() => handleSendQuoteToEmail(quote)}
+                            generateIFormatDisplay={generateIFormatDisplay}
+                          />
+                        );
+                      })}
                     </div>
 
                     {quotes.filter(q => q.is_hidden).length > 0 && (
