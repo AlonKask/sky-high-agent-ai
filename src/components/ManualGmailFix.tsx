@@ -8,8 +8,13 @@ import { useAuth } from '@/hooks/useAuth';
 export const ManualGmailFix = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { connectGmail, refreshStatus } = useGmailIntegration();
+  const { connectGmail, refreshStatus, authStatus } = useGmailIntegration();
   const { user } = useAuth();
+
+  // Don't render if Gmail is already connected or still loading
+  if (authStatus.isLoading || authStatus.isConnected) {
+    return null;
+  }
 
   const handleGmailConnection = async () => {
     if (!user) return;
