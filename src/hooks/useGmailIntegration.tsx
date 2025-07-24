@@ -66,12 +66,23 @@ export const useGmailIntegration = () => {
 
   // Connect to Gmail
   const connectGmail = useCallback(async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to connect Gmail",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
+      console.log('Starting Gmail OAuth for user:', user.id);
+      
       // Get authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
         body: { 
           action: 'start',
-          userId: user?.id
+          userId: user.id
         },
         headers: {
           'Content-Type': 'application/json'

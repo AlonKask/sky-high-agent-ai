@@ -40,6 +40,12 @@ serve(async (req) => {
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
       const userId = bodyData.userId; // Get userId from request body
       
+      console.log('Starting OAuth flow for user:', userId);
+      
+      if (!userId) {
+        throw new Error('User ID is required for OAuth flow');
+      }
+      
       const scopes = [
         'https://www.googleapis.com/auth/gmail.readonly',
         'https://www.googleapis.com/auth/gmail.send',
@@ -54,7 +60,9 @@ serve(async (req) => {
         `response_type=code&` +
         `access_type=offline&` +
         `prompt=consent&` +
-        `state=${encodeURIComponent(userId || '')}`;
+        `state=${encodeURIComponent(userId)}`;
+
+      console.log('Generated auth URL with state:', userId);
 
       return new Response(
         JSON.stringify({ authUrl }),
@@ -70,6 +78,8 @@ serve(async (req) => {
       const error = url.searchParams.get('error');
       const state = url.searchParams.get('state'); // userId passed as state
 
+      console.log('OAuth callback received - code:', !!code, 'state:', state, 'error:', error);
+
       if (error) {
         return new Response(
           `<html><body><h1>Authentication Error</h1><p>${error}</p><script>window.close();</script></body></html>`,
@@ -79,6 +89,10 @@ serve(async (req) => {
 
       if (!code) {
         throw new Error('No authorization code received');
+      }
+
+      if (!state) {
+        console.error('No state parameter received - user ID missing');
       }
 
       console.log('OAuth callback received, exchanging code for tokens...');
@@ -123,6 +137,8 @@ serve(async (req) => {
 
       // Store tokens directly if we have a userId from state
       let storedSuccessfully = false;
+      let storageError = null;
+      
       if (state) {
         try {
           console.log(`Storing tokens for user: ${state}`);
@@ -139,13 +155,18 @@ serve(async (req) => {
 
           if (updateError) {
             console.error('Error storing tokens:', updateError);
+            storageError = updateError.message;
           } else {
             storedSuccessfully = true;
             console.log(`Gmail tokens stored successfully for user: ${userInfo.email}`);
           }
         } catch (error) {
           console.error('Error storing tokens:', error);
+          storageError = error.message;
         }
+      } else {
+        console.error('Cannot store tokens: no user ID provided in state parameter');
+        storageError = 'User ID missing from OAuth state';
       }
 
       // Return success page that notifies parent window
@@ -175,7 +196,10 @@ serve(async (req) => {
                   type: 'gmail_auth_success',
                   success: ${storedSuccessfully},
                   userEmail: "${userInfo.email}",
-                  message: '${storedSuccessfully ? 'Gmail connected successfully' : 'Gmail connected, please complete setup'}'
+                  message: '${storedSuccessfully ? 'Gmail connected successfully' : 'Gmail connected, please complete setup'}',
+                  error: ${storageError ? `"${storageError}"` : 'null'},
+                  code: "${code}",
+                  state: "${state || ''}"
                 }, '*');
                 
                 setTimeout(() => {
