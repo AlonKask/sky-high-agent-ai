@@ -15,41 +15,50 @@ serve(async (req) => {
   }
 
   try {
+    // Use supabase client with anon key and request authorization header
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
     );
 
-    // Parse action from URL params or request body
+    // Parse action from URL params
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const action = url.searchParams.get('action') || 'start';
     
-    // Simplified request body parsing
+    // Get user from auth context instead of request body
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    
+    if (authError || !user) {
+      console.log(`❌ Authentication required. Error: ${authError?.message || 'No user found'}`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Authentication required',
+          details: authError?.message 
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const userId = user.id;
+    console.log(`👤 Authenticated user: ${userId}`);
+    
+    // Parse additional parameters from body if needed
     let bodyData: any = {};
-    let userId: string | null = null;
-    
     if (req.method === 'POST') {
       try {
-        // Log all request details for debugging
-        console.log(`📊 Request details:`, {
-          method: req.method,
-          url: req.url,
-          headers: Object.fromEntries(req.headers.entries()),
-          hasBody: req.body !== null
-        });
-        
         const bodyText = await req.text();
-        console.log(`📥 Raw request body length: ${bodyText.length}, content: "${bodyText}"`);
-        
         if (bodyText.trim()) {
           bodyData = JSON.parse(bodyText);
-          console.log(`📋 Parsed body data:`, bodyData);
-          
-          // Extract userId from various possible formats
-          userId = bodyData.userId || bodyData.user_id || bodyData.id || null;
-          console.log(`👤 Extracted userId: ${userId}`);
-        } else {
-          console.log(`⚠️ Empty request body received`);
+          console.log(`📋 Additional body data:`, bodyData);
         }
       } catch (error) {
         console.error(`❌ Error parsing request body:`, error);
@@ -65,14 +74,11 @@ serve(async (req) => {
           }
         );
       }
-    } else {
-      console.log(`📝 Non-POST request, method: ${req.method}`);
     }
 
-    const finalAction = action || bodyData.action || 'start';
-    console.log(`🎯 Final action: ${finalAction}, UserId: ${userId}, Body keys: [${Object.keys(bodyData).join(', ')}]`);
+    console.log(`🎯 Action: ${action}, UserId: ${userId}`);
 
-    if (finalAction === 'start') {
+    if (action === 'start') {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
@@ -88,26 +94,6 @@ serve(async (req) => {
           JSON.stringify({ success: false, error }),
           { 
             status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-      
-      if (!userId) {
-        const error = 'User ID is required for OAuth flow';
-        console.error(`❌ ${error}. Body data:`, bodyData);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error,
-            debug: {
-              bodyKeys: Object.keys(bodyData),
-              bodyData: bodyData,
-              extractedUserId: userId
-            }
-          }),
-          { 
-            status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
@@ -139,7 +125,7 @@ serve(async (req) => {
         }
       );
 
-    } else if (finalAction === 'callback') {
+    } else if (action === 'callback') {
       // Handle OAuth callback and store tokens directly
       const code = url.searchParams.get('code');
       const error = url.searchParams.get('error');
@@ -389,7 +375,7 @@ serve(async (req) => {
         status: 200,
       });
 
-    } else if (finalAction === 'exchange') {
+    } else if (action === 'exchange') {
       // Exchange authorization code for tokens (called from frontend)
       const { code } = bodyData;
       const requestUserId = userId || bodyData.userId;
@@ -495,7 +481,7 @@ serve(async (req) => {
       );
     }
 
-    const error = `Invalid action parameter: ${finalAction}`;
+    const error = `Invalid action parameter: ${action}`;
     console.error(`❌ ${error}`);
     return new Response(
       JSON.stringify({ success: false, error }),
