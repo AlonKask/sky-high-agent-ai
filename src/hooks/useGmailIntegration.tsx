@@ -69,7 +69,10 @@ export const useGmailIntegration = () => {
     try {
       // Get authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
-        body: { action: 'start' }
+        body: { action: 'start' },
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (error) throw error;
@@ -95,6 +98,9 @@ export const useGmailIntegration = () => {
                   action: 'exchange',
                   code: event.data.code,
                   userId: user?.id
+                },
+                headers: {
+                  'Content-Type': 'application/json'
                 }
               });
 
@@ -213,6 +219,9 @@ export const useGmailIntegration = () => {
           userEmail: prefs.gmail_user_email,
           accessToken: prefs.gmail_access_token,
           refreshToken: prefs.gmail_refresh_token
+        },
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 

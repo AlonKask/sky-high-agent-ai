@@ -18,13 +18,26 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Parse action from URL params or request body
     const url = new URL(req.url);
-    const action = url.searchParams.get('action') || 'start'; // Default to 'start' if no action provided
+    const action = url.searchParams.get('action');
+    
+    let bodyData: any = {};
+    if (req.method === 'POST') {
+      try {
+        bodyData = await req.json();
+      } catch (error) {
+        console.error('Error parsing request body:', error);
+      }
+    }
 
-    if (action === 'start') {
+    const finalAction = action || bodyData.action || 'start';
+    console.log('Gmail OAuth action:', finalAction);
+
+    if (finalAction === 'start') {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/supabase/functions/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
       
       const scopes = [
         'https://www.googleapis.com/auth/gmail.readonly',
@@ -48,7 +61,7 @@ serve(async (req) => {
         }
       );
 
-    } else if (action === 'callback') {
+    } else if (finalAction === 'callback') {
       // Handle OAuth callback
       const code = url.searchParams.get('code');
       const error = url.searchParams.get('error');
@@ -67,7 +80,7 @@ serve(async (req) => {
       // Exchange code for tokens
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/supabase/functions/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -109,53 +122,31 @@ serve(async (req) => {
               .success { color: #059669; font-size: 24px; margin-bottom: 20px; }
               .info { color: #374151; margin-bottom: 20px; }
               .loading { color: #3B82F6; }
-              .code { background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; }
             </style>
           </head>
           <body>
             <div class="container">
               <h1 class="success">✅ Gmail Connected Successfully!</h1>
               <p class="info">Email: <strong>${userInfo.email}</strong></p>
-              <p class="loading">Storing credentials and starting sync...</p>
-              
-              <div style="margin-top: 30px;">
-                <p>Please copy this authorization code and paste it in your application:</p>
-                <div class="code" id="authCode">Loading...</div>
-                <button onclick="copyCode()" style="margin-top: 10px; padding: 8px 16px; background: #3B82F6; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy Code</button>
-              </div>
+              <p class="loading">Closing window and starting sync...</p>
             </div>
             
             <script>
-              const tokens = ${JSON.stringify(tokens)};
-              const userInfo = ${JSON.stringify(userInfo)};
-              const authCode = "${code}";
-              
-              document.getElementById('authCode').textContent = authCode;
-              
-              function copyCode() {
-                navigator.clipboard.writeText(authCode).then(() => {
-                  alert('Code copied to clipboard!');
-                });
-              }
-              
               // Notify parent window with the authorization code
               if (window.opener) {
                 window.opener.postMessage({
                   type: 'gmail_auth_success',
-                  code: authCode,
-                  tokens: tokens,
-                  userInfo: userInfo
+                  code: "${code}",
+                  userInfo: ${JSON.stringify(userInfo)}
                 }, '*');
                 
                 setTimeout(() => {
                   window.close();
-                }, 3000);
+                }, 2000);
               } else {
-                // If no parent window, show manual instructions
-                document.querySelector('.loading').innerHTML = 'Window will close automatically. If it doesn\\'t, you can close it manually.';
                 setTimeout(() => {
                   window.close();
-                }, 10000);
+                }, 5000);
               }
             </script>
           </body>
@@ -167,9 +158,9 @@ serve(async (req) => {
         status: 200,
       });
 
-    } else if (action === 'exchange') {
-      // Exchange stored authorization code for tokens (called from frontend)
-      const { code, userId } = await req.json();
+    } else if (finalAction === 'exchange') {
+      // Exchange authorization code for tokens (called from frontend)
+      const { code, userId } = bodyData;
 
       if (!code || !userId) {
         throw new Error('Missing code or userId');
@@ -177,7 +168,7 @@ serve(async (req) => {
 
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/supabase/functions/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -192,7 +183,8 @@ serve(async (req) => {
       });
 
       if (!tokenResponse.ok) {
-        throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+        const errorText = await tokenResponse.text();
+        throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
       }
 
       const tokens = await tokenResponse.json();
@@ -204,8 +196,8 @@ serve(async (req) => {
 
       const userInfo = await userInfoResponse.json();
 
-      // Store tokens securely (you might want to encrypt these)
-      await supabaseClient
+      // Store tokens in user preferences
+      const { error: updateError } = await supabaseClient
         .from('user_preferences')
         .upsert({
           user_id: userId,
@@ -215,6 +207,13 @@ serve(async (req) => {
           gmail_user_email: userInfo.email,
           updated_at: new Date().toISOString()
         });
+
+      if (updateError) {
+        console.error('Error storing tokens:', updateError);
+        throw new Error('Failed to store Gmail credentials');
+      }
+
+      console.log(`Gmail connected successfully for user: ${userInfo.email}`);
 
       return new Response(
         JSON.stringify({
