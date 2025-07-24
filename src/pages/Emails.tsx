@@ -1428,9 +1428,102 @@ Best regards,
           </div>
         )}
 
-        {/* Collapsed sidebar content */}
+        {/* Collapsed sidebar content - folder icons from top to bottom */}
         {isSidebarCollapsed && (
-          <div className="p-2 pt-16">
+          <div className="p-2 pt-16 flex flex-col h-full">
+            {/* Folder icons arranged vertically from top to bottom */}
+            <div className="flex flex-col space-y-2">
+              {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
+                const IconComponent = getIconForFolder(folder);
+                const unreadCount = emails.filter(email => {
+                  if (!email.isRead) {
+                    if (folder === 'inbox') {
+                      return !email.labels || email.labels.includes('INBOX');
+                    } else {
+                      const folderLabelMap: Record<string, string> = {
+                        'sent': 'SENT',
+                        'drafts': 'DRAFT', 
+                        'spam': 'SPAM',
+                        'trash': 'TRASH'
+                      };
+                      return email.labels?.includes(folderLabelMap[folder]);
+                    }
+                  }
+                  return false;
+                }).length;
+                
+                return (
+                  <div key={folder} className="relative">
+                    <Button
+                      variant={selectedFolder === folder ? "secondary" : "ghost"}
+                      size="sm"
+                      className="w-8 h-8 p-0 flex items-center justify-center"
+                      onClick={async () => {
+                        setSelectedEmail(null);
+                        setSelectedFolder(folder);
+                        if (isAuthenticated) {
+                          await loadEmailsFromDB();
+                          await fetchEmails(authToken, folder);
+                        }
+                      }}
+                      disabled={isSyncing}
+                      title={folder.charAt(0).toUpperCase() + folder.slice(1)}
+                    >
+                      <IconComponent className="h-4 w-4" />
+                      {selectedFolder === folder && isSyncing && (
+                        <RefreshCw className="h-2 w-2 animate-spin absolute -top-1 -right-1" />
+                      )}
+                    </Button>
+                    {unreadCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+              
+              {/* Show any additional dynamic folders */}
+              {emails.length > 0 && (
+                <>
+                  {Array.from(new Set(
+                    emails.flatMap(email => email.labels || [])
+                      .filter(label => !['INBOX', 'SENT', 'DRAFT', 'SPAM', 'TRASH', 'UNREAD', 'STARRED'].includes(label))
+                  )).slice(0, 3).map((customLabel) => {
+                    const IconComponent = getIconForFolder(customLabel);
+                    const folderName = customLabel.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const displayName = customLabel.charAt(0).toUpperCase() + customLabel.slice(1).toLowerCase();
+                    
+                    return (
+                      <Button
+                        key={customLabel}
+                        variant={selectedFolder === folderName ? "secondary" : "ghost"}
+                        size="sm"
+                        className="w-8 h-8 p-0 flex items-center justify-center"
+                        onClick={async () => {
+                          setSelectedEmail(null);
+                          setSelectedFolder(folderName);
+                          if (isAuthenticated) {
+                            await loadEmailsFromDB();
+                          }
+                        }}
+                        disabled={isSyncing}
+                        title={displayName}
+                      >
+                        <IconComponent className="h-4 w-4" />
+                      </Button>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+            
+            <div className="flex-1"></div>
+            
+            {/* Quick action buttons at bottom */}
             <div className="space-y-2">
               <Button
                 variant="ghost"
