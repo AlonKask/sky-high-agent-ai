@@ -38,6 +38,7 @@ serve(async (req) => {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
+      const userId = bodyData.userId; // Get userId from request body
       
       const scopes = [
         'https://www.googleapis.com/auth/gmail.readonly',
@@ -45,13 +46,15 @@ serve(async (req) => {
         'https://www.googleapis.com/auth/userinfo.email'
       ].join(' ');
 
+      // Include userId as state parameter so we can store tokens directly in callback
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `scope=${encodeURIComponent(scopes)}&` +
         `response_type=code&` +
         `access_type=offline&` +
-        `prompt=consent`;
+        `prompt=consent&` +
+        `state=${encodeURIComponent(userId || '')}`;
 
       return new Response(
         JSON.stringify({ authUrl }),
@@ -62,9 +65,10 @@ serve(async (req) => {
       );
 
     } else if (finalAction === 'callback') {
-      // Handle OAuth callback
+      // Handle OAuth callback and store tokens directly
       const code = url.searchParams.get('code');
       const error = url.searchParams.get('error');
+      const state = url.searchParams.get('state'); // userId passed as state
 
       if (error) {
         return new Response(
@@ -76,6 +80,8 @@ serve(async (req) => {
       if (!code) {
         throw new Error('No authorization code received');
       }
+
+      console.log('OAuth callback received, exchanging code for tokens...');
 
       // Exchange code for tokens
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
@@ -95,10 +101,13 @@ serve(async (req) => {
       });
 
       if (!tokenResponse.ok) {
-        throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+        const errorText = await tokenResponse.text();
+        console.error('Token exchange failed:', errorText);
+        throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
       }
 
       const tokens = await tokenResponse.json();
+      console.log('Tokens obtained successfully');
 
       // Get user info
       const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -110,8 +119,36 @@ serve(async (req) => {
       }
 
       const userInfo = await userInfoResponse.json();
+      console.log(`User info obtained for: ${userInfo.email}`);
 
-      // Return success page that handles the OAuth completion
+      // Store tokens directly if we have a userId from state
+      let storedSuccessfully = false;
+      if (state) {
+        try {
+          console.log(`Storing tokens for user: ${state}`);
+          const { error: updateError } = await supabaseClient
+            .from('user_preferences')
+            .upsert({
+              user_id: state,
+              gmail_access_token: tokens.access_token,
+              gmail_refresh_token: tokens.refresh_token,
+              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+              gmail_user_email: userInfo.email,
+              updated_at: new Date().toISOString()
+            });
+
+          if (updateError) {
+            console.error('Error storing tokens:', updateError);
+          } else {
+            storedSuccessfully = true;
+            console.log(`Gmail tokens stored successfully for user: ${userInfo.email}`);
+          }
+        } catch (error) {
+          console.error('Error storing tokens:', error);
+        }
+      }
+
+      // Return success page that notifies parent window
       const successPage = `
         <html>
           <head>
@@ -128,16 +165,17 @@ serve(async (req) => {
             <div class="container">
               <h1 class="success">✅ Gmail Connected Successfully!</h1>
               <p class="info">Email: <strong>${userInfo.email}</strong></p>
-              <p class="loading">Closing window and starting sync...</p>
+              <p class="loading">Closing window and completing setup...</p>
             </div>
             
             <script>
-              // Notify parent window with the authorization code
+              // Notify parent window of successful connection
               if (window.opener) {
                 window.opener.postMessage({
                   type: 'gmail_auth_success',
-                  code: "${code}",
-                  userInfo: ${JSON.stringify(userInfo)}
+                  success: ${storedSuccessfully},
+                  userEmail: "${userInfo.email}",
+                  message: '${storedSuccessfully ? 'Gmail connected successfully' : 'Gmail connected, please complete setup'}'
                 }, '*');
                 
                 setTimeout(() => {

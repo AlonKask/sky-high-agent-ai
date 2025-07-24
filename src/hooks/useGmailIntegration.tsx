@@ -69,7 +69,10 @@ export const useGmailIntegration = () => {
     try {
       // Get authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
-        body: { action: 'start' },
+        body: { 
+          action: 'start',
+          userId: user?.id
+        },
         headers: {
           'Content-Type': 'application/json'
         }
@@ -92,46 +95,51 @@ export const useGmailIntegration = () => {
             window.removeEventListener('message', handleMessage);
 
             try {
-              console.log('OAuth success, processing token exchange...', event.data);
+              console.log('OAuth success received:', event.data);
               
-              // Exchange the authorization code for tokens and store them
-              const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
-                body: {
-                  action: 'exchange',
-                  code: event.data.code,
-                  userId: user?.id
-                },
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              });
-
-              console.log('Token exchange response:', { exchangeData, exchangeError });
-
-              if (exchangeError) {
-                console.error('Exchange error details:', exchangeError);
-                throw exchangeError;
-              }
-
-              if (exchangeData?.success) {
-                console.log('Token exchange successful, refreshing status...');
+              if (event.data.success) {
+                console.log('Gmail connected successfully, refreshing status...');
                 await checkGmailStatus();
                 
                 toast({
                   title: "Gmail Connected",
-                  description: `Successfully connected ${exchangeData.userEmail}`,
+                  description: `Successfully connected ${event.data.userEmail}`,
+                });
+              } else {
+                // Fallback: try exchange if tokens weren't stored during callback
+                console.log('Tokens not stored during callback, attempting manual exchange...');
+                
+                const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
+                  body: {
+                    action: 'exchange',
+                    code: event.data.code,
+                    userId: user?.id
+                  },
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
                 });
 
-                // Note: Initial sync will be triggered separately
-              } else {
-                throw new Error(exchangeData?.error || 'Token exchange failed');
+                if (exchangeError) {
+                  throw exchangeError;
+                }
+
+                if (exchangeData?.success) {
+                  await checkGmailStatus();
+                  toast({
+                    title: "Gmail Connected",
+                    description: `Successfully connected ${exchangeData.userEmail}`,
+                  });
+                } else {
+                  throw new Error(exchangeData?.error || 'Token exchange failed');
+                }
               }
 
             } catch (error) {
-              console.error('Error after OAuth success:', error);
+              console.error('Error processing OAuth success:', error);
               toast({
                 title: "Connection Error",
-                description: "Gmail connected but setup failed. Please try again.",
+                description: "Gmail authentication completed but setup failed. Please try again.",
                 variant: "destructive"
               });
             }
