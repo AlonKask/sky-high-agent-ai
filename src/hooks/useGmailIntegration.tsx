@@ -69,7 +69,7 @@ export const useGmailIntegration = () => {
     try {
       // Get authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
-        method: 'GET'
+        body: { action: 'start' }
       });
 
       if (error) throw error;
@@ -207,7 +207,7 @@ export const useGmailIntegration = () => {
         throw new Error('Gmail tokens not found');
       }
 
-      const { data, error } = await supabase.functions.invoke('auto-gmail-sync', {
+      const { data, error } = await supabase.functions.invoke('scheduled-gmail-sync', {
         body: {
           userId: user.id,
           userEmail: prefs.gmail_user_email,

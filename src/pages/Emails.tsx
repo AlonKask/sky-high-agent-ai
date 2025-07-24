@@ -220,13 +220,22 @@ const Emails = () => {
       loadEmailsFromDB();
       
       // Set up periodic sync every 5 minutes
-      const intervalId = setInterval(() => {
-        loadEmailsFromDB();
+      const intervalId = setInterval(async () => {
+        if (authStatus.isConnected) {
+          try {
+            await triggerSync();
+            await loadEmailsFromDB();
+          } catch (error) {
+            console.error('Background sync failed:', error);
+          }
+        } else {
+          loadEmailsFromDB();
+        }
       }, 5 * 60 * 1000);
       
       return () => clearInterval(intervalId);
     }
-  }, [user]);
+  }, [user, authStatus.isConnected, triggerSync]);
 
   // Folder definitions
   const folders = [
@@ -312,7 +321,10 @@ const Emails = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={triggerSync}
+                      onClick={async () => {
+                        await triggerSync();
+                        await loadEmailsFromDB();
+                      }}
                       className="text-xs px-2 py-1 h-6"
                     >
                       Sync Now
