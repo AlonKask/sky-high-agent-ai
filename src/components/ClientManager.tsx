@@ -482,8 +482,17 @@ const ClientManager = () => {
             {/* Grid layout for all potential clients */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
               {unsyncedClients.map((client, index) => (
-                <div key={index} className="flex flex-col p-3 bg-white dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 shadow-sm hover:shadow-md transition-all duration-200">
-                  <div className="flex-1 mb-3">
+                <div key={index} className="relative flex flex-col p-3 bg-white dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 shadow-sm hover:shadow-md transition-all duration-200">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleMarkAsNotClient(client.email)}
+                    className="absolute top-2 right-2 h-6 w-6 p-0 text-green-600 hover:text-green-800 hover:bg-green-100 dark:text-green-400 dark:hover:text-green-200 dark:hover:bg-green-800"
+                    title="Mark as not a client"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                  <div className="flex-1 pr-6">
                     <p className="font-medium text-green-900 dark:text-green-100 truncate" title={client.email}>
                       {client.email.split('@')[0]}
                     </p>
@@ -494,15 +503,6 @@ const ClientManager = () => {
                       From {client.source}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleMarkAsNotClient(client.email)}
-                    className="w-full border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-800 h-8 p-0"
-                    title="Mark as not a client"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               ))}
             </div>
