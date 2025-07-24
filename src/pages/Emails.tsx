@@ -302,53 +302,9 @@ const Emails = () => {
         </Button>
 
         <div className="p-4">
-          {/* Gmail Integration Status */}
+          {/* Manual Gmail Fix */}
           {!isSidebarCollapsed && (
-            <div className="mb-4 space-y-3">
-              <div className="p-3 bg-muted rounded-lg">
-                <h3 className="text-sm font-medium mb-2">Gmail Integration</h3>
-                {authStatus.isLoading ? (
-                  <p className="text-xs text-muted-foreground">Checking connection...</p>
-                ) : authStatus.isConnected ? (
-                  <div className="space-y-2">
-                    <p className="text-xs text-green-600 dark:text-green-400">
-                      ✓ Connected: {authStatus.userEmail}
-                    </p>
-                    {authStatus.lastSync && (
-                      <p className="text-xs text-muted-foreground">
-                        Last sync: {authStatus.lastSync.toLocaleString()}
-                      </p>
-                    )}
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          await triggerSync();
-                          await loadEmailsFromDB();
-                        }}
-                        className="text-xs px-2 py-1 h-6"
-                      >
-                        Sync Now
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={disconnectGmail}
-                        className="text-xs px-2 py-1 h-6"
-                      >
-                        Disconnect
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      Use the Fix Gmail Connection button below to connect
-                    </p>
-                  </div>
-                )}
-              </div>
+            <div className="mb-4">
               <ManualGmailFix />
             </div>
           )}
