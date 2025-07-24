@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { EmailTemplateEditor } from "@/components/EmailTemplateEditor";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1922,70 +1923,37 @@ const RequestDetail = () => {
               </DialogContent>
             </Dialog>
 
-            {/* Email Preview Dialog */}
+            {/* Email Template Editor Dialog */}
             <Dialog open={showSendQuoteDialog} onOpenChange={setShowSendQuoteDialog}>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Mail className="h-5 w-5 text-primary" />
-                    Email Preview - {emailPreview.selectedQuotesList.length} Quote{emailPreview.selectedQuotesList.length > 1 ? 's' : ''}
+                    Email Template Editor - {emailPreview.selectedQuotesList.length} Quote{emailPreview.selectedQuotesList.length > 1 ? 's' : ''}
                   </DialogTitle>
                   <DialogDescription>
-                    Review and edit the email before sending to your client
+                    Create beautiful, professional emails using our templates or compose from scratch
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>To</Label>
-                      <Select value={emailPreview.to} onValueChange={(value) => setEmailPreview(prev => ({ ...prev, to: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select email address" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={client?.email}>{client?.email}</SelectItem>
-                          {client?.email !== emailContent.recipient && emailContent.recipient && (
-                            <SelectItem value={emailContent.recipient}>{emailContent.recipient}</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Subject</Label>
-                      <Input
-                        value={emailPreview.subject}
-                        onChange={(e) => setEmailPreview(prev => ({ ...prev, subject: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Email Content</Label>
-                    <Textarea
-                      value={emailPreview.body}
-                      onChange={(e) => setEmailPreview(prev => ({ ...prev, body: e.target.value }))}
-                      rows={20}
-                      className="font-mono text-sm"
-                    />
-                  </div>
-
-                  <div className="flex gap-3 justify-end pt-4 border-t">
-                    <Button 
-                      variant="outline"
-                      onClick={() => setShowSendQuoteDialog(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleSendEmailFromPreview}
-                      disabled={!emailPreview.to || !emailPreview.subject}
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Email
-                    </Button>
-                  </div>
-                </div>
+                <EmailTemplateEditor
+                  initialTo={emailPreview.to || client?.email}
+                  initialSubject={emailPreview.subject}
+                  initialBody={emailPreview.body}
+                  clientName={client?.first_name || client?.name?.split(' ')[0] || ''}
+                  clientEmail={client?.email}
+                  quotes={emailPreview.selectedQuotesList}
+                  onSend={(emailData) => {
+                    setEmailPreview(prev => ({
+                      ...prev,
+                      to: emailData.to,
+                      subject: emailData.subject,
+                      body: emailData.body
+                    }));
+                    handleSendEmailFromPreview();
+                  }}
+                  onCancel={() => setShowSendQuoteDialog(false)}
+                />
               </DialogContent>
             </Dialog>
 
