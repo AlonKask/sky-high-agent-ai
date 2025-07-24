@@ -1172,9 +1172,9 @@ Best regards,
   });
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Collapsible Sidebar */}
-      <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative`}>
+      <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative flex-shrink-0`}>
         {/* Collapse/Expand Toggle */}
         <Button
           variant="ghost"
@@ -1437,12 +1437,12 @@ Best regards,
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-w-0 overflow-hidden">
         {/* Email List */}
         {showInboxColumn && (
-        <div className={`${(isInboxMaximized || !showEmailContent) ? 'flex-1' : 'w-96'} border-r bg-card/50`}>
+        <div className={`${(isInboxMaximized || !showEmailContent) ? 'flex-1' : 'w-96'} border-r bg-card/50 flex flex-col overflow-hidden`}>
           {/* Email List Header */}
-          <div className="p-4 border-b bg-background/50 backdrop-blur-sm">
+          <div className="p-4 border-b bg-background/50 backdrop-blur-sm flex-shrink-0">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-lg">
                 {selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1)}
@@ -1472,7 +1472,7 @@ Best regards,
           </div>
 
           {/* Email List Content */}
-          <ScrollArea className="h-[calc(100vh-140px)]">
+          <ScrollArea className="flex-1 min-h-0">
             {filteredEmails.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 {!isAuthenticated ? (

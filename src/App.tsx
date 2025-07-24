@@ -39,16 +39,15 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <SidebarProvider>
-              <div className="min-h-screen flex w-full">
+              <div className="min-h-screen flex w-full overflow-hidden">
                 <AppSidebar />
                 
-                <div className="flex-1 flex flex-col relative">
+                <div className="flex-1 flex flex-col relative min-w-0">
                   {/* Header with sidebar trigger */}
-                  <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                    <div className="container flex h-14 items-center">
-                      
-                      <div className="flex flex-1 items-center justify-between">
-                        <div className="flex items-center justify-center w-full">
+                  <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shrink-0">
+                    <div className="w-full px-4 flex h-14 items-center overflow-hidden">
+                      <div className="flex flex-1 items-center justify-center min-w-0">
+                        <div className="w-full max-w-none overflow-x-auto">
                           <WorldClock variant="compact" />
                         </div>
                       </div>
@@ -56,7 +55,7 @@ const App = () => {
                   </header>
 
                   {/* Main content */}
-                  <main className="flex-1 overflow-auto">
+                  <main className="flex-1 overflow-auto min-h-0">
                     <Routes>
                       <Route path="/auth" element={<Auth />} />
                       <Route path="/" element={<Index />} />
