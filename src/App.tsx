@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AIAssistantChat } from "@/components/AIAssistantChat";
-import WorldClock from "@/components/WorldClock";
 import AgentProfile from "@/components/AgentProfile";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -47,14 +46,11 @@ const App = () => {
                 <div className="flex-1 flex flex-col relative min-w-0">
                   {/* Header with sidebar trigger */}
                   <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shrink-0">
-                    <div className="w-full px-4 flex h-14 items-center overflow-hidden">
-                      <div className="flex flex-1 items-center justify-between min-w-0">
-                        <div className="flex-1 max-w-none overflow-x-auto">
-                          <WorldClock variant="compact" />
+                      <div className="w-full px-4 flex h-14 items-center overflow-hidden">
+                        <div className="flex flex-1 items-center justify-end min-w-0">
+                          <AgentProfile />
                         </div>
-                        <AgentProfile />
                       </div>
-                    </div>
                   </header>
 
                   {/* Main content */}

@@ -210,31 +210,20 @@ const Emails = () => {
     }
   };
 
-  // Sync emails (placeholder - implement with your email sync logic)
-  const syncEmails = async () => {
-    setSyncing(true);
-    try {
-      toast({
-        title: "Sync Started",
-        description: "Email sync functionality needs to be implemented",
-      });
+  // Initialize automatic email syncing when user is authenticated
+  useEffect(() => {
+    if (user) {
+      // Start background email sync
+      loadEmailsFromDB();
       
-      // TODO: Implement actual email sync
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Set up periodic sync every 5 minutes
+      const intervalId = setInterval(() => {
+        loadEmailsFromDB();
+      }, 5 * 60 * 1000);
       
-      await loadEmailsFromDB();
-      
-    } catch (error) {
-      console.error('Sync error:', error);
-      toast({
-        title: "Sync Failed",
-        description: "Failed to sync emails",
-        variant: "destructive"
-      });
-    } finally {
-      setSyncing(false);
+      return () => clearInterval(intervalId);
     }
-  };
+  }, [user]);
 
   // Folder definitions
   const folders = [
@@ -300,22 +289,11 @@ const Emails = () => {
         </Button>
 
         <div className="p-4">
-          {/* Header */}
+          {/* Header - Email sync happens automatically */}
           <div className="flex items-center gap-2 mb-6">
             <Mail className="h-6 w-6 text-primary" />
             {!isSidebarCollapsed && <h1 className="text-xl font-bold">Emails</h1>}
           </div>
-
-          {/* Sync Button */}
-          <Button
-            onClick={syncEmails}
-            disabled={syncing}
-            className={`w-full mb-4 ${isSidebarCollapsed ? 'px-2' : ''}`}
-            variant="outline"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''} ${!isSidebarCollapsed ? 'mr-2' : ''}`} />
-            {!isSidebarCollapsed && (syncing ? 'Syncing...' : 'Sync')}
-          </Button>
 
           {/* Folders */}
           <div className="space-y-1">
