@@ -175,7 +175,6 @@ serve(async (req) => {
           console.log(`Storing tokens for user: ${state}`);
           
           // Use upsert to handle both insert and update cases
-          console.log(`Storing Gmail tokens for user: ${state}`);
           const { error: upsertError } = await supabaseClient
             .from('user_preferences')
             .upsert({
@@ -195,6 +194,28 @@ serve(async (req) => {
           } else {
             storedSuccessfully = true;
             console.log(`Gmail tokens stored successfully for user: ${userInfo.email}`);
+            
+            // Trigger immediate email sync after successful token storage
+            try {
+              console.log(`Triggering initial email sync for user: ${state}`);
+              const syncResponse = await supabaseClient.functions.invoke('scheduled-gmail-sync', {
+                body: {
+                  userId: state,
+                  userEmail: userInfo.email,
+                  accessToken: tokens.access_token,
+                  refreshToken: tokens.refresh_token
+                }
+              });
+              
+              if (syncResponse.error) {
+                console.error('Initial sync failed:', syncResponse.error);
+              } else {
+                console.log('Initial sync completed successfully');
+              }
+            } catch (syncError) {
+              console.error('Error triggering initial sync:', syncError);
+              // Don't fail the OAuth flow for sync errors
+            }
           }
         } catch (error) {
           console.error('Error storing tokens:', error);
@@ -315,6 +336,28 @@ serve(async (req) => {
       }
 
       console.log(`Gmail connected successfully for user: ${userInfo.email}`);
+      
+      // Trigger immediate email sync after successful token storage
+      try {
+        console.log(`Triggering initial email sync for user: ${userId}`);
+        const syncResponse = await supabaseClient.functions.invoke('scheduled-gmail-sync', {
+          body: {
+            userId: userId,
+            userEmail: userInfo.email,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token
+          }
+        });
+        
+        if (syncResponse.error) {
+          console.error('Initial sync failed:', syncResponse.error);
+        } else {
+          console.log('Initial sync completed successfully');
+        }
+      } catch (syncError) {
+        console.error('Error triggering initial sync:', syncError);
+        // Don't fail the OAuth flow for sync errors
+      }
 
       return new Response(
         JSON.stringify({

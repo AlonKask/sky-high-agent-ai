@@ -122,13 +122,17 @@ export const useGmailIntegration = () => {
                 
                 toast({
                   title: "Gmail Connected",
-                  description: `Successfully connected ${event.data.userEmail}`,
+                  description: `Successfully connected ${event.data.userEmail}. Syncing emails...`,
                 });
 
-                // Trigger initial email sync after successful connection
+                // The OAuth function now triggers sync automatically, but we can refresh the UI
                 setTimeout(() => {
-                  triggerSync();
-                }, 1000);
+                  checkGmailStatus();
+                  // Dispatch event to refresh email lists across the app
+                  window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
+                    detail: { syncedCount: 0 }
+                  }));
+                }, 2000);
                 
               } else {
                 // Handle different error scenarios
@@ -164,13 +168,17 @@ export const useGmailIntegration = () => {
                     await checkGmailStatus();
                     toast({
                       title: "Gmail Connected",
-                      description: `Successfully connected ${exchangeData.userEmail}`,
+                      description: `Successfully connected ${exchangeData.userEmail}. Syncing emails...`,
                     });
                     
-                    // Trigger initial email sync
+                    // The OAuth function now triggers sync automatically
                     setTimeout(() => {
-                      triggerSync();
-                    }, 1000);
+                      checkGmailStatus();
+                      // Dispatch event to refresh email lists across the app  
+                      window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
+                        detail: { syncedCount: 0 }
+                      }));
+                    }, 2000);
                   } else {
                     throw new Error(exchangeData?.error || 'Manual token exchange failed');
                   }
