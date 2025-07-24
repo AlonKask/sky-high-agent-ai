@@ -69,10 +69,7 @@ export const useGmailIntegration = () => {
     try {
       // Get authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
-        body: {},
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        method: 'GET'
       });
 
       if (error) throw error;
@@ -92,23 +89,36 @@ export const useGmailIntegration = () => {
             window.removeEventListener('message', handleMessage);
 
             try {
-              // The OAuth callback already stored the tokens
-              // Just refresh our status
-              await checkGmailStatus();
-              
-              toast({
-                title: "Gmail Connected",
-                description: `Successfully connected ${event.data.userInfo.email}`,
+              // Exchange the authorization code for tokens and store them
+              const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
+                body: {
+                  action: 'exchange',
+                  code: event.data.code,
+                  userId: user?.id
+                }
               });
 
-              // Trigger initial sync
-              await triggerSync();
+              if (exchangeError) throw exchangeError;
+
+              if (exchangeData?.success) {
+                await checkGmailStatus();
+                
+                toast({
+                  title: "Gmail Connected",
+                  description: `Successfully connected ${exchangeData.userEmail}`,
+                });
+
+                // Trigger initial sync
+                await triggerSync();
+              } else {
+                throw new Error(exchangeData?.error || 'Token exchange failed');
+              }
 
             } catch (error) {
               console.error('Error after OAuth success:', error);
               toast({
                 title: "Connection Error",
-                description: "Gmail connected but sync failed. Please try again.",
+                description: "Gmail connected but setup failed. Please try again.",
                 variant: "destructive"
               });
             }
@@ -125,6 +135,8 @@ export const useGmailIntegration = () => {
             variant: "destructive"
           });
         }
+      } else {
+        throw new Error('No authorization URL received');
       }
 
     } catch (error) {

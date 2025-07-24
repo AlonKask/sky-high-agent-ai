@@ -19,7 +19,7 @@ serve(async (req) => {
     );
 
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const action = url.searchParams.get('action') || 'start'; // Default to 'start' if no action provided
 
     if (action === 'start') {
       // Start OAuth flow - return authorization URL
@@ -98,42 +98,65 @@ serve(async (req) => {
 
       const userInfo = await userInfoResponse.json();
 
-      // Return success page that stores tokens and triggers sync
+      // Return success page that handles the OAuth completion
       const successPage = `
         <html>
           <head>
             <title>Gmail Connected</title>
             <style>
-              body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
-              .success { color: #059669; }
+              body { font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f8f9fa; }
+              .container { max-width: 500px; margin: 0 auto; }
+              .success { color: #059669; font-size: 24px; margin-bottom: 20px; }
+              .info { color: #374151; margin-bottom: 20px; }
               .loading { color: #3B82F6; }
+              .code { background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; }
             </style>
           </head>
           <body>
-            <h1 class="success">Gmail Connected Successfully!</h1>
-            <p>Email: ${userInfo.email}</p>
-            <p class="loading">Starting automatic email sync...</p>
+            <div class="container">
+              <h1 class="success">✅ Gmail Connected Successfully!</h1>
+              <p class="info">Email: <strong>${userInfo.email}</strong></p>
+              <p class="loading">Storing credentials and starting sync...</p>
+              
+              <div style="margin-top: 30px;">
+                <p>Please copy this authorization code and paste it in your application:</p>
+                <div class="code" id="authCode">Loading...</div>
+                <button onclick="copyCode()" style="margin-top: 10px; padding: 8px 16px; background: #3B82F6; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy Code</button>
+              </div>
+            </div>
             
             <script>
-              // Store tokens in localStorage and start sync
               const tokens = ${JSON.stringify(tokens)};
               const userInfo = ${JSON.stringify(userInfo)};
+              const authCode = "${code}";
               
-              localStorage.setItem('gmail_tokens', JSON.stringify(tokens));
-              localStorage.setItem('gmail_user_info', JSON.stringify(userInfo));
+              document.getElementById('authCode').textContent = authCode;
               
-              // Notify parent window
+              function copyCode() {
+                navigator.clipboard.writeText(authCode).then(() => {
+                  alert('Code copied to clipboard!');
+                });
+              }
+              
+              // Notify parent window with the authorization code
               if (window.opener) {
                 window.opener.postMessage({
                   type: 'gmail_auth_success',
+                  code: authCode,
                   tokens: tokens,
                   userInfo: userInfo
                 }, '*');
+                
+                setTimeout(() => {
+                  window.close();
+                }, 3000);
+              } else {
+                // If no parent window, show manual instructions
+                document.querySelector('.loading').innerHTML = 'Window will close automatically. If it doesn\\'t, you can close it manually.';
+                setTimeout(() => {
+                  window.close();
+                }, 10000);
               }
-              
-              setTimeout(() => {
-                window.close();
-              }, 2000);
             </script>
           </body>
         </html>
