@@ -98,11 +98,11 @@ export function AppSidebar() {
     return currentPath.startsWith(path);
   };
 
-  const getNavCls = (path: string) => {
-    return isActive(path) 
-      ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90" 
-      : "hover:bg-accent hover:text-accent-foreground";
-  };
+   const getNavCls = (path: string) => {
+     return isActive(path) 
+       ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
+       : "hover:bg-accent/80 hover:text-accent-foreground hover:scale-105";
+   };
 
   const isCollapsed = true; // Always collapsed
 
@@ -111,10 +111,10 @@ export function AppSidebar() {
       className="w-16 transition-all duration-300 border-r bg-card"
       collapsible="none"
     >
-      <SidebarHeader className="border-b p-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Plane className="h-4 w-4 text-primary-foreground" />
+      <SidebarHeader className="border-b p-3">
+        <div className="flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
+            <Plane className="h-5 w-5 text-primary" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col">
@@ -135,12 +135,12 @@ export function AppSidebar() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${getNavCls(item.url)}`}
-                      title={isCollapsed ? item.title : ""}
-                    >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                     <NavLink 
+                       to={item.url} 
+                       className={`flex items-center justify-center rounded-xl py-3 mx-2 transition-all duration-200 ${getNavCls(item.url)}`}
+                       title={isCollapsed ? item.title : ""}
+                     >
+                       <item.icon className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && (
                         <div className="flex flex-col">
                           <span>{item.title}</span>
@@ -164,12 +164,12 @@ export function AppSidebar() {
               {communicationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${getNavCls(item.url)}`}
-                      title={isCollapsed ? item.title : ""}
-                    >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                     <NavLink 
+                       to={item.url} 
+                       className={`flex items-center justify-center rounded-xl py-3 mx-2 transition-all duration-200 ${getNavCls(item.url)}`}
+                       title={isCollapsed ? item.title : ""}
+                     >
+                       <item.icon className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && (
                         <div className="flex flex-col">
                           <span>{item.title}</span>
@@ -189,12 +189,12 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink 
-                    to="/settings" 
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${getNavCls("/settings")}`}
-                    title={isCollapsed ? "Settings" : ""}
-                  >
-                    <Settings className="h-4 w-4 flex-shrink-0" />
+                   <NavLink 
+                     to="/settings" 
+                     className={`flex items-center justify-center rounded-xl py-3 mx-2 transition-all duration-200 ${getNavCls("/settings")}`}
+                     title={isCollapsed ? "Settings" : ""}
+                   >
+                     <Settings className="h-5 w-5 flex-shrink-0" />
                     {!isCollapsed && (
                       <div className="flex flex-col">
                         <span>Settings</span>
