@@ -1431,6 +1431,52 @@ Best regards,
         {/* Collapsed sidebar content - folder icons from top to bottom */}
         {isSidebarCollapsed && (
           <div className="p-2 pt-16 flex flex-col h-full">
+            {/* Top action buttons */}
+            {isAuthenticated && (
+              <div className="flex flex-col space-y-2 mb-4">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsComposing(true)}
+                  className="w-8 h-8 p-0 flex items-center justify-center"
+                  title="Compose Email"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="w-8 h-8 p-0 flex items-center justify-center"
+                      title="Actions"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56 bg-card border shadow-lg z-50">
+                    <DropdownMenuItem 
+                      onClick={() => fetchEmails()} 
+                      disabled={isSyncing}
+                      className="cursor-pointer"
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                      {isSyncing ? 'Syncing...' : 'Sync Emails'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={findPotentialClients} 
+                      disabled={isAnalyzing || !emails.length}
+                      className="cursor-pointer"
+                    >
+                      <FileSearch className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                      {isAnalyzing ? 'Analyzing...' : 'Find Clients'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+            
             {/* Folder icons arranged vertically from top to bottom */}
             <div className="flex flex-col space-y-2">
               {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
@@ -1522,6 +1568,20 @@ Best regards,
             </div>
             
             <div className="flex-1"></div>
+            
+            {/* Bottom connection button for non-authenticated users */}
+            {!isAuthenticated && (
+              <Button
+                onClick={authenticateGmail}
+                disabled={isLoading}
+                variant="outline"
+                size="sm"
+                className="w-8 h-8 p-0 flex items-center justify-center"
+                title={isLoading ? 'Connecting...' : 'Connect Gmail'}
+              >
+                <Mail className="h-4 w-4" />
+              </Button>
+            )}
             
             {/* Quick action buttons at bottom */}
             <div className="space-y-2">
