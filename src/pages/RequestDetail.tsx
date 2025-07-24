@@ -1925,8 +1925,8 @@ const RequestDetail = () => {
 
             {/* Email Template Editor Dialog */}
             <Dialog open={showSendQuoteDialog} onOpenChange={setShowSendQuoteDialog}>
-              <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
-                <DialogHeader>
+              <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                   <DialogTitle className="flex items-center gap-2">
                     <Mail className="h-5 w-5 text-primary" />
                     Email Template Editor - {emailPreview.selectedQuotesList.length} Quote{emailPreview.selectedQuotesList.length > 1 ? 's' : ''}
@@ -1936,24 +1936,26 @@ const RequestDetail = () => {
                   </DialogDescription>
                 </DialogHeader>
 
-                <EmailTemplateEditor
-                  initialTo={emailPreview.to || client?.email}
-                  initialSubject={emailPreview.subject}
-                  initialBody={emailPreview.body}
-                  clientName={client?.first_name || client?.name?.split(' ')[0] || ''}
-                  clientEmail={client?.email}
-                  quotes={emailPreview.selectedQuotesList}
-                  onSend={(emailData) => {
-                    setEmailPreview(prev => ({
-                      ...prev,
-                      to: emailData.to,
-                      subject: emailData.subject,
-                      body: emailData.body
-                    }));
-                    handleSendEmailFromPreview();
-                  }}
-                  onCancel={() => setShowSendQuoteDialog(false)}
-                />
+                <div className="flex-1 overflow-hidden">
+                  <EmailTemplateEditor
+                    initialTo={emailPreview.to || client?.email}
+                    initialSubject={emailPreview.subject}
+                    initialBody={emailPreview.body}
+                    clientName={client?.first_name || client?.name?.split(' ')[0] || ''}
+                    clientEmail={client?.email}
+                    quotes={emailPreview.selectedQuotesList}
+                    onSend={(emailData) => {
+                      setEmailPreview(prev => ({
+                        ...prev,
+                        to: emailData.to,
+                        subject: emailData.subject,
+                        body: emailData.body
+                      }));
+                      handleSendEmailFromPreview();
+                    }}
+                    onCancel={() => setShowSendQuoteDialog(false)}
+                  />
+                </div>
               </DialogContent>
             </Dialog>
 

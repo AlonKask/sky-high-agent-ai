@@ -242,8 +242,8 @@ export function EmailTemplateEditor({
   };
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="templates" className="w-full">
+    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+      <Tabs defaultValue="templates" className="w-full flex-1 flex flex-col overflow-hidden">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <Wand2 className="h-4 w-4" />
@@ -259,7 +259,7 @@ export function EmailTemplateEditor({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="templates" className="space-y-4">
+        <TabsContent value="templates" className="space-y-4 flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {EMAIL_TEMPLATES.map((template) => (
               <Card 
@@ -317,7 +317,7 @@ export function EmailTemplateEditor({
           )}
         </TabsContent>
 
-        <TabsContent value="compose" className="space-y-4">
+        <TabsContent value="compose" className="space-y-4 flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>To</Label>
@@ -374,7 +374,7 @@ export function EmailTemplateEditor({
           </div>
         </TabsContent>
 
-        <TabsContent value="preview" className="space-y-4">
+        <TabsContent value="preview" className="space-y-4 flex-1 overflow-y-auto">
           <Card>
             <CardHeader className="bg-muted/50">
               <div className="flex items-center justify-between">
@@ -403,9 +403,9 @@ export function EmailTemplateEditor({
         </TabsContent>
       </Tabs>
 
-      <Separator />
+      <Separator className="flex-shrink-0" />
 
-      <div className="flex gap-3 justify-end">
+      <div className="flex gap-3 justify-end flex-shrink-0">
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
