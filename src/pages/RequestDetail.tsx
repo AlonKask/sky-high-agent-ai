@@ -831,7 +831,11 @@ const RequestDetail = () => {
                             const updateData: any = {
                               origin: editedRequest.origin,
                               destination: editedRequest.destination,
-                              request_type: editedRequest.request_type
+                              request_type: editedRequest.request_type,
+                              adults_count: editedRequest.adults_count || 1,
+                              children_count: editedRequest.children_count || 0,
+                              infants_count: editedRequest.infants_count || 0,
+                              budget_range: editedRequest.budget_range || null
                             };
                             
                             // Add segments for multi-city trips
@@ -868,7 +872,7 @@ const RequestDetail = () => {
                 {editing ? (
                   <div className="space-y-6">
                     {/* Route Configuration */}
-                    <div className="space-y-4">
+                     <div className="space-y-4">
                       <h3 className="font-semibold text-lg">Route Configuration</h3>
                       
                       {/* Trip Type Selection */}
@@ -902,6 +906,54 @@ const RequestDetail = () => {
                             <SelectItem value="multi_city">Multi City</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+
+                      {/* Passenger Information */}
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-md">Passenger Information</h4>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Adults</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={editedRequest.adults_count || 1}
+                              onChange={(e) => setEditedRequest(prev => ({ ...prev, adults_count: parseInt(e.target.value) || 1 }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Children</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={editedRequest.children_count || 0}
+                              onChange={(e) => setEditedRequest(prev => ({ ...prev, children_count: parseInt(e.target.value) || 0 }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Infants</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={editedRequest.infants_count || 0}
+                              onChange={(e) => setEditedRequest(prev => ({ ...prev, infants_count: parseInt(e.target.value) || 0 }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Total: {(editedRequest.adults_count || 1) + (editedRequest.children_count || 0) + (editedRequest.infants_count || 0)} passengers
+                        </div>
+                      </div>
+
+                      {/* Budget Range */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Budget Range ($)</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g., $5,000 - $10,000"
+                          value={editedRequest.budget_range || ''}
+                          onChange={(e) => setEditedRequest(prev => ({ ...prev, budget_range: e.target.value }))}
+                        />
                       </div>
 
                       {/* Route Input */}
@@ -1075,18 +1127,22 @@ const RequestDetail = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
-                    <Users className="h-5 w-5 text-purple-600" />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium space-y-1">
-                        <div className="flex gap-4">
-                          <span>Adults: {Math.max(1, Math.floor(request.passengers * 0.7))}</span>
-                          <span>Children: {Math.max(0, Math.floor(request.passengers * 0.2))}</span>
-                          <span>Infants: {Math.max(0, Math.floor(request.passengers * 0.1))}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                     <Users className="h-5 w-5 text-purple-600" />
+                     <div className="flex-1">
+                       <p className="text-sm text-muted-foreground">Passengers</p>
+                       <div className="text-sm font-medium space-y-1">
+                         <div className="flex gap-4">
+                           <span>Adults: {request.adults_count || 1}</span>
+                           <span>Children: {request.children_count || 0}</span>
+                           <span>Infants: {request.infants_count || 0}</span>
+                         </div>
+                         <p className="text-xs text-muted-foreground">
+                           Total: {(request.adults_count || 1) + (request.children_count || 0) + (request.infants_count || 0)} passengers
+                         </p>
+                       </div>
+                     </div>
+                   </div>
                   
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                     <Plane className="h-5 w-5 text-blue-600" />
