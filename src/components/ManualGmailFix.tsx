@@ -8,43 +8,29 @@ import { useAuth } from '@/hooks/useAuth';
 export const ManualGmailFix = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { refreshStatus } = useGmailIntegration();
+  const { connectGmail, refreshStatus } = useGmailIntegration();
   const { user } = useAuth();
 
-  const handleManualExchange = async () => {
+  const handleGmailConnection = async () => {
     if (!user) return;
     
     setIsProcessing(true);
     try {
-      // Exchange the authorization code we have
-      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
-        body: {
-          action: 'exchange',
-          code: '4/0AVMBsJiltJWHfJoOKzW-34Rak4Vc7SOjDkbGSpeRPdsYX3fduF4X4b7UX_tYzfWyY44woA',
-          userId: user.id
-        },
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      // Use the proper OAuth flow from useGmailIntegration
+      await connectGmail();
+      
+      toast({
+        title: "Success",
+        description: "Gmail connection initiated successfully",
       });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        toast({
-          title: "Success",
-          description: "Gmail tokens exchanged and stored successfully",
-        });
-        // Refresh the integration status
-        await refreshStatus();
-      } else {
-        throw new Error(data?.error || 'Exchange failed');
-      }
+      
+      // Refresh the integration status
+      await refreshStatus();
     } catch (error) {
-      console.error('Manual exchange failed:', error);
+      console.error('Gmail connection failed:', error);
       toast({
         title: "Error",
-        description: "Failed to exchange tokens. Please try connecting Gmail again.",
+        description: "Failed to connect Gmail. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -59,7 +45,7 @@ export const ManualGmailFix = () => {
         If your Gmail connection didn't complete properly, click below to manually process the tokens.
       </p>
       <Button 
-        onClick={handleManualExchange}
+        onClick={handleGmailConnection}
         disabled={isProcessing}
         variant="outline"
         size="sm"
