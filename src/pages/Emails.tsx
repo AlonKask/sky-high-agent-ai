@@ -23,7 +23,8 @@ import {
   SortAsc,
   SortDesc,
   Mail,
-  MailOpen
+  MailOpen,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -414,7 +415,7 @@ const Emails = () => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Email List */}
-        <div className="w-1/3 border-r bg-card overflow-hidden flex flex-col">
+        <div className={`${selectedEmail ? 'w-1/3' : 'w-full'} border-r bg-card overflow-hidden flex flex-col transition-all duration-300`}>
           {/* Search and Controls */}
           <div className="p-4 border-b space-y-3">
             <div className="flex gap-2">
@@ -534,14 +535,23 @@ const Emails = () => {
           </ScrollArea>
         </div>
 
-        {/* Email Content */}
-        <div className="flex-1 overflow-hidden">
-          {selectedEmail ? (
+        {/* Email Content - Only show when email is selected */}
+        {selectedEmail && (
+          <div className="flex-1 overflow-hidden">
             <div className="h-full flex flex-col">
               {/* Email Header */}
               <div className="border-b p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold">{selectedEmail.subject}</h2>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedEmail(null)}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h2 className="text-lg font-semibold">{selectedEmail.subject}</h2>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -566,18 +576,8 @@ const Emails = () => {
                 </div>
               </ScrollArea>
             </div>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <MailOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">No email selected</h3>
-                <p className="text-sm text-muted-foreground">
-                  Select an email from the list to view its content
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
