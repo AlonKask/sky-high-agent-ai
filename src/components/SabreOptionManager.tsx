@@ -56,18 +56,26 @@ interface SabreOptionManagerProps {
   onDeleteOption: (id: string) => void;
 }
 
-const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOption }: SabreOptionManagerProps) => {
+  const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOption }: SabreOptionManagerProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState<string | null>(null);
   const { toast } = useToast();
-  const [newOption, setNewOption] = useState<Omit<SabreOption, 'id' | 'createdAt'>>({
+  
+  const initialOptionState: Omit<SabreOption, 'id' | 'createdAt'> = {
     format: "I",
     content: "",
     status: "draft",
     quoteType: "revenue",
     ckFees: false
-  });
+  };
+  
+  const [newOption, setNewOption] = useState<Omit<SabreOption, 'id' | 'createdAt'>>(initialOptionState);
+
+  const resetQuoteForm = () => {
+    setNewOption({ ...initialOptionState });
+    setEditingId(null);
+  };
 
   const awardPrograms = [
     "AA", "AC", "AC (Status)", "AF", "AF (Under Pax)", "AF (Premier Status)", "AD", "NH", "AS", "AMEX",
@@ -152,13 +160,7 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
         parsedInfo
       });
       
-      setNewOption({
-        format: "I",
-        content: "",
-        status: "draft",
-        quoteType: "revenue",
-        ckFees: false
-      });
+      resetQuoteForm();
       setIsDialogOpen(false);
     }
   };
@@ -210,14 +212,7 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
         parsedInfo
       });
       
-      setNewOption({
-        format: "I",
-        content: "",
-        status: "draft",
-        quoteType: "revenue",
-        ckFees: false
-      });
-      setEditingId(null);
+      resetQuoteForm();
       setIsDialogOpen(false);
     }
   };
@@ -287,9 +282,17 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Sabre Options</CardTitle>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            if (!open) {
+              resetQuoteForm();
+            }
+            setIsDialogOpen(open);
+          }}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" onClick={() => {
+                resetQuoteForm();
+                setIsDialogOpen(true);
+              }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Quote
               </Button>
