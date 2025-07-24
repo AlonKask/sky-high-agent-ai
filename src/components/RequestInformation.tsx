@@ -30,6 +30,10 @@ interface RequestInformationProps {
     clientName: string;
     requestDate: string;
     notes?: string;
+    // Overall passenger counts for the request
+    adultsCount?: number;
+    childrenCount?: number;
+    infantsCount?: number;
   };
   onRequestUpdate?: (updatedRequest: any) => void;
 }
@@ -149,33 +153,46 @@ const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProp
         <CardContent className="space-y-4">
           {!isEditingRequest ? (
             <>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="font-medium">Request ID:</span>
-                  <div className="text-muted-foreground">{editedRequest.id}</div>
-                </div>
-                <div>
-                  <span className="font-medium">Type:</span>
-                  <div className="text-muted-foreground">{editedRequest.type}</div>
-                </div>
-                <div>
-                  <span className="font-medium">Client:</span>
-                  <div className="text-muted-foreground">
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto font-normal text-muted-foreground hover:text-primary transition-colors"
-                      onClick={handleClientClick}
-                    >
-                      {editedRequest.clientName}
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <span className="font-medium">Request Date:</span>
-                  <div className="text-muted-foreground">{editedRequest.requestDate}</div>
-                </div>
-              </div>
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <span className="font-medium">Request ID:</span>
+                   <div className="text-muted-foreground">{editedRequest.id}</div>
+                 </div>
+                 <div>
+                   <span className="font-medium">Type:</span>
+                   <div className="text-muted-foreground">{editedRequest.type}</div>
+                 </div>
+                 <div>
+                   <span className="font-medium">Client:</span>
+                   <div className="text-muted-foreground">
+                     <Button 
+                       variant="link" 
+                       className="p-0 h-auto font-normal text-muted-foreground hover:text-primary transition-colors"
+                       onClick={handleClientClick}
+                     >
+                       {editedRequest.clientName}
+                       <ExternalLink className="h-3 w-3 ml-1" />
+                     </Button>
+                   </div>
+                 </div>
+                 <div>
+                   <span className="font-medium">Request Date:</span>
+                   <div className="text-muted-foreground">{editedRequest.requestDate}</div>
+                 </div>
+                 <div>
+                   <span className="font-medium">Total Passengers:</span>
+                   <div className="text-muted-foreground">
+                     <div className="flex items-center space-x-2">
+                       <Users className="h-4 w-4" />
+                       <span>
+                         {(editedRequest.adultsCount || 1)} Adults
+                         {(editedRequest.childrenCount || 0) > 0 && `, ${editedRequest.childrenCount} Children`}
+                         {(editedRequest.infantsCount || 0) > 0 && `, ${editedRequest.infantsCount} Infants`}
+                       </span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
               {editedRequest.notes && (
                 <div>
                   <span className="font-medium">Notes:</span>
@@ -217,6 +234,56 @@ const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProp
                   </Select>
                 </div>
               </div>
+              
+              {/* Overall Passenger Breakdown */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Overall Passenger Count</Label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="adults">Adults</Label>
+                    <Input
+                      id="adults"
+                      type="number"
+                      min="1"
+                      value={editedRequest.adultsCount || 1}
+                      onChange={(e) => setEditedRequest({
+                        ...editedRequest, 
+                        adultsCount: parseInt(e.target.value) || 1
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="children">Children</Label>
+                    <Input
+                      id="children"
+                      type="number"
+                      min="0"
+                      value={editedRequest.childrenCount || 0}
+                      onChange={(e) => setEditedRequest({
+                        ...editedRequest, 
+                        childrenCount: parseInt(e.target.value) || 0
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="infants">Infants</Label>
+                    <Input
+                      id="infants"
+                      type="number"
+                      min="0"
+                      value={editedRequest.infantsCount || 0}
+                      onChange={(e) => setEditedRequest({
+                        ...editedRequest, 
+                        infantsCount: parseInt(e.target.value) || 0
+                      })}
+                    />
+                  </div>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Total: {(editedRequest.adultsCount || 1) + (editedRequest.childrenCount || 0) + (editedRequest.infantsCount || 0)} passengers
+                </div>
+              </div>
+
               <div>
                 <Label>Notes</Label>
                 <Textarea
