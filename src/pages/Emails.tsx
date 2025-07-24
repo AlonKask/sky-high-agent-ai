@@ -286,7 +286,67 @@ const Emails = () => {
     }
   };
 
-  const handleSendToAI = async () => {
+  // Archive functions
+  const handleArchiveEmails = async () => {
+    if (selectedEmails.size === 0) return;
+
+    try {
+      const emailIds = Array.from(selectedEmails);
+      const emailsToArchive = filteredEmails.filter(email => 
+        selectedEmails.has(email.messageId)
+      );
+
+      // Move emails to archive table
+      for (const email of emailsToArchive) {
+        await supabase.from('email_archives').insert({
+          user_id: user.id,
+          message_id: email.messageId,
+          thread_id: email.threadId,
+          subject: email.subject,
+          sender_email: email.from,
+          original_data: {
+            body: email.body,
+            recipient_emails: email.to,
+            cc_emails: email.cc,
+            bcc_emails: email.bcc,
+            metadata: {
+              gmail_labels: email.labels,
+              is_read: email.isRead,
+              is_starred: email.isStarred,
+              has_attachments: email.hasAttachments,
+              gmail_snippet: email.snippet,
+              gmail_date: email.date
+            }
+          },
+          folder_name: selectedFolder
+        });
+      }
+
+      // Remove from main email table
+      await supabase
+        .from('email_exchanges')
+        .delete()
+        .in('message_id', emailIds);
+
+      // Update local state
+      setEmails(prev => prev.filter(email => 
+        !selectedEmails.has(email.messageId)
+      ));
+      setSelectedEmails(new Set());
+
+      toast({
+        title: "Success",
+        description: `Archived ${emailIds.length} emails.`
+      });
+    } catch (error) {
+      console.error('Error archiving emails:', error);
+      toast({
+        title: "Error",
+        description: "Failed to archive emails.",
+        variant: "destructive"
+      });
+    }
+  };
     if (selectedEmails.size === 0) return;
 
     try {
@@ -1774,8 +1834,9 @@ Best regards,
                   onDeselectAll={handleDeselectAll}
                   onMarkAsRead={handleMarkAsRead}
                   onSendToAI={handleSendToAI}
+                  onArchive={handleArchiveEmails}
                   totalEmails={filteredEmails.length}
-                 />
+                />
                  <div className="p-2 space-y-1">
                    {filteredEmails.map((email) => (
                    <div

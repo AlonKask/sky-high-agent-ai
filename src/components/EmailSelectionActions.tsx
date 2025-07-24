@@ -7,7 +7,8 @@ import {
   Mail, 
   MailOpen, 
   Brain,
-  Trash2 
+  Trash2,
+  Archive
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +19,7 @@ interface EmailSelectionActionsProps {
   onDeselectAll: () => void;
   onMarkAsRead: () => void;
   onSendToAI: () => void;
+  onArchive?: () => void;
   totalEmails: number;
 }
 
@@ -27,6 +29,7 @@ export const EmailSelectionActions: React.FC<EmailSelectionActionsProps> = ({
   onDeselectAll,
   onMarkAsRead,
   onSendToAI,
+  onArchive,
   totalEmails
 }) => {
   const { toast } = useToast();
@@ -62,8 +65,19 @@ export const EmailSelectionActions: React.FC<EmailSelectionActionsProps> = ({
             className="h-8 px-2"
           >
             <MailOpen className="h-4 w-4 mr-1" />
-            Mark Read
+            Read
           </Button>
+          {onArchive && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onArchive}
+              className="h-8 px-2"
+            >
+              <Archive className="h-4 w-4 mr-1" />
+              Archive
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -71,7 +85,7 @@ export const EmailSelectionActions: React.FC<EmailSelectionActionsProps> = ({
             className="h-8 px-2"
           >
             <Brain className="h-4 w-4 mr-1" />
-            Send to AI
+            AI
           </Button>
         </div>
       )}

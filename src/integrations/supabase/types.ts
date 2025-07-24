@@ -361,6 +361,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_archives: {
+        Row: {
+          archived_date: string
+          created_at: string
+          folder_name: string
+          id: string
+          message_id: string
+          original_data: Json
+          sender_email: string
+          subject: string
+          thread_id: string | null
+          user_id: string
+        }
+        Insert: {
+          archived_date?: string
+          created_at?: string
+          folder_name?: string
+          id?: string
+          message_id: string
+          original_data: Json
+          sender_email: string
+          subject: string
+          thread_id?: string | null
+          user_id: string
+        }
+        Update: {
+          archived_date?: string
+          created_at?: string
+          folder_name?: string
+          id?: string
+          message_id?: string
+          original_data?: Json
+          sender_email?: string
+          subject?: string
+          thread_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_exchanges: {
         Row: {
           attachments: Json | null
@@ -1032,6 +1071,10 @@ export type Database = {
     }
     Functions: {
       archive_old_communications: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      archive_old_emails: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
