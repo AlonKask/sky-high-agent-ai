@@ -52,7 +52,13 @@ import {
   Minimize2,
   Maximize2,
   MessageSquare,
-  Zap
+  Zap,
+  Inbox,
+  SendHorizonal,
+  FileEdit,
+  ShieldAlert,
+  FolderOpen,
+  Menu
 } from 'lucide-react';
 
 // Extend Window interface for Google APIs
@@ -130,6 +136,7 @@ const Emails = () => {
 
   // Sidebar and AI processing state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showMiniMenu, setShowMiniMenu] = useState(false);
   const [isInboxMinimized, setIsInboxMinimized] = useState(false);
   const [isEmailViewMinimized, setIsEmailViewMinimized] = useState(false);
   const [showInboxColumn, setShowInboxColumn] = useState(true);
@@ -141,6 +148,37 @@ const Emails = () => {
   // Show/hide CC and BCC fields
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+
+  // AI-powered icon selection function
+  const getIconForFolder = (folderName: string) => {
+    const name = folderName.toLowerCase();
+    
+    // AI logic to determine appropriate icon
+    if (name.includes('inbox') || name.includes('receive') || name.includes('new')) {
+      return Inbox;
+    } else if (name.includes('sent') || name.includes('outbox') || name.includes('outgoing')) {
+      return SendHorizonal;
+    } else if (name.includes('draft') || name.includes('compose') || name.includes('write')) {
+      return FileEdit;
+    } else if (name.includes('spam') || name.includes('junk') || name.includes('unwanted') || name.includes('suspicious')) {
+      return ShieldAlert;
+    } else if (name.includes('trash') || name.includes('deleted') || name.includes('bin') || name.includes('waste')) {
+      return Trash2;
+    } else if (name.includes('archive') || name.includes('stored') || name.includes('old')) {
+      return Archive;
+    } else if (name.includes('star') || name.includes('favorite') || name.includes('important')) {
+      return Star;
+    } else if (name.includes('work') || name.includes('business') || name.includes('professional')) {
+      return FileText;
+    } else if (name.includes('personal') || name.includes('private') || name.includes('family')) {
+      return Users;
+    } else if (name.includes('notification') || name.includes('alert') || name.includes('system')) {
+      return AlertCircle;
+    } else {
+      // Default folder icon for unrecognized folders
+      return FolderOpen;
+    }
+  };
 
   // Email selection handlers
   const handleEmailSelect = (emailId: string, checked: boolean) => {
@@ -269,6 +307,23 @@ const Emails = () => {
       }
     }
   }, []);
+
+  // Click outside handler for mini menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showMiniMenu && !((event.target as Element)?.closest('.mini-menu-container'))) {
+        setShowMiniMenu(false);
+      }
+    };
+
+    if (showMiniMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMiniMenu]);
 
   // Load emails when folder changes
   useEffect(() => {
@@ -1393,8 +1448,111 @@ Best regards,
 
         {/* Collapsed sidebar content */}
         {isSidebarCollapsed && (
-          <div className="p-2 pt-16">
+          <div className="p-2 pt-16 mini-menu-container">
             <div className="space-y-2">
+              {/* Toggle mini menu button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMiniMenu(!showMiniMenu)}
+                className="w-full p-2 flex items-center justify-center"
+                title="Toggle folder menu"
+              >
+                {showMiniMenu ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
+
+              {/* Mini folder menu */}
+              {showMiniMenu && (
+                <div className="absolute left-12 top-16 bg-card border rounded-lg shadow-lg p-2 space-y-1 z-50 min-w-[200px] mini-menu-container">
+                  {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
+                    const IconComponent = getIconForFolder(folder);
+                    const unreadCount = emails.filter(email => {
+                      if (!email.isRead) {
+                        if (folder === 'inbox') {
+                          return !email.labels || email.labels.includes('INBOX');
+                        } else {
+                          const folderLabelMap: Record<string, string> = {
+                            'sent': 'SENT',
+                            'drafts': 'DRAFT', 
+                            'spam': 'SPAM',
+                            'trash': 'TRASH'
+                          };
+                          return email.labels?.includes(folderLabelMap[folder]);
+                        }
+                      }
+                      return false;
+                    }).length;
+                    
+                    return (
+                      <Button
+                        key={folder}
+                        variant={selectedFolder === folder ? "secondary" : "ghost"}
+                        className="w-full justify-between text-left p-2 h-auto"
+                        onClick={async () => {
+                          setSelectedEmail(null);
+                          setSelectedFolder(folder);
+                          setShowMiniMenu(false); // Close menu after selection
+                          if (isAuthenticated) {
+                            await loadEmailsFromDB();
+                            await fetchEmails(authToken, folder);
+                          }
+                        }}
+                        disabled={isSyncing}
+                      >
+                        <div className="flex items-center gap-2">
+                          <IconComponent className="h-4 w-4" />
+                          <span className="text-sm">{folder.charAt(0).toUpperCase() + folder.slice(1)}</span>
+                          {selectedFolder === folder && isSyncing && (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          )}
+                        </div>
+                        {unreadCount > 0 && (
+                          <Badge variant="secondary" className="text-xs ml-2">
+                            {unreadCount}
+                          </Badge>
+                        )}
+                      </Button>
+                    );
+                  })}
+                  
+                  {/* Show any additional dynamic folders */}
+                  {emails.length > 0 && (
+                    <>
+                      {Array.from(new Set(
+                        emails.flatMap(email => email.labels || [])
+                          .filter(label => !['INBOX', 'SENT', 'DRAFT', 'SPAM', 'TRASH', 'UNREAD', 'STARRED'].includes(label))
+                      )).map((customLabel) => {
+                        const IconComponent = getIconForFolder(customLabel);
+                        const folderName = customLabel.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const displayName = customLabel.charAt(0).toUpperCase() + customLabel.slice(1).toLowerCase();
+                        
+                        return (
+                          <Button
+                            key={customLabel}
+                            variant={selectedFolder === folderName ? "secondary" : "ghost"}
+                            className="w-full justify-start text-left p-2 h-auto"
+                            onClick={async () => {
+                              setSelectedEmail(null);
+                              setSelectedFolder(folderName);
+                              setShowMiniMenu(false);
+                              if (isAuthenticated) {
+                                await loadEmailsFromDB();
+                              }
+                            }}
+                            disabled={isSyncing}
+                          >
+                            <div className="flex items-center gap-2">
+                              <IconComponent className="h-4 w-4" />
+                              <span className="text-sm">{displayName}</span>
+                            </div>
+                          </Button>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              )}
+
               <Button
                 variant="ghost"
                 size="sm"
