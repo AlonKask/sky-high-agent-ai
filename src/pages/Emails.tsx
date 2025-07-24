@@ -134,8 +134,6 @@ const Emails = () => {
   const [isInboxMaximized, setIsInboxMaximized] = useState(true);
   const [showEmailContent, setShowEmailContent] = useState(true);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
-  const [showAIChat, setShowAIChat] = useState(false);
-  const [isAIChatMinimized, setIsAIChatMinimized] = useState(false);
   const [showAIEmailAssistant, setShowAIEmailAssistant] = useState(false);
 
   // Show/hide CC and BCC fields
@@ -212,8 +210,8 @@ const Emails = () => {
         date: new Date().toISOString()
       }));
 
-      setShowAIChat(true);
-      setIsAIChatMinimized(false);
+      // Close the AI Email Assistant panel to prevent overlap
+      setShowAIEmailAssistant(false);
 
       toast({
         title: "Success",
@@ -1198,7 +1196,9 @@ Best regards,
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setShowAIEmailAssistant(!showAIEmailAssistant)}
+                    onClick={() => {
+                      setShowAIEmailAssistant(!showAIEmailAssistant);
+                    }}
                     className="border-primary/20 hover:bg-primary/5"
                   >
                     <Brain className="h-4 w-4 mr-1" />
@@ -1624,26 +1624,6 @@ Best regards,
        </div>
        )}
 
-        {/* AI Assistant Chat */}
-        {showAIChat && (
-          <AIAssistantChat
-            isMinimized={isAIChatMinimized}
-            onToggleMinimize={() => setIsAIChatMinimized(!isAIChatMinimized)}
-            onClose={() => setShowAIChat(false)}
-            initialContext={selectedEmails.size > 0 ? `Selected ${selectedEmails.size} emails for analysis` : undefined}
-          />
-        )}
-
-        {/* Floating AI Assistant Button */}
-        {!showAIChat && (
-          <Button
-            onClick={() => setShowAIChat(true)}
-            className="fixed bottom-4 right-4 h-12 w-12 rounded-full shadow-lg"
-            size="icon"
-          >
-            <MessageSquare className="h-5 w-5" />
-          </Button>
-        )}
 
         {/* Email Content - Use EmailContentProcessor */}
         {showEmailContent && selectedEmail && (

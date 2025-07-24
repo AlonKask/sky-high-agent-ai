@@ -116,10 +116,8 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
   };
 
   useEffect(() => {
-    if (email && isProcessingEnabled && !processedContent) {
-      // Auto-process when email changes and processing is enabled
-      processEmailContent();
-    }
+    // Remove auto-processing to prevent errors
+    // User can manually trigger processing if needed
   }, [email?.id, isProcessingEnabled]);
 
   if (!email) {
