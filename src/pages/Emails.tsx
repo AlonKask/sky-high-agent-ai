@@ -127,7 +127,6 @@ const Emails = () => {
 
   // Sidebar and AI processing state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isAIProcessingEnabled, setIsAIProcessingEnabled] = useState(true);
   const [isInboxMinimized, setIsInboxMinimized] = useState(false);
   const [isEmailViewMinimized, setIsEmailViewMinimized] = useState(false);
   const [showInboxColumn, setShowInboxColumn] = useState(true);
@@ -1292,18 +1291,6 @@ Best regards,
                     </DropdownMenuContent>
                   </DropdownMenu>
                   
-                  {/* AI Processing Toggle */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">AI Processing</span>
-                    <Button
-                      variant={isAIProcessingEnabled ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setIsAIProcessingEnabled(!isAIProcessingEnabled)}
-                    >
-                      <Brain className="h-4 w-4 mr-2" />
-                      {isAIProcessingEnabled ? 'On' : 'Off'}
-                    </Button>
-                  </div>
                 </div>
               )}
 
@@ -1450,15 +1437,6 @@ Best regards,
               </Button>
               {isAuthenticated && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsAIProcessingEnabled(!isAIProcessingEnabled)}
-                    className={`w-full h-8 ${isAIProcessingEnabled ? 'text-primary' : 'text-muted-foreground'}`}
-                    title="Toggle AI Processing"
-                  >
-                    <Brain className="h-4 w-4" />
-                  </Button>
                 </>
               )}
             </div>
@@ -1629,7 +1607,7 @@ Best regards,
         {showEmailContent && selectedEmail && (
           <EmailContentProcessor 
             email={selectedEmail}
-            isProcessingEnabled={isAIProcessingEnabled}
+            isProcessingEnabled={true}
             isMinimized={isEmailViewMinimized}
             onMinimizeToggle={() => setIsEmailViewMinimized(!isEmailViewMinimized)}
             onClose={() => setShowEmailContent(false)}
