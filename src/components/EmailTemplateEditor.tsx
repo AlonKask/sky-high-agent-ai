@@ -828,12 +828,48 @@ export function EmailTemplateEditor({
               </div>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="prose max-w-none">
-                <div 
-                  className="whitespace-pre-wrap text-sm leading-relaxed"
-                  style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
-                >
-                  {emailData.body}
+              {/* Email Client Preview Wrapper */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                {/* Email Client Header */}
+                <div className="bg-white border-b border-gray-200 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                    <div className="text-sm text-gray-600">Email Preview</div>
+                  </div>
+                </div>
+                
+                {/* Email Content Area */}
+                <div className="bg-white">
+                  {emailData.body.includes('<!DOCTYPE html>') ? (
+                    // Render HTML templates
+                    <div className="max-h-96 overflow-y-auto">
+                      <iframe
+                        srcDoc={emailData.body}
+                        style={{ 
+                          width: '100%', 
+                          height: '600px', 
+                          border: 'none',
+                          backgroundColor: 'white'
+                        }}
+                        title="Email Preview"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
+                  ) : (
+                    // Fallback for plain text emails
+                    <div className="p-6">
+                      <div 
+                        className="whitespace-pre-wrap text-sm leading-relaxed"
+                        style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                      >
+                        {emailData.body}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
