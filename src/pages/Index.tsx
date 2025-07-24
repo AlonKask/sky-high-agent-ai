@@ -34,11 +34,27 @@ const Index = () => {
 
   const fetchUnreadNotificationsCount = async () => {
     try {
-      const { data, error } = await supabase
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build query based on user role
+      let query = supabase
         .from('notifications')
         .select('id')
-        .eq('user_id', user.id)
         .eq('read', false);
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setUnreadNotificationsCount(data?.length || 0);

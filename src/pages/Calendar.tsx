@@ -49,8 +49,17 @@ const Calendar = () => {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
       
-      // Only fetch future/planned bookings (departure date >= today)
-      const { data: bookings, error: bookingsError } = await supabase
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build bookings query based on user role
+      let bookingsQuery = supabase
         .from('bookings')
         .select(`
           id,
@@ -62,11 +71,17 @@ const Calendar = () => {
           status,
           clients!inner(first_name, last_name)
         `)
-        .eq('user_id', user.id)
         .gte('departure_date', today.toISOString())
         .in('status', ['confirmed', 'pending'])
         .gte('departure_date', monthStart.toISOString())
         .lte('departure_date', monthEnd.toISOString());
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        bookingsQuery = bookingsQuery.eq('user_id', user.id);
+      }
+
+      const { data: bookings, error: bookingsError } = await bookingsQuery;
 
       if (bookingsError) {
         console.error('Error fetching bookings:', bookingsError);
@@ -74,8 +89,8 @@ const Calendar = () => {
         return;
       }
 
-      // Only fetch pending/active requests (not completed ones)
-      const { data: requests, error: requestsError } = await supabase
+      // Build requests query based on user role
+      let requestsQuery = supabase
         .from('requests')
         .select(`
           id,
@@ -86,11 +101,17 @@ const Calendar = () => {
           status,
           clients!inner(first_name, last_name)
         `)
-        .eq('user_id', user.id)
         .gte('departure_date', today.toISOString().split('T')[0])
         .in('status', ['pending', 'quoted', 'approved'])
         .gte('departure_date', monthStart.toISOString().split('T')[0])
         .lte('departure_date', monthEnd.toISOString().split('T')[0]);
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        requestsQuery = requestsQuery.eq('user_id', user.id);
+      }
+
+      const { data: requests, error: requestsError } = await requestsQuery;
 
       if (requestsError) {
         console.error('Error fetching requests:', requestsError);

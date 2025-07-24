@@ -358,12 +358,26 @@ const Emails = () => {
     if (!user) return;
     
     try {
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build query based on user role
       let query = supabase
         .from('email_exchanges')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: sortOrder === 'desc' })
         .limit(500);
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        query = query.eq('user_id', user.id);
+      }
 
       // Filter by folder/label if not inbox
       if (selectedFolder !== 'inbox') {

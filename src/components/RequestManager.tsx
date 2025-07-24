@@ -71,14 +71,31 @@ const RequestManager = () => {
     
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build query based on user role
+      let query = supabase
         .from('requests')
         .select(`
           *,
           clients!inner(first_name, last_name, email)
         `)
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching requests:', error);
@@ -99,11 +116,27 @@ const RequestManager = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build query based on user role
+      let query = supabase
         .from('clients')
         .select('id, first_name, last_name, email')
-        .eq('user_id', user.id)
         .order('first_name', { ascending: true });
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching clients:', error);

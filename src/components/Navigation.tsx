@@ -45,12 +45,37 @@ const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
     if (!user) return;
 
     try {
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build queries based on user role
+      let clientsQuery = supabase.from('clients').select('id', { count: 'exact' });
+      let requestsQuery = supabase.from('requests').select('id', { count: 'exact' }).in('status', ['pending', 'researching', 'quote_sent']);
+      let bookingsQuery = supabase.from('bookings').select('id', { count: 'exact' }).gte('departure_date', new Date().toISOString().split('T')[0]);
+      let emailsQuery = supabase.from('email_exchanges').select('id', { count: 'exact' }).eq('direction', 'incoming').eq('status', 'unread');
+      let notificationsQuery = supabase.from('notifications').select('id', { count: 'exact' }).eq('read', false);
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        clientsQuery = clientsQuery.eq('user_id', user.id);
+        requestsQuery = requestsQuery.eq('user_id', user.id);
+        bookingsQuery = bookingsQuery.eq('user_id', user.id);
+        emailsQuery = emailsQuery.eq('user_id', user.id);
+        notificationsQuery = notificationsQuery.eq('user_id', user.id);
+      }
+
       const [clientsResult, requestsResult, bookingsResult, emailsResult, notificationsResult] = await Promise.all([
-        supabase.from('clients').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('requests').select('id', { count: 'exact' }).eq('user_id', user.id).in('status', ['pending', 'researching', 'quote_sent']),
-        supabase.from('bookings').select('id', { count: 'exact' }).eq('user_id', user.id).gte('departure_date', new Date().toISOString().split('T')[0]),
-        supabase.from('email_exchanges').select('id', { count: 'exact' }).eq('user_id', user.id).eq('direction', 'incoming').eq('status', 'unread'),
-        supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user.id).eq('read', false)
+        clientsQuery,
+        requestsQuery,
+        bookingsQuery,
+        emailsQuery,
+        notificationsQuery
       ]);
 
       setCounts({

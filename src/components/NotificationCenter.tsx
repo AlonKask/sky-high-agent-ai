@@ -53,12 +53,28 @@ export function NotificationCenter() {
 
   const fetchNotifications = async () => {
     try {
-      const { data, error } = await supabase
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build query based on user role
+      let query = supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setNotifications(data as Notification[] || []);
@@ -125,11 +141,27 @@ export function NotificationCenter() {
 
   const markAllAsRead = async () => {
     try {
-      const { error } = await supabase
+      // Get user role to determine data access
+      const { data: userRoleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const userRole = userRoleData?.role || 'user';
+
+      // Build query based on user role
+      let query = supabase
         .from('notifications')
         .update({ read: true })
-        .eq('user_id', user.id)
         .eq('read', false);
+
+      // Apply user filtering only for regular users
+      if (userRole === 'user') {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
       toast({ title: 'Success', description: 'All notifications marked as read' });

@@ -59,31 +59,26 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
     try {
       setLoading(true);
 
+      // Build queries based on user role
+      let clientsQuery = supabase.from('clients').select('id', { count: 'exact' });
+      let requestsQuery = supabase.from('requests').select('*').in('status', ['pending', 'researching', 'quote_sent']);
+      let bookingsQuery = supabase.from('bookings').select(`
+        *,
+        clients!inner(first_name, last_name, email)
+      `).order('created_at', { ascending: false }).limit(10);
+
+      // Apply user filtering only for regular users
+      if (selectedViewRole === 'user') {
+        clientsQuery = clientsQuery.eq('user_id', user.id);
+        requestsQuery = requestsQuery.eq('user_id', user.id);
+        bookingsQuery = bookingsQuery.eq('user_id', user.id);
+      }
+
       // Fetch real stats based on user role
       const [clientsResult, requestsResult, bookingsResult] = await Promise.all([
-        // Get clients count
-        supabase
-          .from('clients')
-          .select('id', { count: 'exact' })
-          .eq('user_id', selectedViewRole === 'user' ? user.id : undefined),
-
-        // Get active requests
-        supabase
-          .from('requests')
-          .select('*')
-          .eq('user_id', selectedViewRole === 'user' ? user.id : undefined)
-          .in('status', ['pending', 'researching', 'quote_sent']),
-
-        // Get recent bookings
-        supabase
-          .from('bookings')
-          .select(`
-            *,
-            clients!inner(first_name, last_name, email)
-          `)
-          .eq('user_id', selectedViewRole === 'user' ? user.id : undefined)
-          .order('created_at', { ascending: false })
-          .limit(10)
+        clientsQuery,
+        requestsQuery,
+        bookingsQuery
       ]);
 
       // Calculate stats
