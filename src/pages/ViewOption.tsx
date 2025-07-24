@@ -47,11 +47,12 @@ const ViewOption = () => {
 
   const fetchOptionData = async () => {
     try {
-      // Fetch the specific quote
+      // Fetch the specific quote using the client token for secure access
       const { data: quoteData, error: quoteError } = await supabase
         .from('quotes')
         .select('*')
         .eq('id', optionId)
+        .eq('client_token', clientToken)
         .single();
 
       if (quoteError) throw quoteError;

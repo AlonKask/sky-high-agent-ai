@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Check, X, Mail, Copy } from "lucide-react";
+import { Plus, Edit, Trash2, Check, X, Mail, Copy, Share2 } from "lucide-react";
 import { SabreParser, ParsedItinerary } from "@/utils/sabreParser";
 import { EmailTemplateGenerator } from "@/utils/emailTemplateGenerator";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SabreOption {
   id: string;
@@ -224,6 +225,47 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
       title: "Email Template Copied",
       description: "The email template has been copied to your clipboard.",
     });
+  };
+
+  const handleShareWithClient = async (option: SabreOption) => {
+    try {
+      // For demo purposes, we'll create a mock quote entry in Supabase
+      // In a real implementation, this would come from the existing quotes table
+      const { data: quoteData, error } = await supabase
+        .from('quotes')
+        .insert({
+          user_id: 'demo-user-id', // In real app, get from auth
+          client_id: 'demo-client-id', // In real app, get from context
+          request_id: 'demo-request-id', // In real app, get from context
+          route: option.parsedInfo?.route || 'Unknown Route',
+          total_price: option.sellingPrice || 0,
+          net_price: option.netPrice || 0,
+          segments: option.parsedInfo || {},
+          fare_type: option.fareType || 'unknown',
+          status: 'draft',
+          notes: option.notes || '',
+          markup: option.markup || 0,
+          total_segments: option.parsedInfo?.totalSegments || 1
+        })
+        .select('id, client_token')
+        .single();
+
+      if (error) throw error;
+
+      const clientLink = `${window.location.origin}/option/${quoteData.id}?token=${quoteData.client_token}`;
+      navigator.clipboard.writeText(clientLink);
+      
+      toast({
+        title: "Client Link Copied",
+        description: "The unique client link has been copied to your clipboard. Share this with your client to let them view and book this option.",
+      });
+    } catch (error) {
+      console.error('Error creating client link:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create client link. Please try again.",
+      });
+    }
   };
 
   return (
@@ -539,14 +581,19 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                     </span>
                     <div className="flex gap-1">
                       {option.parsedInfo && (
-                        <Button variant="ghost" size="sm" onClick={() => handleGenerateEmail(option)} className="h-8 w-8 p-0">
+                        <Button variant="ghost" size="sm" onClick={() => handleGenerateEmail(option)} className="h-8 w-8 p-0" title="Generate Email Template">
                           <Mail className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(option)} className="h-8 w-8 p-0">
+                      {option.parsedInfo && (
+                        <Button variant="ghost" size="sm" onClick={() => handleShareWithClient(option)} className="h-8 w-8 p-0" title="Share with Client">
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(option)} className="h-8 w-8 p-0" title="Edit Quote">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => onDeleteOption(option.id)} className="h-8 w-8 p-0 hover:text-destructive">
+                      <Button variant="ghost" size="sm" onClick={() => onDeleteOption(option.id)} className="h-8 w-8 p-0 hover:text-destructive" title="Delete Quote">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

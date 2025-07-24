@@ -759,6 +759,7 @@ export type Database = {
           ck_fee_amount: number
           ck_fee_enabled: boolean
           client_id: string
+          client_token: string | null
           created_at: string
           fare_type: string
           id: string
@@ -781,6 +782,7 @@ export type Database = {
           ck_fee_amount?: number
           ck_fee_enabled?: boolean
           client_id: string
+          client_token?: string | null
           created_at?: string
           fare_type: string
           id?: string
@@ -803,6 +805,7 @@ export type Database = {
           ck_fee_amount?: number
           ck_fee_enabled?: boolean
           client_id?: string
+          client_token?: string | null
           created_at?: string
           fare_type?: string
           id?: string
