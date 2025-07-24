@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_performance_reports: {
+        Row: {
+          agent_id: string
+          avg_response_time: unknown | null
+          client_satisfaction_score: number | null
+          conversion_rate: number | null
+          created_at: string
+          id: string
+          performance_metrics: Json | null
+          report_period_end: string
+          report_period_start: string
+          supervisor_id: string | null
+          total_bookings: number | null
+          total_clients: number | null
+          total_commission: number | null
+          total_revenue: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          avg_response_time?: unknown | null
+          client_satisfaction_score?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          performance_metrics?: Json | null
+          report_period_end: string
+          report_period_start: string
+          supervisor_id?: string | null
+          total_bookings?: number | null
+          total_clients?: number | null
+          total_commission?: number | null
+          total_revenue?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          avg_response_time?: unknown | null
+          client_satisfaction_score?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          performance_metrics?: Json | null
+          report_period_end?: string
+          report_period_start?: string
+          supervisor_id?: string | null
+          total_bookings?: number | null
+          total_clients?: number | null
+          total_commission?: number | null
+          total_revenue?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           airline: string
@@ -106,6 +160,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_intelligence: {
+        Row: {
+          avg_ticket_price: number | null
+          booking_patterns: Json | null
+          client_id: string
+          created_at: string
+          historical_spending: Json | null
+          id: string
+          last_analysis: string | null
+          preferred_routes: Json | null
+          price_sensitivity: string | null
+          profit_potential: string | null
+          risk_score: number | null
+          seasonal_preferences: Json | null
+          updated_at: string
+          upselling_opportunities: Json | null
+          user_id: string
+        }
+        Insert: {
+          avg_ticket_price?: number | null
+          booking_patterns?: Json | null
+          client_id: string
+          created_at?: string
+          historical_spending?: Json | null
+          id?: string
+          last_analysis?: string | null
+          preferred_routes?: Json | null
+          price_sensitivity?: string | null
+          profit_potential?: string | null
+          risk_score?: number | null
+          seasonal_preferences?: Json | null
+          updated_at?: string
+          upselling_opportunities?: Json | null
+          user_id: string
+        }
+        Update: {
+          avg_ticket_price?: number | null
+          booking_patterns?: Json | null
+          client_id?: string
+          created_at?: string
+          historical_spending?: Json | null
+          id?: string
+          last_analysis?: string | null
+          preferred_routes?: Json | null
+          price_sensitivity?: string | null
+          profit_potential?: string | null
+          risk_score?: number | null
+          seasonal_preferences?: Json | null
+          updated_at?: string
+          upselling_opportunities?: Json | null
+          user_id?: string
+        }
+        Relationships: []
       }
       client_memories: {
         Row: {
@@ -214,6 +322,45 @@ export type Database = {
         }
         Relationships: []
       }
+      communication_archive: {
+        Row: {
+          archived_date: string
+          client_id: string | null
+          communication_type: string
+          content_summary: string
+          id: string
+          metadata: Json | null
+          original_content: Json | null
+          original_date: string
+          retention_expiry: string | null
+          user_id: string
+        }
+        Insert: {
+          archived_date?: string
+          client_id?: string | null
+          communication_type: string
+          content_summary: string
+          id?: string
+          metadata?: Json | null
+          original_content?: Json | null
+          original_date: string
+          retention_expiry?: string | null
+          user_id: string
+        }
+        Update: {
+          archived_date?: string
+          client_id?: string | null
+          communication_type?: string
+          content_summary?: string
+          id?: string
+          metadata?: Json | null
+          original_content?: Json | null
+          original_date?: string
+          retention_expiry?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_exchanges: {
         Row: {
           attachments: Json | null
@@ -310,6 +457,54 @@ export type Database = {
           last_sync_count?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      flight_price_tracking: {
+        Row: {
+          airline: string | null
+          booking_url: string | null
+          class_type: string
+          currency: string | null
+          destination_code: string
+          id: string
+          is_available: boolean | null
+          origin_code: string
+          price: number
+          route: string
+          scraped_at: string
+          source: string
+          travel_date: string
+        }
+        Insert: {
+          airline?: string | null
+          booking_url?: string | null
+          class_type: string
+          currency?: string | null
+          destination_code: string
+          id?: string
+          is_available?: boolean | null
+          origin_code: string
+          price: number
+          route: string
+          scraped_at?: string
+          source: string
+          travel_date: string
+        }
+        Update: {
+          airline?: string | null
+          booking_url?: string | null
+          class_type?: string
+          currency?: string | null
+          destination_code?: string
+          id?: string
+          is_available?: boolean | null
+          origin_code?: string
+          price?: number
+          route?: string
+          scraped_at?: string
+          source?: string
+          travel_date?: string
         }
         Relationships: []
       }
@@ -836,6 +1031,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_old_communications: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       create_notification: {
         Args: {
           p_user_id: string
