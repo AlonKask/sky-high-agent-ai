@@ -1193,29 +1193,6 @@ Best regards,
           <div className="p-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <WorldClock variant="minimal" />
-                <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => {
-                      // Clear authentication
-                      setIsAuthenticated(false);
-                      setAuthToken(null);
-                      localStorage.removeItem('gmail_auth_token');
-                      localStorage.removeItem('gmail_auth_expiry');
-                      setEmails([]);
-                      setSelectedEmail(null);
-                      toast({
-                        title: "Disconnected",
-                        description: "Gmail connection has been cleared",
-                      });
-                    }}
-                    className={isAuthenticated ? 'text-destructive hover:text-destructive' : ''}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
 
               {/* AI Email Assistant Panel */}

@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AIAssistantChat } from "@/components/AIAssistantChat";
 import WorldClock from "@/components/WorldClock";
+import AgentProfile from "@/components/AgentProfile";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
@@ -24,6 +25,7 @@ import Calendar from "./pages/Calendar";
 import Bookings from "./pages/Bookings";
 import Emails from "./pages/Emails";
 import Messages from "./pages/Messages";
+import AgentStatistics from "./pages/AgentStatistics";
 
 const queryClient = new QueryClient();
 
@@ -46,10 +48,11 @@ const App = () => {
                   {/* Header with sidebar trigger */}
                   <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shrink-0">
                     <div className="w-full px-4 flex h-14 items-center overflow-hidden">
-                      <div className="flex flex-1 items-center justify-center min-w-0">
-                        <div className="w-full max-w-none overflow-x-auto">
+                      <div className="flex flex-1 items-center justify-between min-w-0">
+                        <div className="flex-1 max-w-none overflow-x-auto">
                           <WorldClock variant="compact" />
                         </div>
+                        <AgentProfile />
                       </div>
                     </div>
                   </header>
@@ -69,6 +72,7 @@ const App = () => {
                       <Route path="/booking/:bookingId" element={<BookingDetail />} />
                       <Route path="/request/:requestId" element={<RequestDetail />} />
                       <Route path="/client/:clientId" element={<ClientProfile />} />
+                      <Route path="/agent-statistics" element={<AgentStatistics />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>

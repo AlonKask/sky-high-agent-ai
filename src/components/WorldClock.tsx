@@ -51,13 +51,15 @@ export const WorldClock: React.FC<WorldClockProps> = ({
   if (variant === 'compact') {
     return (
       <div className={`w-full overflow-x-auto ${className}`}>
-        <div className="flex gap-2 sm:gap-4 lg:gap-6 text-xs justify-center min-w-max px-2">
+        <div className="flex gap-1 sm:gap-2 lg:gap-3 text-xs justify-center min-w-max px-2">
           {timeZones.map((tz) => (
             <div key={tz.code} className="text-center flex-shrink-0">
-              <div className="font-mono font-semibold text-foreground text-xs sm:text-sm">
-                {formatInTimeZone(currentTime, tz.timezone, 'HH:mm')}
+              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 flex flex-col items-center justify-center mb-1 hover:scale-105 transition-transform duration-200">
+                <div className="font-mono font-bold text-foreground text-xs sm:text-sm leading-none">
+                  {formatInTimeZone(currentTime, tz.timezone, 'HH:mm')}
+                </div>
+                <div className="text-muted-foreground text-xs leading-none mt-0.5">{tz.code}</div>
               </div>
-              <div className="text-muted-foreground text-xs">{tz.code}</div>
               <div className="text-xs text-muted-foreground hidden sm:block">
                 {formatInTimeZone(currentTime, tz.timezone, 'd MMM')}
               </div>
