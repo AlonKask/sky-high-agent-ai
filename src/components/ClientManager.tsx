@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target } from "lucide-react";
+import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target, UserPlus, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AILeadScoring from "@/components/AILeadScoring";
 
 const ClientManager = () => {
@@ -29,6 +30,11 @@ const ClientManager = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
+  const [unsyncedClients, setUnsyncedClients] = useState<any[]>([]);
+  const [isCheckingUnsynced, setIsCheckingUnsynced] = useState(false);
+  const [showUnsyncedNotification, setShowUnsyncedNotification] = useState(false);
+  const [isCreatingFromEmails, setIsCreatingFromEmails] = useState(false);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -45,9 +51,15 @@ const ClientManager = () => {
   
   useEffect(() => {
     if (user) {
-      fetchClients();
+      initializeClientData();
     }
   }, [user]);
+
+  const initializeClientData = async () => {
+    await fetchClients();
+    await checkForUnsyncedClients();
+    await checkAndSyncEmailsIfNeeded();
+  };
 
   const fetchClients = async () => {
     if (!user) return;
@@ -92,6 +104,172 @@ const ClientManager = () => {
       toast.error('Failed to load clients');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkForUnsyncedClients = async () => {
+    if (!user) return;
+    
+    try {
+      setIsCheckingUnsynced(true);
+      
+      // Get existing client emails
+      const { data: existingClients } = await supabase
+        .from('clients')
+        .select('email')
+        .eq('user_id', user.id);
+      
+      const existingEmails = new Set(existingClients?.map(c => c.email.toLowerCase()) || []);
+      
+      // Get unique email addresses from email exchanges that don't match existing clients
+      const { data: emailData } = await supabase
+        .from('email_exchanges')
+        .select('sender_email, recipient_emails')
+        .eq('user_id', user.id)
+        .limit(500); // Limit to avoid processing too many emails
+      
+      const potentialClients = new Map();
+      
+      emailData?.forEach(email => {
+        // Check sender email
+        if (email.sender_email && !existingEmails.has(email.sender_email.toLowerCase())) {
+          const emailLower = email.sender_email.toLowerCase();
+          if (!emailLower.includes('noreply') && !emailLower.includes('no-reply') && 
+              !emailLower.includes('donotreply') && !emailLower.includes('support') &&
+              !emailLower.includes('notification')) {
+            potentialClients.set(emailLower, {
+              email: email.sender_email,
+              source: 'sender'
+            });
+          }
+        }
+        
+        // Check recipient emails
+        email.recipient_emails?.forEach((recipientEmail: string) => {
+          if (!existingEmails.has(recipientEmail.toLowerCase())) {
+            const emailLower = recipientEmail.toLowerCase();
+            if (!emailLower.includes('noreply') && !emailLower.includes('no-reply') && 
+                !emailLower.includes('donotreply') && !emailLower.includes('support') &&
+                !emailLower.includes('notification')) {
+              potentialClients.set(emailLower, {
+                email: recipientEmail,
+                source: 'recipient'
+              });
+            }
+          }
+        });
+      });
+      
+      const unsyncedList = Array.from(potentialClients.values()).slice(0, 10); // Limit to 10
+      setUnsyncedClients(unsyncedList);
+      setShowUnsyncedNotification(unsyncedList.length > 0);
+      
+    } catch (error) {
+      console.error('Error checking for unsynced clients:', error);
+    } finally {
+      setIsCheckingUnsynced(false);
+    }
+  };
+
+  const checkAndSyncEmailsIfNeeded = async () => {
+    if (!user) return;
+    
+    try {
+      // Check total email count
+      const { count } = await supabase
+        .from('email_exchanges')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      
+      // Check if this is first login (no emails synced yet)
+      if (count === 0) {
+        setIsFirstLogin(true);
+        await performFullEmailSync();
+      } else if (count && count < 1000) {
+        // If less than 1000 emails, sync all on first login
+        const { data: syncStatus } = await supabase
+          .from('user_preferences')
+          .select('gmail_access_token')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (syncStatus?.gmail_access_token && count < 500) {
+          await performFullEmailSync();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking email sync status:', error);
+    }
+  };
+
+  const performFullEmailSync = async () => {
+    if (!user) return;
+    
+    try {
+      toast.info('Starting full email sync...', {
+        duration: 3000
+      });
+      
+      // Call the sync function
+      const { data, error } = await supabase.functions.invoke('sync-inbox', {
+        body: { 
+          fullSync: true,
+          maxResults: 1000 
+        }
+      });
+      
+      if (error) {
+        console.error('Email sync error:', error);
+        toast.error('Failed to sync emails');
+      } else {
+        toast.success(`Successfully synced ${data?.syncedCount || 0} emails`);
+        // Refresh unsynced clients check after sync
+        setTimeout(() => checkForUnsyncedClients(), 2000);
+      }
+    } catch (error) {
+      console.error('Error performing full email sync:', error);
+      toast.error('Failed to sync emails');
+    }
+  };
+
+  const handleCreateClientsFromEmails = async () => {
+    if (!user || unsyncedClients.length === 0) return;
+    
+    try {
+      setIsCreatingFromEmails(true);
+      
+      const newClients = unsyncedClients.map(client => ({
+        user_id: user.id,
+        first_name: client.email.split('@')[0].split('.')[0] || 'Unknown',
+        last_name: client.email.split('@')[0].split('.')[1] || 'Client',
+        email: client.email,
+        notes: `Auto-created from email ${client.source}`,
+        preferred_class: 'business'
+      }));
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .insert(newClients)
+        .select();
+      
+      if (error) {
+        console.error('Error creating clients from emails:', error);
+        toast.error('Failed to create clients');
+        return;
+      }
+      
+      toast.success(`Successfully created ${data?.length || 0} clients from email contacts`);
+      
+      // Clear unsynced notification and refresh
+      setShowUnsyncedNotification(false);
+      setUnsyncedClients([]);
+      await fetchClients();
+      
+    } catch (error) {
+      console.error('Error creating clients from emails:', error);
+      toast.error('Failed to create clients');
+    } finally {
+      setIsCreatingFromEmails(false);
     }
   };
 
@@ -236,6 +414,74 @@ const ClientManager = () => {
             <AILeadScoring />
           </CardContent>
         </Card>
+      )}
+
+      {/* Unsynced Clients Notification */}
+      {showUnsyncedNotification && unsyncedClients.length > 0 && (
+        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertTitle className="text-orange-800 dark:text-orange-200">
+            Potential Clients Found in Inbox
+          </AlertTitle>
+          <AlertDescription className="text-orange-700 dark:text-orange-300">
+            <div className="mb-3">
+              We found {unsyncedClients.length} potential client{unsyncedClients.length > 1 ? 's' : ''} from your email contacts that aren't in your client list yet.
+            </div>
+            <div className="mb-3 space-y-1">
+              {unsyncedClients.slice(0, 3).map((client, index) => (
+                <div key={index} className="text-sm font-medium">
+                  • {client.email}
+                </div>
+              ))}
+              {unsyncedClients.length > 3 && (
+                <div className="text-sm text-orange-600">
+                  ...and {unsyncedClients.length - 3} more
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                onClick={handleCreateClientsFromEmails}
+                disabled={isCreatingFromEmails}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {isCreatingFromEmails ? (
+                  <>
+                    <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-3 w-3" />
+                    Create {unsyncedClients.length} Client{unsyncedClients.length > 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setShowUnsyncedNotification(false)}
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* First Login Email Sync Status */}
+      {isFirstLogin && (
+        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+          <RefreshCw className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-800 dark:text-blue-200">
+            Email Sync in Progress
+          </AlertTitle>
+          <AlertDescription className="text-blue-700 dark:text-blue-300">
+            We're syncing your emails to help identify potential clients. This may take a few moments...
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Search */}
