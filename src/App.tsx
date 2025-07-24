@@ -23,6 +23,10 @@ import Calendar from "./pages/Calendar";
 import Bookings from "./pages/Bookings";
 import Emails from "./pages/Emails";
 import Messages from "./pages/Messages";
+import AILeadsPage from "./pages/AILeadsPage";
+import AIInsightsPage from "./pages/AIInsightsPage";
+import AIEmailPage from "./pages/AIEmailPage";
+import AIAnalyticsPage from "./pages/AIAnalyticsPage";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +70,10 @@ const App = () => {
                       <Route path="/messages" element={<Messages />} />
                       <Route path="/calendar" element={<Calendar />} />
                       <Route path="/analytics/:type" element={<Analytics />} />
+                      <Route path="/ai-leads" element={<AILeadsPage />} />
+                      <Route path="/ai-insights" element={<AIInsightsPage />} />
+                      <Route path="/ai-email" element={<AIEmailPage />} />
+                      <Route path="/ai-analytics" element={<AIAnalyticsPage />} />
                       <Route path="/booking/:bookingId" element={<BookingDetail />} />
                       <Route path="/request/:requestId" element={<RequestDetail />} />
                       <Route path="/client/:clientId" element={<ClientProfile />} />

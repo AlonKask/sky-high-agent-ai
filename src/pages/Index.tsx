@@ -7,9 +7,30 @@ import RequestManager from "@/components/RequestManager";
 import BookingManager from "@/components/BookingManager";
 import EmailManager from "@/components/EmailManager";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import AILeadScoring from "@/components/AILeadScoring";
+import AIInsights from "@/components/AIInsights";
+import AIEmailAssistant from "@/components/AIEmailAssistant";
+import AIWorkflowAutomation from "@/components/AIWorkflowAutomation";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, User, Settings as SettingsIcon, Bell } from "lucide-react";
+import { 
+  LogOut, 
+  User, 
+  Settings as SettingsIcon, 
+  Bell,
+  Brain,
+  Target,
+  TrendingUp,
+  Bot,
+  Sparkles,
+  ArrowRight,
+  Users,
+  FileText,
+  Calendar,
+  Mail,
+  Zap
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
@@ -89,7 +110,161 @@ const Index = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case "dashboard":
-        return <EnhancedDashboard setCurrentView={setCurrentView} />;
+        return (
+          <div className="space-y-6">
+            {/* AI Features Highlight */}
+            <Card className="card-elevated gradient-bg text-white overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2 flex items-center gap-2">
+                      <Sparkles className="h-5 w-5" />
+                      AI-Powered Travel CRM
+                    </h3>
+                    <p className="text-white/80 mb-4">
+                      Leverage artificial intelligence to boost your travel business efficiency
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={() => setCurrentView('ai-leads')}
+                        className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                      >
+                        <Target className="h-4 w-4 mr-1" />
+                        Lead Scoring
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={() => setCurrentView('ai-insights')}
+                        className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                      >
+                        <Brain className="h-4 w-4 mr-1" />
+                        AI Insights
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={() => setCurrentView('ai-email')}
+                        className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                      >
+                        <Bot className="h-4 w-4 mr-1" />
+                        Email Assistant
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={() => setCurrentView('ai-automation')}
+                        className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                      >
+                        <Zap className="h-4 w-4 mr-1" />
+                        Automation
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="hidden md:block">
+                    <Sparkles className="h-24 w-24 text-white/30" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Main Dashboard */}
+            <EnhancedDashboard setCurrentView={setCurrentView} />
+
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="card-elevated hover-scale cursor-pointer" onClick={() => setCurrentView('clients')}>
+                <CardContent className="p-4 text-center">
+                  <Users className="h-8 w-8 text-primary mx-auto mb-2" />
+                  <h3 className="font-semibold">Add Client</h3>
+                  <p className="text-sm text-muted-foreground">Create new client profile</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="card-elevated hover-scale cursor-pointer" onClick={() => setCurrentView('requests')}>
+                <CardContent className="p-4 text-center">
+                  <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                  <h3 className="font-semibold">New Request</h3>
+                  <p className="text-sm text-muted-foreground">Create travel request</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="card-elevated hover-scale cursor-pointer" onClick={() => setCurrentView('bookings')}>
+                <CardContent className="p-4 text-center">
+                  <Calendar className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                  <h3 className="font-semibold">Quick Booking</h3>
+                  <p className="text-sm text-muted-foreground">Create new booking</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="card-elevated hover-scale cursor-pointer" onClick={() => setCurrentView('email')}>
+                <CardContent className="p-4 text-center">
+                  <Mail className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                  <h3 className="font-semibold">Email Center</h3>
+                  <p className="text-sm text-muted-foreground">Manage communications</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* AI Features Preview */}
+            <Card className="card-elevated">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  AI-Powered Features
+                </CardTitle>
+                <CardDescription>
+                  Explore our advanced AI capabilities to supercharge your travel business
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setCurrentView('ai-leads')}>
+                      <Target className="h-8 w-8 text-red-600" />
+                      <div>
+                        <h4 className="font-medium">AI Lead Scoring</h4>
+                        <p className="text-sm text-muted-foreground">Automatically prioritize high-value prospects</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </div>
+                    
+                    <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setCurrentView('ai-insights')}>
+                      <Brain className="h-8 w-8 text-blue-600" />
+                      <div>
+                        <h4 className="font-medium">Business Insights</h4>
+                        <p className="text-sm text-muted-foreground">Get AI-powered recommendations and trends</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setCurrentView('ai-email')}>
+                      <Bot className="h-8 w-8 text-green-600" />
+                      <div>
+                        <h4 className="font-medium">Email Assistant</h4>
+                        <p className="text-sm text-muted-foreground">Smart email automation and suggestions</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </div>
+                    
+                    <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setCurrentView('ai-automation')}>
+                      <Zap className="h-8 w-8 text-purple-600" />
+                      <div>
+                        <h4 className="font-medium">Workflow Automation</h4>
+                        <p className="text-sm text-muted-foreground">Intelligent business process automation</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
       case "clients":
         return <ClientManager />;
       case "requests":
@@ -100,6 +275,14 @@ const Index = () => {
         return <EmailManager />;
       case "notifications":
         return <NotificationCenter />;
+      case "ai-leads":
+        return <AILeadScoring />;
+      case "ai-insights":
+        return <AIInsights />;
+      case "ai-email":
+        return <AIEmailAssistant />;
+      case "ai-automation":
+        return <AIWorkflowAutomation />;
       case "settings":
         return (
           <div className="space-y-6">
