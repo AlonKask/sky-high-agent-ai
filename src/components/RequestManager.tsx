@@ -509,10 +509,13 @@ const RequestManager = () => {
                       <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
+                  <PopoverContent className="w-full p-0 z-50 bg-background border shadow-lg">
                     <Command>
-                      <CommandInput placeholder="Search clients by name..." />
-                      <CommandList>
+                      <CommandInput 
+                        placeholder="Search clients by name..." 
+                        className="border-0 focus:ring-0"
+                      />
+                      <CommandList className="max-h-[200px] overflow-y-auto">
                         <CommandEmpty>No client found.</CommandEmpty>
                         <CommandGroup>
                           {clients.map((client) => (
@@ -523,6 +526,7 @@ const RequestManager = () => {
                                 handleInputChange('clientId', client.id);
                                 setClientSearchOpen(false);
                               }}
+                              className="cursor-pointer hover:bg-accent"
                             >
                               <Check
                                 className={cn(
