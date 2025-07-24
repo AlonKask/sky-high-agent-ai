@@ -93,6 +93,19 @@ serve(async (req) => {
 
       if (!state) {
         console.error('No state parameter received - user ID missing');
+        return new Response(
+          `<html><body><h1>Configuration Error</h1><p>User session lost during authentication. Please try connecting again.</p><script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'gmail_auth_success',
+                success: false,
+                error: 'User session lost - please try again'
+              }, '*');
+            }
+            window.close();
+          </script></body></html>`,
+          { headers: { 'Content-Type': 'text/html' } }
+        );
       }
 
       console.log('OAuth callback received, exchanging code for tokens...');

@@ -116,41 +116,66 @@ export const useGmailIntegration = () => {
                   title: "Gmail Connected",
                   description: `Successfully connected ${event.data.userEmail}`,
                 });
-              } else {
-                // Fallback: try exchange if tokens weren't stored during callback
-                console.log('Tokens not stored during callback, attempting manual exchange...');
-                
-                const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
-                  body: {
-                    action: 'exchange',
-                    code: event.data.code,
-                    userId: user?.id
-                  },
-                  headers: {
-                    'Content-Type': 'application/json'
-                  }
-                });
 
-                if (exchangeError) {
-                  throw exchangeError;
+                // Trigger initial email sync after successful connection
+                setTimeout(() => {
+                  triggerSync();
+                }, 1000);
+                
+              } else {
+                // Handle different error scenarios
+                if (event.data.error && event.data.error.includes('User session lost')) {
+                  toast({
+                    title: "Session Lost",
+                    description: "Please try connecting again",
+                    variant: "destructive"
+                  });
+                  return;
                 }
 
-                if (exchangeData?.success) {
-                  await checkGmailStatus();
-                  toast({
-                    title: "Gmail Connected",
-                    description: `Successfully connected ${exchangeData.userEmail}`,
+                // Fallback: try exchange if we have code but no state
+                if (event.data.code && user?.id) {
+                  console.log('Attempting manual token exchange with code:', event.data.code);
+                  
+                  const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
+                    body: {
+                      action: 'exchange',
+                      code: event.data.code,
+                      userId: user.id
+                    },
+                    headers: {
+                      'Content-Type': 'application/json'
+                    }
                   });
+
+                  if (exchangeError) {
+                    throw exchangeError;
+                  }
+
+                  if (exchangeData?.success) {
+                    await checkGmailStatus();
+                    toast({
+                      title: "Gmail Connected",
+                      description: `Successfully connected ${exchangeData.userEmail}`,
+                    });
+                    
+                    // Trigger initial email sync
+                    setTimeout(() => {
+                      triggerSync();
+                    }, 1000);
+                  } else {
+                    throw new Error(exchangeData?.error || 'Manual token exchange failed');
+                  }
                 } else {
-                  throw new Error(exchangeData?.error || 'Token exchange failed');
+                  throw new Error(event.data.error || 'Connection failed');
                 }
               }
 
             } catch (error) {
-              console.error('Error processing OAuth success:', error);
+              console.error('Error processing OAuth result:', error);
               toast({
-                title: "Connection Error",
-                description: "Gmail authentication completed but setup failed. Please try again.",
+                title: "Connection Failed",
+                description: error.message || "Please try connecting again",
                 variant: "destructive"
               });
             }
@@ -261,6 +286,11 @@ export const useGmailIntegration = () => {
         
         // Update last sync time
         await checkGmailStatus();
+        
+        // Dispatch event to refresh email lists across the app
+        window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
+          detail: { syncedCount: data.stored }
+        }));
       } else {
         throw new Error(data.error || 'Sync failed');
       }

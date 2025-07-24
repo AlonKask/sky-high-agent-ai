@@ -55,6 +55,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { toast } = useToast();
 
   // New email form state
@@ -295,7 +296,22 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
 
   useEffect(() => {
     fetchEmails();
-  }, [clientId, clientEmail]);
+  }, [clientId, clientEmail, refreshKey]);
+
+  // Listen for Gmail sync events to refresh email list
+  useEffect(() => {
+    const handleGmailSync = () => {
+      console.log('Gmail sync detected, refreshing email list...');
+      setRefreshKey(prev => prev + 1);
+    };
+
+    // Listen for custom events from Gmail integration
+    window.addEventListener('gmail-sync-complete', handleGmailSync);
+    
+    return () => {
+      window.removeEventListener('gmail-sync-complete', handleGmailSync);
+    };
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
