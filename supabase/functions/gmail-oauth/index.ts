@@ -27,9 +27,18 @@ serve(async (req) => {
     );
 
     // Create service role client for callback operations that bypass RLS
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    
+    if (!serviceRoleKey) {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY not found in environment');
+    } else {
+      console.log('✅ Service role key configured');
+    }
+    
     const supabaseServiceClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      supabaseUrl ?? '',
+      serviceRoleKey ?? ''
     );
 
     // Parse action from URL params
@@ -294,6 +303,17 @@ serve(async (req) => {
         
         // Use service role client to bypass RLS in callback
         console.log(`📝 Using service role to store tokens for user: ${state}`);
+        
+        // Test service role client RLS bypass
+        const { data: testData, error: testError } = await supabaseServiceClient
+          .from('user_preferences')
+          .select('user_id')
+          .eq('user_id', state)
+          .single();
+          
+        console.log(`🔍 RLS Test - Found existing: ${!!testData}, Error: ${testError?.message || 'none'}`);
+        
+        // Try upsert first
         const { error: upsertError } = await supabaseServiceClient
           .from('user_preferences')
           .upsert({
@@ -308,8 +328,27 @@ serve(async (req) => {
           });
           
         if (upsertError) {
-          console.error(`❌ Error storing tokens:`, upsertError);
-          storageError = upsertError.message;
+          console.error(`❌ Upsert failed, trying update fallback:`, upsertError);
+          
+          // Fallback to direct update if upsert fails
+          const { error: updateError } = await supabaseServiceClient
+            .from('user_preferences')
+            .update({
+              gmail_access_token: tokens.access_token,
+              gmail_refresh_token: tokens.refresh_token,
+              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+              gmail_user_email: userInfo.email,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', state);
+            
+          if (updateError) {
+            console.error(`❌ Update fallback also failed:`, updateError);
+            storageError = `Both upsert and update failed: ${upsertError.message}`;
+          } else {
+            storedSuccessfully = true;
+            console.log(`✅ Gmail tokens stored via update fallback for: ${userInfo.email}`);
+          }
         } else {
           storedSuccessfully = true;
           console.log(`✅ Gmail tokens stored successfully for: ${userInfo.email}`);
