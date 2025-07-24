@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import WorldClock from '@/components/WorldClock';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1192,6 +1193,7 @@ Best regards,
           <div className="p-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
+                <WorldClock variant="minimal" />
                 <div className="flex gap-2">
                   <Button 
                     variant="ghost" 

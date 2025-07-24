@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AIAssistantChat } from "@/components/AIAssistantChat";
+import WorldClock from "@/components/WorldClock";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
@@ -48,7 +49,7 @@ const App = () => {
                       
                       <div className="flex flex-1 items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          
+                          <WorldClock variant="compact" />
                         </div>
                       </div>
                     </div>
