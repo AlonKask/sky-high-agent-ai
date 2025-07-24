@@ -25,11 +25,19 @@ serve(async (req) => {
     let bodyData: any = {};
     if (req.method === 'POST') {
       try {
-        const bodyText = await req.text();
-        console.log('Raw request body:', bodyText);
-        if (bodyText) {
-          bodyData = JSON.parse(bodyText);
-          console.log('Parsed body data:', bodyData);
+        // Handle both direct POST requests and Supabase function invocations
+        const contentType = req.headers.get('content-type') || '';
+        
+        if (contentType.includes('application/json')) {
+          bodyData = await req.json();
+          console.log('Parsed JSON body data:', bodyData);
+        } else {
+          const bodyText = await req.text();
+          console.log('Raw request body:', bodyText);
+          if (bodyText) {
+            bodyData = JSON.parse(bodyText);
+            console.log('Parsed text body data:', bodyData);
+          }
         }
       } catch (error) {
         console.error('Error parsing request body:', error);
@@ -38,14 +46,14 @@ serve(async (req) => {
     }
 
     const finalAction = action || bodyData.action || 'start';
-    console.log('Gmail OAuth action:', finalAction, 'Body data keys:', Object.keys(bodyData));
+    const userId = bodyData.userId; // Get userId from request body
+    console.log('Gmail OAuth action:', finalAction, 'Body data keys:', Object.keys(bodyData), 'userId:', userId);
 
     if (finalAction === 'start') {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
-      const userId = bodyData.userId; // Get userId from request body
       
       console.log('Starting OAuth flow for user:', userId);
       console.log('Environment check - Client ID exists:', !!clientId, 'Client Secret exists:', !!clientSecret);
@@ -56,6 +64,7 @@ serve(async (req) => {
       }
       
       if (!userId) {
+        console.error('User ID is required for OAuth flow. Body data:', bodyData);
         throw new Error('User ID is required for OAuth flow');
       }
       
