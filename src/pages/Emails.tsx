@@ -1195,57 +1195,78 @@ Best regards,
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            if (isSidebarCollapsed) {
-              setShowMiniMenu(!showMiniMenu);
-            } else {
-              setIsSidebarCollapsed(!isSidebarCollapsed);
-            }
-          }}
+          onClick={() => setShowMiniMenu(!showMiniMenu)}
           className="absolute -right-3 top-4 z-10 h-6 w-6 rounded-full border bg-background shadow-md"
         >
-          {isSidebarCollapsed ? (
-            <ChevronRight className="h-3 w-3" />
+          {showMiniMenu ? (
+            <X className="h-3 w-3" />
           ) : (
-            <ChevronLeft className="h-3 w-3" />
+            <ChevronRight className="h-3 w-3" />
           )}
         </Button>
 
-        {/* Mini Side Menu */}
-        {isSidebarCollapsed && showMiniMenu && (
-          <div className="mini-menu-container absolute left-full top-16 z-50 bg-background border border-border rounded-lg shadow-lg p-2 space-y-1 min-w-[140px]">
-            {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
-              const folderIcons = {
-                inbox: <Mail className="h-4 w-4" />,
-                sent: <Send className="h-4 w-4" />,
-                drafts: <FileText className="h-4 w-4" />,
-                spam: <AlertCircle className="h-4 w-4" />,
-                trash: <Trash2 className="h-4 w-4" />
-              };
-              
-              return (
-                <Button
-                  key={folder}
-                  variant={selectedFolder === folder ? "secondary" : "ghost"}
-                  size="sm"
-                  className="w-full justify-start h-8 px-2"
-                  onClick={async () => {
-                    console.log('Switching to folder:', folder);
-                    setSelectedEmail(null);
-                    setSelectedFolder(folder);
-                    setShowMiniMenu(false);
-                    if (isAuthenticated) {
-                      await loadEmailsFromDB();
-                      await fetchEmails(authToken, folder);
+        {/* Mini Side Menu inside sidebar */}
+        {showMiniMenu && (
+          <div className="p-4">
+            <div className="space-y-2">
+              {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
+                const folderIcons = {
+                  inbox: <Mail className="h-4 w-4" />,
+                  sent: <Send className="h-4 w-4" />,
+                  drafts: <FileText className="h-4 w-4" />,
+                  spam: <AlertCircle className="h-4 w-4" />,
+                  trash: <Trash2 className="h-4 w-4" />
+                };
+                
+                const unreadCount = emails.filter(email => {
+                  if (!email.isRead) {
+                    if (folder === 'inbox') {
+                      return !email.labels || email.labels.includes('INBOX');
+                    } else {
+                      const folderLabelMap: Record<string, string> = {
+                        'sent': 'SENT',
+                        'drafts': 'DRAFT', 
+                        'spam': 'SPAM',
+                        'trash': 'TRASH'
+                      };
+                      return email.labels?.includes(folderLabelMap[folder]);
                     }
-                  }}
-                  disabled={isSyncing}
-                >
-                  {folderIcons[folder as keyof typeof folderIcons]}
-                  <span className="ml-2 text-xs">{folder.charAt(0).toUpperCase() + folder.slice(1)}</span>
-                </Button>
-              );
-            })}
+                  }
+                  return false;
+                }).length;
+                
+                return (
+                  <Button
+                    key={folder}
+                    variant={selectedFolder === folder ? "secondary" : "ghost"}
+                    className="w-full justify-between group hover:bg-accent transition-colors"
+                    onClick={async () => {
+                      console.log('Switching to folder:', folder);
+                      setSelectedEmail(null);
+                      setSelectedFolder(folder);
+                      if (isAuthenticated) {
+                        await loadEmailsFromDB();
+                        await fetchEmails(authToken, folder);
+                      }
+                    }}
+                    disabled={isSyncing}
+                  >
+                    <span className="flex items-center gap-2">
+                      {folderIcons[folder as keyof typeof folderIcons]}
+                      <span>{folder.charAt(0).toUpperCase() + folder.slice(1)}</span>
+                      {selectedFolder === folder && isSyncing && (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      )}
+                    </span>
+                    {unreadCount > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
         )}
 
