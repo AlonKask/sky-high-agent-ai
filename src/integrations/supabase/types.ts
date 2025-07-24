@@ -971,6 +971,8 @@ export type Database = {
       }
       quotes: {
         Row: {
+          adults_count: number | null
+          children_count: number | null
           ck_fee_amount: number
           ck_fee_enabled: boolean
           client_id: string
@@ -978,10 +980,12 @@ export type Database = {
           created_at: string
           fare_type: string
           id: string
+          infants_count: number | null
           is_hidden: boolean
           markup: number
           net_price: number
           notes: string | null
+          passenger_pricing: Json | null
           pseudo_city: string | null
           request_id: string
           route: string
@@ -994,6 +998,8 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          adults_count?: number | null
+          children_count?: number | null
           ck_fee_amount?: number
           ck_fee_enabled?: boolean
           client_id: string
@@ -1001,10 +1007,12 @@ export type Database = {
           created_at?: string
           fare_type: string
           id?: string
+          infants_count?: number | null
           is_hidden?: boolean
           markup?: number
           net_price: number
           notes?: string | null
+          passenger_pricing?: Json | null
           pseudo_city?: string | null
           request_id: string
           route: string
@@ -1017,6 +1025,8 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          adults_count?: number | null
+          children_count?: number | null
           ck_fee_amount?: number
           ck_fee_enabled?: boolean
           client_id?: string
@@ -1024,10 +1034,12 @@ export type Database = {
           created_at?: string
           fare_type?: string
           id?: string
+          infants_count?: number | null
           is_hidden?: boolean
           markup?: number
           net_price?: number
           notes?: string | null
+          passenger_pricing?: Json | null
           pseudo_city?: string | null
           request_id?: string
           route?: string
@@ -1043,13 +1055,16 @@ export type Database = {
       }
       requests: {
         Row: {
+          adults_count: number | null
           budget_range: string | null
+          children_count: number | null
           class_preference: string | null
           client_id: string
           created_at: string | null
           departure_date: string
           destination: string
           id: string
+          infants_count: number | null
           notes: string | null
           origin: string
           passengers: number | null
@@ -1064,13 +1079,16 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          adults_count?: number | null
           budget_range?: string | null
+          children_count?: number | null
           class_preference?: string | null
           client_id: string
           created_at?: string | null
           departure_date: string
           destination: string
           id?: string
+          infants_count?: number | null
           notes?: string | null
           origin: string
           passengers?: number | null
@@ -1085,13 +1103,16 @@ export type Database = {
           user_id: string
         }
         Update: {
+          adults_count?: number | null
           budget_range?: string | null
+          children_count?: number | null
           class_preference?: string | null
           client_id?: string
           created_at?: string | null
           departure_date?: string
           destination?: string
           id?: string
+          infants_count?: number | null
           notes?: string | null
           origin?: string
           passengers?: number | null

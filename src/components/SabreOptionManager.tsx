@@ -21,6 +21,14 @@ interface SabreOption {
   parsedInfo?: ParsedItinerary;
   status: "draft" | "quoted" | "selected" | "expired";
   quoteType: "award" | "revenue";
+  // Passenger breakdown
+  adultsCount?: number;
+  childrenCount?: number;
+  infantsCount?: number;
+  // Passenger pricing
+  adultPrice?: number;
+  childPrice?: number;
+  infantPrice?: number;
   // Revenue fields
   fareType?: "tour_fare" | "private" | "published";
   numberOfBags?: number;
@@ -161,6 +169,12 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
       content: option.content,
       status: option.status,
       quoteType: option.quoteType,
+      adultsCount: option.adultsCount,
+      childrenCount: option.childrenCount,
+      infantsCount: option.infantsCount,
+      adultPrice: option.adultPrice,
+      childPrice: option.childPrice,
+      infantPrice: option.infantPrice,
       fareType: option.fareType,
       numberOfBags: option.numberOfBags,
       weightOfBags: option.weightOfBags,
@@ -328,6 +342,84 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                         <SelectItem value="expired">Expired</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* Passenger Breakdown Section */}
+                <div className="space-y-4 border rounded-lg p-4">
+                  <h4 className="font-medium">Passenger Breakdown</h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="adultsCount">Adults</Label>
+                      <Input
+                        id="adultsCount"
+                        type="number"
+                        min="0"
+                        value={newOption.adultsCount || 1}
+                        onChange={(e) => setNewOption({ ...newOption, adultsCount: parseInt(e.target.value) || 1 })}
+                        placeholder="1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="childrenCount">Children</Label>
+                      <Input
+                        id="childrenCount"
+                        type="number"
+                        min="0"
+                        value={newOption.childrenCount || 0}
+                        onChange={(e) => setNewOption({ ...newOption, childrenCount: parseInt(e.target.value) || 0 })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="infantsCount">Infants</Label>
+                      <Input
+                        id="infantsCount"
+                        type="number"
+                        min="0"
+                        value={newOption.infantsCount || 0}
+                        onChange={(e) => setNewOption({ ...newOption, infantsCount: parseInt(e.target.value) || 0 })}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="adultPrice">Adult Price ($)</Label>
+                      <Input
+                        id="adultPrice"
+                        type="number"
+                        step="0.01"
+                        value={newOption.adultPrice || ""}
+                        onChange={(e) => setNewOption({ ...newOption, adultPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="childPrice">Child Price ($)</Label>
+                      <Input
+                        id="childPrice"
+                        type="number"
+                        step="0.01"
+                        value={newOption.childPrice || ""}
+                        onChange={(e) => setNewOption({ ...newOption, childPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="infantPrice">Infant Price ($)</Label>
+                      <Input
+                        id="infantPrice"
+                        type="number"
+                        step="0.01"
+                        value={newOption.infantPrice || ""}
+                        onChange={(e) => setNewOption({ ...newOption, infantPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total Passengers: {(newOption.adultsCount || 1) + (newOption.childrenCount || 0) + (newOption.infantsCount || 0)}
                   </div>
                 </div>
 
@@ -617,44 +709,68 @@ const SabreOptionManager = ({ options, onAddOption, onUpdateOption, onDeleteOpti
                     
                     {/* Pricing Table */}
                     <div className="bg-white border-b">
-                      <div className="grid grid-cols-6 text-xs font-medium bg-gray-100 border-b">
-                        <div className="p-2 border-r">Passenger</div>
+                      <div className="grid grid-cols-4 text-xs font-medium bg-gray-100 border-b">
+                        <div className="p-2 border-r">Passenger Type</div>
                         <div className="p-2 border-r">Quantity</div>
-                        <div className="p-2 border-r">Net Price</div>
-                        <div className="p-2 border-r">Min Markup</div>
-                        <div className="p-2 border-r">Markup</div>
-                        <div className="p-2">Selling Price</div>
+                        <div className="p-2 border-r">Price per Person</div>
+                        <div className="p-2">Subtotal</div>
                       </div>
-                      <div className="grid grid-cols-6 text-xs">
-                        <div className="p-2 border-r">ADT</div>
-                        <div className="p-2 border-r">x1</div>
-                        <div className="p-2 border-r text-gray-700">
-                          {option.netPrice ? `USD ${option.netPrice.toFixed(2)}` : 'USD 0.00'}
+                      
+                      {/* Adults Row */}
+                      {(option.adultsCount || 1) > 0 && (
+                        <div className="grid grid-cols-4 text-xs">
+                          <div className="p-2 border-r font-medium">Adults (ADT)</div>
+                          <div className="p-2 border-r">x{option.adultsCount || 1}</div>
+                          <div className="p-2 border-r text-gray-700">
+                            {option.adultPrice ? `USD ${option.adultPrice.toFixed(2)}` : 'USD 0.00'}
+                          </div>
+                          <div className="p-2 text-green-600 font-medium">
+                            USD {((option.adultPrice || 0) * (option.adultsCount || 1)).toFixed(2)}
+                          </div>
                         </div>
-                        <div className="p-2 border-r text-gray-700">
-                          {option.minimumMarkup ? `USD ${option.minimumMarkup.toFixed(2)}` : 'USD 0.00'}
+                      )}
+                      
+                      {/* Children Row */}
+                      {(option.childrenCount || 0) > 0 && (
+                        <div className="grid grid-cols-4 text-xs">
+                          <div className="p-2 border-r font-medium">Children (CHD)</div>
+                          <div className="p-2 border-r">x{option.childrenCount}</div>
+                          <div className="p-2 border-r text-gray-700">
+                            {option.childPrice ? `USD ${option.childPrice.toFixed(2)}` : 'USD 0.00'}
+                          </div>
+                          <div className="p-2 text-green-600 font-medium">
+                            USD {((option.childPrice || 0) * (option.childrenCount || 0)).toFixed(2)}
+                          </div>
                         </div>
-                        <div className="p-2 border-r text-green-600">
-                          {option.markup ? `USD ${option.markup.toFixed(2)}` : 'USD 0.00'}
+                      )}
+                      
+                      {/* Infants Row */}
+                      {(option.infantsCount || 0) > 0 && (
+                        <div className="grid grid-cols-4 text-xs">
+                          <div className="p-2 border-r font-medium">Infants (INF)</div>
+                          <div className="p-2 border-r">x{option.infantsCount}</div>
+                          <div className="p-2 border-r text-gray-700">
+                            {option.infantPrice ? `USD ${option.infantPrice.toFixed(2)}` : 'USD 0.00'}
+                          </div>
+                          <div className="p-2 text-green-600 font-medium">
+                            USD {((option.infantPrice || 0) * (option.infantsCount || 0)).toFixed(2)}
+                          </div>
                         </div>
-                        <div className="p-2 text-green-600 font-medium">
-                          {option.sellingPrice ? `USD ${option.sellingPrice.toFixed(2)}` : 'USD 0.00'}
+                      )}
+                      
+                      {/* Total Row */}
+                      <div className="grid grid-cols-4 text-xs bg-gray-50 border-t">
+                        <div className="p-2 border-r font-bold">Total</div>
+                        <div className="p-2 border-r font-medium">
+                          x{(option.adultsCount || 1) + (option.childrenCount || 0) + (option.infantsCount || 0)} passengers
                         </div>
-                      </div>
-                      <div className="grid grid-cols-6 text-xs bg-gray-50">
-                        <div className="p-2 border-r font-medium">Total</div>
-                        <div className="p-2 border-r">x1</div>
-                        <div className="p-2 border-r text-gray-700 font-medium">
-                          {option.netPrice ? `USD ${option.netPrice.toFixed(2)}` : 'USD 0.00'}
-                        </div>
-                        <div className="p-2 border-r text-gray-700 font-medium">
-                          {option.minimumMarkup ? `USD ${option.minimumMarkup.toFixed(2)}` : 'USD 0.00'}
-                        </div>
-                        <div className="p-2 border-r text-green-600 font-medium">
-                          {option.markup ? `USD ${option.markup.toFixed(2)}` : 'USD 0.00'}
-                        </div>
-                        <div className="p-2 text-green-600 font-medium">
-                          {option.sellingPrice ? `USD ${option.sellingPrice.toFixed(2)}` : 'USD 0.00'}
+                        <div className="p-2 border-r text-gray-700 font-medium">-</div>
+                        <div className="p-2 text-green-600 font-bold text-base">
+                          USD {(
+                            ((option.adultPrice || 0) * (option.adultsCount || 1)) +
+                            ((option.childPrice || 0) * (option.childrenCount || 0)) +
+                            ((option.infantPrice || 0) * (option.infantsCount || 0))
+                          ).toFixed(2)}
                         </div>
                       </div>
                     </div>
