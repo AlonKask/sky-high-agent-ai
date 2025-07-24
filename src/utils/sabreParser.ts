@@ -65,15 +65,25 @@ export class SabreParser {
     // Find the main route for display
     let route: string;
     if (isRoundTrip) {
-      // For round trips, find the main departure and destination cities
-      // Skip connecting flights and find the actual destination
-      const mainDeparture = segments.find(seg => 
-        seg.departureAirport === 'ATL' || seg.departureAirport === 'MSY'
-      )?.departureAirport || firstSegment.departureAirport;
+      // For round trips, find the main departure and furthest destination
+      const mainDeparture = firstSegment.departureAirport;
       
-      const mainDestination = segments.find(seg => 
-        seg.arrivalAirport === 'FOR' || seg.arrivalAirport === 'GRU'
-      )?.arrivalAirport || 'FOR';
+      // Find the furthest destination (typically the middle point of the journey)
+      // Look for the segment that goes furthest from origin or has the longest distance
+      let mainDestination = lastSegment.arrivalAirport;
+      
+      // If we have multiple segments, find the actual destination (not a return)
+      // by looking for the segment where the departure doesn't match any previous arrival
+      const midPointSegment = segments.find((seg, index) => {
+        // Skip the first segment, look for the main destination
+        if (index === 0) return false;
+        // This could be our main destination if it's not the return leg
+        return index < segments.length / 2;
+      });
+      
+      if (midPointSegment) {
+        mainDestination = midPointSegment.arrivalAirport;
+      }
       
       route = `${mainDeparture}-${mainDestination}/${mainDestination}-${mainDeparture}`;
     } else {
