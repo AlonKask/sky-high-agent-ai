@@ -25,6 +25,7 @@ import Bookings from "./pages/Bookings";
 import Emails from "./pages/Emails";
 import Messages from "./pages/Messages";
 import AgentStatistics from "./pages/AgentStatistics";
+import ViewOption from "./pages/ViewOption";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => {
                       <Route path="/request/:requestId" element={<RequestDetail />} />
                       <Route path="/client/:clientId" element={<ClientProfile />} />
                       <Route path="/agent-statistics" element={<AgentStatistics />} />
+                      <Route path="/option/:optionId" element={<ViewOption />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
