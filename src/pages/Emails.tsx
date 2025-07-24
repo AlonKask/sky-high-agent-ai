@@ -94,9 +94,9 @@ const Emails = () => {
 
       // Apply folder-specific filters
       if (selectedFolder === 'sent') {
-        query = query.eq('direction', 'outbound').neq('metadata->>archived', 'true');
+        query = query.eq('direction', 'outbound').or('metadata->>archived.is.null,metadata->>archived.neq.true');
       } else if (selectedFolder === 'inbox') {
-        query = query.eq('direction', 'inbound').neq('metadata->>archived', 'true');
+        query = query.eq('direction', 'inbound').or('metadata->>archived.is.null,metadata->>archived.neq.true');
       } else if (selectedFolder === 'archived') {
         query = query.eq('metadata->>archived', 'true');
       } else if (selectedFolder === 'drafts') {
