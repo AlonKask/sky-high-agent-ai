@@ -647,6 +647,29 @@ export function EmailTemplateEditor({
     }, clientName);
   });
 
+  // Generate flight details HTML from segments
+  const generateFlightDetailsHTML = (segments: any[]) => {
+    return segments.map((segment: any, index: number) => `
+      <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 10px 0;">
+        <div style="font-weight: bold; color: #1f2937; margin-bottom: 10px;">
+          ${emailVariables.FLIGHT_OUTBOUND_AIRLINE} ${segment.flightNumber}
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div>
+            <div style="font-size: 12px; color: #6b7280; text-transform: uppercase;">Departure</div>
+            <div style="font-weight: 500; color: #374151;">${segment.departureAirport} at ${emailVariables.FLIGHT_OUTBOUND_DEPARTURE_TIME}</div>
+            <div style="font-size: 12px; color: #6b7280;">${emailVariables.TRAVEL_DATE_OUTBOUND}</div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: #6b7280; text-transform: uppercase;">Arrival</div>
+            <div style="font-weight: 500; color: #374151;">${segment.arrivalAirport} at ${emailVariables.FLIGHT_OUTBOUND_ARRIVAL_TIME}</div>
+            <div style="font-size: 12px; color: #6b7280;">${segment.arrivalDayOffset > 0 ? '+' + segment.arrivalDayOffset + ' day' : 'Same day'}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  };
+
   // Legacy variables for backward compatibility with existing templates
   const [variables, setVariables] = useState(() => {
     const vars = emailVariables;
@@ -670,34 +693,6 @@ export function EmailTemplateEditor({
       expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
     };
   });
-
-  // Generate flight details HTML from segments
-  const generateFlightDetailsHTML = (segments: any[]) => {
-    return segments.map((segment: any, index: number) => `
-      <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 10px 0;">
-        <div style="font-weight: bold; color: #1f2937; margin-bottom: 10px;">
-          ${emailVariables.FLIGHT_OUTBOUND_AIRLINE} ${segment.flightNumber}
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-          <div>
-            <div style="font-size: 12px; color: #6b7280; text-transform: uppercase;">Departure</div>
-            <div style="font-weight: 500; color: #374151;">${segment.departureAirport} at ${emailVariables.FLIGHT_OUTBOUND_DEPARTURE_TIME}</div>
-            <div style="font-size: 12px; color: #6b7280;">${emailVariables.TRAVEL_DATE_OUTBOUND}</div>
-          </div>
-          <div>
-            <div style="font-size: 12px; color: #6b7280; text-transform: uppercase;">Arrival</div>
-            <div style="font-weight: 500; color: #374151;">${segment.arrivalAirport} at ${emailVariables.FLIGHT_OUTBOUND_ARRIVAL_TIME}</div>
-            <div style="font-size: 12px; color: #6b7280;">${segment.arrivalDayOffset > 0 ? '+' + segment.arrivalDayOffset + ' day' : 'Same day'}</div>
-          </div>
-        </div>
-        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-          <span style="background: #eff6ff; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
-            ${emailVariables.FLIGHT_OUTBOUND_CLASS}
-          </span>
-        </div>
-      </div>
-    `).join('');
-  };
 
   // Update variables when quotes change
   useEffect(() => {
