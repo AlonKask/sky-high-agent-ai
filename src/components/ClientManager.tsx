@@ -468,67 +468,66 @@ const ClientManager = () => {
 
       {/* Unsynced Clients Notification */}
       {showUnsyncedNotification && unsyncedClients.length > 0 && (
-        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
-          <AlertCircle className="h-4 w-4 text-orange-600" />
-          <AlertTitle className="text-orange-800 dark:text-orange-200">
-            Potential Clients Found in Inbox
+        <Alert className="border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100">
+          <Mail className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertTitle className="text-green-900 dark:text-green-100">
+            New Potential Clients Detected ({unsyncedClients.length})
           </AlertTitle>
-          <AlertDescription className="text-orange-700 dark:text-orange-300">
-            <div className="mb-3">
-              We found {unsyncedClients.length} potential client{unsyncedClients.length > 1 ? 's' : ''} from your email contacts that aren't in your client list yet.
-            </div>
-            <div className="mb-3 space-y-2">
-              {unsyncedClients.slice(0, 5).map((client, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-orange-100/50 dark:bg-orange-900/30 rounded border border-orange-200 dark:border-orange-800">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+          <AlertDescription>
+            <p className="mb-4 text-green-800 dark:text-green-200">
+              We found {unsyncedClients.length} email contacts that might be new clients. 
+              Review them below and create client profiles for the ones you want to track.
+            </p>
+            
+            {/* Grid layout for all potential clients */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              {unsyncedClients.map((client, index) => (
+                <div key={index} className="flex flex-col p-3 bg-white dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="flex-1 mb-3">
+                    <p className="font-medium text-green-900 dark:text-green-100 truncate" title={client.email}>
+                      {client.email.split('@')[0]}
+                    </p>
+                    <p className="text-sm text-green-700 dark:text-green-300 truncate" title={client.email}>
                       {client.email}
-                    </span>
-                    <span className="text-xs text-orange-600 dark:text-orange-400">
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                       From {client.source}
-                    </span>
+                    </p>
                   </div>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => handleMarkAsNotClient(client.email)}
-                    className="h-6 w-6 p-0 hover:bg-orange-200 dark:hover:bg-orange-800 text-orange-600 hover:text-orange-800"
-                    title="Mark as not a client"
+                    className="w-full border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-800"
                   >
-                    <X className="h-3 w-3" />
+                    Mark as Not Client
                   </Button>
                 </div>
               ))}
-              {unsyncedClients.length > 5 && (
-                <div className="text-sm text-orange-600 dark:text-orange-400 pl-2">
-                  ...and {unsyncedClients.length - 5} more
-                </div>
-              )}
             </div>
+
             <div className="flex gap-2">
               <Button 
-                size="sm" 
                 onClick={handleCreateClientsFromEmails}
                 disabled={isCreatingFromEmails}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 {isCreatingFromEmails ? (
                   <>
-                    <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                     Creating...
                   </>
                 ) : (
                   <>
-                    <UserPlus className="mr-2 h-3 w-3" />
+                    <UserPlus className="mr-2 h-4 w-4" />
                     Create {unsyncedClients.length} Client{unsyncedClients.length > 1 ? 's' : ''}
                   </>
                 )}
               </Button>
               <Button 
-                size="sm" 
                 variant="outline" 
                 onClick={() => setShowUnsyncedNotification(false)}
-                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-800"
               >
                 Dismiss
               </Button>
