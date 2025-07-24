@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star } from 'lucide-react';
+import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -241,131 +241,183 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
     }
   };
 
+  // Add ESC key handler
+  useEffect(() => {
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCancel?.();
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onCancel]);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto p-6">
-      {/* Left Panel - Options Selection */}
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plane className="h-5 w-5" />
-              Select Travel Options
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[600px] pr-4">
-              <div className="space-y-4">
-                {quotes.map((quote, index) => (
-                  <Card 
-                    key={quote.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedQuotes.includes(quote.id) 
-                        ? 'ring-2 ring-primary bg-primary/5' 
-                        : 'hover:bg-muted/50'
-                    }`}
-                    onClick={() => {
-                      setSelectedQuotes(prev => 
-                        prev.includes(quote.id)
-                          ? prev.filter(id => id !== quote.id)
-                          : [...prev, quote.id]
-                      );
-                    }}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          {getOptionIcon(index)}
-                          <h4 className="font-semibold">{getOptionLabel(index)}</h4>
-                          <Badge variant="secondary">{quote.fare_type}</Badge>
-                        </div>
-                        {selectedQuotes.includes(quote.id) && (
-                          <CheckCircle className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                      
-                      <div className="text-sm text-muted-foreground mb-2">{quote.route}</div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold text-primary">
-                          {formatPrice(quote.total_price)}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">Duration</div>
-                          <div className="text-sm font-medium">{formatDuration(quote.segments)}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+    <div className="flex flex-col h-full max-h-[85vh]">
+      {/* Sticky Header with Close Button */}
+      <div className="flex items-center justify-between p-4 border-b bg-background">
+        <div>
+          <h2 className="text-lg font-semibold">Select Travel Options</h2>
+          <p className="text-sm text-muted-foreground">
+            {selectedQuotes.length} of {quotes.length} options selected
+          </p>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={onCancel}
+          className="h-8 w-8 rounded-full"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Right Panel - Email Composition & Preview */}
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Email Composition</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Subject Line</label>
-              <Input
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-                placeholder="Enter email subject"
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Personal Message (Optional)</label>
-              <Textarea
-                value={personalMessage}
-                onChange={(e) => setPersonalMessage(e.target.value)}
-                placeholder="Add a personal touch to your email..."
-                rows={3}
-              />
-            </div>
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full p-6">
+          {/* Left Panel - Options Selection */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plane className="h-5 w-5" />
+                  Select Travel Options
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="space-y-4">
+                    {quotes.map((quote, index) => (
+                      <Card 
+                        key={quote.id} 
+                        className={`cursor-pointer transition-all ${
+                          selectedQuotes.includes(quote.id) 
+                            ? 'ring-2 ring-primary bg-primary/5' 
+                            : 'hover:bg-muted/50'
+                        }`}
+                        onClick={() => {
+                          setSelectedQuotes(prev => 
+                            prev.includes(quote.id)
+                              ? prev.filter(id => id !== quote.id)
+                              : [...prev, quote.id]
+                          );
+                        }}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              {getOptionIcon(index)}
+                              <h4 className="font-semibold">{getOptionLabel(index)}</h4>
+                              <Badge variant="secondary">{quote.fare_type}</Badge>
+                            </div>
+                            {selectedQuotes.includes(quote.id) && (
+                              <CheckCircle className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          
+                          <div className="text-sm text-muted-foreground mb-2">{quote.route}</div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="text-2xl font-bold text-primary">
+                              {formatPrice(quote.total_price)}
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-muted-foreground">Duration</div>
+                              <div className="text-sm font-medium">{formatDuration(quote.segments)}</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
 
-            <Separator />
-
-            <div className="flex items-center justify-between text-sm">
-              <div>
-                <div className="font-medium">Recipient: {client.email}</div>
-                <div className="text-muted-foreground">
-                  {selectedQuotes.length} option(s) selected
+          {/* Right Panel - Email Composition & Preview */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Email Composition</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Subject Line</label>
+                  <Input
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    placeholder="Enter email subject"
+                  />
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                
+                <div>
+                  <label className="text-sm font-medium">Personal Message (Optional)</label>
+                  <Textarea
+                    value={personalMessage}
+                    onChange={(e) => setPersonalMessage(e.target.value)}
+                    placeholder="Add a personal touch to your email..."
+                    rows={3}
+                  />
+                </div>
 
-        {/* Email Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Email Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-muted/30 rounded-lg p-4 h-[400px] overflow-auto">
-              <div 
-                className="bg-white rounded border min-h-full"
-                dangerouslySetInnerHTML={{ 
-                  __html: generateEmailHTML().replace('{REVIEW_URL}', '#review-portal') 
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                <Separator />
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
+                <div className="flex items-center justify-between text-sm">
+                  <div>
+                    <div className="font-medium">Recipient: {client.email}</div>
+                    <div className="text-muted-foreground">
+                      {selectedQuotes.length} option(s) selected
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Email Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Email Preview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-muted/30 rounded-lg p-4 h-[300px] overflow-auto">
+                  <div 
+                    className="bg-white rounded border min-h-full"
+                    dangerouslySetInnerHTML={{ 
+                      __html: generateEmailHTML().replace('{REVIEW_URL}', '#review-portal') 
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+    {/* Sticky Bottom Action Bar */}
+    <div className="border-t bg-background p-4">
+      <div className="flex items-center justify-between max-w-7xl mx-auto">
+        <div className="flex items-center gap-3">
+          <Badge variant={selectedQuotes.length > 0 ? "default" : "secondary"}>
+            {selectedQuotes.length} option{selectedQuotes.length !== 1 ? 's' : ''} selected
+          </Badge>
+          {selectedQuotes.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedQuotes([])}
+            >
+              Clear Selection
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
           <Button
             onClick={handleSendEmail}
             disabled={isLoading || selectedQuotes.length === 0}
-            className="flex-1"
-            size="lg"
           >
             {isLoading ? (
               <>
@@ -379,12 +431,10 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
               </>
             )}
           </Button>
-          
-          <Button variant="outline" onClick={onCancel} size="lg">
-            Cancel
-          </Button>
         </div>
       </div>
+    </div>
+    
     </div>
   );
 };
