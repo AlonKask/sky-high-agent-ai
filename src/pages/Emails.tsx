@@ -253,25 +253,44 @@ const Emails = () => {
     { id: 'trash', name: 'Trash', icon: Trash2 }
   ];
 
-  // Filter and sort emails - this should match the folder filtering logic
-  const filteredEmails = emails
-    .filter(email => {
-      // Apply folder-specific filters that match the database queries
-      if (selectedFolder === 'sent') {
-        return email.direction === 'outbound' && !email.metadata?.archived && !email.metadata?.gmail_labels?.includes('TRASH');
-      } else if (selectedFolder === 'inbox') {
-        return email.direction === 'inbound' && !email.metadata?.archived && !email.metadata?.gmail_labels?.includes('TRASH');
-      } else if (selectedFolder === 'archived') {
-        return email.metadata?.archived;
-      } else if (selectedFolder === 'drafts') {
-        return email.metadata?.gmail_labels?.includes('DRAFT');
-      } else if (selectedFolder === 'trash') {
-        return email.metadata?.gmail_labels?.includes('TRASH');
-      }
-      
-      // Default: show all non-archived emails
-      return !email.metadata?.archived;
-    })
+  // Unified filter function for consistent filtering logic
+  const getFilteredEmails = (emails: EmailExchange[], folder: string) => {
+    switch (folder) {
+      case 'sent':
+        return emails.filter(email => email.direction === 'outbound');
+      case 'archived':
+        return emails.filter(email => 
+          email.metadata?.gmail_labels?.includes('ARCHIVED') || 
+          email.metadata?.archived === true ||
+          email.metadata?.labels?.includes('ARCHIVED')
+        );
+      case 'drafts':
+        return emails.filter(email => 
+          email.metadata?.gmail_labels?.includes('DRAFT') ||
+          email.metadata?.labels?.includes('DRAFT')
+        );
+      case 'trash':
+        return emails.filter(email => 
+          email.metadata?.gmail_labels?.includes('TRASH') ||
+          email.metadata?.labels?.includes('TRASH')
+        );
+      case 'inbox':
+      default:
+        return emails.filter(email => 
+          email.direction === 'inbound' && 
+          !email.metadata?.gmail_labels?.includes('ARCHIVED') &&
+          !email.metadata?.gmail_labels?.includes('TRASH') &&
+          !email.metadata?.gmail_labels?.includes('DRAFT') &&
+          !email.metadata?.labels?.includes('ARCHIVED') &&
+          !email.metadata?.labels?.includes('TRASH') &&
+          !email.metadata?.labels?.includes('DRAFT') &&
+          !email.metadata?.archived
+        );
+    }
+  };
+
+  // Filter and sort emails using the unified filter function
+  const filteredEmails = getFilteredEmails(emails, selectedFolder)
     .sort((a, b) => {
       if (sortBy === 'received_at') {
         const aTime = new Date(a.received_at).getTime();
@@ -326,31 +345,8 @@ const Emails = () => {
             {folders.map(folder => {
               const Icon = folder.icon;
               
-              // Calculate count based on ALL emails using consistent logic
-              let count = 0;
-              if (folder.id === 'inbox') {
-                count = emails.filter(email => 
-                  email.direction === 'inbound' && 
-                  !email.metadata?.archived &&
-                  !email.metadata?.gmail_labels?.includes('TRASH')
-                ).length;
-              } else if (folder.id === 'sent') {
-                count = emails.filter(email => 
-                  email.direction === 'outbound' && 
-                  !email.metadata?.archived &&
-                  !email.metadata?.gmail_labels?.includes('TRASH')
-                ).length;
-              } else if (folder.id === 'archived') {
-                count = emails.filter(email => email.metadata?.archived).length;
-              } else if (folder.id === 'drafts') {
-                count = emails.filter(email => 
-                  email.metadata?.gmail_labels?.includes('DRAFT')
-                ).length;
-              } else if (folder.id === 'trash') {
-                count = emails.filter(email => 
-                  email.metadata?.gmail_labels?.includes('TRASH')
-                ).length;
-              }
+              // Calculate count using the same unified filter function
+              const count = getFilteredEmails(emails, folder.id).length;
 
               return (
                 <Button

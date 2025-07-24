@@ -37,10 +37,17 @@ serve(async (req) => {
     if (finalAction === 'start') {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+      const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
       const userId = bodyData.userId; // Get userId from request body
       
       console.log('Starting OAuth flow for user:', userId);
+      console.log('Environment check - Client ID exists:', !!clientId, 'Client Secret exists:', !!clientSecret);
+      
+      if (!clientId || !clientSecret) {
+        console.error('Missing Google OAuth credentials - Client ID:', !!clientId, 'Client Secret:', !!clientSecret);
+        throw new Error('Google OAuth credentials not configured. Please check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.');
+      }
       
       if (!userId) {
         throw new Error('User ID is required for OAuth flow');
@@ -114,6 +121,11 @@ serve(async (req) => {
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
+      
+      if (!clientId || !clientSecret) {
+        console.error('Missing Google OAuth credentials in callback');
+        throw new Error('OAuth credentials not properly configured');
+      }
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -156,58 +168,27 @@ serve(async (req) => {
         try {
           console.log(`Storing tokens for user: ${state}`);
           
-          // First check if user_preferences record exists, create if not
-          const { data: existingPrefs, error: selectError } = await supabaseClient
+          // Use upsert to handle both insert and update cases
+          console.log(`Storing Gmail tokens for user: ${state}`);
+          const { error: upsertError } = await supabaseClient
             .from('user_preferences')
-            .select('user_id')
-            .eq('user_id', state)
-            .single();
-          
-          if (selectError && selectError.code === 'PGRST116') {
-            // Record doesn't exist, create it first
-            console.log(`Creating new user_preferences record for user: ${state}`);
-            const { error: insertError } = await supabaseClient
-              .from('user_preferences')
-              .insert({
-                user_id: state,
-                gmail_access_token: tokens.access_token,
-                gmail_refresh_token: tokens.refresh_token,
-                gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
-                gmail_user_email: userInfo.email,
-                updated_at: new Date().toISOString()
-              });
-              
-            if (insertError) {
-              console.error('Error inserting new preferences:', insertError);
-              storageError = insertError.message;
-            } else {
-              storedSuccessfully = true;
-              console.log(`Gmail tokens inserted successfully for new user: ${userInfo.email}`);
-            }
-          } else if (selectError) {
-            console.error('Error checking existing preferences:', selectError);
-            storageError = selectError.message;
+            .upsert({
+              user_id: state,
+              gmail_access_token: tokens.access_token,
+              gmail_refresh_token: tokens.refresh_token,
+              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+              gmail_user_email: userInfo.email,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
+            });
+            
+          if (upsertError) {
+            console.error('Error upserting tokens:', upsertError);
+            storageError = upsertError.message;
           } else {
-            // Record exists, update it
-            console.log(`Updating existing user_preferences for user: ${state}`);
-            const { error: updateError } = await supabaseClient
-              .from('user_preferences')
-              .update({
-                gmail_access_token: tokens.access_token,
-                gmail_refresh_token: tokens.refresh_token,
-                gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
-                gmail_user_email: userInfo.email,
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', state);
-
-            if (updateError) {
-              console.error('Error updating tokens:', updateError);
-              storageError = updateError.message;
-            } else {
-              storedSuccessfully = true;
-              console.log(`Gmail tokens updated successfully for user: ${userInfo.email}`);
-            }
+            storedSuccessfully = true;
+            console.log(`Gmail tokens stored successfully for user: ${userInfo.email}`);
           }
         } catch (error) {
           console.error('Error storing tokens:', error);
