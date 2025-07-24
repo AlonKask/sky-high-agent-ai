@@ -48,6 +48,7 @@ import {
   Minus,
   X
 } from "lucide-react";
+import { QuoteCard } from "@/components/QuoteCard";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,6 +102,8 @@ const RequestDetail = () => {
   const [quotes, setQuotes] = useState<any[]>([]);
   const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
+  const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
+  const [showHiddenQuotes, setShowHiddenQuotes] = useState(false);
   const [showSendQuoteDialog, setShowSendQuoteDialog] = useState(false);
   const [emailPreview, setEmailPreview] = useState({
     to: '',
@@ -838,6 +841,53 @@ const RequestDetail = () => {
     }
   };
 
+  // Quote card handlers
+  const handleToggleQuoteExpanded = (quoteId: string) => {
+    const newExpanded = new Set(expandedQuotes);
+    if (newExpanded.has(quoteId)) {
+      newExpanded.delete(quoteId);
+    } else {
+      newExpanded.add(quoteId);
+    }
+    setExpandedQuotes(newExpanded);
+  };
+
+  const handleEditQuote = (quote: any) => {
+    setEditingQuote(quote);
+    setQuoteData({
+      fareType: quote.fare_type || 'revenue_published',
+      netPrice: quote.net_price.toString(),
+      markup: quote.markup.toString(),
+      ckFeeEnabled: quote.ck_fee_enabled,
+      ckFeeAmount: quote.ck_fee_amount.toString(),
+      pseudoCity: quote.pseudo_city || '',
+      totalPrice: quote.total_price,
+      adultsCount: quote.adults_count || 1,
+      childrenCount: quote.children_count || 0,
+      infantsCount: quote.infants_count || 0,
+      adultNetPrice: quote.passenger_pricing?.adult?.net || '',
+      adultMarkup: quote.passenger_pricing?.adult?.markup || '',
+      childNetPrice: quote.passenger_pricing?.child?.net || '',
+      childMarkup: quote.passenger_pricing?.child?.markup || '',
+      infantNetPrice: quote.passenger_pricing?.infant?.net || '',
+      infantMarkup: quote.passenger_pricing?.infant?.markup || ''
+    });
+    
+    // Reconstruct the original Sabre I format data
+    if (quote.segments && quote.segments.length > 0) {
+      const reconstructedSabreData = reconstructSabreIFormat(quote.segments);
+      setSabreInput(reconstructedSabreData);
+      setParsedFlights({
+        segments: quote.segments,
+        totalSegments: quote.total_segments,
+        route: quote.route,
+        isRoundTrip: quote.segments.length > 1 && 
+          quote.segments[0].departureAirport === quote.segments[quote.segments.length - 1].arrivalAirport
+      });
+    }
+    setShowQuoteDialog(true);
+  };
+
   const generateIFormatDisplay = (quote: any) => {
     if (!quote.segments || quote.segments.length === 0) return 'No I-format data available';
     
@@ -1408,179 +1458,55 @@ const RequestDetail = () => {
                       </Button>
                     </div>
 
-                    {quotes.filter(q => !q.is_hidden).map((quote) => (
-                      <div key={quote.id} className="p-4 border rounded-lg bg-muted/20">
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            checked={selectedQuotes.has(quote.id)}
-                            onCheckedChange={(checked) => handleQuoteSelection(quote.id, checked as boolean)}
-                            className="mt-1"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h4 className="font-semibold flex items-center gap-2">
-                                  <Badge variant="outline">{quote.route}</Badge>
-                                  <Badge className="bg-green-100 text-green-800">
-                                    ${parseFloat(quote.total_price).toFixed(2)}
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {quote.fare_type.replace('_', ' ')}
-                                  </Badge>
-                                </h4>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {quote.total_segments} segment{quote.total_segments > 1 ? 's' : ''} • 
-                                  Created {new Date(quote.created_at).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                     <DropdownMenuItem onClick={() => {
-                                       setEditingQuote(quote);
-                                        setQuoteData({
-                                          fareType: quote.fare_type || 'revenue_published',
-                                          netPrice: quote.net_price.toString(),
-                                          markup: quote.markup.toString(),
-                                          ckFeeEnabled: quote.ck_fee_enabled,
-                                          ckFeeAmount: quote.ck_fee_amount.toString(),
-                                          pseudoCity: quote.pseudo_city || '',
-                                          totalPrice: quote.total_price,
-                                          adultsCount: quote.adults_count || 1,
-                                          childrenCount: quote.children_count || 0,
-                                          infantsCount: quote.infants_count || 0,
-                                          adultNetPrice: quote.passenger_pricing?.adult?.net || '',
-                                          adultMarkup: quote.passenger_pricing?.adult?.markup || '',
-                                          childNetPrice: quote.passenger_pricing?.child?.net || '',
-                                          childMarkup: quote.passenger_pricing?.child?.markup || '',
-                                          infantNetPrice: quote.passenger_pricing?.infant?.net || '',
-                                          infantMarkup: quote.passenger_pricing?.infant?.markup || ''
-                                        });
-                                       // Reconstruct the original Sabre I format data
-                                       if (quote.segments && quote.segments.length > 0) {
-                                         const reconstructedSabreData = reconstructSabreIFormat(quote.segments);
-                                         setSabreInput(reconstructedSabreData);
-                                         setParsedFlights({
-                                           segments: quote.segments,
-                                           totalSegments: quote.total_segments,
-                                           route: quote.route,
-                                           isRoundTrip: quote.segments.length > 1 && 
-                                             quote.segments[0].departureAirport === quote.segments[quote.segments.length - 1].arrivalAirport
-                                         });
-                                       }
-                                       setShowQuoteDialog(true);
-                                     }}>
-                                      <Pencil className="h-4 w-4 mr-2" />
-                                      Edit Quote
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}>
-                                      {quote.is_hidden ? (
-                                        <>
-                                          <Eye className="h-4 w-4 mr-2" />
-                                          Show Quote
-                                        </>
-                                      ) : (
-                                        <>
-                                          <EyeOff className="h-4 w-4 mr-2" />
-                                          Hide Quote
-                                        </>
-                                      )}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDeleteQuote(quote.id)} className="text-destructive">
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete Quote
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </div>
-
-                            {/* Flight Segments */}
-                            <div className="space-y-2 mb-4">
-                              {quote.segments?.map((segment: any, index: number) => (
-                                <div key={index} className="p-3 bg-background rounded border text-sm">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="secondary" className="text-xs">{segment.flightNumber}</Badge>
-                                      <span className="font-medium">
-                                        {segment.departureAirport} → {segment.arrivalAirport}
-                                      </span>
-                                    </div>
-                                    <Badge className="bg-blue-100 text-blue-800 text-xs">
-                                      {segment.cabinClass}
-                                    </Badge>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                    <div>Departure: {segment.departureTime}</div>
-                                    <div>
-                                      Arrival: {segment.arrivalTime}
-                                      {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* I-Format Display */}
-                            <div className="mb-3">
-                              <Label className="text-xs font-medium text-muted-foreground mb-2 block">Sabre I-Format:</Label>
-                              <div className="p-2 bg-background rounded border font-mono text-xs text-muted-foreground whitespace-pre-wrap">
-                                {generateIFormatDisplay(quote)}
-                              </div>
-                            </div>
-
-                            {/* Pricing Details */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm border-t pt-3">
-                              <div>
-                                <span className="text-muted-foreground">Segments:</span>
-                                <p className="font-medium">{quote.total_segments}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Net Price:</span>
-                                <p className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Markup:</span>
-                                <p className="font-medium">${parseFloat(quote.markup).toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Created:</span>
-                                <p className="font-medium">{new Date(quote.created_at).toLocaleDateString()}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Total:</span>
-                                <p className="font-medium text-green-600">${parseFloat(quote.total_price).toFixed(2)}</p>
-                              </div>
-                            </div>
-
-                            {quote.ck_fee_enabled && (
-                              <div className="mt-2 text-xs text-muted-foreground">
-                                CK Fee (3.5%): ${parseFloat(quote.ck_fee_amount).toFixed(2)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                    <div className="space-y-3">
+                      {quotes.filter(q => !q.is_hidden).map((quote) => (
+                        <QuoteCard
+                          key={quote.id}
+                          quote={quote}
+                          isSelected={selectedQuotes.has(quote.id)}
+                          isExpanded={expandedQuotes.has(quote.id)}
+                          onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
+                          onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
+                          onEdit={() => handleEditQuote(quote)}
+                          onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
+                          onDelete={() => handleDeleteQuote(quote.id)}
+                          onSendToEmail={() => handleSendQuoteToEmail(quote)}
+                          generateIFormatDisplay={generateIFormatDisplay}
+                        />
+                      ))}
+                    </div>
 
                     {quotes.filter(q => q.is_hidden).length > 0 && (
-                      <div className="pt-4 border-t">
+                      <div className="pt-4 border-t space-y-3">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            // Toggle hidden quotes visibility
-                            setQuotes(prev => prev.map(q => ({ ...q, showHidden: !q.showHidden })));
-                          }}
+                          onClick={() => setShowHiddenQuotes(!showHiddenQuotes)}
+                          className="w-full justify-start"
                         >
                           <Eye className="h-4 w-4 mr-2" />
-                          Show Hidden Quotes ({quotes.filter(q => q.is_hidden).length})
+                          {showHiddenQuotes ? 'Hide' : 'Show'} Hidden Quotes ({quotes.filter(q => q.is_hidden).length})
                         </Button>
+                        
+                        {showHiddenQuotes && (
+                          <div className="space-y-3">
+                            {quotes.filter(q => q.is_hidden).map((quote) => (
+                              <QuoteCard
+                                key={quote.id}
+                                quote={quote}
+                                isSelected={selectedQuotes.has(quote.id)}
+                                isExpanded={expandedQuotes.has(quote.id)}
+                                onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
+                                onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
+                                onEdit={() => handleEditQuote(quote)}
+                                onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
+                                onDelete={() => handleDeleteQuote(quote.id)}
+                                onSendToEmail={() => handleSendQuoteToEmail(quote)}
+                                generateIFormatDisplay={generateIFormatDisplay}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
