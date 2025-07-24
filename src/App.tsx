@@ -48,7 +48,7 @@ const App = () => {
                     <div className="container flex h-14 items-center">
                       
                       <div className="flex flex-1 items-center justify-between">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-center w-full">
                           <WorldClock variant="compact" />
                         </div>
                       </div>
