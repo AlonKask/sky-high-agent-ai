@@ -137,10 +137,10 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                      <NavLink 
                        to={item.url} 
-                       className={`flex items-center justify-center rounded-xl py-3 mx-2 transition-all duration-200 ${getNavCls(item.url)}`}
+                       className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls(item.url)}`}
                        title={isCollapsed ? item.title : ""}
                      >
-                       <item.icon className="h-5 w-5 flex-shrink-0" />
+                       <item.icon className="h-5 w-5" />
                       {!isCollapsed && (
                         <div className="flex flex-col">
                           <span>{item.title}</span>
@@ -166,10 +166,10 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                      <NavLink 
                        to={item.url} 
-                       className={`flex items-center justify-center rounded-xl py-3 mx-2 transition-all duration-200 ${getNavCls(item.url)}`}
+                       className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls(item.url)}`}
                        title={isCollapsed ? item.title : ""}
                      >
-                       <item.icon className="h-5 w-5 flex-shrink-0" />
+                       <item.icon className="h-5 w-5" />
                       {!isCollapsed && (
                         <div className="flex flex-col">
                           <span>{item.title}</span>
@@ -191,10 +191,10 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild>
                    <NavLink 
                      to="/settings" 
-                     className={`flex items-center justify-center rounded-xl py-3 mx-2 transition-all duration-200 ${getNavCls("/settings")}`}
+                     className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/settings")}`}
                      title={isCollapsed ? "Settings" : ""}
                    >
-                     <Settings className="h-5 w-5 flex-shrink-0" />
+                     <Settings className="h-5 w-5" />
                     {!isCollapsed && (
                       <div className="flex flex-col">
                         <span>Settings</span>
