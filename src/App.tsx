@@ -48,7 +48,7 @@ const App = () => {
                       
                       <div className="flex flex-1 items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <h2 className="text-lg font-semibold">Travel Management System</h2>
+                          
                         </div>
                       </div>
                     </div>

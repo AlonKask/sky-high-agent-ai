@@ -1172,7 +1172,7 @@ Best regards,
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Collapsible Gmail Integration Sidebar */}
+      {/* Collapsible Sidebar */}
       <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative`}>
         {/* Collapse/Expand Toggle */}
         <Button
@@ -1192,19 +1192,7 @@ Best regards,
           <div className="p-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h1 className="text-xl font-semibold">Gmail Integration</h1>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setShowAIEmailAssistant(!showAIEmailAssistant);
-                    }}
-                    className="border-primary/20 hover:bg-primary/5"
-                  >
-                    <Brain className="h-4 w-4 mr-1" />
-                    AI Assistant
-                  </Button>
                   <Button 
                     variant="ghost" 
                     size="sm"
@@ -1433,7 +1421,7 @@ Best regards,
                 size="sm"
                 onClick={() => setIsSidebarCollapsed(false)}
                 className="w-full h-8"
-                title="Expand Gmail Integration"
+                title="Expand Sidebar"
               >
                 <Mail className="h-4 w-4" />
               </Button>
