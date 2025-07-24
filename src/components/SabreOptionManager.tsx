@@ -79,16 +79,20 @@ interface SabreOptionManagerProps {
 
   const hasValidPricing = () => {
     if (newOption.quoteType === "revenue") {
-      // For revenue quotes, require at least one passenger type with pricing
-      return (
-        (newOption.adultsCount && newOption.adultPrice) ||
-        (newOption.childrenCount && newOption.childPrice) ||
-        (newOption.infantsCount && newOption.infantPrice) ||
-        newOption.netPrice // Allow legacy netPrice field
-      );
+      // For revenue quotes, require at least one passenger type with valid pricing
+      const adultValid = (newOption.adultsCount || 0) > 0 && 
+        (newOption.adultPrice !== null && newOption.adultPrice !== undefined && !isNaN(Number(newOption.adultPrice)));
+      const childValid = (newOption.childrenCount || 0) > 0 && 
+        (newOption.childPrice !== null && newOption.childPrice !== undefined && !isNaN(Number(newOption.childPrice)));
+      const infantValid = (newOption.infantsCount || 0) > 0 && 
+        (newOption.infantPrice !== null && newOption.infantPrice !== undefined && !isNaN(Number(newOption.infantPrice)));
+      const legacyValid = newOption.netPrice !== null && newOption.netPrice !== undefined && !isNaN(Number(newOption.netPrice));
+      
+      return adultValid || childValid || infantValid || legacyValid;
     } else if (newOption.quoteType === "award") {
       // For award quotes, require program and points
-      return newOption.awardProgram && newOption.numberOfPoints;
+      return newOption.awardProgram && 
+        (newOption.numberOfPoints !== null && newOption.numberOfPoints !== undefined && !isNaN(Number(newOption.numberOfPoints)));
     }
     return true; // Allow saving drafts without pricing
   };
