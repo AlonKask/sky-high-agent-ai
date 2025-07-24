@@ -51,32 +51,32 @@ export const WorldClock: React.FC<WorldClockProps> = ({
   if (variant === 'compact') {
     return (
       <div className={`w-full overflow-x-auto ${className}`}>
-        <div className="flex gap-1 text-xs justify-center min-w-max px-1">
+        <div className="flex gap-2 sm:gap-3 lg:gap-4 text-xs justify-center min-w-max px-4 py-2">
           {timeZones.map((tz) => (
             <div key={tz.code} className="text-center flex-shrink-0">
               <div 
                 className="rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 flex flex-col items-center justify-center mb-1 hover:scale-105 transition-transform duration-200"
                 style={{
-                  width: 'clamp(2.5rem, 4vw, 4rem)',
-                  height: 'clamp(2.5rem, 4vw, 4rem)'
+                  width: 'clamp(2.25rem, 3.5vw, 3.5rem)',
+                  height: 'clamp(2.25rem, 3.5vw, 3.5rem)'
                 }}
               >
                 <div 
                   className="font-mono font-bold text-foreground leading-none"
-                  style={{ fontSize: 'clamp(0.6rem, 1.5vw, 0.875rem)' }}
+                  style={{ fontSize: 'clamp(0.55rem, 1.2vw, 0.75rem)' }}
                 >
                   {formatInTimeZone(currentTime, tz.timezone, 'HH:mm')}
                 </div>
                 <div 
                   className="text-muted-foreground leading-none mt-0.5"
-                  style={{ fontSize: 'clamp(0.5rem, 1.2vw, 0.75rem)' }}
+                  style={{ fontSize: 'clamp(0.45rem, 1vw, 0.625rem)' }}
                 >
                   {tz.code}
                 </div>
               </div>
               <div 
                 className="text-muted-foreground hidden sm:block"
-                style={{ fontSize: 'clamp(0.5rem, 1vw, 0.75rem)' }}
+                style={{ fontSize: 'clamp(0.45rem, 0.8vw, 0.625rem)' }}
               >
                 {formatInTimeZone(currentTime, tz.timezone, 'd MMM')}
               </div>
