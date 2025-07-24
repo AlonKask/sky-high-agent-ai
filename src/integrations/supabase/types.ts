@@ -68,6 +68,48 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          id: string
+          ip_address: unknown | null
+          new_values: Json | null
+          old_values: Json | null
+          operation: string
+          record_id: string | null
+          session_id: string | null
+          table_name: string
+          timestamp: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          operation: string
+          record_id?: string | null
+          session_id?: string | null
+          table_name: string
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          operation?: string
+          record_id?: string | null
+          session_id?: string | null
+          table_name?: string
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           airline: string
@@ -272,8 +314,13 @@ export type Database = {
         Row: {
           company: string | null
           created_at: string | null
+          data_classification: string | null
           date_of_birth: string | null
           email: string
+          encrypted_passport_number: string | null
+          encrypted_payment_info: Json | null
+          encrypted_ssn: string | null
+          encryption_key_id: string | null
           first_name: string
           id: string
           last_name: string
@@ -289,8 +336,13 @@ export type Database = {
         Insert: {
           company?: string | null
           created_at?: string | null
+          data_classification?: string | null
           date_of_birth?: string | null
           email: string
+          encrypted_passport_number?: string | null
+          encrypted_payment_info?: Json | null
+          encrypted_ssn?: string | null
+          encryption_key_id?: string | null
           first_name: string
           id?: string
           last_name: string
@@ -306,8 +358,13 @@ export type Database = {
         Update: {
           company?: string | null
           created_at?: string | null
+          data_classification?: string | null
           date_of_birth?: string | null
           email?: string
+          encrypted_passport_number?: string | null
+          encrypted_payment_info?: Json | null
+          encrypted_ssn?: string | null
+          encryption_key_id?: string | null
           first_name?: string
           id?: string
           last_name?: string
@@ -320,7 +377,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_encryption_key_id_fkey"
+            columns: ["encryption_key_id"]
+            isOneToOne: false
+            referencedRelation: "encryption_keys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       communication_archive: {
         Row: {
@@ -358,6 +423,69 @@ export type Database = {
           original_date?: string
           retention_expiry?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      data_export_requests: {
+        Row: {
+          admin_notes: string | null
+          completed_at: string | null
+          export_url: string | null
+          id: string
+          request_type: string
+          requested_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          completed_at?: string | null
+          export_url?: string | null
+          id?: string
+          request_type: string
+          requested_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          completed_at?: string | null
+          export_url?: string | null
+          id?: string
+          request_type?: string
+          requested_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_retention_policies: {
+        Row: {
+          auto_delete: boolean | null
+          compliance_rule: string | null
+          created_at: string
+          id: string
+          retention_period: unknown
+          table_name: string
+          updated_at: string
+        }
+        Insert: {
+          auto_delete?: boolean | null
+          compliance_rule?: string | null
+          created_at?: string
+          id?: string
+          retention_period: unknown
+          table_name: string
+          updated_at?: string
+        }
+        Update: {
+          auto_delete?: boolean | null
+          compliance_rule?: string | null
+          created_at?: string
+          id?: string
+          retention_period?: unknown
+          table_name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -502,6 +630,36 @@ export type Database = {
         }
         Relationships: []
       }
+      encryption_keys: {
+        Row: {
+          algorithm: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          key_name: string
+          key_version: number
+          status: string
+        }
+        Insert: {
+          algorithm?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          key_name: string
+          key_version?: number
+          status?: string
+        }
+        Update: {
+          algorithm?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          key_name?: string
+          key_version?: number
+          status?: string
+        }
+        Relationships: []
+      }
       excluded_emails: {
         Row: {
           created_at: string
@@ -571,6 +729,39 @@ export type Database = {
           scraped_at?: string
           source?: string
           travel_date?: string
+        }
+        Relationships: []
+      }
+      gdpr_consent: {
+        Row: {
+          consent_given: boolean
+          consent_type: string
+          consent_version: string
+          id: string
+          ip_address: unknown | null
+          timestamp: string
+          user_id: string
+          withdrawal_timestamp: string | null
+        }
+        Insert: {
+          consent_given: boolean
+          consent_type: string
+          consent_version: string
+          id?: string
+          ip_address?: unknown | null
+          timestamp?: string
+          user_id: string
+          withdrawal_timestamp?: string | null
+        }
+        Update: {
+          consent_given?: boolean
+          consent_type?: string
+          consent_version?: string
+          id?: string
+          ip_address?: unknown | null
+          timestamp?: string
+          user_id?: string
+          withdrawal_timestamp?: string | null
         }
         Relationships: []
       }
@@ -990,6 +1181,75 @@ export type Database = {
           },
         ]
       }
+      security_events: {
+        Row: {
+          details: Json | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          resolved: boolean
+          severity: string
+          timestamp: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          resolved?: boolean
+          severity?: string
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          resolved?: boolean
+          severity?: string
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sensitive_data_access: {
+        Row: {
+          access_reason: string | null
+          accessed_user_id: string | null
+          client_id: string | null
+          data_type: string
+          id: string
+          ip_address: unknown | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          access_reason?: string | null
+          accessed_user_id?: string | null
+          client_id?: string | null
+          data_type: string
+          id?: string
+          ip_address?: unknown | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          access_reason?: string | null
+          accessed_user_id?: string | null
+          client_id?: string | null
+          data_type?: string
+          id?: string
+          ip_address?: unknown | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_memories: {
         Row: {
           created_at: string
@@ -1107,6 +1367,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: unknown | null
+          is_active: boolean
+          last_activity: string
+          mfa_verified: boolean
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean
+          last_activity?: string
+          mfa_verified?: boolean
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean
+          last_activity?: string
+          mfa_verified?: boolean
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1118,6 +1417,16 @@ export type Database = {
       }
       archive_old_emails: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_audit_log: {
+        Args: {
+          p_table_name: string
+          p_operation: string
+          p_record_id?: string
+          p_old_values?: Json
+          p_new_values?: Json
+        }
         Returns: undefined
       }
       create_notification: {
