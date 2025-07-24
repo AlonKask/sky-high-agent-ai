@@ -92,6 +92,8 @@ export const useGmailIntegration = () => {
             window.removeEventListener('message', handleMessage);
 
             try {
+              console.log('OAuth success, processing token exchange...', event.data);
+              
               // Exchange the authorization code for tokens and store them
               const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
                 body: {
@@ -104,9 +106,15 @@ export const useGmailIntegration = () => {
                 }
               });
 
-              if (exchangeError) throw exchangeError;
+              console.log('Token exchange response:', { exchangeData, exchangeError });
+
+              if (exchangeError) {
+                console.error('Exchange error details:', exchangeError);
+                throw exchangeError;
+              }
 
               if (exchangeData?.success) {
+                console.log('Token exchange successful, refreshing status...');
                 await checkGmailStatus();
                 
                 toast({

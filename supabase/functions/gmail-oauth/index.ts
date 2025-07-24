@@ -166,6 +166,8 @@ serve(async (req) => {
         throw new Error('Missing code or userId');
       }
 
+      console.log(`Processing token exchange for user: ${userId}`);
+
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
@@ -197,6 +199,7 @@ serve(async (req) => {
       const userInfo = await userInfoResponse.json();
 
       // Store tokens in user preferences
+      console.log(`Storing tokens for user: ${userInfo.email}`);
       const { error: updateError } = await supabaseClient
         .from('user_preferences')
         .upsert({
