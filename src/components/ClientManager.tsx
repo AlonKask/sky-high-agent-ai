@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target, UserPlus, AlertCircle, RefreshCw } from "lucide-react";
+import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target, UserPlus, AlertCircle, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -121,6 +121,14 @@ const ClientManager = () => {
       
       const existingEmails = new Set(existingClients?.map(c => c.email.toLowerCase()) || []);
       
+      // Get excluded emails (marked as "not client")
+      const { data: excludedEmails } = await supabase
+        .from('excluded_emails')
+        .select('email')
+        .eq('user_id', user.id);
+      
+      const excludedEmailsSet = new Set(excludedEmails?.map(e => e.email.toLowerCase()) || []);
+      
       // Get unique email addresses from email exchanges that don't match existing clients
       const { data: emailData } = await supabase
         .from('email_exchanges')
@@ -134,9 +142,13 @@ const ClientManager = () => {
         // Check sender email
         if (email.sender_email && !existingEmails.has(email.sender_email.toLowerCase())) {
           const emailLower = email.sender_email.toLowerCase();
+          
+          // Filter out colleagues, system emails, and excluded emails
           if (!emailLower.includes('noreply') && !emailLower.includes('no-reply') && 
               !emailLower.includes('donotreply') && !emailLower.includes('support') &&
-              !emailLower.includes('notification')) {
+              !emailLower.includes('notification') && 
+              !emailLower.includes('selectbusinessclass.com') && // Filter out colleagues
+              !excludedEmailsSet.has(emailLower)) {
             potentialClients.set(emailLower, {
               email: email.sender_email,
               source: 'sender'
@@ -148,9 +160,13 @@ const ClientManager = () => {
         email.recipient_emails?.forEach((recipientEmail: string) => {
           if (!existingEmails.has(recipientEmail.toLowerCase())) {
             const emailLower = recipientEmail.toLowerCase();
+            
+            // Filter out colleagues, system emails, and excluded emails
             if (!emailLower.includes('noreply') && !emailLower.includes('no-reply') && 
                 !emailLower.includes('donotreply') && !emailLower.includes('support') &&
-                !emailLower.includes('notification')) {
+                !emailLower.includes('notification') && 
+                !emailLower.includes('selectbusinessclass.com') && // Filter out colleagues
+                !excludedEmailsSet.has(emailLower)) {
               potentialClients.set(emailLower, {
                 email: recipientEmail,
                 source: 'recipient'
@@ -270,6 +286,40 @@ const ClientManager = () => {
       toast.error('Failed to create clients');
     } finally {
       setIsCreatingFromEmails(false);
+    }
+  };
+
+  const handleMarkAsNotClient = async (email: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('excluded_emails')
+        .insert({
+          user_id: user.id,
+          email: email,
+          reason: 'not_client'
+        });
+      
+      if (error) {
+        console.error('Error marking email as not client:', error);
+        toast.error('Failed to mark as not client');
+        return;
+      }
+      
+      // Remove from unsynced clients list
+      setUnsyncedClients(prev => prev.filter(client => client.email !== email));
+      
+      // If no more unsynced clients, hide notification
+      if (unsyncedClients.length <= 1) {
+        setShowUnsyncedNotification(false);
+      }
+      
+      toast.success('Marked as not a client');
+      
+    } catch (error) {
+      console.error('Error marking email as not client:', error);
+      toast.error('Failed to mark as not client');
     }
   };
 
@@ -427,15 +477,31 @@ const ClientManager = () => {
             <div className="mb-3">
               We found {unsyncedClients.length} potential client{unsyncedClients.length > 1 ? 's' : ''} from your email contacts that aren't in your client list yet.
             </div>
-            <div className="mb-3 space-y-1">
-              {unsyncedClients.slice(0, 3).map((client, index) => (
-                <div key={index} className="text-sm font-medium">
-                  • {client.email}
+            <div className="mb-3 space-y-2">
+              {unsyncedClients.slice(0, 5).map((client, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-orange-100/50 dark:bg-orange-900/30 rounded border border-orange-200 dark:border-orange-800">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                      {client.email}
+                    </span>
+                    <span className="text-xs text-orange-600 dark:text-orange-400">
+                      From {client.source}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleMarkAsNotClient(client.email)}
+                    className="h-6 w-6 p-0 hover:bg-orange-200 dark:hover:bg-orange-800 text-orange-600 hover:text-orange-800"
+                    title="Mark as not a client"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
               ))}
-              {unsyncedClients.length > 3 && (
-                <div className="text-sm text-orange-600">
-                  ...and {unsyncedClients.length - 3} more
+              {unsyncedClients.length > 5 && (
+                <div className="text-sm text-orange-600 dark:text-orange-400 pl-2">
+                  ...and {unsyncedClients.length - 5} more
                 </div>
               )}
             </div>

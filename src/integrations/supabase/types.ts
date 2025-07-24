@@ -502,6 +502,30 @@ export type Database = {
         }
         Relationships: []
       }
+      excluded_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       flight_price_tracking: {
         Row: {
           airline: string | null
