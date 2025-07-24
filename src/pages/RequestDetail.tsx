@@ -84,7 +84,10 @@ const RequestDetail = () => {
     ckFeeEnabled: false,
     ckFeeAmount: '',
     pseudoCity: '',
-    totalPrice: 0
+    totalPrice: 0,
+    adultsCount: 1,
+    childrenCount: 0,
+    infantsCount: 0
   });
 
   // Quotes state
@@ -376,6 +379,9 @@ const RequestDetail = () => {
             ck_fee_amount: ckFee,
             pseudo_city: quoteData.pseudoCity,
             total_price: totalPrice,
+            adults_count: quoteData.adultsCount,
+            children_count: quoteData.childrenCount,
+            infants_count: quoteData.infantsCount,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingQuote.id);
@@ -393,6 +399,9 @@ const RequestDetail = () => {
                 ck_fee_amount: ckFee,
                 pseudo_city: quoteData.pseudoCity,
                 total_price: totalPrice,
+                adults_count: quoteData.adultsCount,
+                children_count: quoteData.childrenCount,
+                infants_count: quoteData.infantsCount,
                 updated_at: new Date().toISOString()
               }
             : q
@@ -417,7 +426,10 @@ const RequestDetail = () => {
             markup: markup,
             ck_fee_enabled: quoteData.ckFeeEnabled,
             ck_fee_amount: ckFee,
-            total_price: totalPrice
+            total_price: totalPrice,
+            adults_count: quoteData.adultsCount,
+            children_count: quoteData.childrenCount,
+            infants_count: quoteData.infantsCount
           })
           .select()
           .single();
@@ -455,7 +467,10 @@ const RequestDetail = () => {
         ckFeeEnabled: false,
         ckFeeAmount: '',
         pseudoCity: '',
-        totalPrice: 0
+        totalPrice: 0,
+        adultsCount: 1,
+        childrenCount: 0,
+        infantsCount: 0
       });
     } catch (error) {
       console.error('Error saving quote:', error);
@@ -1304,15 +1319,18 @@ const RequestDetail = () => {
                                   <DropdownMenuContent align="end">
                                      <DropdownMenuItem onClick={() => {
                                        setEditingQuote(quote);
-                                       setQuoteData({
-                                         fareType: quote.fare_type || 'revenue_published',
-                                         netPrice: quote.net_price.toString(),
-                                         markup: quote.markup.toString(),
-                                         ckFeeEnabled: quote.ck_fee_enabled,
-                                         ckFeeAmount: quote.ck_fee_amount.toString(),
-                                         pseudoCity: quote.pseudo_city || '',
-                                         totalPrice: quote.total_price
-                                       });
+                                        setQuoteData({
+                                          fareType: quote.fare_type || 'revenue_published',
+                                          netPrice: quote.net_price.toString(),
+                                          markup: quote.markup.toString(),
+                                          ckFeeEnabled: quote.ck_fee_enabled,
+                                          ckFeeAmount: quote.ck_fee_amount.toString(),
+                                          pseudoCity: quote.pseudo_city || '',
+                                          totalPrice: quote.total_price,
+                                          adultsCount: quote.adults_count || 1,
+                                          childrenCount: quote.children_count || 0,
+                                          infantsCount: quote.infants_count || 0
+                                        });
                                        // Reconstruct the original Sabre I format data
                                        if (quote.segments && quote.segments.length > 0) {
                                          const reconstructedSabreData = reconstructSabreIFormat(quote.segments);
@@ -1452,7 +1470,10 @@ const RequestDetail = () => {
                   ckFeeEnabled: false,
                   ckFeeAmount: '',
                   pseudoCity: '',
-                  totalPrice: 0
+                  totalPrice: 0,
+                  adultsCount: 1,
+                  childrenCount: 0,
+                  infantsCount: 0
                 });
               }
             }}>
@@ -1572,6 +1593,46 @@ const RequestDetail = () => {
                               />
                             </div>
                           )}
+                        </div>
+
+                        {/* Passenger Configuration */}
+                        <div className="space-y-4">
+                          <Label className="text-base font-medium">Passenger Information</Label>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label>Adults</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={quoteData.adultsCount || ''}
+                                onChange={(e) => handleQuoteDataChange('adultsCount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                placeholder="1"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Children</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={quoteData.childrenCount || ''}
+                                onChange={(e) => handleQuoteDataChange('childrenCount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Infants</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={quoteData.infantsCount || ''}
+                                onChange={(e) => handleQuoteDataChange('infantsCount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Total passengers: {(quoteData.adultsCount || 0) + (quoteData.childrenCount || 0) + (quoteData.infantsCount || 0)}
+                          </div>
                         </div>
 
                         {/* Pricing Details */}
