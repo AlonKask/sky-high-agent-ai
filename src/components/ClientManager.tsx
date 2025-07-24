@@ -254,14 +254,31 @@ const ClientManager = () => {
     try {
       setIsCreatingFromEmails(true);
       
-      const newClients = unsyncedClients.map(client => ({
-        user_id: user.id,
-        first_name: client.email.split('@')[0].split('.')[0] || 'Unknown',
-        last_name: client.email.split('@')[0].split('.')[1] || 'Client',
-        email: client.email,
-        notes: `Auto-created from email ${client.source}`,
-        preferred_class: 'business'
-      }));
+      const newClients = unsyncedClients.map(client => {
+        const emailUsername = client.email.split('@')[0];
+        const nameParts = emailUsername.split('.');
+        
+        // Better name parsing logic
+        let firstName, lastName;
+        if (nameParts.length >= 2 && nameParts[1].length > 1) {
+          // If there are meaningful parts, use them
+          firstName = nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1).toLowerCase();
+          lastName = nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1).toLowerCase();
+        } else {
+          // Use the full username as first name, leave last name empty
+          firstName = emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1).toLowerCase();
+          lastName = '';
+        }
+        
+        return {
+          user_id: user.id,
+          first_name: firstName,
+          last_name: lastName,
+          email: client.email,
+          notes: `Auto-created from email ${client.source}`,
+          preferred_class: 'business'
+        };
+      });
       
       const { data, error } = await supabase
         .from('clients')
