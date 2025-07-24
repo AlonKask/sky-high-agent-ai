@@ -179,7 +179,6 @@ const Emails = () => {
     }
   };
 
-  // Email selection handlers
   const handleEmailSelect = (emailId: string, checked: boolean) => {
     setSelectedEmails(prev => {
       const newSet = new Set(prev);
@@ -193,11 +192,48 @@ const Emails = () => {
   };
 
   const handleSelectAll = () => {
-    setSelectedEmails(new Set(filteredEmails.map(email => email.id)));
+    setSelectedEmails(new Set(filteredEmails.map(email => email.messageId)));
   };
 
   const handleDeselectAll = () => {
     setSelectedEmails(new Set());
+  };
+
+  const markEmailAsRead = async (messageId: string) => {
+    try {
+      // Update local state immediately for better UX
+      setEmails(prev => prev.map(email => 
+        email.messageId === messageId 
+          ? { ...email, isRead: true }
+          : email
+      ));
+
+      // Update in database - using simple update approach
+      const { error } = await supabase
+        .from('email_exchanges')
+        .update({ 
+          metadata: {
+            ...emails.find(e => e.messageId === messageId)?.labels ? 
+              { gmail_labels: emails.find(e => e.messageId === messageId)?.labels } : {},
+            is_read: true,
+            is_starred: emails.find(e => e.messageId === messageId)?.isStarred || false,
+            has_attachments: emails.find(e => e.messageId === messageId)?.hasAttachments || false
+          }
+        })
+        .eq('message_id', messageId);
+
+      if (error) {
+        console.error('Error marking email as read:', error);
+        // Revert local state on error
+        setEmails(prev => prev.map(email => 
+          email.messageId === messageId 
+            ? { ...email, isRead: false }
+            : email
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking email as read:', error);
+    }
   };
 
   const handleMarkAsRead = async () => {
@@ -205,19 +241,33 @@ const Emails = () => {
 
     try {
       const emailIds = Array.from(selectedEmails);
-      const { error } = await supabase
-        .from('email_exchanges')
-        .update({ status: 'read' })
-        .in('id', emailIds);
-
-      if (error) throw error;
-
-      // Update local state
+      
+      // Update local state immediately
       setEmails(prev => prev.map(email => 
-        selectedEmails.has(email.id) 
-          ? { ...email, status: 'read' }
+        selectedEmails.has(email.messageId) 
+          ? { ...email, isRead: true }
           : email
       ));
+
+      // Update in database - batch update with simple metadata
+      for (const messageId of emailIds) {
+        const email = emails.find(e => e.messageId === messageId);
+        if (email) {
+          await supabase
+            .from('email_exchanges')
+            .update({ 
+              metadata: {
+                gmail_labels: email.labels || [],
+                is_read: true,
+                is_starred: email.isStarred || false,
+                has_attachments: email.hasAttachments || false,
+                gmail_snippet: email.snippet || '',
+                gmail_date: email.date
+              }
+            })
+            .eq('message_id', messageId);
+        }
+      }
 
       setSelectedEmails(new Set());
       toast({
@@ -231,6 +281,8 @@ const Emails = () => {
         description: "Failed to mark emails as read.",
         variant: "destructive"
       });
+      // Reload emails to get correct state
+      await loadEmailsFromDB();
     }
   };
 
@@ -399,6 +451,8 @@ const Emails = () => {
     if (!user) return;
     
     try {
+      setIsLoading(true);
+      
       // Get user role to determine data access
       const { data: userRoleData } = await supabase
         .from('user_roles')
@@ -412,8 +466,8 @@ const Emails = () => {
       let query = supabase
         .from('email_exchanges')
         .select('*')
-        .order('created_at', { ascending: sortOrder === 'desc' })
-        .limit(500);
+        .order('created_at', { ascending: sortOrder === 'asc' })
+        .limit(1000);
 
       // Apply user filtering only for regular users
       if (userRole === 'user') {
@@ -430,28 +484,37 @@ const Emails = () => {
         };
         const labelId = folderLabelMap[selectedFolder];
         if (labelId) {
-          // Fix the Gmail labels query syntax - use contains operation
           query = query.contains('metadata', { gmail_labels: [labelId] });
         }
-      }
-
-      if (searchQuery) {
-        query = query.or(`subject.ilike.%${searchQuery}%,body.ilike.%${searchQuery}%,sender_email.ilike.%${searchQuery}%`);
+      } else {
+        // For inbox, exclude emails that are only in other folders
+        query = query.or('metadata->gmail_labels->cs.["INBOX"], metadata->gmail_labels.is.null');
       }
 
       const { data: emailData, error } = await query;
 
       if (error) {
         console.error('Error loading emails from database:', error);
+        toast({
+          title: "Error Loading Emails",
+          description: "Failed to load emails from database",
+          variant: "destructive"
+        });
         return;
       }
 
-      // Convert database emails to Gmail format for display
-      const formattedEmails = emailData?.map(email => {
+      // Remove duplicates by message_id and convert to Gmail format
+      const uniqueEmails = new Map();
+      const formattedEmails = emailData?.forEach(email => {
         const metadata = email.metadata as any || {};
-        return {
-          id: email.message_id || email.id,
-          threadId: email.thread_id || '',
+        const messageId = email.message_id || email.id;
+        
+        // Skip if we already have this message (handle duplicates)
+        if (uniqueEmails.has(messageId)) return;
+        
+        const formattedEmail = {
+          id: messageId,
+          threadId: email.thread_id || messageId,
           subject: email.subject || '(No Subject)',
           snippet: metadata.gmail_snippet || email.body?.substring(0, 150) || '',
           from: email.sender_email || '',
@@ -464,13 +527,24 @@ const Emails = () => {
           isStarred: metadata.is_starred || false,
           hasAttachments: metadata.has_attachments || false,
           labels: metadata.gmail_labels || [],
-          messageId: email.message_id || email.id,
+          messageId: messageId,
         };
-      }) || [];
+        
+        uniqueEmails.set(messageId, formattedEmail);
+      });
 
-      setEmails(formattedEmails);
+      const finalEmails = Array.from(uniqueEmails.values());
+      setEmails(finalEmails);
+      
     } catch (error) {
       console.error('Error loading emails:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load emails",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1100,26 +1174,7 @@ Best regards,
     });
   };
 
-  // Email actions
-  const markAsRead = async (emailId: string) => {
-    if (!authToken) return;
-    
-    try {
-      await supabase.functions.invoke('gmail-integration', {
-        body: {
-          action: 'markAsRead',
-          accessToken: authToken,
-          messageId: emailId
-        }
-      });
-      
-      setEmails(prev => prev.map(email => 
-        email.id === emailId ? { ...email, isRead: true } : email
-      ));
-    } catch (error) {
-      console.error('Error marking as read:', error);
-    }
-  };
+  // Email actions - using unified markEmailAsRead function
 
   const markAsStarred = async (emailId: string) => {
     if (!authToken) return;
@@ -1192,20 +1247,33 @@ Best regards,
   }, []);
 
   const filteredEmails = emails.filter(email => {
+    // Apply search filter
     if (searchQuery) {
-      return email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             email.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             email.snippet.toLowerCase().includes(searchQuery.toLowerCase());
+      const query = searchQuery.toLowerCase();
+      return email.subject.toLowerCase().includes(query) ||
+             email.from.toLowerCase().includes(query) ||
+             email.snippet.toLowerCase().includes(query) ||
+             email.body.toLowerCase().includes(query);
     }
     return true;
-  }).sort((a, b) => {
-    const aValue = sortBy === 'date' ? new Date(a.date).getTime() : a[sortBy as keyof GmailMessage];
-    const bValue = sortBy === 'date' ? new Date(b.date).getTime() : b[sortBy as keyof GmailMessage];
-    
-    if (sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1;
+  })
+  // Remove any remaining duplicates based on messageId
+  .filter((email, index, arr) => 
+    arr.findIndex(e => e.messageId === email.messageId) === index
+  )
+  // Sort emails
+  .sort((a, b) => {
+    if (sortBy === 'date') {
+      const aTime = new Date(a.date).getTime();
+      const bTime = new Date(b.date).getTime();
+      return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
     }
-    return aValue < bValue ? 1 : -1;
+    
+    const aValue = a[sortBy as keyof GmailMessage] as string;
+    const bValue = b[sortBy as keyof GmailMessage] as string;
+    
+    const comparison = aValue.localeCompare(bValue);
+    return sortOrder === 'asc' ? comparison : -comparison;
   });
 
   return (
@@ -1707,78 +1775,84 @@ Best regards,
                   onMarkAsRead={handleMarkAsRead}
                   onSendToAI={handleSendToAI}
                   totalEmails={filteredEmails.length}
-                />
-                <div className="p-2 space-y-1">
-                  {filteredEmails.map((email, index) => (
-                  <div
-                    key={email.id}
-                    className={`group p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-accent/50 ${
-                      selectedEmail?.id === email.id 
-                        ? 'bg-accent border-l-4 border-l-primary shadow-sm' 
-                        : 'hover:shadow-sm'
-                    } ${!email.isRead ? 'bg-muted/30' : ''}`}
-                    onClick={(e) => {
-                      const target = e.target as HTMLElement;
-                      if (target.closest('.checkbox-container')) return;
-                      setSelectedEmail(email);
-                      if (!email.isRead) {
-                        markAsRead(email.id);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="checkbox-container mt-1">
-                        <Checkbox
-                          checked={selectedEmails.has(email.id)}
-                          onCheckedChange={(checked) => handleEmailSelect(email.id, checked as boolean)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div className={`w-2 h-2 rounded-full ${!email.isRead ? 'bg-primary' : 'bg-transparent'}`} />
-                        <span className={`text-sm truncate flex-1 ${!email.isRead ? 'font-semibold' : 'font-medium'}`}>
-                          {email.from.split('<')[0].trim() || email.from.split('@')[0]}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {email.isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
-                          {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-                        {new Date(email.date).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric',
-                          year: new Date(email.date).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-                        })}
-                      </span>
-                    </div>
-                    <div className={`text-sm mb-1 truncate ${!email.isRead ? 'font-medium' : ''}`}>
-                      {email.subject || '(No Subject)'}
-                    </div>
-                    <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                      {email.snippet}
-                    </div>
-                    {email.labels && email.labels.length > 0 && (
-                      <div className="flex gap-1 mt-2">
-                        {email.labels.slice(0, 2).map((label, labelIndex) => (
-                          <Badge key={labelIndex} variant="outline" className="text-xs px-1 py-0">
-                            {label.replace('CATEGORY_', '').replace('LABEL_', '').toLowerCase()}
-                          </Badge>
-                        ))}
-                        {email.labels.length > 2 && (
-                          <Badge variant="outline" className="text-xs px-1 py-0">
-                            +{email.labels.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
+                 />
+                 <div className="p-2 space-y-1">
+                   {filteredEmails.map((email) => (
+                   <div
+                     key={`${email.messageId}-${email.threadId || email.id}`}
+                     className={`group p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-accent/50 ${
+                       selectedEmail?.messageId === email.messageId 
+                         ? 'bg-accent border-l-4 border-l-primary shadow-sm' 
+                         : 'hover:shadow-sm'
+                     } ${!email.isRead ? 'bg-muted/30 border border-primary/20' : 'border border-transparent'}`}
+                     onClick={(e) => {
+                       const target = e.target as HTMLElement;
+                       if (target.closest('.checkbox-container')) return;
+                       setSelectedEmail(email);
+                       if (!email.isRead) {
+                         markEmailAsRead(email.messageId);
+                       }
+                     }}
+                   >
+                     <div className="flex items-start gap-3">
+                       <div className="checkbox-container mt-1">
+                         <Checkbox
+                           checked={selectedEmails.has(email.messageId)}
+                           onCheckedChange={(checked) => handleEmailSelect(email.messageId, checked as boolean)}
+                           onClick={(e) => e.stopPropagation()}
+                         />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <div className="flex items-start justify-between mb-2">
+                           <div className="flex items-center gap-2 min-w-0 flex-1">
+                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!email.isRead ? 'bg-primary' : 'bg-transparent'}`} />
+                             <span className={`text-sm truncate flex-1 ${!email.isRead ? 'font-semibold' : 'font-medium'}`}>
+                               {email.from.includes('<') 
+                                 ? email.from.split('<')[0].trim() || email.from.split('@')[0]
+                                 : email.from.split('@')[0] || email.from
+                               }
+                             </span>
+                             <div className="flex items-center gap-1 flex-shrink-0">
+                               {email.isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                               {email.hasAttachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+                             </div>
+                           </div>
+                           <span className="text-xs text-muted-foreground whitespace-nowrap ml-2 flex-shrink-0">
+                             {new Date(email.date).toLocaleDateString('en-US', { 
+                               month: 'short', 
+                               day: 'numeric',
+                               year: new Date(email.date).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                             })}
+                           </span>
+                         </div>
+                         <div className={`text-sm mb-1 truncate ${!email.isRead ? 'font-medium' : ''}`}>
+                           {email.subject || '(No Subject)'}
+                         </div>
+                         <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                           {email.snippet || email.body?.substring(0, 150) || 'No preview available'}
+                         </div>
+                         {email.labels && email.labels.length > 0 && (
+                           <div className="flex gap-1 mt-2 flex-wrap">
+                             {email.labels
+                               .filter(label => !['UNREAD', 'INBOX', 'IMPORTANT'].includes(label))
+                               .slice(0, 3)
+                               .map((label, labelIndex) => (
+                               <Badge key={`${email.messageId}-${label}-${labelIndex}`} variant="outline" className="text-xs px-1 py-0">
+                                 {label.replace('CATEGORY_', '').replace('LABEL_', '').toLowerCase()}
+                               </Badge>
+                             ))}
+                             {email.labels.filter(label => !['UNREAD', 'INBOX', 'IMPORTANT'].includes(label)).length > 3 && (
+                               <Badge variant="outline" className="text-xs px-1 py-0">
+                                 +{email.labels.filter(label => !['UNREAD', 'INBOX', 'IMPORTANT'].includes(label)).length - 3}
+                               </Badge>
+                             )}
+                           </div>
+                         )}
                        </div>
                      </div>
                    </div>
-                 ))}
-               </div>
+                  ))}
+                </div>
              </>
            )}
          </ScrollArea>
