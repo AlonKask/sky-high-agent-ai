@@ -1481,15 +1481,6 @@ Best regards,
                 <Badge variant="outline" className="text-xs">
                   {filteredEmails.length}
                 </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsInboxMaximized(!isInboxMaximized)}
-                  className="h-6 w-6 p-0"
-                  title={isInboxMaximized ? "Minimize email list" : "Maximize email list"}
-                >
-                  {isInboxMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                </Button>
                 {!showEmailContent && (
                   <Button
                     variant="ghost"
