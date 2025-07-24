@@ -344,16 +344,8 @@ const Emails = () => {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">
-                      Connect Gmail for automatic email sync
+                      Use the Fix Gmail Connection button below to connect
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={connectGmail}
-                      className="text-xs px-2 py-1 h-6"
-                    >
-                      Connect Gmail
-                    </Button>
                   </div>
                 )}
               </div>
