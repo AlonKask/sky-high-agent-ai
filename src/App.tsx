@@ -27,6 +27,7 @@ import Emails from "./pages/Emails";
 import Messages from "./pages/Messages";
 import AgentStatistics from "./pages/AgentStatistics";
 import ViewOption from "./pages/ViewOption";
+import OptionsReview from "./pages/OptionsReview";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,6 +87,7 @@ const App = () => {
                       <Route path="/client/:clientId" element={<ClientProfile />} />
                       <Route path="/agent-statistics" element={<AgentStatistics />} />
                       <Route path="/option/:optionId" element={<ViewOption />} />
+                      <Route path="/review-options/:clientToken" element={<OptionsReview />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>

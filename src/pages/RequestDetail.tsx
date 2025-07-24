@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { EmailTemplateEditor } from "@/components/EmailTemplateEditor";
+import UnifiedEmailBuilder from "@/components/UnifiedEmailBuilder";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1937,21 +1937,14 @@ const RequestDetail = () => {
                 </DialogHeader>
 
                 <div className="flex-1 overflow-hidden">
-                  <EmailTemplateEditor
-                    initialTo={emailPreview.to || client?.email}
-                    initialSubject={emailPreview.subject}
-                    initialBody={emailPreview.body}
-                    clientName={client?.first_name || client?.name?.split(' ')[0] || ''}
-                    clientEmail={client?.email}
+                  <UnifiedEmailBuilder
+                    clientId={client?.id || ''}
+                    requestId={requestId || ''}
                     quotes={emailPreview.selectedQuotesList}
-                    onSend={(emailData) => {
-                      setEmailPreview(prev => ({
-                        ...prev,
-                        to: emailData.to,
-                        subject: emailData.subject,
-                        body: emailData.body
-                      }));
-                      handleSendEmailFromPreview();
+                    client={client || { id: '', first_name: '', last_name: '', email: '' }}
+                    onSendEmail={(reviewData) => {
+                      setShowSendQuoteDialog(false);
+                      toast.success("Email sent successfully! Client will receive options with review portal access.");
                     }}
                     onCancel={() => setShowSendQuoteDialog(false)}
                   />

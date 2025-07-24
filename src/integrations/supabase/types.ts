@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_client_chat: {
+        Row: {
+          attachments: Json | null
+          client_id: string
+          created_at: string
+          id: string
+          message: string
+          message_type: string
+          metadata: Json | null
+          read_by_agent: boolean
+          read_by_client: boolean
+          review_id: string
+          sender_type: string
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          client_id: string
+          created_at?: string
+          id?: string
+          message: string
+          message_type?: string
+          metadata?: Json | null
+          read_by_agent?: boolean
+          read_by_client?: boolean
+          review_id: string
+          sender_type: string
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          message_type?: string
+          metadata?: Json | null
+          read_by_agent?: boolean
+          read_by_client?: boolean
+          review_id?: string
+          sender_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       agent_performance_reports: {
         Row: {
           agent_id: string
@@ -309,6 +354,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_option_reviews: {
+        Row: {
+          client_id: string
+          client_preferences: Json | null
+          client_token: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          quote_ids: string[]
+          request_id: string
+          responded_at: string | null
+          review_status: string
+          updated_at: string
+          user_id: string
+          viewed_at: string | null
+        }
+        Insert: {
+          client_id: string
+          client_preferences?: Json | null
+          client_token?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          quote_ids?: string[]
+          request_id: string
+          responded_at?: string | null
+          review_status?: string
+          updated_at?: string
+          user_id: string
+          viewed_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          client_preferences?: Json | null
+          client_token?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          quote_ids?: string[]
+          request_id?: string
+          responded_at?: string | null
+          review_status?: string
+          updated_at?: string
+          user_id?: string
+          viewed_at?: string | null
+        }
+        Relationships: []
       }
       clients: {
         Row: {
@@ -929,6 +1022,51 @@ export type Database = {
           related_type?: string | null
           title?: string
           type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      option_feedback: {
+        Row: {
+          client_id: string
+          comments: string | null
+          convenience_rating: number | null
+          created_at: string
+          feedback_type: string
+          id: string
+          price_feedback: string | null
+          quote_id: string
+          rating: number | null
+          review_id: string
+          suggested_changes: Json | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          comments?: string | null
+          convenience_rating?: number | null
+          created_at?: string
+          feedback_type: string
+          id?: string
+          price_feedback?: string | null
+          quote_id: string
+          rating?: number | null
+          review_id: string
+          suggested_changes?: Json | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          comments?: string | null
+          convenience_rating?: number | null
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          price_feedback?: string | null
+          quote_id?: string
+          rating?: number | null
+          review_id?: string
+          suggested_changes?: Json | null
           user_id?: string
         }
         Relationships: []
