@@ -26,6 +26,12 @@ serve(async (req) => {
       }
     );
 
+    // Create service role client for callback operations that bypass RLS
+    const supabaseServiceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // Parse action from URL params
     const url = new URL(req.url);
     const action = url.searchParams.get('action') || 'start';
@@ -286,54 +292,27 @@ serve(async (req) => {
       try {
         console.log(`💾 Storing tokens for user: ${state}`);
         
-        // First check if user preferences exist
-        const { data: existingPrefs } = await supabaseClient
+        // Use service role client to bypass RLS in callback
+        console.log(`📝 Using service role to store tokens for user: ${state}`);
+        const { error: upsertError } = await supabaseServiceClient
           .from('user_preferences')
-          .select('user_id')
-          .eq('user_id', state)
-          .single();
-
-        if (existingPrefs) {
-          console.log(`📝 Updating existing preferences for user: ${state}`);
-          const { error: updateError } = await supabaseClient
-            .from('user_preferences')
-            .update({
-              gmail_access_token: tokens.access_token,
-              gmail_refresh_token: tokens.refresh_token,
-              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
-              gmail_user_email: userInfo.email,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', state);
-            
-          if (updateError) {
-            console.error(`❌ Error updating tokens:`, updateError);
-            storageError = updateError.message;
-          } else {
-            storedSuccessfully = true;
-            console.log(`✅ Gmail tokens updated successfully for: ${userInfo.email}`);
-          }
+          .upsert({
+            user_id: state,
+            gmail_access_token: tokens.access_token,
+            gmail_refresh_token: tokens.refresh_token,
+            gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+            gmail_user_email: userInfo.email,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+          
+        if (upsertError) {
+          console.error(`❌ Error storing tokens:`, upsertError);
+          storageError = upsertError.message;
         } else {
-          console.log(`📝 Creating new preferences for user: ${state}`);
-          const { error: insertError } = await supabaseClient
-            .from('user_preferences')
-            .insert({
-              user_id: state,
-              gmail_access_token: tokens.access_token,
-              gmail_refresh_token: tokens.refresh_token,
-              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
-              gmail_user_email: userInfo.email,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            
-          if (insertError) {
-            console.error(`❌ Error inserting tokens:`, insertError);
-            storageError = insertError.message;
-          } else {
-            storedSuccessfully = true;
-            console.log(`✅ Gmail tokens stored successfully for: ${userInfo.email}`);
-          }
+          storedSuccessfully = true;
+          console.log(`✅ Gmail tokens stored successfully for: ${userInfo.email}`);
         }
         
         // Trigger immediate email sync if storage was successful
