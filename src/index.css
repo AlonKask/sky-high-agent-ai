@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    /* Clean minimal color palette */
+    /* Enhanced color palette with gradients and premium feel */
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -13,6 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
     --primary: 221.2 83.2% 53.3%;
+    --primary-light: 221.2 83.2% 65%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
@@ -26,6 +27,28 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    
+    /* AI CRM specific colors */
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+    --warning: 32.9 94.6% 43.7%;
+    --warning-foreground: 355.7 100% 97.3%;
+    --info: 221.2 83.2% 53.3%;
+    --info-foreground: 210 40% 98%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --shadow-elegant: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
@@ -36,6 +59,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
+    --primary-light: 217.2 91.2% 70%;
     --primary-foreground: 222.2 84% 4.9%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -48,6 +72,11 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 94.1%;
+    
+    /* Dark mode specific values */
+    --success: 142.1 70.6% 45.3%;
+    --warning: 32.9 85% 50%;
+    --info: 217.2 91.2% 59.8%;
   }
 }
 
@@ -58,12 +87,18 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: 'opsz' 32;
   }
 }
 
 @layer components {
   .minimal-card {
-    @apply bg-card border border-border rounded-lg p-6;
+    @apply bg-card border border-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+  
+  .card-elevated {
+    @apply bg-card border border-border rounded-xl shadow-lg hover:shadow-xl transition-all duration-300;
   }
   
   .minimal-button {
@@ -71,14 +106,46 @@
   }
   
   .stat-card {
-    @apply bg-card border border-border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer;
+    @apply bg-card border border-border rounded-xl p-6 hover:bg-accent/50 transition-all duration-200 cursor-pointer hover:shadow-md hover:-translate-y-0.5;
   }
   
   .nav-item {
-    @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground;
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-accent hover:text-accent-foreground hover:shadow-sm;
   }
   
   .nav-item-active {
-    @apply bg-accent text-accent-foreground;
+    @apply bg-primary text-primary-foreground shadow-sm;
+  }
+  
+  .gradient-bg {
+    background: var(--gradient-primary);
+  }
+  
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-[1.02];
+  }
+  
+  .glass-effect {
+    @apply bg-background/80 backdrop-blur-md border border-border/50;
+  }
+  
+  .ai-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--info)), hsl(var(--primary-light)));
+  }
+  
+  .success-gradient {
+    background: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success) / 0.8));
+  }
+  
+  .warning-gradient {
+    background: linear-gradient(135deg, hsl(var(--warning)), hsl(var(--warning) / 0.8));
   }
 }
