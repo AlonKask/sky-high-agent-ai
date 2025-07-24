@@ -155,23 +155,59 @@ serve(async (req) => {
       if (state) {
         try {
           console.log(`Storing tokens for user: ${state}`);
-          const { error: updateError } = await supabaseClient
+          
+          // First check if user_preferences record exists, create if not
+          const { data: existingPrefs, error: selectError } = await supabaseClient
             .from('user_preferences')
-            .upsert({
-              user_id: state,
-              gmail_access_token: tokens.access_token,
-              gmail_refresh_token: tokens.refresh_token,
-              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
-              gmail_user_email: userInfo.email,
-              updated_at: new Date().toISOString()
-            });
-
-          if (updateError) {
-            console.error('Error storing tokens:', updateError);
-            storageError = updateError.message;
+            .select('user_id')
+            .eq('user_id', state)
+            .single();
+          
+          if (selectError && selectError.code === 'PGRST116') {
+            // Record doesn't exist, create it first
+            console.log(`Creating new user_preferences record for user: ${state}`);
+            const { error: insertError } = await supabaseClient
+              .from('user_preferences')
+              .insert({
+                user_id: state,
+                gmail_access_token: tokens.access_token,
+                gmail_refresh_token: tokens.refresh_token,
+                gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+                gmail_user_email: userInfo.email,
+                updated_at: new Date().toISOString()
+              });
+              
+            if (insertError) {
+              console.error('Error inserting new preferences:', insertError);
+              storageError = insertError.message;
+            } else {
+              storedSuccessfully = true;
+              console.log(`Gmail tokens inserted successfully for new user: ${userInfo.email}`);
+            }
+          } else if (selectError) {
+            console.error('Error checking existing preferences:', selectError);
+            storageError = selectError.message;
           } else {
-            storedSuccessfully = true;
-            console.log(`Gmail tokens stored successfully for user: ${userInfo.email}`);
+            // Record exists, update it
+            console.log(`Updating existing user_preferences for user: ${state}`);
+            const { error: updateError } = await supabaseClient
+              .from('user_preferences')
+              .update({
+                gmail_access_token: tokens.access_token,
+                gmail_refresh_token: tokens.refresh_token,
+                gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+                gmail_user_email: userInfo.email,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', state);
+
+            if (updateError) {
+              console.error('Error updating tokens:', updateError);
+              storageError = updateError.message;
+            } else {
+              storedSuccessfully = true;
+              console.log(`Gmail tokens updated successfully for user: ${userInfo.email}`);
+            }
           }
         } catch (error) {
           console.error('Error storing tokens:', error);

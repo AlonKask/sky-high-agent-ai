@@ -34,6 +34,7 @@ export const useGmailIntegration = () => {
     }
 
     try {
+      console.log('Checking Gmail status for user:', user.id);
       const { data, error } = await supabase
         .from('user_preferences')
         .select('gmail_user_email, gmail_access_token, updated_at')
@@ -41,10 +42,17 @@ export const useGmailIntegration = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user preferences:', error);
         throw error;
       }
 
       const isConnected = !!(data?.gmail_access_token && data?.gmail_user_email);
+      console.log('Gmail connection status:', {
+        isConnected,
+        hasToken: !!data?.gmail_access_token,
+        hasEmail: !!data?.gmail_user_email,
+        userEmail: data?.gmail_user_email
+      });
       
       setAuthStatus({
         isConnected,

@@ -80,7 +80,7 @@ const Emails = () => {
     received: 0
   });
 
-  // Load emails from database
+  // Load emails from database with proper folder filtering
   const loadEmailsFromDB = async () => {
     if (!user) return;
     
@@ -92,11 +92,17 @@ const Emails = () => {
         .eq('user_id', user.id)
         .order('received_at', { ascending: false });
 
-      // Apply folder filter
+      // Apply folder-specific filters
       if (selectedFolder === 'sent') {
-        query = query.eq('direction', 'outbound');
+        query = query.eq('direction', 'outbound').neq('metadata->>archived', 'true');
       } else if (selectedFolder === 'inbox') {
-        query = query.eq('direction', 'inbound');
+        query = query.eq('direction', 'inbound').neq('metadata->>archived', 'true');
+      } else if (selectedFolder === 'archived') {
+        query = query.eq('metadata->>archived', 'true');
+      } else if (selectedFolder === 'drafts') {
+        query = query.ilike('metadata->>gmail_labels', '%DRAFT%');
+      } else if (selectedFolder === 'trash') {
+        query = query.ilike('metadata->>gmail_labels', '%TRASH%');
       }
 
       // Apply search filter
@@ -247,24 +253,24 @@ const Emails = () => {
     { id: 'trash', name: 'Trash', icon: Trash2 }
   ];
 
-  // Filter and sort emails
+  // Filter and sort emails - this should match the folder filtering logic
   const filteredEmails = emails
     .filter(email => {
-      // Archive filter
-      if (selectedFolder === 'archived') {
+      // Apply folder-specific filters that match the database queries
+      if (selectedFolder === 'sent') {
+        return email.direction === 'outbound' && !email.metadata?.archived && !email.metadata?.gmail_labels?.includes('TRASH');
+      } else if (selectedFolder === 'inbox') {
+        return email.direction === 'inbound' && !email.metadata?.archived && !email.metadata?.gmail_labels?.includes('TRASH');
+      } else if (selectedFolder === 'archived') {
         return email.metadata?.archived;
-      } else if (selectedFolder !== 'all') {
-        return !email.metadata?.archived;
+      } else if (selectedFolder === 'drafts') {
+        return email.metadata?.gmail_labels?.includes('DRAFT');
+      } else if (selectedFolder === 'trash') {
+        return email.metadata?.gmail_labels?.includes('TRASH');
       }
       
-      // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return email.subject.toLowerCase().includes(query) ||
-               email.sender_email.toLowerCase().includes(query) ||
-               email.body.toLowerCase().includes(query);
-      }
-      return true;
+      // Default: show all non-archived emails
+      return !email.metadata?.archived;
     })
     .sort((a, b) => {
       if (sortBy === 'received_at') {
@@ -319,12 +325,32 @@ const Emails = () => {
           <div className="space-y-1">
             {folders.map(folder => {
               const Icon = folder.icon;
-              const count = emails.filter(email => {
-                if (folder.id === 'inbox') return email.direction === 'inbound' && !email.metadata?.archived;
-                if (folder.id === 'sent') return email.direction === 'outbound' && !email.metadata?.archived;
-                if (folder.id === 'archived') return email.metadata?.archived;
-                return false;
-              }).length;
+              
+              // Calculate count based on ALL emails using consistent logic
+              let count = 0;
+              if (folder.id === 'inbox') {
+                count = emails.filter(email => 
+                  email.direction === 'inbound' && 
+                  !email.metadata?.archived &&
+                  !email.metadata?.gmail_labels?.includes('TRASH')
+                ).length;
+              } else if (folder.id === 'sent') {
+                count = emails.filter(email => 
+                  email.direction === 'outbound' && 
+                  !email.metadata?.archived &&
+                  !email.metadata?.gmail_labels?.includes('TRASH')
+                ).length;
+              } else if (folder.id === 'archived') {
+                count = emails.filter(email => email.metadata?.archived).length;
+              } else if (folder.id === 'drafts') {
+                count = emails.filter(email => 
+                  email.metadata?.gmail_labels?.includes('DRAFT')
+                ).length;
+              } else if (folder.id === 'trash') {
+                count = emails.filter(email => 
+                  email.metadata?.gmail_labels?.includes('TRASH')
+                ).length;
+              }
 
               return (
                 <Button
