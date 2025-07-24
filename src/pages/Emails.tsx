@@ -327,9 +327,81 @@ const Emails = () => {
         </Button>
 
         <div className="p-4">
-          {/* Manual Gmail Fix */}
+          {/* Gmail Connection Status and Controls */}
           {!isSidebarCollapsed && (
             <div className="mb-4">
+              {!authStatus.isConnected ? (
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Mail className="h-5 w-5 text-blue-600" />
+                      <h3 className="font-medium text-blue-900">Connect Gmail</h3>
+                    </div>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Connect your Gmail account to sync and manage your emails.
+                    </p>
+                    <Button 
+                      onClick={connectGmail}
+                      disabled={authStatus.isLoading}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      size="sm"
+                    >
+                      {authStatus.isLoading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Connect Gmail
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Mail className="h-5 w-5 text-green-600" />
+                      <h3 className="font-medium text-green-900">Gmail Connected</h3>
+                    </div>
+                    <p className="text-xs text-green-700 mb-3">
+                      {authStatus.userEmail}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={triggerSync}
+                        disabled={syncing}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                      >
+                        {syncing ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-1" />
+                            Sync
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={disconnectGmail}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <ManualGmailFix />
             </div>
           )}
