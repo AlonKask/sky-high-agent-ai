@@ -1001,6 +1001,10 @@ export type Database = {
           date_format: string | null
           default_class: string | null
           email_notifications: boolean | null
+          gmail_access_token: string | null
+          gmail_refresh_token: string | null
+          gmail_token_expiry: string | null
+          gmail_user_email: string | null
           id: string
           language: string | null
           push_notifications: boolean | null
@@ -1017,6 +1021,10 @@ export type Database = {
           date_format?: string | null
           default_class?: string | null
           email_notifications?: boolean | null
+          gmail_access_token?: string | null
+          gmail_refresh_token?: string | null
+          gmail_token_expiry?: string | null
+          gmail_user_email?: string | null
           id?: string
           language?: string | null
           push_notifications?: boolean | null
@@ -1033,6 +1041,10 @@ export type Database = {
           date_format?: string | null
           default_class?: string | null
           email_notifications?: boolean | null
+          gmail_access_token?: string | null
+          gmail_refresh_token?: string | null
+          gmail_token_expiry?: string | null
+          gmail_user_email?: string | null
           id?: string
           language?: string | null
           push_notifications?: boolean | null
