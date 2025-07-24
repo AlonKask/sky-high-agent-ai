@@ -88,7 +88,6 @@ const communicationItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
 
@@ -105,12 +104,12 @@ export function AppSidebar() {
       : "hover:bg-accent hover:text-accent-foreground";
   };
 
-  const isCollapsed = state === "collapsed";
+  const isCollapsed = true; // Always collapsed
 
   return (
     <Sidebar
-      className={`${isCollapsed ? "w-16" : "w-64"} transition-all duration-300 border-r bg-card`}
-      collapsible="icon"
+      className="w-16 transition-all duration-300 border-r bg-card"
+      collapsible="none"
     >
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
