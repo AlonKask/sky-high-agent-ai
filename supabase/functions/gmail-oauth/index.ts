@@ -30,8 +30,16 @@ serve(async (req) => {
     
     if (req.method === 'POST') {
       try {
+        // Log all request details for debugging
+        console.log(`📊 Request details:`, {
+          method: req.method,
+          url: req.url,
+          headers: Object.fromEntries(req.headers.entries()),
+          hasBody: req.body !== null
+        });
+        
         const bodyText = await req.text();
-        console.log(`📥 Raw request body: "${bodyText}"`);
+        console.log(`📥 Raw request body length: ${bodyText.length}, content: "${bodyText}"`);
         
         if (bodyText.trim()) {
           bodyData = JSON.parse(bodyText);
@@ -39,6 +47,9 @@ serve(async (req) => {
           
           // Extract userId from various possible formats
           userId = bodyData.userId || bodyData.user_id || bodyData.id || null;
+          console.log(`👤 Extracted userId: ${userId}`);
+        } else {
+          console.log(`⚠️ Empty request body received`);
         }
       } catch (error) {
         console.error(`❌ Error parsing request body:`, error);
@@ -54,10 +65,12 @@ serve(async (req) => {
           }
         );
       }
+    } else {
+      console.log(`📝 Non-POST request, method: ${req.method}`);
     }
 
     const finalAction = action || bodyData.action || 'start';
-    console.log(`🎯 Action: ${finalAction}, UserId: ${userId}, Body keys: [${Object.keys(bodyData).join(', ')}]`);
+    console.log(`🎯 Final action: ${finalAction}, UserId: ${userId}, Body keys: [${Object.keys(bodyData).join(', ')}]`);
 
     if (finalAction === 'start') {
       // Start OAuth flow - return authorization URL
