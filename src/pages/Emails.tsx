@@ -1609,34 +1609,58 @@ Best regards,
         {showInboxColumn && (
         <div className={`${(isInboxMaximized || !showEmailContent) ? 'flex-1' : 'w-96'} border-r bg-card/50 flex flex-col overflow-hidden`}>
           {/* Email List Header */}
-          <div className="p-4 border-b bg-background/50 backdrop-blur-sm flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-lg">
-                {selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1)}
-              </h2>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  {filteredEmails.length}
-                </Badge>
-                {!showEmailContent && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowEmailContent(true)}
-                    className="h-6 w-6 p-0"
-                    title="Show email content"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-            {filteredEmails.length > 0 && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {filteredEmails.filter(email => !email.isRead).length} unread
-              </p>
-            )}
-          </div>
+           <div className="p-4 border-b bg-background/50 backdrop-blur-sm flex-shrink-0">
+             <div className="flex items-center justify-between">
+               <h2 className="font-semibold text-lg">
+                 {selectedFolder.charAt(0).toUpperCase() + selectedFolder.slice(1)}
+               </h2>
+               <div className="flex items-center gap-2">
+                 <Badge variant="outline" className="text-xs">
+                   {filteredEmails.length}
+                 </Badge>
+                 {!showEmailContent && (
+                   <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={() => setShowEmailContent(true)}
+                     className="h-6 w-6 p-0"
+                     title="Show email content"
+                   >
+                     <Eye className="h-4 w-4" />
+                   </Button>
+                 )}
+               </div>
+             </div>
+             
+             {/* Search bar */}
+             <div className="mt-3">
+               <div className="relative">
+                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                 <Input
+                   placeholder="Search emails..."
+                   value={searchQuery}
+                   onChange={(e) => setSearchQuery(e.target.value)}
+                   className="pl-9 h-9"
+                 />
+                 {searchQuery && (
+                   <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={() => setSearchQuery('')}
+                     className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 p-0"
+                   >
+                     <X className="h-3 w-3" />
+                   </Button>
+                 )}
+               </div>
+             </div>
+             
+             {filteredEmails.length > 0 && (
+               <p className="text-sm text-muted-foreground mt-3">
+                 {filteredEmails.filter(email => !email.isRead).length} unread
+               </p>
+             )}
+           </div>
 
           {/* Email List Content */}
           <ScrollArea className="flex-1 min-h-0">
