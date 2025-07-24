@@ -236,7 +236,7 @@ const Emails = () => {
       
       return () => clearInterval(intervalId);
     }
-  }, [user, authStatus.isConnected, triggerSync]);
+  }, [user, authStatus.isConnected]);
 
   // Folder definitions
   const folders = [

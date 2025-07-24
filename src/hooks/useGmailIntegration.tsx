@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -22,7 +22,7 @@ export const useGmailIntegration = () => {
   });
 
   // Check Gmail connection status
-  const checkGmailStatus = async () => {
+  const checkGmailStatus = useCallback(async () => {
     if (!user) {
       setAuthStatus({
         isConnected: false,
@@ -62,10 +62,10 @@ export const useGmailIntegration = () => {
         lastSync: null
       });
     }
-  };
+  }, [user]);
 
   // Connect to Gmail
-  const connectGmail = async () => {
+  const connectGmail = useCallback(async () => {
     try {
       // Get authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
@@ -122,8 +122,7 @@ export const useGmailIntegration = () => {
                   description: `Successfully connected ${exchangeData.userEmail}`,
                 });
 
-                // Trigger initial sync
-                await triggerSync();
+                // Note: Initial sync will be triggered separately
               } else {
                 throw new Error(exchangeData?.error || 'Token exchange failed');
               }
@@ -161,10 +160,10 @@ export const useGmailIntegration = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [user, toast, checkGmailStatus]);
 
   // Disconnect Gmail
-  const disconnectGmail = async () => {
+  const disconnectGmail = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -196,10 +195,10 @@ export const useGmailIntegration = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [user, toast, checkGmailStatus]);
 
   // Trigger manual sync
-  const triggerSync = async () => {
+  const triggerSync = useCallback(async () => {
     if (!user || !authStatus.isConnected) {
       toast({
         title: "Not Connected",
@@ -255,7 +254,7 @@ export const useGmailIntegration = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [user, authStatus.isConnected, toast, checkGmailStatus]);
 
   // Check status on mount and user change
   useEffect(() => {
