@@ -87,7 +87,13 @@ const RequestDetail = () => {
     totalPrice: 0,
     adultsCount: 1,
     childrenCount: 0,
-    infantsCount: 0
+    infantsCount: 0,
+    adultNetPrice: '',
+    adultMarkup: '',
+    childNetPrice: '',
+    childMarkup: '',
+    infantNetPrice: '',
+    infantMarkup: ''
   });
 
   // Quotes state
@@ -342,9 +348,18 @@ const RequestDetail = () => {
   };
 
   const calculateTotalPrice = () => {
-    const netPrice = parseFloat(quoteData.netPrice) || 0;
-    const markup = parseFloat(quoteData.markup) || 0;
-    const basePrice = netPrice + markup;
+    const adultNet = parseFloat(quoteData.adultNetPrice) || 0;
+    const adultMarkup = parseFloat(quoteData.adultMarkup) || 0;
+    const childNet = parseFloat(quoteData.childNetPrice) || 0;
+    const childMarkup = parseFloat(quoteData.childMarkup) || 0;
+    const infantNet = parseFloat(quoteData.infantNetPrice) || 0;
+    const infantMarkup = parseFloat(quoteData.infantMarkup) || 0;
+    
+    const adultTotal = (adultNet + adultMarkup) * (quoteData.adultsCount || 0);
+    const childTotal = (childNet + childMarkup) * (quoteData.childrenCount || 0);
+    const infantTotal = (infantNet + infantMarkup) * (quoteData.infantsCount || 0);
+    
+    const basePrice = adultTotal + childTotal + infantTotal;
     const ckFee = quoteData.ckFeeEnabled ? basePrice * 0.035 : 0;
     return basePrice + ckFee;
   };
@@ -361,24 +376,54 @@ const RequestDetail = () => {
       return;
     }
 
-    const netPrice = parseFloat(quoteData.netPrice) || 0;
-    const markup = parseFloat(quoteData.markup) || 0;
-    const basePrice = netPrice + markup;
-    const ckFee = quoteData.ckFeeEnabled ? basePrice * 0.035 : 0;
-    const totalPrice = basePrice + ckFee;
+    const totalPrice = calculateTotalPrice();
+    
+    // Build passenger pricing object
+    const passengerPricing = {
+      adult: {
+        net: parseFloat(quoteData.adultNetPrice) || 0,
+        markup: parseFloat(quoteData.adultMarkup) || 0,
+        count: quoteData.adultsCount || 0
+      },
+      child: {
+        net: parseFloat(quoteData.childNetPrice) || 0,
+        markup: parseFloat(quoteData.childMarkup) || 0,
+        count: quoteData.childrenCount || 0
+      },
+      infant: {
+        net: parseFloat(quoteData.infantNetPrice) || 0,
+        markup: parseFloat(quoteData.infantMarkup) || 0,
+        count: quoteData.infantsCount || 0
+      }
+    };
 
     try {
       if (editingQuote) {
         // Update existing quote
+        const baseTotal = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
+          return sum + (pricing.net + pricing.markup) * pricing.count;
+        }, 0);
+        const ckFee = quoteData.ckFeeEnabled ? baseTotal * 0.035 : 0;
+        const finalTotal = baseTotal + ckFee;
+
+        // Calculate total net and markup for legacy fields
+        const totalNet = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
+          return sum + pricing.net * pricing.count;
+        }, 0);
+        const totalMarkup = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
+          return sum + pricing.markup * pricing.count;
+        }, 0);
+
         const { error } = await supabase
           .from('quotes')
           .update({
-            net_price: netPrice,
-            markup: markup,
+            net_price: totalNet,
+            markup: totalMarkup,
+            passenger_pricing: passengerPricing,
             ck_fee_enabled: quoteData.ckFeeEnabled,
             ck_fee_amount: ckFee,
             pseudo_city: quoteData.pseudoCity,
-            total_price: totalPrice,
+            total_price: finalTotal,
             adults_count: quoteData.adultsCount,
             children_count: quoteData.childrenCount,
             infants_count: quoteData.infantsCount,
@@ -393,12 +438,13 @@ const RequestDetail = () => {
           q.id === editingQuote.id 
             ? { 
                 ...q, 
-                net_price: netPrice,
-                markup: markup,
+                net_price: totalNet,
+                markup: totalMarkup,
+                passenger_pricing: passengerPricing,
                 ck_fee_enabled: quoteData.ckFeeEnabled,
                 ck_fee_amount: ckFee,
                 pseudo_city: quoteData.pseudoCity,
-                total_price: totalPrice,
+                total_price: finalTotal,
                 adults_count: quoteData.adultsCount,
                 children_count: quoteData.childrenCount,
                 infants_count: quoteData.infantsCount,
@@ -410,7 +456,21 @@ const RequestDetail = () => {
         toast.success('Quote updated successfully');
         setEditingQuote(null);
       } else {
-        // Create new quote (existing logic)
+        // Create new quote with passenger pricing
+        const baseTotal = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
+          return sum + (pricing.net + pricing.markup) * pricing.count;
+        }, 0);
+        const ckFee = quoteData.ckFeeEnabled ? baseTotal * 0.035 : 0;
+        const finalTotal = baseTotal + ckFee;
+
+        // Calculate total net and markup for legacy fields
+        const totalNet = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
+          return sum + pricing.net * pricing.count;
+        }, 0);
+        const totalMarkup = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
+          return sum + pricing.markup * pricing.count;
+        }, 0);
+
         const { data, error } = await supabase
           .from('quotes')
           .insert({
@@ -422,11 +482,12 @@ const RequestDetail = () => {
             total_segments: parsedFlights.totalSegments,
             fare_type: quoteData.fareType,
             pseudo_city: quoteData.pseudoCity || null,
-            net_price: netPrice,
-            markup: markup,
+            net_price: totalNet,
+            markup: totalMarkup,
+            passenger_pricing: passengerPricing,
             ck_fee_enabled: quoteData.ckFeeEnabled,
             ck_fee_amount: ckFee,
-            total_price: totalPrice,
+            total_price: finalTotal,
             adults_count: quoteData.adultsCount,
             children_count: quoteData.childrenCount,
             infants_count: quoteData.infantsCount
@@ -470,7 +531,13 @@ const RequestDetail = () => {
         totalPrice: 0,
         adultsCount: 1,
         childrenCount: 0,
-        infantsCount: 0
+        infantsCount: 0,
+        adultNetPrice: '',
+        adultMarkup: '',
+        childNetPrice: '',
+        childMarkup: '',
+        infantNetPrice: '',
+        infantMarkup: ''
       });
     } catch (error) {
       console.error('Error saving quote:', error);
@@ -1329,7 +1396,13 @@ const RequestDetail = () => {
                                           totalPrice: quote.total_price,
                                           adultsCount: quote.adults_count || 1,
                                           childrenCount: quote.children_count || 0,
-                                          infantsCount: quote.infants_count || 0
+                                          infantsCount: quote.infants_count || 0,
+                                          adultNetPrice: quote.passenger_pricing?.adult?.net || '',
+                                          adultMarkup: quote.passenger_pricing?.adult?.markup || '',
+                                          childNetPrice: quote.passenger_pricing?.child?.net || '',
+                                          childMarkup: quote.passenger_pricing?.child?.markup || '',
+                                          infantNetPrice: quote.passenger_pricing?.infant?.net || '',
+                                          infantMarkup: quote.passenger_pricing?.infant?.markup || ''
                                         });
                                        // Reconstruct the original Sabre I format data
                                        if (quote.segments && quote.segments.length > 0) {
@@ -1473,7 +1546,13 @@ const RequestDetail = () => {
                   totalPrice: 0,
                   adultsCount: 1,
                   childrenCount: 0,
-                  infantsCount: 0
+                  infantsCount: 0,
+                  adultNetPrice: '',
+                  adultMarkup: '',
+                  childNetPrice: '',
+                  childMarkup: '',
+                  infantNetPrice: '',
+                  infantMarkup: ''
                 });
               }
             }}>
@@ -1635,37 +1714,118 @@ const RequestDetail = () => {
                           </div>
                         </div>
 
-                        {/* Pricing Details */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>Net Price ($)</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={quoteData.netPrice}
-                              onChange={(e) => handleQuoteDataChange('netPrice', e.target.value)}
-                            />
-                          </div>
+                        {/* Passenger Pricing Details */}
+                        <div className="space-y-6">
+                          <Label className="text-base font-medium">Pricing by Passenger Type</Label>
+                          
+                          {/* Adult Pricing */}
+                          {quoteData.adultsCount > 0 && (
+                            <div className="p-4 border rounded-lg space-y-3">
+                              <h4 className="font-medium text-sm flex items-center gap-2">
+                                Adult Pricing <Badge variant="outline">{quoteData.adultsCount} passenger{quoteData.adultsCount > 1 ? 's' : ''}</Badge>
+                              </h4>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <Label className="text-sm">Net Price ($)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={quoteData.adultNetPrice}
+                                    onChange={(e) => handleQuoteDataChange('adultNetPrice', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-sm">Markup ($)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={quoteData.adultMarkup}
+                                    onChange={(e) => handleQuoteDataChange('adultMarkup', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Subtotal: ${((parseFloat(quoteData.adultNetPrice) || 0) + (parseFloat(quoteData.adultMarkup) || 0) * quoteData.adultsCount).toFixed(2)}
+                              </div>
+                            </div>
+                          )}
 
-                          <div className="space-y-2">
-                            <Label>Markup ($)</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={quoteData.markup}
-                              onChange={(e) => handleQuoteDataChange('markup', e.target.value)}
-                            />
-                          </div>
+                          {/* Child Pricing */}
+                          {quoteData.childrenCount > 0 && (
+                            <div className="p-4 border rounded-lg space-y-3">
+                              <h4 className="font-medium text-sm flex items-center gap-2">
+                                Child Pricing <Badge variant="outline">{quoteData.childrenCount} passenger{quoteData.childrenCount > 1 ? 's' : ''}</Badge>
+                              </h4>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <Label className="text-sm">Net Price ($)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={quoteData.childNetPrice}
+                                    onChange={(e) => handleQuoteDataChange('childNetPrice', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-sm">Markup ($)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={quoteData.childMarkup}
+                                    onChange={(e) => handleQuoteDataChange('childMarkup', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Subtotal: ${((parseFloat(quoteData.childNetPrice) || 0) + (parseFloat(quoteData.childMarkup) || 0) * quoteData.childrenCount).toFixed(2)}
+                              </div>
+                            </div>
+                          )}
 
-                          <div className="space-y-2">
-                            <Label>Total Price ($)</Label>
-                            <Input
-                              value={calculateTotalPrice().toFixed(2)}
-                              readOnly
-                              className="bg-muted font-medium"
-                            />
+                          {/* Infant Pricing */}
+                          {quoteData.infantsCount > 0 && (
+                            <div className="p-4 border rounded-lg space-y-3">
+                              <h4 className="font-medium text-sm flex items-center gap-2">
+                                Infant Pricing <Badge variant="outline">{quoteData.infantsCount} passenger{quoteData.infantsCount > 1 ? 's' : ''}</Badge>
+                              </h4>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <Label className="text-sm">Net Price ($)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={quoteData.infantNetPrice}
+                                    onChange={(e) => handleQuoteDataChange('infantNetPrice', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-sm">Markup ($)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={quoteData.infantMarkup}
+                                    onChange={(e) => handleQuoteDataChange('infantMarkup', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Subtotal: ${((parseFloat(quoteData.infantNetPrice) || 0) + (parseFloat(quoteData.infantMarkup) || 0) * quoteData.infantsCount).toFixed(2)}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Total Price Summary */}
+                          <div className="p-4 bg-muted/50 rounded-lg">
+                            <div className="flex justify-between items-center font-medium">
+                              <span>Total Price:</span>
+                              <span className="text-lg">${calculateTotalPrice().toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
 
@@ -1677,7 +1837,7 @@ const RequestDetail = () => {
                             onCheckedChange={(checked) => handleQuoteDataChange('ckFeeEnabled', checked)}
                           />
                           <Label htmlFor="ckFee" className="text-sm">
-                            Add CK Fee (3.5% of net + markup): ${quoteData.ckFeeEnabled ? (((parseFloat(quoteData.netPrice) || 0) + (parseFloat(quoteData.markup) || 0)) * 0.035).toFixed(2) : '0.00'}
+                            Add CK Fee (3.5% of total): ${quoteData.ckFeeEnabled ? (calculateTotalPrice() * 0.035).toFixed(2) : '0.00'}
                           </Label>
                         </div>
                       </div>
