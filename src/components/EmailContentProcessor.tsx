@@ -134,7 +134,7 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
   }
 
   return (
-    <div className={`flex-1 flex flex-col transition-all duration-300 ${isMinimized ? 'w-12' : ''}`}>
+    <div className={`flex-1 flex flex-col transition-all duration-300 max-h-screen ${isMinimized ? 'w-12' : ''}`}>
       {/* Email Header */}
       <div className="p-4 border-b bg-card">
         <div className="flex items-start justify-between mb-4">

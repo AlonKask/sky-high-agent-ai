@@ -132,6 +132,7 @@ const Emails = () => {
   const [isEmailViewMinimized, setIsEmailViewMinimized] = useState(false);
   const [showInboxColumn, setShowInboxColumn] = useState(true);
   const [isInboxMaximized, setIsInboxMaximized] = useState(true);
+  const [showEmailContent, setShowEmailContent] = useState(true);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showAIChat, setShowAIChat] = useState(false);
   const [isAIChatMinimized, setIsAIChatMinimized] = useState(false);
@@ -1469,7 +1470,7 @@ Best regards,
       <div className="flex-1 flex">
         {/* Email List */}
         {showInboxColumn && (
-        <div className={`${isInboxMaximized ? 'flex-1' : 'w-96'} border-r bg-card/50`}>
+        <div className={`${(isInboxMaximized || !showEmailContent) ? 'flex-1' : 'w-96'} border-r bg-card/50`}>
           {/* Email List Header */}
           <div className="p-4 border-b bg-background/50 backdrop-blur-sm">
             <div className="flex items-center justify-between">
@@ -1489,6 +1490,17 @@ Best regards,
                 >
                   {isInboxMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
+                {!showEmailContent && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowEmailContent(true)}
+                    className="h-6 w-6 p-0"
+                    title="Show email content"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
             {filteredEmails.length > 0 && (
@@ -1643,13 +1655,15 @@ Best regards,
         )}
 
         {/* Email Content - Use EmailContentProcessor */}
-        <EmailContentProcessor 
-          email={selectedEmail}
-          isProcessingEnabled={isAIProcessingEnabled}
-          isMinimized={isEmailViewMinimized}
-          onMinimizeToggle={() => setIsEmailViewMinimized(!isEmailViewMinimized)}
-          onClose={() => setSelectedEmail(null)}
-        />
+        {showEmailContent && (
+          <EmailContentProcessor 
+            email={selectedEmail}
+            isProcessingEnabled={isAIProcessingEnabled}
+            isMinimized={isEmailViewMinimized}
+            onMinimizeToggle={() => setIsEmailViewMinimized(!isEmailViewMinimized)}
+            onClose={() => setShowEmailContent(false)}
+          />
+        )}
       </div>
 
       {/* Compose Dialog */}
