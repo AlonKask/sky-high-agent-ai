@@ -815,7 +815,16 @@ const RequestDetail = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     {!editing ? (
-                      <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setEditing(true);
+                        setEditedRequest({
+                          ...request,
+                          adults_count: request.adults_count || 1,
+                          children_count: request.children_count || 0,
+                          infants_count: request.infants_count || 0,
+                          budget_range: request.budget_range || ''
+                        });
+                      }}>
                         <Edit className="h-4 w-4" />
                       </Button>
                     ) : (
