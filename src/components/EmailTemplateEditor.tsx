@@ -103,15 +103,15 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Service Class</div>
-                        <div class="detail-value">{class}</div>
+                        <div class="detail-value">{cabinClass}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Passengers</div>
                         <div class="detail-value">{passengers}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">Airline</div>
-                        <div class="detail-value">{airline}</div>
+                        <div class="detail-label">Flight Details</div>
+                        <div class="detail-value">{fareType}</div>
                     </div>
                 </div>
             </div>
@@ -119,18 +119,20 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
             <div class="pricing-section">
                 <h3 style="margin-top: 0; color: #1e40af;">Investment Summary</h3>
                 <div class="price-breakdown">
-                    <div class="price-label">Base Fare ({passengers} passengers)</div>
-                    <div class="price-value">{basePrice}</div>
+                    <div class="price-label">Net Price ({passengers} passengers)</div>
+                    <div class="price-value">{netPrice}</div>
                 </div>
                 <div class="price-breakdown">
-                    <div class="price-label">Taxes & Fees</div>
-                    <div class="price-value">{taxes}</div>
+                    <div class="price-label">Service & Markup</div>
+                    <div class="price-value">{markup}</div>
                 </div>
                 <div class="price-breakdown total-price">
                     <div>Total Investment</div>
                     <div>{totalPrice}</div>
                 </div>
             </div>
+            
+            {flightDetails}
             
             <p>This premium business class experience includes priority check-in, lounge access, enhanced dining, and lie-flat seating for optimal comfort during your journey.</p>
             
@@ -142,8 +144,8 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                 <p><strong>{agentName}</strong><br>
                 Senior Travel Consultant<br>
                 Select Business Class<br>
-                📞 Direct Line: {agentPhone}<br>
-                ✉️ {agentEmail}</p>
+                📞 Direct Line: (555) 123-4567<br>
+                ✉️ expert@selectbusinessclass.com</p>
             </div>
         </div>
         
@@ -611,16 +613,103 @@ export function EmailTemplateEditor({
   
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [variables, setVariables] = useState({
-    clientName: clientName,
-    agentName: '',
-    agencyName: '',
-    quoteDetails: quotes?.map(q => `• ${q.notes || 'Flight Quote'}: $${q.totalPrice || '0'}`).join('\n') || '',
-    expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    destination: '',
-    travelDates: '',
-    totalPrice: quotes?.reduce((sum, q) => sum + (parseFloat(q.totalPrice) || 0), 0).toString() || '0',
-    savings: ''
+  // Enhanced variable system with real flight data
+  const [variables, setVariables] = useState(() => {
+    const generateFlightData = () => {
+      if (!quotes || quotes.length === 0) {
+        return {
+          clientName: clientName || 'Valued Client',
+          agentName: 'Select Business Class Travel Expert',
+          agencyName: 'Select Business Class',
+          route: 'Your Destination',
+          departure: 'TBD',
+          arrival: 'TBD',
+          departureDate: 'TBD',
+          returnDate: 'TBD',
+          flightDetails: '',
+          totalPrice: '0',
+          netPrice: '0',
+          markup: '0',
+          savings: '500',
+          expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+          cabinClass: 'Business Class',
+          fareType: 'Flexible',
+          passengers: '1 Adult'
+        };
+      }
+
+      const mainQuote = quotes[0];
+      const segments = mainQuote.segments || [];
+      
+      // Generate route information
+      const route = mainQuote.route || (segments.length > 0 
+        ? `${segments[0].departureAirport} - ${segments[segments.length - 1].arrivalAirport}` 
+        : 'Your Destination');
+      
+      // Generate flight details HTML for segments
+      const flightDetails = segments.map((segment: any, index: number) => `
+        <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 10px 0;">
+          <div style="font-weight: bold; color: #1f2937; margin-bottom: 10px;">
+            Segment ${index + 1}: ${segment.flightNumber} (${segment.airlineCode})
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <div style="font-size: 12px; color: #6b7280; text-transform: uppercase;">Departure</div>
+              <div style="font-weight: 500; color: #374151;">${segment.departureAirport} at ${segment.departureTime}</div>
+              <div style="font-size: 12px; color: #6b7280;">${segment.flightDate}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #6b7280; text-transform: uppercase;">Arrival</div>
+              <div style="font-weight: 500; color: #374151;">${segment.arrivalAirport} at ${segment.arrivalTime}</div>
+              <div style="font-size: 12px; color: #6b7280;">${segment.arrivalDayOffset > 0 ? '+' + segment.arrivalDayOffset + ' day' : 'Same day'}</div>
+            </div>
+          </div>
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+            <span style="background: #eff6ff; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+              ${segment.cabinClass} Class
+            </span>
+          </div>
+        </div>
+      `).join('');
+
+      // Generate passenger count
+      const adults = mainQuote.adults_count || 1;
+      const children = mainQuote.children_count || 0;
+      const infants = mainQuote.infants_count || 0;
+      const passengerText = [
+        adults > 0 ? `${adults} Adult${adults > 1 ? 's' : ''}` : '',
+        children > 0 ? `${children} Child${children > 1 ? 'ren' : ''}` : '',
+        infants > 0 ? `${infants} Infant${infants > 1 ? 's' : ''}` : ''
+      ].filter(Boolean).join(', ');
+
+      // Calculate pricing
+      const totalPrice = parseFloat(mainQuote.total_price || '0');
+      const netPrice = parseFloat(mainQuote.net_price || '0');
+      const markup = parseFloat(mainQuote.markup || '0');
+      const savings = Math.round(totalPrice * 0.15); // Estimated savings
+
+      return {
+        clientName: clientName || 'Valued Client',
+        agentName: 'Select Business Class Travel Expert',
+        agencyName: 'Select Business Class',
+        route: route,
+        departure: segments[0]?.departureAirport || 'TBD',
+        arrival: segments[segments.length - 1]?.arrivalAirport || 'TBD',
+        departureDate: segments[0]?.flightDate || 'TBD',
+        returnDate: segments.length > 1 ? segments[segments.length - 1]?.flightDate : '',
+        flightDetails: flightDetails,
+        totalPrice: totalPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        netPrice: netPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        markup: markup.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        savings: savings.toString(),
+        expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+        cabinClass: segments[0]?.cabinClass || 'Business Class',
+        fareType: mainQuote.fare_type || 'Flexible',
+        passengers: passengerText || '1 Adult'
+      };
+    };
+
+    return generateFlightData();
   });
 
   const applyTemplate = (template: EmailTemplate) => {
@@ -628,9 +717,9 @@ export function EmailTemplateEditor({
     let processedContent = template.content;
     let processedSubject = template.subject;
 
-    // Replace variables in template
+    // Replace variables in template - using single braces for the templates
     Object.entries(variables).forEach(([key, value]) => {
-      const placeholder = `{{${key}}}`;
+      const placeholder = `{${key}}`;
       processedContent = processedContent.replace(new RegExp(placeholder, 'g'), value);
       processedSubject = processedSubject.replace(new RegExp(placeholder, 'g'), value);
     });
@@ -662,7 +751,7 @@ export function EmailTemplateEditor({
       
       const updatedVariables = { ...variables, [key]: value };
       Object.entries(updatedVariables).forEach(([varKey, varValue]) => {
-        const placeholder = `{{${varKey}}}`;
+        const placeholder = `{${varKey}}`;
         processedContent = processedContent.replace(new RegExp(placeholder, 'g'), varValue);
         processedSubject = processedSubject.replace(new RegExp(placeholder, 'g'), varValue);
       });
@@ -721,7 +810,7 @@ export function EmailTemplateEditor({
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-3">{template.preview}</p>
                   <p className="text-xs font-medium text-primary">
-                    Subject: {template.subject.replace(/\{\{.*?\}\}/g, '...')}
+                    Subject: {template.subject.replace(/\{.*?\}/g, '...')}
                   </p>
                 </CardContent>
               </Card>
