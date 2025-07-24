@@ -347,6 +347,48 @@ const RequestDetail = () => {
     }).join('\n');
   };
 
+  const hasValidPricing = () => {
+    // Check if legacy netPrice is provided
+    if (quoteData.netPrice && quoteData.netPrice.trim() !== '') {
+      return true;
+    }
+    
+    // Check passenger-specific pricing
+    const adultsCount = quoteData.adultsCount || 0;
+    const childrenCount = quoteData.childrenCount || 0;
+    const infantsCount = quoteData.infantsCount || 0;
+    
+    // For adults (required if count > 0)
+    if (adultsCount > 0) {
+      const hasAdultNetPrice = quoteData.adultNetPrice && quoteData.adultNetPrice.trim() !== '';
+      const hasAdultMarkup = quoteData.adultMarkup && quoteData.adultMarkup.trim() !== '';
+      if (!hasAdultNetPrice && !hasAdultMarkup) {
+        return false;
+      }
+    }
+    
+    // For children (required if count > 0)
+    if (childrenCount > 0) {
+      const hasChildNetPrice = quoteData.childNetPrice && quoteData.childNetPrice.trim() !== '';
+      const hasChildMarkup = quoteData.childMarkup && quoteData.childMarkup.trim() !== '';
+      if (!hasChildNetPrice && !hasChildMarkup) {
+        return false;
+      }
+    }
+    
+    // For infants (required if count > 0)
+    if (infantsCount > 0) {
+      const hasInfantNetPrice = quoteData.infantNetPrice && quoteData.infantNetPrice.trim() !== '';
+      const hasInfantMarkup = quoteData.infantMarkup && quoteData.infantMarkup.trim() !== '';
+      if (!hasInfantNetPrice && !hasInfantMarkup) {
+        return false;
+      }
+    }
+    
+    // Must have at least one passenger with pricing
+    return adultsCount > 0 || childrenCount > 0 || infantsCount > 0;
+  };
+
   const calculateTotalPrice = () => {
     const adultNet = parseFloat(quoteData.adultNetPrice) || 0;
     const adultMarkup = parseFloat(quoteData.adultMarkup) || 0;
@@ -1854,7 +1896,7 @@ const RequestDetail = () => {
                         </Button>
                         <Button 
                           onClick={handleCreateQuote}
-                          disabled={!quoteData.netPrice}
+                          disabled={!hasValidPricing()}
                         >
                           <Save className="h-4 w-4 mr-2" />
                           {editingQuote ? 'Update Quote' : 'Save Quote'}
