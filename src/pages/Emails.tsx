@@ -1317,7 +1317,7 @@ Best regards,
     }
     return true;
   })
-  console.log('Debug checkpoint A - filtering emails'); // Debug log
+  // Remove any remaining duplicates based on messageId
   .filter((email, index, arr) => 
     arr.findIndex(e => e.messageId === email.messageId) === index
   )
@@ -1336,7 +1336,7 @@ Best regards,
     return sortOrder === 'asc' ? comparison : -comparison;
   });
 
-  console.log('Debug checkpoint B - rendering component'); // Debug log
+  return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Collapsible Sidebar */}
       <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative flex-shrink-0`}>
