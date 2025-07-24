@@ -100,7 +100,7 @@ const GOOGLE_CLIENT_ID = '871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.goo
 // Force rebuild to clear stale references
 
 const Emails = () => {
-  console.log('Emails component rendering'); // Debug log
+  console.log('Emails component rendering - Debug point 1'); // Debug log
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -1317,7 +1317,7 @@ Best regards,
     }
     return true;
   })
-  // Remove any remaining duplicates based on messageId
+  console.log('Debug checkpoint A - filtering emails'); // Debug log
   .filter((email, index, arr) => 
     arr.findIndex(e => e.messageId === email.messageId) === index
   )
@@ -1336,7 +1336,7 @@ Best regards,
     return sortOrder === 'asc' ? comparison : -comparison;
   });
 
-  return (
+  console.log('Debug checkpoint B - rendering component'); // Debug log
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Collapsible Sidebar */}
       <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative flex-shrink-0`}>
@@ -1917,8 +1917,8 @@ Best regards,
              </>
            )}
          </ScrollArea>
-       </div>
-       )}
+        </div>
+        )}
 
 
         {/* Email Content - Use EmailContentProcessor */}
