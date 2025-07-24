@@ -25,14 +25,20 @@ serve(async (req) => {
     let bodyData: any = {};
     if (req.method === 'POST') {
       try {
-        bodyData = await req.json();
+        const bodyText = await req.text();
+        console.log('Raw request body:', bodyText);
+        if (bodyText) {
+          bodyData = JSON.parse(bodyText);
+          console.log('Parsed body data:', bodyData);
+        }
       } catch (error) {
         console.error('Error parsing request body:', error);
+        bodyData = {}; // Set empty object instead of keeping it undefined
       }
     }
 
     const finalAction = action || bodyData.action || 'start';
-    console.log('Gmail OAuth action:', finalAction);
+    console.log('Gmail OAuth action:', finalAction, 'Body data keys:', Object.keys(bodyData));
 
     if (finalAction === 'start') {
       // Start OAuth flow - return authorization URL
