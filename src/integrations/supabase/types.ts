@@ -413,6 +413,7 @@ export type Database = {
           id: string
           message_id: string | null
           metadata: Json | null
+          received_at: string | null
           recipient_emails: string[]
           request_id: string | null
           sender_email: string
@@ -434,6 +435,7 @@ export type Database = {
           id?: string
           message_id?: string | null
           metadata?: Json | null
+          received_at?: string | null
           recipient_emails: string[]
           request_id?: string | null
           sender_email: string
@@ -455,6 +457,7 @@ export type Database = {
           id?: string
           message_id?: string | null
           metadata?: Json | null
+          received_at?: string | null
           recipient_emails?: string[]
           request_id?: string | null
           sender_email?: string

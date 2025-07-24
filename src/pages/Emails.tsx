@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +52,7 @@ interface EmailExchange {
 const Emails = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { authStatus, connectGmail, disconnectGmail, triggerSync } = useGmailIntegration();
   
   // Core state
   const [emails, setEmails] = useState<any[]>([]);
@@ -289,6 +291,59 @@ const Emails = () => {
         </Button>
 
         <div className="p-4">
+          {/* Gmail Integration Status */}
+          {!isSidebarCollapsed && (
+            <div className="mb-4 p-3 bg-muted rounded-lg">
+              <h3 className="text-sm font-medium mb-2">Gmail Integration</h3>
+              {authStatus.isLoading ? (
+                <p className="text-xs text-muted-foreground">Checking connection...</p>
+              ) : authStatus.isConnected ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    ✓ Connected: {authStatus.userEmail}
+                  </p>
+                  {authStatus.lastSync && (
+                    <p className="text-xs text-muted-foreground">
+                      Last sync: {authStatus.lastSync.toLocaleString()}
+                    </p>
+                  )}
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={triggerSync}
+                      className="text-xs px-2 py-1 h-6"
+                    >
+                      Sync Now
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={disconnectGmail}
+                      className="text-xs px-2 py-1 h-6"
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Connect Gmail for automatic email sync
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={connectGmail}
+                    className="text-xs px-2 py-1 h-6"
+                  >
+                    Connect Gmail
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Header - Email sync happens automatically */}
           <div className="flex items-center gap-2 mb-6">
             <Mail className="h-6 w-6 text-primary" />
