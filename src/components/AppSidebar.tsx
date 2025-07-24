@@ -108,7 +108,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className="w-12 transition-all duration-300 border-r bg-card"
+      className="w-16 transition-all duration-300 border-r bg-card"
       collapsible="none"
     >
       <SidebarHeader className="border-b p-4">
