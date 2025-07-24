@@ -51,16 +51,33 @@ export const WorldClock: React.FC<WorldClockProps> = ({
   if (variant === 'compact') {
     return (
       <div className={`w-full overflow-x-auto ${className}`}>
-        <div className="flex gap-1 sm:gap-2 lg:gap-3 text-xs justify-center min-w-max px-2">
+        <div className="flex gap-1 text-xs justify-center min-w-max px-1">
           {timeZones.map((tz) => (
             <div key={tz.code} className="text-center flex-shrink-0">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 flex flex-col items-center justify-center mb-1 hover:scale-105 transition-transform duration-200">
-                <div className="font-mono font-bold text-foreground text-xs sm:text-sm leading-none">
+              <div 
+                className="rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 flex flex-col items-center justify-center mb-1 hover:scale-105 transition-transform duration-200"
+                style={{
+                  width: 'clamp(2.5rem, 4vw, 4rem)',
+                  height: 'clamp(2.5rem, 4vw, 4rem)'
+                }}
+              >
+                <div 
+                  className="font-mono font-bold text-foreground leading-none"
+                  style={{ fontSize: 'clamp(0.6rem, 1.5vw, 0.875rem)' }}
+                >
                   {formatInTimeZone(currentTime, tz.timezone, 'HH:mm')}
                 </div>
-                <div className="text-muted-foreground text-xs leading-none mt-0.5">{tz.code}</div>
+                <div 
+                  className="text-muted-foreground leading-none mt-0.5"
+                  style={{ fontSize: 'clamp(0.5rem, 1.2vw, 0.75rem)' }}
+                >
+                  {tz.code}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground hidden sm:block">
+              <div 
+                className="text-muted-foreground hidden sm:block"
+                style={{ fontSize: 'clamp(0.5rem, 1vw, 0.75rem)' }}
+              >
                 {formatInTimeZone(currentTime, tz.timezone, 'd MMM')}
               </div>
             </div>
