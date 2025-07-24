@@ -131,6 +131,7 @@ const Emails = () => {
   const [isInboxMinimized, setIsInboxMinimized] = useState(false);
   const [isEmailViewMinimized, setIsEmailViewMinimized] = useState(false);
   const [showInboxColumn, setShowInboxColumn] = useState(true);
+  const [isInboxMaximized, setIsInboxMaximized] = useState(true);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showAIChat, setShowAIChat] = useState(false);
   const [isAIChatMinimized, setIsAIChatMinimized] = useState(false);
@@ -1468,7 +1469,7 @@ Best regards,
       <div className="flex-1 flex">
         {/* Email List */}
         {showInboxColumn && (
-        <div className="w-96 border-r bg-card/50">
+        <div className={`${isInboxMaximized ? 'flex-1' : 'w-96'} border-r bg-card/50`}>
           {/* Email List Header */}
           <div className="p-4 border-b bg-background/50 backdrop-blur-sm">
             <div className="flex items-center justify-between">
@@ -1482,10 +1483,11 @@ Best regards,
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowInboxColumn(false)}
+                  onClick={() => setIsInboxMaximized(!isInboxMaximized)}
                   className="h-6 w-6 p-0"
+                  title={isInboxMaximized ? "Minimize email list" : "Maximize email list"}
                 >
-                  <X className="h-4 w-4" />
+                  {isInboxMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
