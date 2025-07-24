@@ -24,8 +24,18 @@ import {
   SortDesc,
   Mail,
   MailOpen,
-  ArrowLeft
+  ArrowLeft,
+  Plus
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import { ManualGmailFix } from '@/components/ManualGmailFix';
@@ -71,6 +81,14 @@ const Emails = () => {
   // Filter and sorting state
   const [sortBy, setSortBy] = useState<'received_at' | 'subject' | 'sender_email'>('received_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // Compose email state
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState({
+    to: '',
+    subject: '',
+    body: ''
+  });
   
   // Email statistics
   const [emailStats, setEmailStats] = useState({
@@ -215,6 +233,50 @@ const Emails = () => {
       toast({
         title: "Error",
         description: "Failed to archive emails",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Send composed email
+  const handleSendEmail = async () => {
+    if (!user || !composeData.to || !composeData.subject || !composeData.body) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: composeData.to,
+          subject: composeData.subject,
+          body: composeData.body
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Email sent successfully",
+      });
+
+      // Reset form and close dialog
+      setComposeData({ to: '', subject: '', body: '' });
+      setIsComposeOpen(false);
+      
+      // Refresh emails
+      await loadEmailsFromDB();
+
+    } catch (error) {
+      console.error('Send email error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send email",
         variant: "destructive"
       });
     }
@@ -412,6 +474,63 @@ const Emails = () => {
             {!isSidebarCollapsed && <h1 className="text-xl font-bold">Emails</h1>}
           </div>
 
+          {/* Compose Email Button */}
+          <div className="mb-4">
+            <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
+              <DialogTrigger asChild>
+                <Button className={`w-full ${isSidebarCollapsed ? 'justify-center' : 'justify-start'}`}>
+                  <Plus className={`h-4 w-4 ${!isSidebarCollapsed ? 'mr-2' : ''}`} />
+                  {!isSidebarCollapsed && 'Compose'}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Compose Email</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="to">To</Label>
+                    <Input
+                      id="to"
+                      type="email"
+                      placeholder="recipient@example.com"
+                      value={composeData.to}
+                      onChange={(e) => setComposeData({ ...composeData, to: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                      id="subject"
+                      placeholder="Enter subject"
+                      value={composeData.subject}
+                      onChange={(e) => setComposeData({ ...composeData, subject: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="body">Message</Label>
+                    <Textarea
+                      id="body"
+                      placeholder="Enter your message"
+                      rows={6}
+                      value={composeData.body}
+                      onChange={(e) => setComposeData({ ...composeData, body: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setIsComposeOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSendEmail}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
           {/* Folders */}
           <div className="space-y-1">
             {folders.map(folder => {
@@ -424,7 +543,7 @@ const Emails = () => {
                 <Button
                   key={folder.id}
                   variant={selectedFolder === folder.id ? "secondary" : "ghost"}
-                  className="w-full justify-start"
+                  className={`w-full ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start'}`}
                   onClick={() => setSelectedFolder(folder.id)}
                 >
                   <Icon className={`h-4 w-4 ${!isSidebarCollapsed ? 'mr-2' : ''}`} />
