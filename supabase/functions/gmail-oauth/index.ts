@@ -4,9 +4,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
+  console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,32 +24,40 @@ serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
     
+    // Simplified request body parsing
     let bodyData: any = {};
+    let userId: string | null = null;
+    
     if (req.method === 'POST') {
       try {
-        // Handle both direct POST requests and Supabase function invocations
-        const contentType = req.headers.get('content-type') || '';
+        const bodyText = await req.text();
+        console.log(`📥 Raw request body: "${bodyText}"`);
         
-        if (contentType.includes('application/json')) {
-          bodyData = await req.json();
-          console.log('Parsed JSON body data:', bodyData);
-        } else {
-          const bodyText = await req.text();
-          console.log('Raw request body:', bodyText);
-          if (bodyText) {
-            bodyData = JSON.parse(bodyText);
-            console.log('Parsed text body data:', bodyData);
-          }
+        if (bodyText.trim()) {
+          bodyData = JSON.parse(bodyText);
+          console.log(`📋 Parsed body data:`, bodyData);
+          
+          // Extract userId from various possible formats
+          userId = bodyData.userId || bodyData.user_id || bodyData.id || null;
         }
       } catch (error) {
-        console.error('Error parsing request body:', error);
-        bodyData = {}; // Set empty object instead of keeping it undefined
+        console.error(`❌ Error parsing request body:`, error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Invalid request body format',
+            details: error.message 
+          }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
     }
 
     const finalAction = action || bodyData.action || 'start';
-    const userId = bodyData.userId; // Get userId from request body
-    console.log('Gmail OAuth action:', finalAction, 'Body data keys:', Object.keys(bodyData), 'userId:', userId);
+    console.log(`🎯 Action: ${finalAction}, UserId: ${userId}, Body keys: [${Object.keys(bodyData).join(', ')}]`);
 
     if (finalAction === 'start') {
       // Start OAuth flow - return authorization URL
@@ -55,17 +65,39 @@ serve(async (req) => {
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
       
-      console.log('Starting OAuth flow for user:', userId);
-      console.log('Environment check - Client ID exists:', !!clientId, 'Client Secret exists:', !!clientSecret);
+      console.log(`🚀 Starting OAuth flow for user: ${userId}`);
+      console.log(`🔐 Environment check - Client ID: ${!!clientId}, Client Secret: ${!!clientSecret}`);
       
       if (!clientId || !clientSecret) {
-        console.error('Missing Google OAuth credentials - Client ID:', !!clientId, 'Client Secret:', !!clientSecret);
-        throw new Error('Google OAuth credentials not configured. Please check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.');
+        const error = 'Google OAuth credentials not configured. Please check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.';
+        console.error(`❌ ${error}`);
+        return new Response(
+          JSON.stringify({ success: false, error }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
       
       if (!userId) {
-        console.error('User ID is required for OAuth flow. Body data:', bodyData);
-        throw new Error('User ID is required for OAuth flow');
+        const error = 'User ID is required for OAuth flow';
+        console.error(`❌ ${error}. Body data:`, bodyData);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error,
+            debug: {
+              bodyKeys: Object.keys(bodyData),
+              bodyData: bodyData,
+              extractedUserId: userId
+            }
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
       
       const scopes = [
@@ -74,7 +106,7 @@ serve(async (req) => {
         'https://www.googleapis.com/auth/userinfo.email'
       ].join(' ');
 
-      // Include userId as state parameter so we can store tokens directly in callback
+      // Include userId as state parameter
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -84,10 +116,10 @@ serve(async (req) => {
         `prompt=consent&` +
         `state=${encodeURIComponent(userId)}`;
 
-      console.log('Generated auth URL with state:', userId);
+      console.log(`✅ Generated auth URL with state: ${userId}`);
 
       return new Response(
-        JSON.stringify({ authUrl }),
+        JSON.stringify({ success: true, authUrl }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -100,26 +132,51 @@ serve(async (req) => {
       const error = url.searchParams.get('error');
       const state = url.searchParams.get('state'); // userId passed as state
 
-      console.log('OAuth callback received - code:', !!code, 'state:', state, 'error:', error);
+      console.log(`📞 OAuth callback - code: ${!!code}, state: ${state}, error: ${error}`);
 
       if (error) {
+        console.error(`❌ OAuth error: ${error}`);
         return new Response(
-          `<html><body><h1>Authentication Error</h1><p>${error}</p><script>window.close();</script></body></html>`,
+          `<html><body><h1>Authentication Error</h1><p>${error}</p><script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'gmail_auth_error',
+                success: false,
+                error: '${error}'
+              }, '*');
+            }
+            window.close();
+          </script></body></html>`,
           { headers: { 'Content-Type': 'text/html' } }
         );
       }
 
       if (!code) {
-        throw new Error('No authorization code received');
+        const errorMsg = 'No authorization code received';
+        console.error(`❌ ${errorMsg}`);
+        return new Response(
+          `<html><body><h1>Error</h1><p>${errorMsg}</p><script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'gmail_auth_error',
+                success: false,
+                error: '${errorMsg}'
+              }, '*');
+            }
+            window.close();
+          </script></body></html>`,
+          { headers: { 'Content-Type': 'text/html' } }
+        );
       }
 
       if (!state) {
-        console.error('No state parameter received - user ID missing');
+        const errorMsg = 'User session lost during authentication. Please try connecting again.';
+        console.error(`❌ No state parameter - ${errorMsg}`);
         return new Response(
-          `<html><body><h1>Configuration Error</h1><p>User session lost during authentication. Please try connecting again.</p><script>
+          `<html><body><h1>Configuration Error</h1><p>${errorMsg}</p><script>
             if (window.opener) {
               window.opener.postMessage({
-                type: 'gmail_auth_success',
+                type: 'gmail_auth_error',
                 success: false,
                 error: 'User session lost - please try again'
               }, '*');
@@ -130,7 +187,7 @@ serve(async (req) => {
         );
       }
 
-      console.log('OAuth callback received, exchanging code for tokens...');
+      console.log(`🔄 Exchanging code for tokens...`);
 
       // Exchange code for tokens
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
@@ -138,7 +195,7 @@ serve(async (req) => {
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
       
       if (!clientId || !clientSecret) {
-        console.error('Missing Google OAuth credentials in callback');
+        console.error(`❌ Missing OAuth credentials in callback`);
         throw new Error('OAuth credentials not properly configured');
       }
 
@@ -146,8 +203,8 @@ serve(async (req) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          client_id: clientId ?? '',
-          client_secret: clientSecret ?? '',
+          client_id: clientId,
+          client_secret: clientSecret,
           code,
           grant_type: 'authorization_code',
           redirect_uri: redirectUri,
@@ -156,12 +213,12 @@ serve(async (req) => {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
-        console.error('Token exchange failed:', errorText);
+        console.error(`❌ Token exchange failed: ${errorText}`);
         throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
       }
 
       const tokens = await tokenResponse.json();
-      console.log('Tokens obtained successfully');
+      console.log(`✅ Tokens obtained successfully`);
 
       // Get user info
       const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -173,66 +230,91 @@ serve(async (req) => {
       }
 
       const userInfo = await userInfoResponse.json();
-      console.log(`User info obtained for: ${userInfo.email}`);
+      console.log(`📧 User info obtained for: ${userInfo.email}`);
 
-      // Store tokens directly if we have a userId from state
+      // Store tokens directly
       let storedSuccessfully = false;
       let storageError = null;
       
-      if (state) {
-        try {
-          console.log(`Storing tokens for user: ${state}`);
-          
-          // Use upsert to handle both insert and update cases
-          const { error: upsertError } = await supabaseClient
+      try {
+        console.log(`💾 Storing tokens for user: ${state}`);
+        
+        // First check if user preferences exist
+        const { data: existingPrefs } = await supabaseClient
+          .from('user_preferences')
+          .select('user_id')
+          .eq('user_id', state)
+          .single();
+
+        if (existingPrefs) {
+          console.log(`📝 Updating existing preferences for user: ${state}`);
+          const { error: updateError } = await supabaseClient
             .from('user_preferences')
-            .upsert({
-              user_id: state,
+            .update({
               gmail_access_token: tokens.access_token,
               gmail_refresh_token: tokens.refresh_token,
               gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
               gmail_user_email: userInfo.email,
               updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id'
-            });
+            })
+            .eq('user_id', state);
             
-          if (upsertError) {
-            console.error('Error upserting tokens:', upsertError);
-            storageError = upsertError.message;
+          if (updateError) {
+            console.error(`❌ Error updating tokens:`, updateError);
+            storageError = updateError.message;
           } else {
             storedSuccessfully = true;
-            console.log(`Gmail tokens stored successfully for user: ${userInfo.email}`);
-            
-            // Trigger immediate email sync after successful token storage
-            try {
-              console.log(`Triggering initial email sync for user: ${state}`);
-              const syncResponse = await supabaseClient.functions.invoke('scheduled-gmail-sync', {
-                body: {
-                  userId: state,
-                  userEmail: userInfo.email,
-                  accessToken: tokens.access_token,
-                  refreshToken: tokens.refresh_token
-                }
-              });
-              
-              if (syncResponse.error) {
-                console.error('Initial sync failed:', syncResponse.error);
-              } else {
-                console.log('Initial sync completed successfully');
-              }
-            } catch (syncError) {
-              console.error('Error triggering initial sync:', syncError);
-              // Don't fail the OAuth flow for sync errors
-            }
+            console.log(`✅ Gmail tokens updated successfully for: ${userInfo.email}`);
           }
-        } catch (error) {
-          console.error('Error storing tokens:', error);
-          storageError = error.message;
+        } else {
+          console.log(`📝 Creating new preferences for user: ${state}`);
+          const { error: insertError } = await supabaseClient
+            .from('user_preferences')
+            .insert({
+              user_id: state,
+              gmail_access_token: tokens.access_token,
+              gmail_refresh_token: tokens.refresh_token,
+              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+              gmail_user_email: userInfo.email,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+          if (insertError) {
+            console.error(`❌ Error inserting tokens:`, insertError);
+            storageError = insertError.message;
+          } else {
+            storedSuccessfully = true;
+            console.log(`✅ Gmail tokens stored successfully for: ${userInfo.email}`);
+          }
         }
-      } else {
-        console.error('Cannot store tokens: no user ID provided in state parameter');
-        storageError = 'User ID missing from OAuth state';
+        
+        // Trigger immediate email sync if storage was successful
+        if (storedSuccessfully) {
+          try {
+            console.log(`🔄 Triggering initial email sync for user: ${state}`);
+            const syncResponse = await supabaseClient.functions.invoke('scheduled-gmail-sync', {
+              body: {
+                userId: state,
+                userEmail: userInfo.email,
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token
+              }
+            });
+            
+            if (syncResponse.error) {
+              console.error(`❌ Initial sync failed:`, syncResponse.error);
+            } else {
+              console.log(`✅ Initial sync completed successfully`);
+            }
+          } catch (syncError) {
+            console.error(`❌ Error triggering initial sync:`, syncError);
+            // Don't fail the OAuth flow for sync errors
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Error in token storage process:`, error);
+        storageError = error.message;
       }
 
       // Return success page that notifies parent window
@@ -244,28 +326,36 @@ serve(async (req) => {
               body { font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f8f9fa; }
               .container { max-width: 500px; margin: 0 auto; }
               .success { color: #059669; font-size: 24px; margin-bottom: 20px; }
+              .warning { color: #D97706; font-size: 18px; margin-bottom: 20px; }
               .info { color: #374151; margin-bottom: 20px; }
               .loading { color: #3B82F6; }
             </style>
           </head>
           <body>
             <div class="container">
-              <h1 class="success">✅ Gmail Connected Successfully!</h1>
+              ${storedSuccessfully 
+                ? `<h1 class="success">✅ Gmail Connected Successfully!</h1>`
+                : `<h1 class="warning">⚠️ Gmail Connection Partial</h1>`
+              }
               <p class="info">Email: <strong>${userInfo.email}</strong></p>
+              ${storedSuccessfully 
+                ? `<p class="info">✅ Tokens stored successfully</p>`
+                : `<p class="warning">❌ Token storage failed: ${storageError}</p>`
+              }
               <p class="loading">Closing window and completing setup...</p>
             </div>
             
             <script>
-              // Notify parent window of successful connection
+              // Notify parent window of connection result
               if (window.opener) {
                 window.opener.postMessage({
                   type: 'gmail_auth_success',
                   success: ${storedSuccessfully},
                   userEmail: "${userInfo.email}",
-                  message: '${storedSuccessfully ? 'Gmail connected successfully' : 'Gmail connected, please complete setup'}',
+                  message: '${storedSuccessfully ? 'Gmail connected successfully' : 'Connection partially successful - please try syncing manually'}',
                   error: ${storageError ? `"${storageError}"` : 'null'},
                   code: "${code}",
-                  state: "${state || ''}"
+                  state: "${state}"
                 }, '*');
                 
                 setTimeout(() => {
@@ -288,13 +378,22 @@ serve(async (req) => {
 
     } else if (finalAction === 'exchange') {
       // Exchange authorization code for tokens (called from frontend)
-      const { code, userId } = bodyData;
+      const { code } = bodyData;
+      const requestUserId = userId || bodyData.userId;
 
-      if (!code || !userId) {
-        throw new Error('Missing code or userId');
+      if (!code || !requestUserId) {
+        const error = 'Missing code or userId for token exchange';
+        console.error(`❌ ${error}. Code: ${!!code}, UserId: ${requestUserId}`);
+        return new Response(
+          JSON.stringify({ success: false, error }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
-      console.log(`Processing token exchange for user: ${userId}`);
+      console.log(`🔄 Processing token exchange for user: ${requestUserId}`);
 
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
@@ -314,6 +413,7 @@ serve(async (req) => {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
+        console.error(`❌ Token exchange failed: ${errorText}`);
         throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
       }
 
@@ -327,31 +427,33 @@ serve(async (req) => {
       const userInfo = await userInfoResponse.json();
 
       // Store tokens in user preferences
-      console.log(`Storing tokens for user: ${userInfo.email}`);
-      const { error: updateError } = await supabaseClient
+      console.log(`💾 Storing tokens for user: ${userInfo.email}`);
+      const { error: upsertError } = await supabaseClient
         .from('user_preferences')
         .upsert({
-          user_id: userId,
+          user_id: requestUserId,
           gmail_access_token: tokens.access_token,
           gmail_refresh_token: tokens.refresh_token,
           gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
           gmail_user_email: userInfo.email,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
         });
 
-      if (updateError) {
-        console.error('Error storing tokens:', updateError);
+      if (upsertError) {
+        console.error(`❌ Error storing tokens:`, upsertError);
         throw new Error('Failed to store Gmail credentials');
       }
 
-      console.log(`Gmail connected successfully for user: ${userInfo.email}`);
+      console.log(`✅ Gmail connected successfully for user: ${userInfo.email}`);
       
-      // Trigger immediate email sync after successful token storage
+      // Trigger immediate email sync
       try {
-        console.log(`Triggering initial email sync for user: ${userId}`);
+        console.log(`🔄 Triggering initial email sync for user: ${requestUserId}`);
         const syncResponse = await supabaseClient.functions.invoke('scheduled-gmail-sync', {
           body: {
-            userId: userId,
+            userId: requestUserId,
             userEmail: userInfo.email,
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token
@@ -359,13 +461,12 @@ serve(async (req) => {
         });
         
         if (syncResponse.error) {
-          console.error('Initial sync failed:', syncResponse.error);
+          console.error(`❌ Initial sync failed:`, syncResponse.error);
         } else {
-          console.log('Initial sync completed successfully');
+          console.log(`✅ Initial sync completed successfully`);
         }
       } catch (syncError) {
-        console.error('Error triggering initial sync:', syncError);
-        // Don't fail the OAuth flow for sync errors
+        console.error(`❌ Error triggering initial sync:`, syncError);
       }
 
       return new Response(
@@ -381,10 +482,18 @@ serve(async (req) => {
       );
     }
 
-    throw new Error('Invalid action parameter');
+    const error = `Invalid action parameter: ${finalAction}`;
+    console.error(`❌ ${error}`);
+    return new Response(
+      JSON.stringify({ success: false, error }),
+      { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
 
   } catch (error) {
-    console.error('Gmail OAuth error:', error);
+    console.error(`❌ Gmail OAuth error:`, error);
     return new Response(
       JSON.stringify({
         error: error.message,

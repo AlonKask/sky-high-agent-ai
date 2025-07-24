@@ -7,6 +7,8 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log(`🔄 Gmail Sync Request: ${req.method} ${req.url}`);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,7 +20,98 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Starting scheduled Gmail sync for all users...');
+    // Parse request body for manual sync requests
+    let requestBody: any = {};
+    if (req.method === 'POST') {
+      try {
+        const bodyText = await req.text();
+        if (bodyText.trim()) {
+          requestBody = JSON.parse(bodyText);
+          console.log(`📥 Manual sync request:`, requestBody);
+        }
+      } catch (error) {
+        console.error(`❌ Error parsing request body:`, error);
+      }
+    }
+
+    // Check if this is a manual sync for a specific user
+    const isManualSync = !!(requestBody.userId && requestBody.accessToken);
+    
+    if (isManualSync) {
+      console.log(`🎯 Manual sync for user: ${requestBody.userEmail || requestBody.userId}`);
+      return await handleManualSync(supabaseClient, requestBody);
+    } else {
+      console.log(`⏰ Starting scheduled Gmail sync for all users...`);
+      return await handleScheduledSync(supabaseClient);
+    }
+
+  } catch (error) {
+    console.error(`❌ Gmail sync error:`, error);
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
+  }
+});
+
+// Handle manual sync for a specific user
+async function handleManualSync(supabaseClient: any, requestBody: any) {
+  const { userId, userEmail, accessToken, refreshToken } = requestBody;
+  
+  if (!userId || !accessToken) {
+    throw new Error('Missing required parameters for manual sync');
+  }
+
+  console.log(`🔄 Processing manual sync for user: ${userEmail || userId}`);
+
+  try {
+    // Perform Gmail sync for this specific user
+    const syncResult = await syncUserEmails(supabaseClient, {
+      user_id: userId,
+      gmail_user_email: userEmail,
+      gmail_access_token: accessToken,
+      gmail_refresh_token: refreshToken
+    });
+
+    console.log(`✅ Manual sync completed for user: ${userEmail || userId}, stored: ${syncResult.stored}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        stored: syncResult.stored,
+        processed: syncResult.processed,
+        message: `Synced ${syncResult.stored} new emails`
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
+
+  } catch (error) {
+    console.error(`❌ Manual sync failed for user ${userEmail || userId}:`, error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+        stored: 0
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
+  }
+}
+
+// Handle scheduled sync for all users
+async function handleScheduledSync(supabaseClient: any) {
 
     // Get all users with Gmail tokens that need syncing
     const { data: usersWithGmail, error: usersError } = await supabaseClient
@@ -113,112 +206,19 @@ serve(async (req) => {
           }
         }
 
-        // Perform Gmail sync directly here
-        const { data: syncStatus } = await supabaseClient
-          .from('email_sync_status')
-          .select('last_sync_at')
-          .eq('user_id', userPrefs.user_id)
-          .eq('folder_name', 'inbox')
-          .single();
-
-        let query = `from:${userPrefs.gmail_user_email} OR to:${userPrefs.gmail_user_email}`;
-        if (syncStatus?.last_sync_at) {
-          const lastSyncDate = new Date(syncStatus.last_sync_at);
-          const sinceDate = Math.floor(lastSyncDate.getTime() / 1000);
-          query += ` after:${sinceDate}`;
-        }
-
-        // Fetch messages from Gmail API
-        const messagesResponse = await fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=50`,
-          { headers: { 'Authorization': `Bearer ${accessToken}` } }
-        );
-
-        if (!messagesResponse.ok) {
-          throw new Error(`Gmail API error: ${messagesResponse.status}`);
-        }
-
-        const messagesData = await messagesResponse.json();
-        const messages = messagesData.messages || [];
-        let storedCount = 0;
-
-        // Process each message
-        for (const message of messages) {
-          try {
-            const messageResponse = await fetch(
-              `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
-              { headers: { 'Authorization': `Bearer ${accessToken}` } }
-            );
-
-            if (messageResponse.ok) {
-              const msgData = await messageResponse.json();
-              const headers = msgData.payload.headers;
-              
-              const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
-              const from = headers.find(h => h.name === 'From')?.value || '';
-              const to = headers.find(h => h.name === 'To')?.value || '';
-              const date = headers.find(h => h.name === 'Date')?.value || '';
-              
-              // Get body content
-              let body = '';
-              if (msgData.payload.body?.data) {
-                body = atob(msgData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
-              }
-              
-              const direction = from.includes(userPrefs.gmail_user_email) ? 'outbound' : 'inbound';
-              
-              // Check if email already exists
-              const { data: existingEmail } = await supabaseClient
-                .from('email_exchanges')
-                .select('id')
-                .eq('message_id', msgData.id)
-                .eq('user_id', userPrefs.user_id)
-                .single();
-
-              if (!existingEmail) {
-                await supabaseClient
-                  .from('email_exchanges')
-                  .insert({
-                    user_id: userPrefs.user_id,
-                    message_id: msgData.id,
-                    thread_id: msgData.threadId,
-                    subject: subject,
-                    body: body.substring(0, 10000),
-                    sender_email: from,
-                    recipient_emails: [to],
-                    direction: direction,
-                    status: 'received',
-                    received_at: date ? new Date(date).toISOString() : new Date().toISOString(),
-                    metadata: { gmail_labels: msgData.labelIds }
-                  });
-                storedCount++;
-              }
-            }
-          } catch (error) {
-            console.error(`Error processing message ${message.id}:`, error);
-          }
-        }
-
-        // Update sync status
-        await supabaseClient
-          .from('email_sync_status')
-          .upsert({
-            user_id: userPrefs.user_id,
-            folder_name: 'inbox',
-            last_sync_at: new Date().toISOString(),
-            last_sync_count: storedCount,
-            updated_at: new Date().toISOString()
-          });
-
-        totalSynced += storedCount;
-        console.log(`Successfully synced ${storedCount} emails for user: ${userPrefs.gmail_user_email}`);
+        // Use shared sync function
+        const syncResult = await syncUserEmails(supabaseClient, {
+          ...userPrefs,
+          gmail_access_token: accessToken
+        });
         
+        totalSynced += syncResult.stored;
         syncResults.push({
           userId: userPrefs.user_id,
           email: userPrefs.gmail_user_email,
           success: true,
-          stored: storedCount,
-          processed: messages.length
+          stored: syncResult.stored,
+          processed: syncResult.processed
         });
 
       } catch (userError) {
@@ -261,4 +261,110 @@ serve(async (req) => {
       }
     );
   }
+}
+
+// Shared function to sync emails for a user
+async function syncUserEmails(supabaseClient: any, userPrefs: any) {
+  const { data: syncStatus } = await supabaseClient
+    .from('email_sync_status')
+    .select('last_sync_at')
+    .eq('user_id', userPrefs.user_id)
+    .eq('folder_name', 'inbox')
+    .single();
+
+  let query = `from:${userPrefs.gmail_user_email} OR to:${userPrefs.gmail_user_email}`;
+  if (syncStatus?.last_sync_at) {
+    const lastSyncDate = new Date(syncStatus.last_sync_at);
+    const sinceDate = Math.floor(lastSyncDate.getTime() / 1000);
+    query += ` after:${sinceDate}`;
+  }
+
+  // Fetch messages from Gmail API
+  const messagesResponse = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=50`,
+    { headers: { 'Authorization': `Bearer ${userPrefs.gmail_access_token}` } }
+  );
+
+  if (!messagesResponse.ok) {
+    throw new Error(`Gmail API error: ${messagesResponse.status}`);
+  }
+
+  const messagesData = await messagesResponse.json();
+  const messages = messagesData.messages || [];
+  let storedCount = 0;
+
+  // Process each message
+  for (const message of messages) {
+    try {
+      const messageResponse = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
+        { headers: { 'Authorization': `Bearer ${userPrefs.gmail_access_token}` } }
+      );
+
+      if (messageResponse.ok) {
+        const msgData = await messageResponse.json();
+        const headers = msgData.payload.headers;
+        
+        const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
+        const from = headers.find(h => h.name === 'From')?.value || '';
+        const to = headers.find(h => h.name === 'To')?.value || '';
+        const date = headers.find(h => h.name === 'Date')?.value || '';
+        
+        // Get body content
+        let body = '';
+        if (msgData.payload.body?.data) {
+          body = atob(msgData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        }
+        
+        const direction = from.includes(userPrefs.gmail_user_email) ? 'outbound' : 'inbound';
+        
+        // Check if email already exists
+        const { data: existingEmail } = await supabaseClient
+          .from('email_exchanges')
+          .select('id')
+          .eq('message_id', msgData.id)
+          .eq('user_id', userPrefs.user_id)
+          .single();
+
+        if (!existingEmail) {
+          await supabaseClient
+            .from('email_exchanges')
+            .insert({
+              user_id: userPrefs.user_id,
+              message_id: msgData.id,
+              thread_id: msgData.threadId,
+              subject: subject,
+              body: body.substring(0, 10000),
+              sender_email: from,
+              recipient_emails: [to],
+              direction: direction,
+              status: 'received',
+              received_at: date ? new Date(date).toISOString() : new Date().toISOString(),
+              metadata: { gmail_labels: msgData.labelIds }
+            });
+          storedCount++;
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing message ${message.id}:`, error);
+    }
+  }
+
+  // Update sync status
+  await supabaseClient
+    .from('email_sync_status')
+    .upsert({
+      user_id: userPrefs.user_id,
+      folder_name: 'inbox',
+      last_sync_at: new Date().toISOString(),
+      last_sync_count: storedCount,
+      updated_at: new Date().toISOString()
+    });
+
+  console.log(`Successfully synced ${storedCount} emails for user: ${userPrefs.gmail_user_email}`);
+  
+  return {
+    stored: storedCount,
+    processed: messages.length
+  };
 });

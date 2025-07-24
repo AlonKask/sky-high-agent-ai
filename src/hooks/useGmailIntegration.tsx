@@ -75,6 +75,7 @@ export const useGmailIntegration = () => {
   // Connect to Gmail
   const connectGmail = useCallback(async () => {
     if (!user?.id) {
+      console.error('❌ No user found for Gmail connection');
       toast({
         title: "Authentication Required",
         description: "Please log in to connect Gmail",
@@ -83,8 +84,10 @@ export const useGmailIntegration = () => {
       return;
     }
 
+    setAuthStatus(prev => ({ ...prev, isLoading: true }));
+
     try {
-      console.log('Starting Gmail OAuth for user:', user.id);
+      console.log(`🚀 Starting Gmail OAuth for user: ${user.id}`);
       
       // Get authorization URL from our edge function
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
@@ -97,130 +100,186 @@ export const useGmailIntegration = () => {
         }
       });
 
-      if (error) throw error;
+      console.log(`📡 OAuth function response:`, { data, error });
 
-      if (data?.authUrl) {
-        // Open popup window for OAuth
-        const popup = window.open(
-          data.authUrl,
-          'gmail-oauth',
-          'width=500,height=600,scrollbars=yes,resizable=yes'
-        );
+      if (error) {
+        console.error(`❌ OAuth function error:`, error);
+        throw new Error(error.message || 'Failed to initialize OAuth');
+      }
 
-        // Listen for the OAuth callback
-        const handleMessage = async (event: MessageEvent) => {
-          if (event.data.type === 'gmail_auth_success') {
-            popup?.close();
-            window.removeEventListener('message', handleMessage);
+      if (!data?.success) {
+        console.error(`❌ OAuth request unsuccessful:`, data);
+        throw new Error(data?.error || 'OAuth request was not successful');
+      }
 
-            try {
-              console.log('OAuth success received:', event.data);
+      if (!data?.authUrl) {
+        console.error(`❌ No auth URL received:`, data);
+        throw new Error('No authorization URL received from server');
+      }
+
+      console.log(`✅ Authorization URL received, opening popup...`);
+
+      // Open popup window for OAuth
+      const popup = window.open(
+        data.authUrl,
+        'gmail-oauth',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        setAuthStatus(prev => ({ ...prev, isLoading: false }));
+        toast({
+          title: "Popup Blocked",
+          description: "Please allow popups for Gmail authentication",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Listen for the OAuth callback
+      const handleMessage = async (event: MessageEvent) => {
+        console.log(`📨 Received message:`, event.data);
+        
+        if (event.data.type === 'gmail_auth_success') {
+          popup?.close();
+          window.removeEventListener('message', handleMessage);
+
+          try {
+            if (event.data.success) {
+              console.log(`✅ Gmail connected successfully for: ${event.data.userEmail}`);
               
-              if (event.data.success) {
-                console.log('Gmail connected successfully, refreshing status...');
+              setAuthStatus(prev => ({ 
+                ...prev, 
+                isConnected: true, 
+                userEmail: event.data.userEmail,
+                isLoading: false,
+                lastSync: new Date()
+              }));
+              
+              toast({
+                title: "Gmail Connected",
+                description: `Successfully connected ${event.data.userEmail}. Syncing emails...`,
+              });
+
+              // Refresh status to get latest sync info
+              setTimeout(async () => {
                 await checkGmailStatus();
+                // Dispatch event to refresh email lists across the app
+                window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
+                  detail: { syncedCount: 0 }
+                }));
+              }, 2000);
+              
+            } else {
+              console.warn(`⚠️ OAuth completed but with issues:`, event.data.error);
+
+              // Fallback: try exchange if we have code
+              if (event.data.code && user?.id) {
+                console.log(`🔄 Attempting manual token exchange with code: ${event.data.code.substring(0, 10)}...`);
                 
-                toast({
-                  title: "Gmail Connected",
-                  description: `Successfully connected ${event.data.userEmail}. Syncing emails...`,
+                const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
+                  body: {
+                    action: 'exchange',
+                    code: event.data.code,
+                    userId: user.id
+                  },
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
                 });
 
-                // The OAuth function now triggers sync automatically, but we can refresh the UI
-                setTimeout(() => {
-                  checkGmailStatus();
-                  // Dispatch event to refresh email lists across the app
-                  window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
-                    detail: { syncedCount: 0 }
-                  }));
-                }, 2000);
-                
-              } else {
-                // Handle different error scenarios
-                if (event.data.error && event.data.error.includes('User session lost')) {
-                  toast({
-                    title: "Session Lost",
-                    description: "Please try connecting again",
-                    variant: "destructive"
-                  });
-                  return;
+                console.log(`🔁 Manual exchange result:`, { exchangeData, exchangeError });
+
+                if (exchangeError) {
+                  console.error(`❌ Manual exchange error:`, exchangeError);
+                  throw new Error(exchangeError.message || 'Manual token exchange failed');
                 }
 
-                // Fallback: try exchange if we have code but no state
-                if (event.data.code && user?.id) {
-                  console.log('Attempting manual token exchange with code:', event.data.code);
+                if (exchangeData?.success) {
+                  console.log(`✅ Manual exchange successful for: ${exchangeData.userEmail}`);
                   
-                  const { data: exchangeData, error: exchangeError } = await supabase.functions.invoke('gmail-oauth', {
-                    body: {
-                      action: 'exchange',
-                      code: event.data.code,
-                      userId: user.id
-                    },
-                    headers: {
-                      'Content-Type': 'application/json'
-                    }
+                  setAuthStatus(prev => ({ 
+                    ...prev, 
+                    isConnected: true, 
+                    userEmail: exchangeData.userEmail,
+                    isLoading: false,
+                    lastSync: new Date()
+                  }));
+                  
+                  toast({
+                    title: "Gmail Connected",
+                    description: `Successfully connected ${exchangeData.userEmail}. Syncing emails...`,
                   });
-
-                  if (exchangeError) {
-                    throw exchangeError;
-                  }
-
-                  if (exchangeData?.success) {
+                  
+                  setTimeout(async () => {
                     await checkGmailStatus();
-                    toast({
-                      title: "Gmail Connected",
-                      description: `Successfully connected ${exchangeData.userEmail}. Syncing emails...`,
-                    });
-                    
-                    // The OAuth function now triggers sync automatically
-                    setTimeout(() => {
-                      checkGmailStatus();
-                      // Dispatch event to refresh email lists across the app  
-                      window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
-                        detail: { syncedCount: 0 }
-                      }));
-                    }, 2000);
-                  } else {
-                    throw new Error(exchangeData?.error || 'Manual token exchange failed');
-                  }
+                    window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
+                      detail: { syncedCount: 0 }
+                    }));
+                  }, 2000);
                 } else {
-                  throw new Error(event.data.error || 'Connection failed');
+                  console.error(`❌ Manual exchange unsuccessful:`, exchangeData);
+                  throw new Error(exchangeData?.error || 'Manual token exchange failed');
                 }
+              } else {
+                console.error(`❌ No code for fallback exchange. Code: ${!!event.data.code}, UserId: ${!!user?.id}`);
+                throw new Error(event.data.error || 'Connection failed - no authorization code received');
               }
-
-            } catch (error) {
-              console.error('Error processing OAuth result:', error);
-              toast({
-                title: "Connection Failed",
-                description: error.message || "Please try connecting again",
-                variant: "destructive"
-              });
             }
+
+          } catch (error) {
+            console.error(`❌ Error processing OAuth result:`, error);
+            setAuthStatus(prev => ({ ...prev, isLoading: false }));
+            toast({
+              title: "Connection Failed",
+              description: error.message || "Please try connecting again",
+              variant: "destructive"
+            });
           }
-        };
-
-        window.addEventListener('message', handleMessage);
-
-        // Check if popup was blocked
-        if (!popup) {
+        } else if (event.data.type === 'gmail_auth_error') {
+          console.error(`❌ Gmail auth error:`, event.data);
+          popup?.close();
+          window.removeEventListener('message', handleMessage);
+          setAuthStatus(prev => ({ ...prev, isLoading: false }));
           toast({
-            title: "Popup Blocked",
-            description: "Please allow popups for Gmail authentication",
+            title: "Authentication Error",
+            description: event.data.error || "Gmail authentication failed",
             variant: "destructive"
           });
         }
-      } else {
-        throw new Error('No authorization URL received');
-      }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      // Check if popup was closed manually
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', handleMessage);
+          
+          // Only show error if we haven't successfully connected
+          if (authStatus.isLoading && !authStatus.isConnected) {
+            console.log(`👤 OAuth popup was closed by user`);
+            setAuthStatus(prev => ({ ...prev, isLoading: false }));
+            toast({
+              title: "Cancelled",
+              description: "Gmail connection was cancelled",
+              variant: "destructive"
+            });
+          }
+        }
+      }, 1000);
 
     } catch (error) {
-      console.error('Error connecting Gmail:', error);
+      console.error(`❌ Gmail connection error:`, error);
+      setAuthStatus(prev => ({ ...prev, isLoading: false }));
       toast({
         title: "Connection Failed",
-        description: "Failed to connect to Gmail. Please try again.",
+        description: error.message || "Failed to connect to Gmail. Please try again.",
         variant: "destructive"
       });
     }
-  }, [user, toast, checkGmailStatus]);
+  }, [user, toast, checkGmailStatus, authStatus.isLoading, authStatus.isConnected]);
 
   // Disconnect Gmail
   const disconnectGmail = useCallback(async () => {
