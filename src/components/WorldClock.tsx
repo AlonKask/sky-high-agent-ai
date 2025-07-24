@@ -55,10 +55,9 @@ export const WorldClock: React.FC<WorldClockProps> = ({
           {timeZones.map((tz) => (
             <div key={tz.code} className="text-center flex-shrink-0">
               <div 
-                className="rounded-full bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 flex flex-col items-center justify-center mb-1 hover:scale-105 transition-transform duration-200"
+                className="bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 flex flex-col items-center justify-center mb-1 hover:scale-105 transition-transform duration-200 px-2 py-1 rounded-md"
                 style={{
-                  width: 'clamp(2.25rem, 3.5vw, 3.5rem)',
-                  height: 'clamp(2.25rem, 3.5vw, 3.5rem)'
+                  minWidth: 'clamp(2.25rem, 3.5vw, 3.5rem)',
                 }}
               >
                 <div 
