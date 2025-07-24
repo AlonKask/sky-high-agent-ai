@@ -77,6 +77,22 @@ interface SabreOptionManagerProps {
     setEditingId(null);
   };
 
+  const hasValidPricing = () => {
+    if (newOption.quoteType === "revenue") {
+      // For revenue quotes, require at least one passenger type with pricing
+      return (
+        (newOption.adultsCount && newOption.adultPrice) ||
+        (newOption.childrenCount && newOption.childPrice) ||
+        (newOption.infantsCount && newOption.infantPrice) ||
+        newOption.netPrice // Allow legacy netPrice field
+      );
+    } else if (newOption.quoteType === "award") {
+      // For award quotes, require program and points
+      return newOption.awardProgram && newOption.numberOfPoints;
+    }
+    return true; // Allow saving drafts without pricing
+  };
+
   const awardPrograms = [
     "AA", "AC", "AC (Status)", "AF", "AF (Under Pax)", "AF (Premier Status)", "AD", "NH", "AS", "AMEX",
     "BA", "BA UK", "CX", "CM", "DL", "DL 15%", "EK", "EK UPG", "EK (Platinum)", "HA", "AY", "G3",
@@ -145,24 +161,46 @@ interface SabreOptionManagerProps {
   };
 
   const handleSubmit = () => {
-    if (newOption.content.trim()) {
-      let parsedInfo;
-      if (newOption.format === "I" && newOption.content.trim()) {
-        try {
-          parsedInfo = SabreParser.parseIFormat(newOption.content);
-        } catch (error) {
-          console.error("Failed to parse itinerary:", error);
-        }
-      }
-
-      onAddOption({
-        ...newOption,
-        parsedInfo
+    if (!newOption.content.trim()) {
+      toast({
+        title: "Content Required",
+        description: "Please enter Sabre command or itinerary content.",
+        variant: "destructive",
       });
-      
-      resetQuoteForm();
-      setIsDialogOpen(false);
+      return;
     }
+
+    if (!hasValidPricing()) {
+      toast({
+        title: "Pricing Required",
+        description: newOption.quoteType === "revenue" 
+          ? "Please enter pricing for at least one passenger type or net price."
+          : "Please select award program and enter number of points.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let parsedInfo;
+    if (newOption.format === "I" && newOption.content.trim()) {
+      try {
+        parsedInfo = SabreParser.parseIFormat(newOption.content);
+      } catch (error) {
+        console.error("Failed to parse itinerary:", error);
+        toast({
+          title: "Parsing Warning",
+          description: "Could not parse itinerary format, but quote will be saved.",
+        });
+      }
+    }
+
+    onAddOption({
+      ...newOption,
+      parsedInfo
+    });
+    
+    resetQuoteForm();
+    setIsDialogOpen(false);
   };
 
   const handleEdit = (option: SabreOption) => {
@@ -197,24 +235,48 @@ interface SabreOptionManagerProps {
   };
 
   const handleSaveEdit = () => {
-    if (editingId) {
-      let parsedInfo;
-      if (newOption.format === "I" && newOption.content.trim()) {
-        try {
-          parsedInfo = SabreParser.parseIFormat(newOption.content);
-        } catch (error) {
-          console.error("Failed to parse itinerary:", error);
-        }
-      }
+    if (!editingId) return;
 
-      onUpdateOption(editingId, {
-        ...newOption,
-        parsedInfo
+    if (!newOption.content.trim()) {
+      toast({
+        title: "Content Required",
+        description: "Please enter Sabre command or itinerary content.",
+        variant: "destructive",
       });
-      
-      resetQuoteForm();
-      setIsDialogOpen(false);
+      return;
     }
+
+    if (!hasValidPricing()) {
+      toast({
+        title: "Pricing Required",
+        description: newOption.quoteType === "revenue" 
+          ? "Please enter pricing for at least one passenger type or net price."
+          : "Please select award program and enter number of points.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let parsedInfo;
+    if (newOption.format === "I" && newOption.content.trim()) {
+      try {
+        parsedInfo = SabreParser.parseIFormat(newOption.content);
+      } catch (error) {
+        console.error("Failed to parse itinerary:", error);
+        toast({
+          title: "Parsing Warning",
+          description: "Could not parse itinerary format, but quote will be updated.",
+        });
+      }
+    }
+
+    onUpdateOption(editingId, {
+      ...newOption,
+      parsedInfo
+    });
+    
+    resetQuoteForm();
+    setIsDialogOpen(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -625,7 +687,11 @@ interface SabreOptionManagerProps {
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button onClick={editingId ? handleSaveEdit : handleSubmit} size="sm">
+                  <Button 
+                    onClick={editingId ? handleSaveEdit : handleSubmit} 
+                    size="sm"
+                    disabled={!newOption.content.trim() || (!hasValidPricing())}
+                  >
                     <Check className="h-4 w-4 mr-2" />
                     {editingId ? 'Update Quote' : 'Save Quote'}
                   </Button>
