@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target, UserPlus, AlertCircle, RefreshCw, X } from "lucide-react";
+import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target, UserPlus, AlertCircle, RefreshCw, X, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,7 +48,7 @@ const ClientManager = () => {
     notes: "",
     preferredClass: "business"
   });
-  
+
   useEffect(() => {
     if (user) {
       initializeClientData();
@@ -681,6 +681,16 @@ const ClientManager = () => {
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4 border-t">
                 <Button
+                  onClick={() => {
+                    navigate(`/requests?clientId=${selectedClient.id}&clientName=${encodeURIComponent(selectedClient.first_name + ' ' + selectedClient.last_name)}`);
+                  }}
+                  className="flex-1"
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create Request
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={() => {
                     navigate(`/requests?client=${selectedClient.id}`);
                   }}
