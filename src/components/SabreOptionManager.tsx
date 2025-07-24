@@ -78,22 +78,56 @@ interface SabreOptionManagerProps {
   };
 
   const hasValidPricing = () => {
+    console.log('Validating pricing for newOption:', {
+      quoteType: newOption.quoteType,
+      adultsCount: newOption.adultsCount,
+      adultPrice: newOption.adultPrice,
+      childrenCount: newOption.childrenCount,
+      childPrice: newOption.childPrice,
+      infantsCount: newOption.infantsCount,
+      infantPrice: newOption.infantPrice,
+      netPrice: newOption.netPrice,
+      awardProgram: newOption.awardProgram,
+      numberOfPoints: newOption.numberOfPoints
+    });
+
     if (newOption.quoteType === "revenue") {
+      // Helper function to check if a value is a valid price (number >= 0, including 0)
+      const isValidPrice = (value: any) => {
+        return value !== null && value !== undefined && value !== "" && !isNaN(Number(value)) && Number(value) >= 0;
+      };
+
+      // Check if passenger count is valid (> 0)
+      const hasValidCount = (count: any) => {
+        return count !== null && count !== undefined && Number(count) > 0;
+      };
+
       // For revenue quotes, require at least one passenger type with valid pricing
-      const adultValid = (newOption.adultsCount || 0) > 0 && 
-        (newOption.adultPrice !== null && newOption.adultPrice !== undefined && !isNaN(Number(newOption.adultPrice)));
-      const childValid = (newOption.childrenCount || 0) > 0 && 
-        (newOption.childPrice !== null && newOption.childPrice !== undefined && !isNaN(Number(newOption.childPrice)));
-      const infantValid = (newOption.infantsCount || 0) > 0 && 
-        (newOption.infantPrice !== null && newOption.infantPrice !== undefined && !isNaN(Number(newOption.infantPrice)));
-      const legacyValid = newOption.netPrice !== null && newOption.netPrice !== undefined && !isNaN(Number(newOption.netPrice));
+      const adultValid = hasValidCount(newOption.adultsCount) && isValidPrice(newOption.adultPrice);
+      const childValid = hasValidCount(newOption.childrenCount) && isValidPrice(newOption.childPrice);
+      const infantValid = hasValidCount(newOption.infantsCount) && isValidPrice(newOption.infantPrice);
+      const legacyValid = isValidPrice(newOption.netPrice);
       
-      return adultValid || childValid || infantValid || legacyValid;
+      console.log('Revenue validation results:', { adultValid, childValid, infantValid, legacyValid });
+      
+      const result = adultValid || childValid || infantValid || legacyValid;
+      console.log('Final revenue validation result:', result);
+      return result;
     } else if (newOption.quoteType === "award") {
       // For award quotes, require program and points
-      return newOption.awardProgram && 
-        (newOption.numberOfPoints !== null && newOption.numberOfPoints !== undefined && !isNaN(Number(newOption.numberOfPoints)));
+      const programValid = newOption.awardProgram && newOption.awardProgram.trim() !== "";
+      const pointsValid = newOption.numberOfPoints !== null && 
+                         newOption.numberOfPoints !== undefined && 
+                         !isNaN(Number(newOption.numberOfPoints)) && 
+                         Number(newOption.numberOfPoints) > 0;
+      
+      console.log('Award validation results:', { programValid, pointsValid });
+      
+      const result = programValid && pointsValid;
+      console.log('Final award validation result:', result);
+      return result;
     }
+    console.log('Allowing draft save');
     return true; // Allow saving drafts without pricing
   };
 
@@ -459,8 +493,14 @@ interface SabreOptionManagerProps {
                         id="adultPrice"
                         type="number"
                         step="0.01"
-                        value={newOption.adultPrice || ""}
-                        onChange={(e) => setNewOption({ ...newOption, adultPrice: parseFloat(e.target.value) || 0 })}
+                        value={newOption.adultPrice !== null && newOption.adultPrice !== undefined ? newOption.adultPrice : ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewOption({ 
+                            ...newOption, 
+                            adultPrice: value === "" ? undefined : parseFloat(value) || 0 
+                          });
+                        }}
                         placeholder="0.00"
                       />
                     </div>
@@ -470,8 +510,14 @@ interface SabreOptionManagerProps {
                         id="childPrice"
                         type="number"
                         step="0.01"
-                        value={newOption.childPrice || ""}
-                        onChange={(e) => setNewOption({ ...newOption, childPrice: parseFloat(e.target.value) || 0 })}
+                        value={newOption.childPrice !== null && newOption.childPrice !== undefined ? newOption.childPrice : ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewOption({ 
+                            ...newOption, 
+                            childPrice: value === "" ? undefined : parseFloat(value) || 0 
+                          });
+                        }}
                         placeholder="0.00"
                       />
                     </div>
@@ -481,8 +527,14 @@ interface SabreOptionManagerProps {
                         id="infantPrice"
                         type="number"
                         step="0.01"
-                        value={newOption.infantPrice || ""}
-                        onChange={(e) => setNewOption({ ...newOption, infantPrice: parseFloat(e.target.value) || 0 })}
+                        value={newOption.infantPrice !== null && newOption.infantPrice !== undefined ? newOption.infantPrice : ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewOption({ 
+                            ...newOption, 
+                            infantPrice: value === "" ? undefined : parseFloat(value) || 0 
+                          });
+                        }}
                         placeholder="0.00"
                       />
                     </div>
@@ -537,8 +589,14 @@ interface SabreOptionManagerProps {
                           id="netPrice"
                           type="number"
                           step="0.01"
-                          value={newOption.netPrice || ""}
-                          onChange={(e) => setNewOption({ ...newOption, netPrice: parseFloat(e.target.value) || 0 })}
+                          value={newOption.netPrice !== null && newOption.netPrice !== undefined ? newOption.netPrice : ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setNewOption({ 
+                              ...newOption, 
+                              netPrice: value === "" ? undefined : parseFloat(value) || 0 
+                            });
+                          }}
                           placeholder="0.00"
                         />
                       </div>
