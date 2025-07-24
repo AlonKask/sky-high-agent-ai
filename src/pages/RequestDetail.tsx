@@ -1458,26 +1458,66 @@ const RequestDetail = () => {
                       </Button>
                     </div>
 
-                    <div className="space-y-3">
-                      {quotes.filter(q => !q.is_hidden).map((quote) => {
-                        console.log('Rendering quote:', quote); // Debug log
-                        return (
-                          <QuoteCard
-                            key={quote.id}
-                            quote={quote}
-                            isSelected={selectedQuotes.has(quote.id)}
-                            isExpanded={expandedQuotes.has(quote.id)}
-                            onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
-                            onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
-                            onEdit={() => handleEditQuote(quote)}
-                            onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
-                            onDelete={() => handleDeleteQuote(quote.id)}
-                            onSendToEmail={() => handleSendQuoteToEmail(quote)}
-                            generateIFormatDisplay={generateIFormatDisplay}
-                          />
-                        );
-                      })}
+                    {/* Scrollable Quotes Area */}
+                    <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 scroll-smooth">
+                      {quotes.filter(q => !q.is_hidden).map((quote) => (
+                        <QuoteCard
+                          key={quote.id}
+                          quote={quote}
+                          isSelected={selectedQuotes.has(quote.id)}
+                          isExpanded={expandedQuotes.has(quote.id)}
+                          onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
+                          onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
+                          onEdit={() => handleEditQuote(quote)}
+                          onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
+                          onDelete={() => handleDeleteQuote(quote.id)}
+                          onSendToEmail={() => handleSendQuoteToEmail(quote)}
+                          generateIFormatDisplay={generateIFormatDisplay}
+                        />
+                      ))}
                     </div>
+                    
+                    {/* Floating Action Button for Mobile */}
+                    {selectedQuotes.size > 0 && (
+                      <div className="fixed bottom-6 right-6 z-20 md:hidden">
+                        <Button
+                          onClick={handleSendSelectedQuotes}
+                          size="lg"
+                          className="rounded-full shadow-lg animate-scale-in"
+                        >
+                          <Send className="h-5 w-5 mr-2" />
+                          Send ({selectedQuotes.size})
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Bottom Action Bar for better accessibility */}
+                    {selectedQuotes.size > 0 && (
+                      <div className="sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t p-4 -mx-6 -mb-6 mt-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline" className="animate-fade-in">
+                              {selectedQuotes.size} quote{selectedQuotes.size > 1 ? 's' : ''} selected
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedQuotes(new Set())}
+                            >
+                              Clear Selection
+                            </Button>
+                          </div>
+                          <Button
+                            onClick={handleSendSelectedQuotes}
+                            size="sm"
+                            className="transition-all duration-200"
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            Send Selected Quote{selectedQuotes.size > 1 ? 's' : ''}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {quotes.filter(q => q.is_hidden).length > 0 && (
                       <div className="pt-4 border-t space-y-3">
