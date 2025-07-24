@@ -137,6 +137,7 @@ const Emails = () => {
   const [showEmailContent, setShowEmailContent] = useState(true);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showAIEmailAssistant, setShowAIEmailAssistant] = useState(false);
+  const [showMiniMenu, setShowMiniMenu] = useState(false);
 
   // Show/hide CC and BCC fields
   const [showCc, setShowCc] = useState(false);
@@ -975,6 +976,21 @@ const Emails = () => {
     }
   }, [searchQuery, user, isAuthenticated]);
 
+  // Close mini menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showMiniMenu) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.mini-menu-container')) {
+          setShowMiniMenu(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMiniMenu]);
+
   // Load email templates
   const fetchTemplates = async () => {
     try {
@@ -1179,7 +1195,13 @@ Best regards,
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onClick={() => {
+            if (isSidebarCollapsed) {
+              setShowMiniMenu(!showMiniMenu);
+            } else {
+              setIsSidebarCollapsed(!isSidebarCollapsed);
+            }
+          }}
           className="absolute -right-3 top-4 z-10 h-6 w-6 rounded-full border bg-background shadow-md"
         >
           {isSidebarCollapsed ? (
@@ -1188,6 +1210,44 @@ Best regards,
             <ChevronLeft className="h-3 w-3" />
           )}
         </Button>
+
+        {/* Mini Side Menu */}
+        {isSidebarCollapsed && showMiniMenu && (
+          <div className="mini-menu-container absolute left-full top-16 z-50 bg-background border border-border rounded-lg shadow-lg p-2 space-y-1 min-w-[140px]">
+            {['inbox', 'sent', 'drafts', 'spam', 'trash'].map((folder) => {
+              const folderIcons = {
+                inbox: <Mail className="h-4 w-4" />,
+                sent: <Send className="h-4 w-4" />,
+                drafts: <FileText className="h-4 w-4" />,
+                spam: <AlertCircle className="h-4 w-4" />,
+                trash: <Trash2 className="h-4 w-4" />
+              };
+              
+              return (
+                <Button
+                  key={folder}
+                  variant={selectedFolder === folder ? "secondary" : "ghost"}
+                  size="sm"
+                  className="w-full justify-start h-8 px-2"
+                  onClick={async () => {
+                    console.log('Switching to folder:', folder);
+                    setSelectedEmail(null);
+                    setSelectedFolder(folder);
+                    setShowMiniMenu(false);
+                    if (isAuthenticated) {
+                      await loadEmailsFromDB();
+                      await fetchEmails(authToken, folder);
+                    }
+                  }}
+                  disabled={isSyncing}
+                >
+                  {folderIcons[folder as keyof typeof folderIcons]}
+                  <span className="ml-2 text-xs">{folder.charAt(0).toUpperCase() + folder.slice(1)}</span>
+                </Button>
+              );
+            })}
+          </div>
+        )}
 
         {!isSidebarCollapsed && (
           <div className="p-4">
