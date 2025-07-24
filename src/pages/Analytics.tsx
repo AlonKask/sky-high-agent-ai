@@ -14,13 +14,17 @@ import {
   ArrowLeft,
   BarChart3,
   PieChart,
-  Target
+  Target,
+  Brain,
+  Sparkles
 } from "lucide-react";
+import AIInsights from "@/components/AIInsights";
 
 const Analytics = () => {
   const navigate = useNavigate();
   const { type } = useParams();
   const [selectedPeriod, setSelectedPeriod] = useState("month");
+  const [showAIInsights, setShowAIInsights] = useState(false);
 
   // TODO: Replace with actual API calls to fetch analytics data
   const revenueData = {
@@ -295,11 +299,37 @@ const Analytics = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAIInsights(!showAIInsights)}
+              className="border-primary/20 hover:bg-primary/5"
+            >
+              <Brain className="mr-2 h-4 w-4" />
+              AI Insights
+            </Button>
             <Button variant="outline" size="sm">This Week</Button>
             <Button variant="outline" size="sm">This Month</Button>
             <Button variant="outline" size="sm">This Quarter</Button>
           </div>
         </div>
+
+        {/* AI Insights Panel */}
+        {showAIInsights && (
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                AI Business Insights
+              </CardTitle>
+              <CardDescription>
+                Get intelligent recommendations and trend analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AIInsights />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Content */}
         <Tabs defaultValue={type === "revenue" ? "revenue" : "performance"} className="space-y-6">

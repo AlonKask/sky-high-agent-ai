@@ -17,6 +17,7 @@ import { AIAssistantChat } from '@/components/AIAssistantChat';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import EmailContentProcessor from '@/components/EmailContentProcessor';
+import AIEmailAssistant from '@/components/AIEmailAssistant';
 import { 
   Mail, 
   Send, 
@@ -133,6 +134,7 @@ const Emails = () => {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [showAIChat, setShowAIChat] = useState(false);
   const [isAIChatMinimized, setIsAIChatMinimized] = useState(false);
+  const [showAIEmailAssistant, setShowAIEmailAssistant] = useState(false);
 
   // Show/hide CC and BCC fields
   const [showCc, setShowCc] = useState(false);
@@ -1190,27 +1192,53 @@ Best regards,
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-semibold">Gmail Integration</h1>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => {
-                    // Clear authentication
-                    setIsAuthenticated(false);
-                    setAuthToken(null);
-                    localStorage.removeItem('gmail_auth_token');
-                    localStorage.removeItem('gmail_auth_expiry');
-                    setEmails([]);
-                    setSelectedEmail(null);
-                    toast({
-                      title: "Disconnected",
-                      description: "Gmail connection has been cleared",
-                    });
-                  }}
-                  className={isAuthenticated ? 'text-destructive hover:text-destructive' : ''}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAIEmailAssistant(!showAIEmailAssistant)}
+                    className="border-primary/20 hover:bg-primary/5"
+                  >
+                    <Brain className="h-4 w-4 mr-1" />
+                    AI Assistant
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      // Clear authentication
+                      setIsAuthenticated(false);
+                      setAuthToken(null);
+                      localStorage.removeItem('gmail_auth_token');
+                      localStorage.removeItem('gmail_auth_expiry');
+                      setEmails([]);
+                      setSelectedEmail(null);
+                      toast({
+                        title: "Disconnected",
+                        description: "Gmail connection has been cleared",
+                      });
+                    }}
+                    className={isAuthenticated ? 'text-destructive hover:text-destructive' : ''}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
+
+              {/* AI Email Assistant Panel */}
+              {showAIEmailAssistant && (
+                <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Brain className="h-4 w-4 text-primary" />
+                      AI Email Assistant
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <AIEmailAssistant />
+                  </CardContent>
+                </Card>
+              )}
 
               {!isAuthenticated ? (
                 <div className="space-y-3">

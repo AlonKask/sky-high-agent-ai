@@ -87,33 +87,6 @@ const communicationItems = [
   },
 ];
 
-const aiItems = [
-  { 
-    title: "Lead Scoring", 
-    url: "/ai-leads", 
-    icon: Target,
-    description: "AI-powered lead analysis"
-  },
-  { 
-    title: "Business Insights", 
-    url: "/ai-insights", 
-    icon: Brain,
-    description: "Intelligent recommendations"
-  },
-  { 
-    title: "Email Assistant", 
-    url: "/ai-email", 
-    icon: Bot,
-    description: "Smart email automation"
-  },
-  { 
-    title: "Smart Analytics", 
-    url: "/ai-analytics", 
-    icon: TrendingUp,
-    description: "Advanced AI analytics"
-  },
-];
-
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
@@ -190,36 +163,6 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {communicationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${getNavCls(item.url)}`}
-                      title={isCollapsed ? item.title : ""}
-                    >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      {!isCollapsed && (
-                        <div className="flex flex-col">
-                          <span>{item.title}</span>
-                          <span className="text-xs text-muted-foreground">{item.description}</span>
-                        </div>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className={`${isCollapsed ? "sr-only" : ""} flex items-center gap-2`}>
-            {!isCollapsed && <Sparkles className="h-4 w-4 text-primary" />}
-            AI Intelligence
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {aiItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink 

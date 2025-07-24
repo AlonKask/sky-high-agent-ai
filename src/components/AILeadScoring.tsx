@@ -57,22 +57,22 @@ const AILeadScoring = () => {
     try {
       setLoading(true);
       
-      // Fetch clients with their interactions and bookings
+      // Fetch clients with their interactions and bookings (using left joins to avoid empty results)
       const { data: clients, error } = await supabase
         .from('clients')
         .select(`
           *,
-          bookings!inner(
+          bookings(
             total_price,
             created_at,
             status
           ),
-          requests!inner(
+          requests(
             status,
             created_at,
             quoted_price
           ),
-          email_exchanges!inner(
+          email_exchanges(
             created_at,
             direction,
             status

@@ -10,7 +10,6 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import AILeadScoring from "@/components/AILeadScoring";
 import AIInsights from "@/components/AIInsights";
 import AIEmailAssistant from "@/components/AIEmailAssistant";
-import AIWorkflowAutomation from "@/components/AIWorkflowAutomation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -152,15 +151,6 @@ const Index = () => {
                         <Bot className="h-4 w-4 mr-1" />
                         Email Assistant
                       </Button>
-                      <Button 
-                        variant="secondary" 
-                        size="sm"
-                        onClick={() => setCurrentView('ai-automation')}
-                        className="bg-white/20 text-white border-white/30 hover:bg-white/30"
-                      >
-                        <Zap className="h-4 w-4 mr-1" />
-                        Automation
-                      </Button>
                     </div>
                   </div>
                   <div className="hidden md:block">
@@ -251,14 +241,6 @@ const Index = () => {
                       <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />
                     </div>
                     
-                    <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setCurrentView('ai-automation')}>
-                      <Zap className="h-8 w-8 text-purple-600" />
-                      <div>
-                        <h4 className="font-medium">Workflow Automation</h4>
-                        <p className="text-sm text-muted-foreground">Intelligent business process automation</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />
-                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -281,8 +263,6 @@ const Index = () => {
         return <AIInsights />;
       case "ai-email":
         return <AIEmailAssistant />;
-      case "ai-automation":
-        return <AIWorkflowAutomation />;
       case "settings":
         return (
           <div className="space-y-6">

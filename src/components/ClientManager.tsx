@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock } from "lucide-react";
+import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import AILeadScoring from "@/components/AILeadScoring";
 
 const ClientManager = () => {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ const ClientManager = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -202,11 +204,39 @@ const ClientManager = () => {
           <h1 className="text-2xl font-semibold">Clients</h1>
           <p className="text-muted-foreground text-sm">Manage your client relationships</p>
         </div>
-        <Button onClick={handleNewClient} className="bg-primary">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Client
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowAIInsights(!showAIInsights)}
+            className="border-primary/20 hover:bg-primary/5"
+          >
+            <Brain className="mr-2 h-4 w-4" />
+            AI Insights
+          </Button>
+          <Button onClick={handleNewClient} className="bg-primary">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Client
+          </Button>
+        </div>
       </div>
+
+      {/* AI Insights Panel */}
+      {showAIInsights && (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              AI Lead Scoring & Insights
+            </CardTitle>
+            <CardDescription>
+              Get AI-powered insights on your clients and lead opportunities
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AILeadScoring />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search */}
       <div className="relative">
