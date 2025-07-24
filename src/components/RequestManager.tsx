@@ -81,12 +81,12 @@ const RequestManager = () => {
 
       const userRole = userRoleData?.role || 'user';
 
-      // Build query based on user role
+      // Build query based on user role - use left join to show requests even without clients
       let query = supabase
         .from('requests')
         .select(`
           *,
-          clients!inner(first_name, last_name, email)
+          clients(first_name, last_name, email)
         `)
         .order('created_at', { ascending: false });
 
