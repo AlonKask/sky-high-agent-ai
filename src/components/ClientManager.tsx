@@ -498,9 +498,10 @@ const ClientManager = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => handleMarkAsNotClient(client.email)}
-                    className="w-full border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-800"
+                    className="w-full border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-800 h-8 p-0"
+                    title="Mark as not a client"
                   >
-                    Mark as Not Client
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
