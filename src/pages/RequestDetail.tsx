@@ -925,27 +925,33 @@ const RequestDetail = () => {
                             <Label className="text-sm font-medium">Adults</Label>
                             <Input
                               type="number"
-                              min="1"
-                              value={editedRequest.adults_count || 1}
-                              onChange={(e) => setEditedRequest(prev => ({ ...prev, adults_count: parseInt(e.target.value) || 1 }))}
+                              value={editedRequest.adults_count === 0 ? '' : editedRequest.adults_count || ''}
+                              onChange={(e) => setEditedRequest(prev => ({ 
+                                ...prev, 
+                                adults_count: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 
+                              }))}
                             />
                           </div>
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Children</Label>
                             <Input
                               type="number"
-                              min="0"
-                              value={editedRequest.children_count || 0}
-                              onChange={(e) => setEditedRequest(prev => ({ ...prev, children_count: parseInt(e.target.value) || 0 }))}
+                              value={editedRequest.children_count === 0 ? '' : editedRequest.children_count || ''}
+                              onChange={(e) => setEditedRequest(prev => ({ 
+                                ...prev, 
+                                children_count: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 
+                              }))}
                             />
                           </div>
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Infants</Label>
                             <Input
                               type="number"
-                              min="0"
-                              value={editedRequest.infants_count || 0}
-                              onChange={(e) => setEditedRequest(prev => ({ ...prev, infants_count: parseInt(e.target.value) || 0 }))}
+                              value={editedRequest.infants_count === 0 ? '' : editedRequest.infants_count || ''}
+                              onChange={(e) => setEditedRequest(prev => ({ 
+                                ...prev, 
+                                infants_count: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 
+                              }))}
                             />
                           </div>
                         </div>
