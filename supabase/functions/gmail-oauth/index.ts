@@ -24,7 +24,7 @@ serve(async (req) => {
     if (action === 'start') {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
-      const redirectUri = `${url.origin}/supabase/functions/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/supabase/functions/gmail-oauth?action=callback`;
       
       const scopes = [
         'https://www.googleapis.com/auth/gmail.readonly',
@@ -67,7 +67,7 @@ serve(async (req) => {
       // Exchange code for tokens
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `${url.origin}/supabase/functions/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/supabase/functions/gmail-oauth?action=callback`;
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
@@ -177,7 +177,7 @@ serve(async (req) => {
 
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `${url.origin}/supabase/functions/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/supabase/functions/gmail-oauth?action=callback`;
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
