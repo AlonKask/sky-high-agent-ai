@@ -348,8 +348,16 @@ const RequestDetail = () => {
   };
 
   const hasValidPricing = () => {
+    console.log('Validating pricing with quoteData:', {
+      netPrice: quoteData.netPrice,
+      adultNetPrice: quoteData.adultNetPrice,
+      adultMarkup: quoteData.adultMarkup,
+      adultsCount: quoteData.adultsCount
+    });
+    
     // Check if legacy netPrice is provided
     if (quoteData.netPrice && quoteData.netPrice.trim() !== '') {
+      console.log('Valid legacy netPrice found');
       return true;
     }
     
@@ -362,7 +370,9 @@ const RequestDetail = () => {
     if (adultsCount > 0) {
       const hasAdultNetPrice = quoteData.adultNetPrice && quoteData.adultNetPrice.trim() !== '';
       const hasAdultMarkup = quoteData.adultMarkup && quoteData.adultMarkup.trim() !== '';
+      console.log('Adult validation:', { hasAdultNetPrice, hasAdultMarkup, adultsCount });
       if (!hasAdultNetPrice && !hasAdultMarkup) {
+        console.log('Invalid: No adult pricing');
         return false;
       }
     }
@@ -372,6 +382,7 @@ const RequestDetail = () => {
       const hasChildNetPrice = quoteData.childNetPrice && quoteData.childNetPrice.trim() !== '';
       const hasChildMarkup = quoteData.childMarkup && quoteData.childMarkup.trim() !== '';
       if (!hasChildNetPrice && !hasChildMarkup) {
+        console.log('Invalid: No child pricing');
         return false;
       }
     }
@@ -381,34 +392,37 @@ const RequestDetail = () => {
       const hasInfantNetPrice = quoteData.infantNetPrice && quoteData.infantNetPrice.trim() !== '';
       const hasInfantMarkup = quoteData.infantMarkup && quoteData.infantMarkup.trim() !== '';
       if (!hasInfantNetPrice && !hasInfantMarkup) {
+        console.log('Invalid: No infant pricing');
         return false;
       }
     }
     
     // Must have at least one passenger with pricing
-    return adultsCount > 0 || childrenCount > 0 || infantsCount > 0;
+    const isValid = adultsCount > 0 || childrenCount > 0 || infantsCount > 0;
+    console.log('Final validation result:', isValid);
+    return isValid;
   };
 
-  const calculateTotalPrice = () => {
-    const adultNet = parseFloat(quoteData.adultNetPrice) || 0;
-    const adultMarkup = parseFloat(quoteData.adultMarkup) || 0;
-    const childNet = parseFloat(quoteData.childNetPrice) || 0;
-    const childMarkup = parseFloat(quoteData.childMarkup) || 0;
-    const infantNet = parseFloat(quoteData.infantNetPrice) || 0;
-    const infantMarkup = parseFloat(quoteData.infantMarkup) || 0;
+  const calculateTotalPrice = (data = quoteData) => {
+    const adultNet = parseFloat(data.adultNetPrice) || 0;
+    const adultMarkup = parseFloat(data.adultMarkup) || 0;
+    const childNet = parseFloat(data.childNetPrice) || 0;
+    const childMarkup = parseFloat(data.childMarkup) || 0;
+    const infantNet = parseFloat(data.infantNetPrice) || 0;
+    const infantMarkup = parseFloat(data.infantMarkup) || 0;
     
-    const adultTotal = (adultNet + adultMarkup) * (quoteData.adultsCount || 0);
-    const childTotal = (childNet + childMarkup) * (quoteData.childrenCount || 0);
-    const infantTotal = (infantNet + infantMarkup) * (quoteData.infantsCount || 0);
+    const adultTotal = (adultNet + adultMarkup) * (data.adultsCount || 0);
+    const childTotal = (childNet + childMarkup) * (data.childrenCount || 0);
+    const infantTotal = (infantNet + infantMarkup) * (data.infantsCount || 0);
     
     const basePrice = adultTotal + childTotal + infantTotal;
-    const ckFee = quoteData.ckFeeEnabled ? basePrice * 0.035 : 0;
+    const ckFee = data.ckFeeEnabled ? basePrice * 0.035 : 0;
     return basePrice + ckFee;
   };
 
   const handleQuoteDataChange = (field: string, value: any) => {
     const newData = { ...quoteData, [field]: value };
-    const totalPrice = calculateTotalPrice();
+    const totalPrice = calculateTotalPrice(newData);
     setQuoteData({ ...newData, totalPrice });
   };
 
