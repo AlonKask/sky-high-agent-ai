@@ -90,8 +90,10 @@ interface EmailTemplate {
 }
 
 const GOOGLE_CLIENT_ID = '871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com';
+// Force rebuild to clear stale references
 
 const Emails = () => {
+  console.log('Emails component rendering'); // Debug log
   const { user } = useAuth();
   const { toast } = useToast();
   
