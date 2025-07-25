@@ -54,13 +54,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       await supabase.auth.signOut({ scope: 'global' });
-      
-      // Force page reload for clean state
-      window.location.href = '/auth';
     } catch (error) {
       console.error("Error signing out:", error);
-      // Force redirect even if signOut fails
-      window.location.href = '/auth';
     }
   };
 

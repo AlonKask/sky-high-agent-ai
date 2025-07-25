@@ -13,7 +13,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const location = useLocation();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && location.pathname !== '/auth') {
       // Store the attempted URL to redirect back after login
       const returnUrl = location.pathname !== '/auth' ? location.pathname : '/';
       navigate('/auth', { 
