@@ -355,9 +355,500 @@ const SabreOptionManager = ({
       });
     }
   };
-  return <Card>
-      
-      
-    </Card>;
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle>Quote Options</CardTitle>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => resetQuoteForm()}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Quote
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingId ? "Edit Quote" : "Create New Quote"}
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Quote Type Selection */}
+                <div className="space-y-2">
+                  <Label>Quote Type</Label>
+                  <Select
+                    value={newOption.quoteType}
+                    onValueChange={(value: "award" | "revenue") =>
+                      setNewOption(prev => ({ ...prev, quoteType: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="revenue">Revenue</SelectItem>
+                      <SelectItem value="award">Award</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Sabre Content */}
+                <div className="space-y-2">
+                  <Label>Sabre Command/Itinerary Content *</Label>
+                  <Textarea
+                    value={newOption.content}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    placeholder="Enter Sabre I-format or VI command..."
+                    className="min-h-[120px] font-mono text-sm"
+                  />
+                  {newOption.format && (
+                    <Badge variant="outline">Format: {newOption.format}</Badge>
+                  )}
+                </div>
+
+                {/* Passenger Counts */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Adults</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newOption.adultsCount || ""}
+                      onChange={(e) =>
+                        setNewOption(prev => ({
+                          ...prev,
+                          adultsCount: e.target.value ? parseInt(e.target.value) : undefined
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Children</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newOption.childrenCount || ""}
+                      onChange={(e) =>
+                        setNewOption(prev => ({
+                          ...prev,
+                          childrenCount: e.target.value ? parseInt(e.target.value) : undefined
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Infants</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newOption.infantsCount || ""}
+                      onChange={(e) =>
+                        setNewOption(prev => ({
+                          ...prev,
+                          infantsCount: e.target.value ? parseInt(e.target.value) : undefined
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Revenue Quote Fields */}
+                {newOption.quoteType === "revenue" && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Revenue Quote Details</h3>
+                    
+                    {/* Passenger Pricing */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Adult Price</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={newOption.adultPrice || ""}
+                          onChange={(e) =>
+                            setNewOption(prev => ({
+                              ...prev,
+                              adultPrice: e.target.value ? parseFloat(e.target.value) : undefined
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Child Price</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={newOption.childPrice || ""}
+                          onChange={(e) =>
+                            setNewOption(prev => ({
+                              ...prev,
+                              childPrice: e.target.value ? parseFloat(e.target.value) : undefined
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Infant Price</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={newOption.infantPrice || ""}
+                          onChange={(e) =>
+                            setNewOption(prev => ({
+                              ...prev,
+                              infantPrice: e.target.value ? parseFloat(e.target.value) : undefined
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {/* Fare Details */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Fare Type</Label>
+                        <Select
+                          value={newOption.fareType || ""}
+                          onValueChange={(value) =>
+                            setNewOption(prev => ({ ...prev, fareType: value as any }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select fare type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="tour_fare">Tour Fare</SelectItem>
+                            <SelectItem value="private">Private</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Net Price</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={newOption.netPrice || ""}
+                          onChange={(e) =>
+                            setNewOption(prev => ({
+                              ...prev,
+                              netPrice: e.target.value ? parseFloat(e.target.value) : undefined
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Award Quote Fields */}
+                {newOption.quoteType === "award" && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Award Quote Details</h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Award Program *</Label>
+                        <Select
+                          value={newOption.awardProgram || ""}
+                          onValueChange={(value) =>
+                            setNewOption(prev => ({ ...prev, awardProgram: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select award program" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {awardPrograms.map((program) => (
+                              <SelectItem key={program} value={program}>
+                                {program}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Number of Points *</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={newOption.numberOfPoints || ""}
+                          onChange={(e) =>
+                            setNewOption(prev => ({
+                              ...prev,
+                              numberOfPoints: e.target.value ? parseInt(e.target.value) : undefined
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Taxes & Fees</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newOption.taxes || ""}
+                        onChange={(e) =>
+                          setNewOption(prev => ({
+                            ...prev,
+                            taxes: e.target.value ? parseFloat(e.target.value) : undefined
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Common Pricing Fields */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Pricing & Fees</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Markup</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newOption.markup || ""}
+                        onChange={(e) =>
+                          setNewOption(prev => ({
+                            ...prev,
+                            markup: e.target.value ? parseFloat(e.target.value) : undefined
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Issuing Fee</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newOption.issuingFee || ""}
+                        onChange={(e) =>
+                          setNewOption(prev => ({
+                            ...prev,
+                            issuingFee: e.target.value ? parseFloat(e.target.value) : undefined
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="ckFees"
+                      checked={newOption.ckFees || false}
+                      onCheckedChange={(checked) =>
+                        setNewOption(prev => ({ ...prev, ckFees: !!checked }))
+                      }
+                    />
+                    <Label htmlFor="ckFees">Include CK Fees (3.5%)</Label>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={calculateSellingPrice}
+                    className="w-full"
+                  >
+                    Calculate Selling Price
+                  </Button>
+
+                  {newOption.sellingPrice && (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <Label className="text-lg font-semibold">
+                        Calculated Selling Price: ${newOption.sellingPrice}
+                      </Label>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Details */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Valid Until</Label>
+                      <Input
+                        type="date"
+                        value={newOption.validUntil || ""}
+                        onChange={(e) =>
+                          setNewOption(prev => ({ ...prev, validUntil: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select
+                        value={newOption.status}
+                        onValueChange={(value: any) =>
+                          setNewOption(prev => ({ ...prev, status: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="quoted">Quoted</SelectItem>
+                          <SelectItem value="selected">Selected</SelectItem>
+                          <SelectItem value="expired">Expired</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Notes</Label>
+                    <Textarea
+                      value={newOption.notes || ""}
+                      onChange={(e) =>
+                        setNewOption(prev => ({ ...prev, notes: e.target.value }))
+                      }
+                      placeholder="Additional notes about this quote..."
+                    />
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      resetQuoteForm();
+                      setIsDialogOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={editingId ? handleSaveEdit : handleSubmit}
+                  >
+                    {editingId ? "Update Quote" : "Create Quote"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {options.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No quotes created yet. Click "Add Quote" to create your first quote option.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {options.map((option) => (
+              <Card key={option.id} className="p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline">{option.format}</Badge>
+                    <Badge className={getStatusColor(option.status)}>{option.status}</Badge>
+                    <Badge variant="outline">{option.quoteType}</Badge>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(option)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleGenerateEmail(option)}
+                    >
+                      <Mail className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleShareWithClient(option)}
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDeleteOption(option.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <strong>Route:</strong> {option.parsedInfo?.route || "Not parsed"}
+                  </div>
+                  <div>
+                    <strong>Selling Price:</strong> ${option.sellingPrice || "TBD"}
+                  </div>
+                  {option.quoteType === "revenue" && (
+                    <>
+                      <div>
+                        <strong>Net Price:</strong> ${option.netPrice || "TBD"}
+                      </div>
+                      <div>
+                        <strong>Fare Type:</strong> {option.fareType || "TBD"}
+                      </div>
+                    </>
+                  )}
+                  {option.quoteType === "award" && (
+                    <>
+                      <div>
+                        <strong>Program:</strong> {option.awardProgram || "TBD"}
+                      </div>
+                      <div>
+                        <strong>Points:</strong> {option.numberOfPoints?.toLocaleString() || "TBD"}
+                      </div>
+                    </>
+                  )}
+                  {option.validUntil && (
+                    <div>
+                      <strong>Valid Until:</strong> {option.validUntil}
+                    </div>
+                  )}
+                </div>
+
+                {option.notes && (
+                  <div className="mt-3 p-2 bg-muted rounded text-sm">
+                    <strong>Notes:</strong> {option.notes}
+                  </div>
+                )}
+
+                {option.content && (
+                  <div className="mt-3">
+                    <details>
+                      <summary className="cursor-pointer text-sm font-medium">
+                        View Sabre Content
+                      </summary>
+                      <pre className="mt-2 p-2 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-x-auto">
+                        {option.content}
+                      </pre>
+                    </details>
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 };
 export default SabreOptionManager;
