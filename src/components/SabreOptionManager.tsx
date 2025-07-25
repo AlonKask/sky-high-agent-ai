@@ -87,22 +87,22 @@ const SabreOptionManager = ({
     ck_fee_enabled: false,
     route: "",
     fare_type: "tour_fare",
-    net_price: 0,
-    markup: 0,
-    ck_fee_amount: 0,
-    total_price: 0,
-    adults_count: 1,
-    children_count: 0,
-    infants_count: 0,
-    adult_price: 0,
-    child_price: 0,
-    infant_price: 0,
+    net_price: null,
+    markup: null,
+    ck_fee_amount: null,
+    total_price: null,
+    adults_count: null,
+    children_count: null,
+    infants_count: null,
+    adult_price: null,
+    child_price: null,
+    infant_price: null,
     segments: [],
     total_segments: 0,
-    taxes: 0,
-    issuing_fee: 0,
+    taxes: null,
+    issuing_fee: null,
     award_program: "",
-    number_of_points: 0,
+    number_of_points: null,
     notes: ""
   };
 
@@ -127,7 +127,7 @@ const SabreOptionManager = ({
       };
       return isValidPrice(newQuote.net_price) || isValidPrice(newQuote.adult_price);
     } else if (newQuote.quote_type === "award") {
-      return newQuote.award_program && newQuote.award_program.trim() !== "" && newQuote.number_of_points > 0;
+      return newQuote.award_program && newQuote.award_program.trim() !== "" && newQuote.number_of_points && newQuote.number_of_points > 0;
     }
     return true;
   };
@@ -236,11 +236,11 @@ const SabreOptionManager = ({
         format: newQuote.format,
         quote_type: newQuote.quote_type,
         fare_type: newQuote.fare_type,
-        net_price: newQuote.net_price,
-        markup: newQuote.markup,
+        net_price: newQuote.net_price || 0,
+        markup: newQuote.markup || 0,
         ck_fee_enabled: newQuote.ck_fee_enabled,
-        ck_fee_amount: newQuote.ck_fee_amount,
-        total_price: newQuote.total_price,
+        ck_fee_amount: newQuote.ck_fee_amount || 0,
+        total_price: newQuote.total_price || 0,
         status: newQuote.status,
         adults_count: newQuote.adults_count,
         children_count: newQuote.children_count,
@@ -248,11 +248,11 @@ const SabreOptionManager = ({
         adult_price: newQuote.adult_price,
         child_price: newQuote.child_price,
         infant_price: newQuote.infant_price,
-        award_program: newQuote.award_program,
+        award_program: newQuote.award_program || null,
         number_of_points: newQuote.number_of_points,
         taxes: newQuote.taxes,
         issuing_fee: newQuote.issuing_fee,
-        notes: newQuote.notes,
+        notes: newQuote.notes || null,
         segments: [],
         total_segments: 1
       };
@@ -287,22 +287,22 @@ const SabreOptionManager = ({
       ck_fee_enabled: quote.ck_fee_enabled,
       route: quote.route,
       fare_type: quote.fare_type,
-      net_price: quote.net_price,
-      markup: quote.markup,
-      ck_fee_amount: quote.ck_fee_amount,
-      total_price: quote.total_price,
-      adults_count: quote.adults_count || 1,
-      children_count: quote.children_count || 0,
-      infants_count: quote.infants_count || 0,
-      adult_price: quote.adult_price || 0,
-      child_price: quote.child_price || 0,
-      infant_price: quote.infant_price || 0,
+      net_price: quote.net_price || null,
+      markup: quote.markup || null,
+      ck_fee_amount: quote.ck_fee_amount || null,
+      total_price: quote.total_price || null,
+      adults_count: quote.adults_count || null,
+      children_count: quote.children_count || null,
+      infants_count: quote.infants_count || null,
+      adult_price: quote.adult_price || null,
+      child_price: quote.child_price || null,
+      infant_price: quote.infant_price || null,
       segments: quote.segments || [],
       total_segments: quote.total_segments,
-      taxes: quote.taxes || 0,
-      issuing_fee: quote.issuing_fee || 0,
+      taxes: quote.taxes || null,
+      issuing_fee: quote.issuing_fee || null,
       award_program: quote.award_program || "",
-      number_of_points: quote.number_of_points || 0,
+      number_of_points: quote.number_of_points || null,
       notes: quote.notes || ""
     });
     setEditingId(quote.id);
@@ -321,11 +321,11 @@ const SabreOptionManager = ({
         format: newQuote.format,
         quote_type: newQuote.quote_type,
         fare_type: newQuote.fare_type,
-        net_price: newQuote.net_price,
-        markup: newQuote.markup,
+        net_price: newQuote.net_price || 0,
+        markup: newQuote.markup || 0,
         ck_fee_enabled: newQuote.ck_fee_enabled,
-        ck_fee_amount: newQuote.ck_fee_amount,
-        total_price: newQuote.total_price,
+        ck_fee_amount: newQuote.ck_fee_amount || 0,
+        total_price: newQuote.total_price || 0,
         status: newQuote.status,
         adults_count: newQuote.adults_count,
         children_count: newQuote.children_count,
@@ -333,11 +333,11 @@ const SabreOptionManager = ({
         adult_price: newQuote.adult_price,
         child_price: newQuote.child_price,
         infant_price: newQuote.infant_price,
-        award_program: newQuote.award_program,
+        award_program: newQuote.award_program || null,
         number_of_points: newQuote.number_of_points,
         taxes: newQuote.taxes,
         issuing_fee: newQuote.issuing_fee,
-        notes: newQuote.notes
+        notes: newQuote.notes || null
       };
 
       const { error } = await supabase
@@ -543,13 +543,14 @@ Example:
                   <Input
                     type="number"
                     min="0"
-                    value={newQuote.adults_count}
+                    value={newQuote.adults_count || ""}
                     onChange={(e) =>
                       setNewQuote(prev => ({
                         ...prev,
-                        adults_count: parseInt(e.target.value) || 0
+                        adults_count: e.target.value ? parseInt(e.target.value) : null
                       }))
                     }
+                    placeholder="Enter number of adults"
                   />
                 </div>
                 <div className="space-y-2">
@@ -557,13 +558,14 @@ Example:
                   <Input
                     type="number"
                     min="0"
-                    value={newQuote.children_count}
+                    value={newQuote.children_count || ""}
                     onChange={(e) =>
                       setNewQuote(prev => ({
                         ...prev,
-                        children_count: parseInt(e.target.value) || 0
+                        children_count: e.target.value ? parseInt(e.target.value) : null
                       }))
                     }
+                    placeholder="Enter number of children"
                   />
                 </div>
                 <div className="space-y-2">
@@ -571,13 +573,14 @@ Example:
                   <Input
                     type="number"
                     min="0"
-                    value={newQuote.infants_count}
+                    value={newQuote.infants_count || ""}
                     onChange={(e) =>
                       setNewQuote(prev => ({
                         ...prev,
-                        infants_count: parseInt(e.target.value) || 0
+                        infants_count: e.target.value ? parseInt(e.target.value) : null
                       }))
                     }
+                    placeholder="Enter number of infants"
                   />
                 </div>
               </div>
@@ -594,13 +597,14 @@ Example:
                         type="number"
                         min="0"
                         step="0.01"
-                        value={newQuote.net_price}
+                        value={newQuote.net_price || ""}
                         onChange={(e) =>
                           setNewQuote(prev => ({
                             ...prev,
-                            net_price: parseFloat(e.target.value) || 0
+                            net_price: e.target.value ? parseFloat(e.target.value) : null
                           }))
                         }
+                        placeholder="Enter net price"
                       />
                     </div>
                     <div className="space-y-2">
@@ -630,13 +634,14 @@ Example:
                         type="number"
                         min="0"
                         step="0.01"
-                        value={newQuote.adult_price}
+                        value={newQuote.adult_price || ""}
                         onChange={(e) =>
                           setNewQuote(prev => ({
                             ...prev,
-                            adult_price: parseFloat(e.target.value) || 0
+                            adult_price: e.target.value ? parseFloat(e.target.value) : null
                           }))
                         }
+                        placeholder="Enter adult price"
                       />
                     </div>
                     <div className="space-y-2">
@@ -645,13 +650,14 @@ Example:
                         type="number"
                         min="0"
                         step="0.01"
-                        value={newQuote.child_price}
+                        value={newQuote.child_price || ""}
                         onChange={(e) =>
                           setNewQuote(prev => ({
                             ...prev,
-                            child_price: parseFloat(e.target.value) || 0
+                            child_price: e.target.value ? parseFloat(e.target.value) : null
                           }))
                         }
+                        placeholder="Enter child price"
                       />
                     </div>
                     <div className="space-y-2">
@@ -660,13 +666,14 @@ Example:
                         type="number"
                         min="0"
                         step="0.01"
-                        value={newQuote.infant_price}
+                        value={newQuote.infant_price || ""}
                         onChange={(e) =>
                           setNewQuote(prev => ({
                             ...prev,
-                            infant_price: parseFloat(e.target.value) || 0
+                            infant_price: e.target.value ? parseFloat(e.target.value) : null
                           }))
                         }
+                        placeholder="Enter infant price"
                       />
                     </div>
                   </div>
@@ -694,13 +701,14 @@ Example:
                       <Input
                         type="number"
                         min="0"
-                        value={newQuote.number_of_points}
+                        value={newQuote.number_of_points || ""}
                         onChange={(e) =>
                           setNewQuote(prev => ({
                             ...prev,
-                            number_of_points: parseInt(e.target.value) || 0
+                            number_of_points: e.target.value ? parseInt(e.target.value) : null
                           }))
                         }
+                        placeholder="Enter number of points"
                       />
                     </div>
                   </div>
@@ -711,13 +719,14 @@ Example:
                       type="number"
                       min="0"
                       step="0.01"
-                      value={newQuote.taxes}
+                      value={newQuote.taxes || ""}
                       onChange={(e) =>
                         setNewQuote(prev => ({
                           ...prev,
-                          taxes: parseFloat(e.target.value) || 0
+                          taxes: e.target.value ? parseFloat(e.target.value) : null
                         }))
                       }
+                      placeholder="Enter taxes and fees"
                     />
                   </div>
                 </div>
@@ -734,13 +743,14 @@ Example:
                       type="number"
                       min="0"
                       step="0.01"
-                      value={newQuote.markup}
+                      value={newQuote.markup || ""}
                       onChange={(e) =>
                         setNewQuote(prev => ({
                           ...prev,
-                          markup: parseFloat(e.target.value) || 0
+                          markup: e.target.value ? parseFloat(e.target.value) : null
                         }))
                       }
+                      placeholder="Enter markup amount"
                     />
                   </div>
                   <div className="space-y-2">
@@ -749,13 +759,14 @@ Example:
                       type="number"
                       min="0"
                       step="0.01"
-                      value={newQuote.issuing_fee}
+                      value={newQuote.issuing_fee || ""}
                       onChange={(e) =>
                         setNewQuote(prev => ({
                           ...prev,
-                          issuing_fee: parseFloat(e.target.value) || 0
+                          issuing_fee: e.target.value ? parseFloat(e.target.value) : null
                         }))
                       }
+                      placeholder="Enter issuing fee"
                     />
                   </div>
                 </div>
@@ -780,7 +791,7 @@ Example:
                   Calculate Selling Price
                 </Button>
 
-                {newQuote.total_price > 0 && (
+                {newQuote.total_price && newQuote.total_price > 0 && (
                   <div className="p-4 bg-muted rounded-lg">
                     <Label className="text-lg font-semibold">
                       Calculated Selling Price: ${newQuote.total_price}
