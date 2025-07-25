@@ -39,7 +39,7 @@ import { SabreParser } from '@/utils/sabreParser';
 import SabreOptionManager from '@/components/SabreOptionManager';
 
 const RequestDetail = () => {
-  const { requestId } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const [request, setRequest] = useState<any>(null);
   const [client, setClient] = useState<any>(null);
@@ -82,10 +82,10 @@ const RequestDetail = () => {
   };
 
   useEffect(() => {
-    if (requestId) {
+    if (id) {
       fetchRequestDetails();
     }
-  }, [requestId]);
+  }, [id]);
 
   const fetchRequestDetails = async () => {
     try {
@@ -93,7 +93,7 @@ const RequestDetail = () => {
       const { data: requestData, error: requestError } = await supabase
         .from('requests')
         .select('*')
-        .eq('id', requestId)
+        .eq('id', id)
         .single();
 
       if (requestError) throw requestError;
@@ -113,7 +113,7 @@ const RequestDetail = () => {
       const { data: quotesData, error: quotesError } = await supabase
         .from('quotes')
         .select('*')
-        .eq('request_id', requestId)
+        .eq('request_id', id)
         .order('created_at', { ascending: false });
 
       if (quotesError) throw quotesError;
@@ -222,7 +222,7 @@ const RequestDetail = () => {
                             const { error } = await supabase
                               .from('requests')
                               .update({ origin: String(value) })
-                              .eq('id', requestId);
+                              .eq('id', id);
                             if (!error) {
                               setRequest(prev => ({ ...prev, origin: String(value) }));
                               toast({ title: "Success", description: "Origin updated" });
@@ -239,7 +239,7 @@ const RequestDetail = () => {
                             const { error } = await supabase
                               .from('requests')
                               .update({ destination: String(value) })
-                              .eq('id', requestId);
+                              .eq('id', id);
                             if (!error) {
                               setRequest(prev => ({ ...prev, destination: String(value) }));
                               toast({ title: "Success", description: "Destination updated" });
@@ -256,7 +256,7 @@ const RequestDetail = () => {
                           const { error } = await supabase
                             .from('requests')
                             .update({ request_type: String(value) })
-                            .eq('id', requestId);
+                            .eq('id', id);
                           if (!error) {
                             setRequest(prev => ({ ...prev, request_type: String(value) }));
                             toast({ title: "Success", description: "Trip type updated" });
@@ -287,7 +287,7 @@ const RequestDetail = () => {
                           const { error } = await supabase
                             .from('requests')
                             .update({ departure_date: String(value) })
-                            .eq('id', requestId);
+                            .eq('id', id);
                           if (!error) {
                             setRequest(prev => ({ ...prev, departure_date: String(value) }));
                             toast({ title: "Success", description: "Departure date updated" });
@@ -314,7 +314,7 @@ const RequestDetail = () => {
                             const { error } = await supabase
                               .from('requests')
                               .update({ return_date: String(value) })
-                              .eq('id', requestId);
+                              .eq('id', id);
                             if (!error) {
                               setRequest(prev => ({ ...prev, return_date: String(value) }));
                               toast({ title: "Success", description: "Return date updated" });
@@ -345,7 +345,7 @@ const RequestDetail = () => {
                                  const { error } = await supabase
                                    .from('requests')
                                    .update({ adults_count: Number(value) || 1 })
-                                   .eq('id', requestId);
+                                    .eq('id', id);
                                  if (!error) {
                                    setRequest(prev => ({ ...prev, adults_count: Number(value) || 1 }));
                                    toast({ title: "Success", description: "Adult count updated" });
@@ -365,7 +365,7 @@ const RequestDetail = () => {
                                  const { error } = await supabase
                                    .from('requests')
                                    .update({ children_count: Number(value) || 0 })
-                                   .eq('id', requestId);
+                                    .eq('id', id);
                                  if (!error) {
                                    setRequest(prev => ({ ...prev, children_count: Number(value) || 0 }));
                                    toast({ title: "Success", description: "Children count updated" });
@@ -385,7 +385,7 @@ const RequestDetail = () => {
                                  const { error } = await supabase
                                    .from('requests')
                                    .update({ infants_count: Number(value) || 0 })
-                                   .eq('id', requestId);
+                                    .eq('id', id);
                                  if (!error) {
                                    setRequest(prev => ({ ...prev, infants_count: Number(value) || 0 }));
                                    toast({ title: "Success", description: "Infants count updated" });
@@ -409,7 +409,7 @@ const RequestDetail = () => {
                               const { error } = await supabase
                                 .from('requests')
                                 .update({ class_preference: String(value) })
-                                .eq('id', requestId);
+                                 .eq('id', id);
                               if (!error) {
                                 setRequest(prev => ({ ...prev, class_preference: String(value) }));
                                 toast({ title: "Success", description: "Class preference updated" });
@@ -443,7 +443,7 @@ const RequestDetail = () => {
                         const { error } = await supabase
                           .from('requests')
                           .update({ special_requirements: String(value) })
-                          .eq('id', requestId);
+                          .eq('id', id);
                         if (!error) {
                           setRequest(prev => ({ ...prev, special_requirements: String(value) }));
                           toast({ title: "Success", description: "Special requirements updated" });
@@ -464,7 +464,7 @@ const RequestDetail = () => {
                         const { error } = await supabase
                           .from('requests')
                           .update({ budget_range: String(value) })
-                          .eq('id', requestId);
+                          .eq('id', id);
                         if (!error) {
                           setRequest(prev => ({ ...prev, budget_range: String(value) }));
                           toast({ title: "Success", description: "Budget range updated" });
