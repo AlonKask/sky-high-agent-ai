@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
@@ -30,6 +31,7 @@ const RequestManager = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [isNewClient, setIsNewClient] = useState(false);
   const [clientSearchOpen, setClientSearchOpen] = useState(false);
   
   // Form state
@@ -48,6 +50,16 @@ const RequestManager = () => {
     specialRequirements: "",
     notes: "",
     priority: "medium"
+  });
+
+  // New client form state
+  const [newClientData, setNewClientData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    company: "",
+    preferredClass: "business"
   });
 
   useEffect(() => {
@@ -154,8 +166,49 @@ const RequestManager = () => {
   const handleCreateRequest = async () => {
     if (!user) return;
     
+    let clientId = formData.clientId;
+    
+    // If creating a new client, create the client first
+    if (isNewClient) {
+      if (!newClientData.firstName || !newClientData.lastName || !newClientData.email) {
+        toast.error('Please fill in all required client fields (first name, last name, email)');
+        return;
+      }
+      
+      try {
+        const clientData = {
+          user_id: user.id,
+          first_name: newClientData.firstName,
+          last_name: newClientData.lastName,
+          email: newClientData.email,
+          phone: newClientData.phone || null,
+          company: newClientData.company || null,
+          preferred_class: newClientData.preferredClass
+        };
+
+        const { data: clientResult, error: clientError } = await supabase
+          .from('clients')
+          .insert([clientData])
+          .select()
+          .single();
+
+        if (clientError) {
+          console.error('Error creating client:', clientError);
+          toast.error('Failed to create client');
+          return;
+        }
+
+        clientId = clientResult.id;
+        toast.success('Client created successfully');
+      } catch (error) {
+        console.error('Error creating client:', error);
+        toast.error('Failed to create client');
+        return;
+      }
+    }
+    
     // Validate required fields
-    if (!formData.clientId || !formData.requestType || !formData.origin || !formData.destination || !formData.departureDate) {
+    if (!clientId || !formData.requestType || !formData.origin || !formData.destination || !formData.departureDate) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -165,7 +218,7 @@ const RequestManager = () => {
       
       const requestData = {
         user_id: user.id,
-        client_id: formData.clientId,
+        client_id: clientId,
         request_type: formData.requestType,
         origin: formData.origin,
         destination: formData.destination,
@@ -201,8 +254,8 @@ const RequestManager = () => {
       // Clear URL parameters
       navigate('/requests', { replace: true });
       
-      // Refresh requests list
-      await fetchRequests();
+        // Refresh both requests and clients list
+        await Promise.all([fetchRequests(), fetchClients()]);
       
     } catch (error) {
       console.error('Error creating request:', error);
@@ -229,6 +282,15 @@ const RequestManager = () => {
       notes: "",
       priority: "medium"
     });
+    setNewClientData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      company: "",
+      preferredClass: "business"
+    });
+    setIsNewClient(false);
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -246,6 +308,13 @@ const RequestManager = () => {
       
       return newData;
     });
+  };
+
+  const handleNewClientInputChange = (field: string, value: any) => {
+    setNewClientData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const filteredRequests = requests.filter(request => {
@@ -495,56 +564,144 @@ const RequestManager = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Client *</Label>
-                <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={clientSearchOpen}
-                      className="w-full justify-between"
-                    >
-                      {formData.clientId
-                        ? clients.find((client) => client.id === formData.clientId)?.first_name + " " + clients.find((client) => client.id === formData.clientId)?.last_name
-                        : "Select client..."}
-                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 z-50 bg-background border shadow-lg">
-                    <Command>
-                      <CommandInput 
-                        placeholder="Search clients by name..." 
-                        className="border-0 focus:ring-0"
+                
+                {/* New Client Checkbox */}
+                <div className="flex items-center space-x-2 mb-2">
+                  <Checkbox 
+                    id="new-client"
+                    checked={isNewClient}
+                    onCheckedChange={(checked) => {
+                      setIsNewClient(!!checked);
+                      if (checked) {
+                        setFormData(prev => ({ ...prev, clientId: "" }));
+                        setClientSearchOpen(false);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="new-client" className="text-sm font-normal">
+                    Create new client
+                  </Label>
+                </div>
+
+                {!isNewClient ? (
+                  <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={clientSearchOpen}
+                        className="w-full justify-between"
+                      >
+                        {formData.clientId
+                          ? clients.find((client) => client.id === formData.clientId)?.first_name + " " + clients.find((client) => client.id === formData.clientId)?.last_name
+                          : "Select client..."}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0 z-50 bg-background border shadow-lg">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Search clients by name..." 
+                          className="border-0 focus:ring-0"
+                        />
+                        <CommandList className="max-h-[200px] overflow-y-auto">
+                          <CommandEmpty>No client found.</CommandEmpty>
+                          <CommandGroup>
+                            {clients.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                value={`${client.first_name} ${client.last_name} ${client.email}`}
+                                onSelect={() => {
+                                  handleInputChange('clientId', client.id);
+                                  setClientSearchOpen(false);
+                                }}
+                                className="cursor-pointer hover:bg-accent"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.clientId === client.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{client.first_name} {client.last_name}</span>
+                                  <span className="text-sm text-muted-foreground">{client.email}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="firstName" className="text-sm">First Name *</Label>
+                        <Input
+                          id="firstName"
+                          placeholder="First name"
+                          value={newClientData.firstName}
+                          onChange={(e) => handleNewClientInputChange('firstName', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="lastName" className="text-sm">Last Name *</Label>
+                        <Input
+                          id="lastName"
+                          placeholder="Last name"
+                          value={newClientData.lastName}
+                          onChange={(e) => handleNewClientInputChange('lastName', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="email" className="text-sm">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="client@example.com"
+                        value={newClientData.email}
+                        onChange={(e) => handleNewClientInputChange('email', e.target.value)}
                       />
-                      <CommandList className="max-h-[200px] overflow-y-auto">
-                        <CommandEmpty>No client found.</CommandEmpty>
-                        <CommandGroup>
-                          {clients.map((client) => (
-                            <CommandItem
-                              key={client.id}
-                              value={`${client.first_name} ${client.last_name} ${client.email}`}
-                              onSelect={() => {
-                                handleInputChange('clientId', client.id);
-                                setClientSearchOpen(false);
-                              }}
-                              className="cursor-pointer hover:bg-accent"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.clientId === client.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex flex-col">
-                                <span>{client.first_name} {client.last_name}</span>
-                                <span className="text-sm text-muted-foreground">{client.email}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="phone" className="text-sm">Phone</Label>
+                        <Input
+                          id="phone"
+                          placeholder="Phone number"
+                          value={newClientData.phone}
+                          onChange={(e) => handleNewClientInputChange('phone', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="company" className="text-sm">Company</Label>
+                        <Input
+                          id="company"
+                          placeholder="Company name"
+                          value={newClientData.company}
+                          onChange={(e) => handleNewClientInputChange('company', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="preferredClass" className="text-sm">Preferred Class</Label>
+                      <Select value={newClientData.preferredClass} onValueChange={(value) => handleNewClientInputChange('preferredClass', value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="economy">Economy</SelectItem>
+                          <SelectItem value="premium_economy">Premium Economy</SelectItem>
+                          <SelectItem value="business">Business</SelectItem>
+                          <SelectItem value="first">First Class</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
