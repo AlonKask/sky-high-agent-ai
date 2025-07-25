@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Mail, Share2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Plus, Edit, Trash2, Mail, Share2, X } from "lucide-react";
 import { SabreParser } from "@/utils/sabreParser";
 import { EmailTemplateGenerator } from "@/utils/emailTemplateGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -108,8 +109,15 @@ const SabreOptionManager = ({
   const [newQuote, setNewQuote] = useState(initialQuoteState);
 
   const resetQuoteForm = () => {
+    console.log("Resetting quote form");
     setNewQuote({ ...initialQuoteState });
     setEditingId(null);
+  };
+
+  const handleDialogClose = () => {
+    console.log("Closing dialog and resetting form");
+    resetQuoteForm();
+    setIsDialogOpen(false);
   };
 
   const hasValidPricing = () => {
@@ -132,11 +140,21 @@ const SabreOptionManager = ({
   };
 
   const handleContentChange = (content: string) => {
+    console.log("Content changed:", content);
     const format = detectFormat(content);
     setNewQuote(prev => ({
       ...prev,
       content,
       format
+    }));
+  };
+
+  const handleClearContent = () => {
+    console.log("Clearing content");
+    setNewQuote(prev => ({
+      ...prev,
+      content: "",
+      format: "I"
     }));
   };
 
@@ -248,8 +266,7 @@ const SabreOptionManager = ({
         description: "Quote created successfully."
       });
 
-      resetQuoteForm();
-      setIsDialogOpen(false);
+      handleDialogClose();
       onQuoteAdded();
     } catch (error) {
       console.error('Error creating quote:', error);
@@ -335,8 +352,7 @@ const SabreOptionManager = ({
         description: "Quote updated successfully."
       });
 
-      resetQuoteForm();
-      setIsDialogOpen(false);
+      handleDialogClose();
       onQuoteUpdated();
     } catch (error) {
       console.error('Error updating quote:', error);
@@ -451,24 +467,14 @@ Your Travel Agent`;
       </CardHeader>
 
       <CardContent>
-        {/* Quote Form Dialog */}
-        {isDialogOpen && (
-          <div className="mb-6 p-6 border rounded-lg bg-muted/30">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
+        {/* Proper Dialog Component */}
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
                 {editingId ? "Edit Quote" : "Create New Quote"}
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  resetQuoteForm();
-                  setIsDialogOpen(false);
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
+              </DialogTitle>
+            </DialogHeader>
             
             <div className="space-y-6">
               {/* Quote Type Selection */}
@@ -492,12 +498,28 @@ Your Travel Agent`;
 
               {/* Sabre Content */}
               <div className="space-y-2">
-                <Label>Sabre Command/Itinerary Content *</Label>
+                <div className="flex justify-between items-center">
+                  <Label>Sabre Command/Itinerary Content *</Label>
+                  {newQuote.content && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearContent}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
                 <Textarea
                   value={newQuote.content}
                   onChange={(e) => handleContentChange(e.target.value)}
-                  placeholder="Enter Sabre I-format or VI command..."
-                  className="min-h-[120px] font-mono text-sm"
+                  placeholder="Enter Sabre I-format or VI command...
+Example:
+1 LH 7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E"
+                  className="min-h-[120px] font-mono text-sm resize-none"
                 />
                 {newQuote.format && (
                   <Badge variant="outline">Format: {newQuote.format}</Badge>
@@ -811,8 +833,8 @@ Your Travel Agent`;
                 </Button>
               </div>
             </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Quotes List */}
         {quotes.length === 0 ? (

@@ -24,152 +24,134 @@ export interface ParsedItinerary {
 
 export class SabreParser {
   static parseIFormat(rawItinerary: string): ParsedItinerary | null {
-    console.log("=== SABRE PARSER CALLED ===");
+    console.log("=== SIMPLIFIED SABRE PARSER ===");
     console.log("Raw input:", rawItinerary);
     
-    // Remove the *IA« prefix and clean up the itinerary
-    const cleaned = rawItinerary.replace(/^\*IA[«»]?\s*/, '').trim();
-    
-    // Split into lines and process each flight segment
-    const lines = cleaned.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    
-    console.log(`Processing ${lines.length} flight segments`);
-    
-    const segments: FlightSegment[] = [];
-    
-    lines.forEach((line, index) => {
-      console.log(`Processing line ${index + 1}: ${line}`);
-      
-      const segmentData = this.parseFlightLine(line);
-      
-      if (segmentData) {
-        segments.push(segmentData);
-        console.log(`Created segment: ${JSON.stringify(segmentData)}`);
-      } else {
-        console.warn(`Could not parse line: ${line}`);
-      }
-    });
-    
-    if (segments.length === 0) {
+    if (!rawItinerary || !rawItinerary.trim()) {
+      console.log("Empty input provided");
       return null;
     }
     
-    // Calculate route and determine if it's round trip
-    const firstSegment = segments[0];
-    const lastSegment = segments[segments.length - 1];
-    
-    // Check if it's a round trip (returns to origin)
-    const isRoundTrip = segments.length > 1 && 
-      firstSegment.departureAirport === lastSegment.arrivalAirport;
-    
-    // Find the main route for display
-    let route: string;
-    if (isRoundTrip) {
-      // For round trips, find the main departure and furthest destination
-      const mainDeparture = firstSegment.departureAirport;
+    try {
+      // Clean up the input - remove common prefixes and extra whitespace
+      let cleaned = rawItinerary
+        .replace(/^\*IA[«»]?\s*/, '')
+        .replace(/^\s*I\s*/, '')
+        .trim();
       
-      // Find the furthest destination (typically the middle point of the journey)
-      // Look for the segment that goes furthest from origin or has the longest distance
-      let mainDestination = lastSegment.arrivalAirport;
-      
-      // If we have multiple segments, find the actual destination (not a return)
-      // by looking for the segment where the departure doesn't match any previous arrival
-      const midPointSegment = segments.find((seg, index) => {
-        // Skip the first segment, look for the main destination
-        if (index === 0) return false;
-        // This could be our main destination if it's not the return leg
-        return index < segments.length / 2;
-      });
-      
-      if (midPointSegment) {
-        mainDestination = midPointSegment.arrivalAirport;
+      if (!cleaned) {
+        console.log("No content after cleaning");
+        return null;
       }
       
-      route = `${mainDeparture}-${mainDestination}/${mainDestination}-${mainDeparture}`;
-    } else {
-      route = segments.length === 1 
-        ? `${firstSegment.departureAirport}-${firstSegment.arrivalAirport}`
-        : `${firstSegment.departureAirport}-${lastSegment.arrivalAirport}`;
+      // Split into lines and filter out empty/invalid lines
+      const lines = cleaned
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 5 && !line.startsWith('OPERATED BY'));
+      
+      console.log(`Processing ${lines.length} lines:`, lines);
+      
+      const segments: FlightSegment[] = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        console.log(`Processing line ${i + 1}: "${line}"`);
+        
+        const segmentData = this.parseFlightLine(line);
+        if (segmentData) {
+          segments.push(segmentData);
+          console.log(`✓ Parsed segment:`, segmentData);
+        } else {
+          console.log(`✗ Could not parse line: "${line}"`);
+        }
+      }
+      
+      if (segments.length === 0) {
+        console.log("No valid segments found");
+        return null;
+      }
+      
+      // Generate route string
+      const route = this.generateRoute(segments);
+      const isRoundTrip = this.isRoundTrip(segments);
+      
+      console.log(`✓ Successfully parsed ${segments.length} segments. Route: ${route}`);
+      
+      return {
+        segments,
+        totalSegments: segments.length,
+        route,
+        isRoundTrip
+      };
+    } catch (error) {
+      console.error("Parser error:", error);
+      return null;
     }
-
-    return {
-      segments,
-      totalSegments: segments.length,
-      route,
-      isRoundTrip
-    };
+  }
+  
+  private static generateRoute(segments: FlightSegment[]): string {
+    if (segments.length === 0) return "Unknown Route";
+    
+    const first = segments[0];
+    const last = segments[segments.length - 1];
+    
+    if (segments.length === 1) {
+      return `${first.departureAirport}-${first.arrivalAirport}`;
+    }
+    
+    // Check if round trip
+    if (first.departureAirport === last.arrivalAirport) {
+      // Find the furthest point (usually the middle)
+      const midPoint = segments[Math.floor(segments.length / 2)];
+      return `${first.departureAirport}-${midPoint.arrivalAirport}/${midPoint.arrivalAirport}-${first.departureAirport}`;
+    }
+    
+    return `${first.departureAirport}-${last.arrivalAirport}`;
+  }
+  
+  private static isRoundTrip(segments: FlightSegment[]): boolean {
+    if (segments.length < 2) return false;
+    return segments[0].departureAirport === segments[segments.length - 1].arrivalAirport;
   }
   
   private static parseFlightLine(line: string): FlightSegment | null {
-    console.log(`Attempting to parse line: "${line}"`);
+    console.log(`Parsing line: "${line}"`);
     
-    // Handle multiple regex patterns to account for spacing variations
+    // Skip non-flight lines
+    if (line.includes('OPERATED BY') || line.length < 10) {
+      return null;
+    }
+    
+    // Simplified patterns focusing on the most common formats
     const patterns = [
-      // Pattern 1: LH format with arrival date and day
-      // 1 LH7608P 15APR W EWRMUC SS1   500P  710A  16APR Q /DCLH /E
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])\s+(\d+[A-Z]{3})\s+([A-Z])\s+\/DC[A-Z]*\s*\/E$/,
+      // Pattern 1: Standard format with space (most common)
+      // 1 LH 7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/,
       
-      // Pattern 2: Delta format without space in flight number
-      // 1 DL2542Z 13SEP J MSYATL*SS1  1240P  313P /DCDL /E
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E$/,
+      // Pattern 2: Format without space in flight number
+      // 1 LH7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/,
       
-      // Pattern 3: Delta format with space in flight number
-      // 2 DL 105Z 13SEP J ATLGRU*SS1   700P  540A  14SEP S /DCDL /E
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*\s*\/E$/,
-      
-      // Pattern 4: Format with OPERATED BY (no space in flight number)
-      // 3 DL6256P 14SEP S GRUFOR*SS1   745A 1105A /DCDL /E
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E$/,
-      
-      // Pattern 5: Format with space in flight number and OPERATED BY
-      // 4 DL 6256P 14SEP S GRUFOR*SS1 745A 1105A /DCDL /E  
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E$/,
-      
-      // Pattern 6: Just OPERATED BY line
-      /^OPERATED BY\s+\/(.+)$/,
-      
-      // Pattern 7: Standard format with booking class
-      // 1 IB4185J 15SEP M JFKBCN GK1   510P  645A  16SEP T /E
-      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*\/E$/,
-      
-      // Pattern 8: Air France format with double space and /DCAF /E ending
-      // 1 AF  62I 12JUN F CDGEWR SS1  1245P  250P /DCAF /E
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*\s*\/E$/,
-      
-      // Pattern 9: AT format with space in flight number - WITHOUT /E suffix
-      // 2 AT 555D 11AUG M CMNLOS UC1 110A 550A /DCAT
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*$/,
-      
-      // Pattern 10: AT format without space in flight number - WITHOUT /E suffix
-      // 1 AT203D 10AUG S JFKCMN SS1 1120A 1125P /DCAT
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])\s+\/DC[A-Z]*$/,
-      
-      // Pattern 11: General format - WITHOUT /E suffix (with space in flight number)
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*$/,
-      
-      // Pattern 12: General format - WITHOUT /E suffix (without space in flight number)
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+([A-Z]+\d+)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s+\/DC[A-Z]*$/
+      // Pattern 3: Simple fallback pattern
+      // Segment Number, Airline+Flight+Class, Date, DOW, Route, Status, Times
+      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\s*([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/
     ];
     
     for (let i = 0; i < patterns.length; i++) {
-      const pattern = patterns[i];
-      const match = line.match(pattern);
+      const match = line.match(patterns[i]);
       if (match) {
-        console.log(`Pattern ${i + 1} matched:`, match);
-        
-        // Pattern 6 is just OPERATED BY - skip it
-        if (i === 5) {
-          console.log('Skipping OPERATED BY line');
-          return null;
+        console.log(`✓ Pattern ${i + 1} matched`);
+        try {
+          return this.extractSegmentData(match);
+        } catch (error) {
+          console.log(`✗ Error extracting data from pattern ${i + 1}:`, error);
+          continue;
         }
-        
-        return this.extractSegmentData(match);
-      } else {
-        console.log(`Pattern ${i + 1} did not match`);
       }
     }
     
-    console.log('No patterns matched for line:', line);
+    console.log('✗ No patterns matched');
     return null;
   }
   
