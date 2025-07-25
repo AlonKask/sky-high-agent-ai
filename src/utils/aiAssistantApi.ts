@@ -35,7 +35,7 @@ export class AIAssistantAPI {
     try {
       const token = await this.getAuthToken();
       
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant-chat`, {
+      const response = await fetch(`https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/ai-assistant-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,9 +58,14 @@ export class AIAssistantAPI {
 
   static async createConversation(title: string): Promise<string> {
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        throw new Error('User not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('ai_email_conversations')
-        .insert([{ title }])
+        .insert([{ title, user_id: userData.user.id }])
         .select('id')
         .single();
 
@@ -133,10 +138,16 @@ export class AIAssistantAPI {
     conversation_id?: string;
   }): Promise<string> {
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        throw new Error('User not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('ai_email_drafts')
         .insert([{
           ...draft,
+          user_id: userData.user.id,
           cc_emails: draft.cc_emails || [],
           bcc_emails: draft.bcc_emails || [],
         }])

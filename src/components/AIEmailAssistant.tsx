@@ -107,7 +107,16 @@ export const AIEmailAssistant: React.FC = () => {
 
       if (error) throw error;
 
-      setMessages(data || []);
+      // Transform the data to match our Message interface
+      const transformedMessages: Message[] = (data || []).map(msg => ({
+        id: msg.id,
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content,
+        created_at: msg.created_at,
+        metadata: msg.metadata
+      }));
+
+      setMessages(transformedMessages);
     } catch (error) {
       console.error('Error loading messages:', error);
       toast.error('Failed to load messages');
@@ -115,12 +124,14 @@ export const AIEmailAssistant: React.FC = () => {
   };
 
   const createNewConversation = async () => {
+    if (!user) return;
+
     try {
       const title = `Conversation ${new Date().toLocaleString()}`;
       
       const { data, error } = await supabase
         .from('ai_email_conversations')
-        .insert([{ title, user_id: user?.id }])
+        .insert([{ title, user_id: user.id }])
         .select()
         .single();
 
@@ -161,7 +172,7 @@ export const AIEmailAssistant: React.FC = () => {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || !user) return;
 
     const userMessage = inputMessage.trim();
     setInputMessage('');
@@ -175,7 +186,7 @@ export const AIEmailAssistant: React.FC = () => {
           .from('ai_email_conversations')
           .insert([{ 
             title: userMessage.substring(0, 50) + '...',
-            user_id: user?.id 
+            user_id: user.id 
           }])
           .select()
           .single();
@@ -200,7 +211,7 @@ export const AIEmailAssistant: React.FC = () => {
       const { data: authData } = await supabase.auth.getSession();
       const token = authData.session?.access_token;
 
-      const response = await fetch('/api/ai-assistant-chat', {
+      const response = await fetch(`https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/ai-assistant-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
