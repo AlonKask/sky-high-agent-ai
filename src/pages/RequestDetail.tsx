@@ -34,7 +34,7 @@ import {
 
 import { QuoteCard } from '@/components/QuoteCard';
 import EmailManager from '@/components/EmailManager';
-import SabreCommandTemplates from '@/components/SabreCommandTemplates';
+
 import { SabreParser } from '@/utils/sabreParser';
 import SabreOptionManager from '@/components/SabreOptionManager';
 
@@ -650,8 +650,6 @@ const RequestDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Sabre Commands */}
-            <SabreCommandTemplates onTemplateSelect={() => {}} />
           </div>
         </div>
       </div>
