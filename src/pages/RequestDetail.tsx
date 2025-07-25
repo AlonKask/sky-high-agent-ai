@@ -48,6 +48,8 @@ const RequestDetail = () => {
   const [showQuoteDialog, setShowQuoteDialog] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any>(null);
+  const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
+  const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
   const [newQuote, setNewQuote] = useState({
     route: '',
     fare_type: 'revenue',
@@ -508,14 +510,30 @@ const RequestDetail = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {quotes.map((quote) => (
-                      <QuoteCard
-                        key={quote.id}
-                        quote={quote}
-                        isSelected={false}
-                        isExpanded={false}
-                        onToggleExpanded={() => {}}
-                        onToggleSelected={() => {}}
+                     {quotes.map((quote) => (
+                       <QuoteCard
+                         key={quote.id}
+                         quote={quote}
+                         isSelected={selectedQuotes.has(quote.id)}
+                         isExpanded={expandedQuotes.has(quote.id)}
+                         onToggleExpanded={() => {
+                           const newExpanded = new Set(expandedQuotes);
+                           if (newExpanded.has(quote.id)) {
+                             newExpanded.delete(quote.id);
+                           } else {
+                             newExpanded.add(quote.id);
+                           }
+                           setExpandedQuotes(newExpanded);
+                         }}
+                         onToggleSelected={() => {
+                           const newSelected = new Set(selectedQuotes);
+                           if (newSelected.has(quote.id)) {
+                             newSelected.delete(quote.id);
+                           } else {
+                             newSelected.add(quote.id);
+                           }
+                           setSelectedQuotes(newSelected);
+                         }}
                         onEdit={() => {
                           setEditingQuote(quote);
                           setNewQuote({
