@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { logger } from "@/utils/logger";
-import ExpandableEmailCard from "./ExpandableEmailCard";
+import EnhancedEmailCard from "./EnhancedEmailCard";
 
 
 interface EmailExchange {
@@ -314,7 +314,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
           <ScrollArea className="h-96">
             <div className="space-y-3">
               {emails.map((email) => (
-                <ExpandableEmailCard
+                <EnhancedEmailCard
                   key={email.id}
                   email={email}
                   isExpanded={expandedEmailId === email.id}

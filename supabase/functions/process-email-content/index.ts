@@ -1,24 +1,37 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface EmailProcessingRequest {
+  emailContent: string;
+  subject: string;
+  senderEmail: string;
+  isHtml: boolean;
+}
+
 interface ProcessedEmailContent {
   cleanedBody: string;
-  extractedSignature: string;
-  attachmentsSummary: string[];
-  imageDescriptions: string[];
+  signature: string | null;
+  quotedContent: string | null;
+  attachments: Array<{
+    name: string;
+    type: string;
+    size?: number;
+  }>;
   keyInformation: {
     sender: string;
-    mainContent: string;
+    summary: string;
     actionItems: string[];
-    importantDates: string[];
-    contactInfo: string[];
+    dates: string[];
+    contacts: string[];
+    importance: 'low' | 'medium' | 'high';
   };
   readabilityScore: number;
+  snippet: string;
 }
 
 serve(async (req) => {
@@ -27,162 +40,272 @@ serve(async (req) => {
   }
 
   try {
-    const { emailData } = await req.json();
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
 
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const { emailContent, subject, senderEmail, isHtml }: EmailProcessingRequest = await req.json();
+
+    if (!emailContent) {
+      throw new Error('Email content is required');
     }
 
-    if (!emailData) {
-      throw new Error('Email data is required');
-    }
+    console.log('🔄 Processing email content for enhanced display...');
 
-    console.log('Processing email content with AI...');
+    // Clean and extract email content
+    const processedContent = await processEmailContent(emailContent, subject, senderEmail, isHtml);
 
-    const prompt = `
-You are an advanced email content processor. Analyze the following email and extract/clean the content:
-
-EMAIL DATA:
-Subject: ${emailData.subject}
-From: ${emailData.from}
-To: ${emailData.to}
-Body: ${emailData.body || emailData.snippet}
-
-TASKS:
-1. Clean the email body by removing:
-   - Email signatures and footers
-   - Forwarding headers and reply chains
-   - HTML tags and formatting symbols
-   - Extra whitespace and formatting artifacts
-   - Marketing footers and unsubscribe links
-
-2. Extract key information:
-   - Main message content (cleaned and readable)
-   - Any signatures found (separate from main content)
-   - Action items or requests mentioned
-   - Important dates mentioned
-   - Contact information (phones, emails, addresses)
-
-3. If there are attachment references, summarize what they might contain
-
-4. Analyze readability and provide a score (1-10, where 10 is most readable)
-
-Return a JSON response with this structure:
-{
-  "cleanedBody": "The main email content, cleaned and readable",
-  "extractedSignature": "Any signature found",
-  "attachmentsSummary": ["List of attachment descriptions"],
-  "imageDescriptions": ["Descriptions of any images mentioned"],
-  "keyInformation": {
-    "sender": "Clean sender name",
-    "mainContent": "Core message summary",
-    "actionItems": ["List of action items"],
-    "importantDates": ["List of dates found"],
-    "contactInfo": ["Contact details found"]
-  },
-  "readabilityScore": 8
-}
-
-Focus on making the content clear, professional, and easy to read while preserving all important information.
-`;
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert email content processor that extracts and cleans email content for better readability. Always return valid JSON responses.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-
-    try {
-      // Remove markdown code blocks if present
-      let cleanContent = content.trim();
-      if (cleanContent.startsWith('```json')) {
-        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (cleanContent.startsWith('```')) {
-        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
-      
-      console.log('Processed email content successfully');
-      
-      const processedContent: ProcessedEmailContent = JSON.parse(cleanContent);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          processedContent
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-
-    } catch (parseError) {
-      console.error('Error parsing OpenAI response:', parseError);
-      console.error('Raw content:', content);
-      
-      // Fallback: return basic processing
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Failed to parse AI response',
-          fallbackContent: {
-            cleanedBody: emailData.body || emailData.snippet,
-            extractedSignature: '',
-            attachmentsSummary: [],
-            imageDescriptions: [],
-            keyInformation: {
-              sender: emailData.from,
-              mainContent: emailData.snippet,
-              actionItems: [],
-              importantDates: [],
-              contactInfo: []
-            },
-            readabilityScore: 5
-          }
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-  } catch (error) {
-    console.error('Error in process-email-content function:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error.message 
+      JSON.stringify({
+        success: true,
+        processedContent
       }),
       {
-        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
+
+  } catch (error) {
+    console.error('❌ Email processing error:', error);
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
       }
     );
   }
 });
+
+async function processEmailContent(
+  content: string, 
+  subject: string, 
+  senderEmail: string, 
+  isHtml: boolean
+): Promise<ProcessedEmailContent> {
+  // Remove HTML tags if it's HTML content
+  let textContent = content;
+  if (isHtml) {
+    textContent = content
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+
+  // Extract signature
+  const signature = extractSignature(textContent);
+  
+  // Extract quoted content (replies/forwards)
+  const quotedContent = extractQuotedContent(textContent);
+  
+  // Clean the main content
+  let cleanedBody = textContent;
+  if (signature) {
+    cleanedBody = cleanedBody.replace(signature, '');
+  }
+  if (quotedContent) {
+    cleanedBody = cleanedBody.replace(quotedContent, '');
+  }
+  
+  // Clean up extra whitespace
+  cleanedBody = cleanedBody
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/^\s+|\s+$/g, '')
+    .trim();
+
+  // Generate snippet (first 150 characters)
+  const snippet = cleanedBody.length > 150 
+    ? cleanedBody.substring(0, 150) + '...' 
+    : cleanedBody;
+
+  // Extract key information
+  const keyInformation = extractKeyInformation(cleanedBody, subject, senderEmail);
+  
+  // Calculate readability score (simple heuristic)
+  const readabilityScore = calculateReadabilityScore(cleanedBody);
+
+  return {
+    cleanedBody: formatContent(cleanedBody, isHtml),
+    signature: signature ? formatContent(signature, isHtml) : null,
+    quotedContent: quotedContent ? formatContent(quotedContent, isHtml) : null,
+    attachments: [], // Will be populated by email sync
+    keyInformation,
+    readabilityScore,
+    snippet
+  };
+}
+
+function extractSignature(content: string): string | null {
+  // Common signature patterns
+  const signaturePatterns = [
+    /^--\s*$/m,
+    /^Best regards?[,\s]/im,
+    /^Sincerely[,\s]/im,
+    /^Thanks?[,\s]/im,
+    /^Cheers[,\s]/im,
+    /^Sent from my/im,
+    /^Get Outlook for/im
+  ];
+
+  for (const pattern of signaturePatterns) {
+    const match = content.search(pattern);
+    if (match !== -1) {
+      return content.substring(match).trim();
+    }
+  }
+
+  // Look for patterns like "Name\nTitle\nCompany\nPhone"
+  const lines = content.split('\n');
+  const lastLines = lines.slice(-10); // Check last 10 lines
+  
+  for (let i = 0; i < lastLines.length - 1; i++) {
+    const line = lastLines[i].trim();
+    const nextLine = lastLines[i + 1]?.trim();
+    
+    // If we find a line with what looks like a name followed by title/company
+    if (line && nextLine && 
+        line.length < 50 && 
+        !line.includes('@') && 
+        (nextLine.includes('CEO') || nextLine.includes('Manager') || 
+         nextLine.includes('Director') || nextLine.includes('Ltd') ||
+         nextLine.includes('Inc') || nextLine.includes('LLC'))) {
+      return lastLines.slice(i).join('\n').trim();
+    }
+  }
+
+  return null;
+}
+
+function extractQuotedContent(content: string): string | null {
+  // Look for quoted/forwarded content patterns
+  const quotedPatterns = [
+    /^>.*$/gm,
+    /^On .* wrote:$/m,
+    /^From:.*$/m,
+    /^-----Original Message-----/m,
+    /^________________________________/m
+  ];
+
+  for (const pattern of quotedPatterns) {
+    const match = content.search(pattern);
+    if (match !== -1) {
+      return content.substring(match).trim();
+    }
+  }
+
+  return null;
+}
+
+function extractKeyInformation(content: string, subject: string, senderEmail: string) {
+  const actionItems: string[] = [];
+  const dates: string[] = [];
+  const contacts: string[] = [];
+
+  // Extract action items (simple patterns)
+  const actionPatterns = [
+    /please\s+([\w\s]+)/gi,
+    /need\s+to\s+([\w\s]+)/gi,
+    /can\s+you\s+([\w\s]+)/gi,
+    /would\s+you\s+([\w\s]+)/gi
+  ];
+
+  actionPatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      actionItems.push(...matches.slice(0, 3)); // Limit to 3
+    }
+  });
+
+  // Extract dates
+  const datePatterns = [
+    /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g,
+    /\b\d{1,2}-\d{1,2}-\d{4}\b/g,
+    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/gi,
+    /\b\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}\b/gi
+  ];
+
+  datePatterns.forEach(pattern => {
+    const matches = content.match(pattern);
+    if (matches) {
+      dates.push(...matches.slice(0, 3)); // Limit to 3
+    }
+  });
+
+  // Extract email addresses and phone numbers
+  const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+  const phonePattern = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g;
+  
+  const emailMatches = content.match(emailPattern);
+  const phoneMatches = content.match(phonePattern);
+  
+  if (emailMatches) contacts.push(...emailMatches.slice(0, 3));
+  if (phoneMatches) contacts.push(...phoneMatches.slice(0, 3));
+
+  // Determine importance based on keywords and urgency
+  let importance: 'low' | 'medium' | 'high' = 'medium';
+  const urgentKeywords = ['urgent', 'asap', 'immediately', 'emergency', 'critical'];
+  const lowPriorityKeywords = ['fyi', 'for your information', 'no rush', 'when you can'];
+  
+  const lowerContent = (content + ' ' + subject).toLowerCase();
+  
+  if (urgentKeywords.some(keyword => lowerContent.includes(keyword))) {
+    importance = 'high';
+  } else if (lowPriorityKeywords.some(keyword => lowerContent.includes(keyword))) {
+    importance = 'low';
+  }
+
+  // Generate summary (first sentence or up to 100 chars)
+  const sentences = content.split(/[.!?]+/);
+  const summary = sentences[0]?.trim().substring(0, 100) + 
+    (sentences[0]?.length > 100 ? '...' : '') || 'No summary available';
+
+  return {
+    sender: senderEmail,
+    summary,
+    actionItems: actionItems.slice(0, 3),
+    dates: dates.slice(0, 3),
+    contacts: contacts.slice(0, 3),
+    importance
+  };
+}
+
+function calculateReadabilityScore(content: string): number {
+  if (!content || content.length < 10) return 0;
+  
+  const words = content.split(/\s+/).length;
+  const sentences = content.split(/[.!?]+/).length;
+  const syllables = content.split(/[aeiouAEIOU]/).length - 1;
+  
+  // Simple readability heuristic (0-100 scale)
+  const avgWordsPerSentence = words / Math.max(sentences, 1);
+  const avgSyllablesPerWord = syllables / Math.max(words, 1);
+  
+  // Flesch Reading Ease approximation
+  const score = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
+  
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function formatContent(content: string, preserveHtml: boolean): string {
+  if (preserveHtml) {
+    return content;
+  }
+  
+  // Convert plain text to HTML with basic formatting
+  return content
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    .replace(/^/, '<p>')
+    .replace(/$/, '</p>');
+}

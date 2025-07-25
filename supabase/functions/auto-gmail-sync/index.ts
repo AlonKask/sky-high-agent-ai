@@ -139,18 +139,41 @@ serve(async (req) => {
         const bcc = headers.find(h => h.name.toLowerCase() === 'bcc')?.value || '';
         const date = headers.find(h => h.name.toLowerCase() === 'date')?.value || '';
 
-        // Extract email body
+        // Extract email body with better content handling
         let body = '';
+        let isHtml = false;
+        let attachments: any[] = [];
+        
         if (messageData.payload.body?.data) {
           body = atob(messageData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+          isHtml = messageData.payload.body?.mimeType?.includes('html') || false;
         } else if (messageData.payload.parts) {
+          // Handle multipart messages
           for (const part of messageData.payload.parts) {
-            if (part.body?.data && part.mimeType?.includes('text')) {
-              body += atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
-              break;
+            if (part.body?.data) {
+              if (part.mimeType?.includes('text/html')) {
+                body = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+                isHtml = true;
+                break; // Prefer HTML content
+              } else if (part.mimeType?.includes('text/plain') && !body) {
+                body = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+                isHtml = false;
+              }
+            }
+            
+            // Extract attachment info
+            if (part.filename) {
+              attachments.push({
+                filename: part.filename,
+                mimeType: part.mimeType,
+                size: part.body?.size || 0
+              });
             }
           }
         }
+
+        // Clean and limit body content
+        body = body.substring(0, 50000); // Limit body size
 
         // Determine direction
         const direction = messageData.labelIds?.includes('SENT') ? 'outbound' : 'inbound';
@@ -206,10 +229,13 @@ serve(async (req) => {
               metadata: {
                 labels: messageData.labelIds,
                 internalDate: messageData.internalDate,
-                snippet: messageData.snippet,
-                isRead: !messageData.labelIds?.includes('UNREAD')
+                snippet: messageData.snippet.substring(0, 300),
+                isRead: !messageData.labelIds?.includes('UNREAD'),
+                isHtml: isHtml,
+                hasAttachments: attachments.length > 0,
+                threadMessageCount: 1 // Will be updated with thread analysis
               },
-              attachments: [],
+              attachments: attachments,
               received_at: new Date(parseInt(messageData.internalDate)).toISOString(),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
