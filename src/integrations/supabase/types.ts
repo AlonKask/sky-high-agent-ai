@@ -113,6 +113,159 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_email_analytics: {
+        Row: {
+          action_type: string
+          conversation_id: string | null
+          id: string
+          metadata: Json | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          conversation_id?: string | null
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          conversation_id?: string | null
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_email_analytics_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_email_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_email_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_email_drafts: {
+        Row: {
+          bcc_emails: string[] | null
+          body: string
+          cc_emails: string[] | null
+          conversation_id: string | null
+          created_at: string
+          email_type: string | null
+          id: string
+          metadata: Json | null
+          recipient_emails: string[]
+          status: string | null
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bcc_emails?: string[] | null
+          body: string
+          cc_emails?: string[] | null
+          conversation_id?: string | null
+          created_at?: string
+          email_type?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_emails: string[]
+          status?: string | null
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bcc_emails?: string[] | null
+          body?: string
+          cc_emails?: string[] | null
+          conversation_id?: string | null
+          created_at?: string
+          email_type?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_emails?: string[]
+          status?: string | null
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_email_drafts_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_email_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_email_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_email_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_email_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           id: string
@@ -1629,6 +1782,10 @@ export type Database = {
         Returns: undefined
       }
       archive_old_emails: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_conversations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
