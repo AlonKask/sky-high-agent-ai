@@ -37,7 +37,7 @@ const RequestManager = () => {
   // Form state
   const [formData, setFormData] = useState({
     clientId: "",
-    requestType: "",
+    tripType: "round_trip",
     origin: "",
     destination: "",
     departureDate: null as Date | null,
@@ -49,7 +49,13 @@ const RequestManager = () => {
     budgetRange: "",
     specialRequirements: "",
     notes: "",
-    priority: "medium"
+    priority: "medium",
+    segments: [] as Array<{
+      from: string;
+      to: string;
+      date: string;
+      cabin: string;
+    }>
   });
 
   // New client form state
@@ -170,8 +176,8 @@ const RequestManager = () => {
     
     // If creating a new client, create the client first
     if (isNewClient) {
-      if (!newClientData.firstName || !newClientData.lastName || !newClientData.email) {
-        toast.error('Please fill in all required client fields (first name, last name, email)');
+      if (!newClientData.firstName || !newClientData.email) {
+        toast.error('Please fill in all required client fields (first name, email)');
         return;
       }
       
@@ -208,30 +214,81 @@ const RequestManager = () => {
     }
     
     // Validate required fields
-    if (!clientId || !formData.requestType || !formData.origin || !formData.destination || !formData.departureDate) {
+    if (!clientId || !formData.tripType) {
       toast.error('Please fill in all required fields');
       return;
+    }
+
+    // Validate based on trip type
+    if (formData.tripType === 'multi_city') {
+      if (formData.segments.length < 2) {
+        toast.error('Multi-city trips require at least 2 segments');
+        return;
+      }
+      for (const segment of formData.segments) {
+        if (!segment.from || !segment.to || !segment.date) {
+          toast.error('All segments must have origin, destination, and date');
+          return;
+        }
+      }
+    } else {
+      if (!formData.origin || !formData.destination || !formData.departureDate) {
+        toast.error('Please fill in origin, destination, and departure date');
+        return;
+      }
+      if (formData.tripType === 'round_trip' && !formData.returnDate) {
+        toast.error('Return date is required for round trips');
+        return;
+      }
     }
 
     try {
       setCreating(true);
       
-      const requestData = {
-        user_id: user.id,
-        client_id: clientId,
-        request_type: formData.requestType,
-        origin: formData.origin,
-        destination: formData.destination,
-        departure_date: formData.departureDate.toISOString().split('T')[0],
-        return_date: formData.returnDate ? formData.returnDate.toISOString().split('T')[0] : null,
-        passengers: formData.adults + formData.children + formData.infants,
-        class_preference: formData.classPreference,
-        budget_range: formData.budgetRange || null,
-        special_requirements: formData.specialRequirements || null,
-        notes: formData.notes || null,
-        priority: formData.priority,
-        status: 'pending'
-      };
+      let requestData;
+      
+      if (formData.tripType === 'multi_city') {
+        requestData = {
+          user_id: user.id,
+          client_id: clientId,
+          request_type: 'multi_city',
+          origin: formData.segments[0]?.from || '',
+          destination: formData.segments[formData.segments.length - 1]?.to || '',
+          departure_date: formData.segments[0]?.date || '',
+          return_date: null,
+          passengers: formData.adults + formData.children + formData.infants,
+          adults_count: formData.adults,
+          children_count: formData.children,
+          infants_count: formData.infants,
+          class_preference: formData.classPreference,
+          segments: formData.segments,
+          budget_range: formData.budgetRange || null,
+          special_requirements: formData.specialRequirements || null,
+          notes: formData.notes || null,
+          priority: formData.priority,
+          status: 'pending'
+        };
+      } else {
+        requestData = {
+          user_id: user.id,
+          client_id: clientId,
+          request_type: formData.tripType,
+          origin: formData.origin,
+          destination: formData.destination,
+          departure_date: formData.departureDate.toISOString().split('T')[0],
+          return_date: formData.returnDate ? formData.returnDate.toISOString().split('T')[0] : null,
+          passengers: formData.adults + formData.children + formData.infants,
+          adults_count: formData.adults,
+          children_count: formData.children,
+          infants_count: formData.infants,
+          class_preference: formData.classPreference,
+          budget_range: formData.budgetRange || null,
+          special_requirements: formData.specialRequirements || null,
+          notes: formData.notes || null,
+          priority: formData.priority,
+          status: 'pending'
+        };
+      }
 
       const { data, error } = await supabase
         .from('requests')
@@ -268,7 +325,7 @@ const RequestManager = () => {
   const resetForm = () => {
     setFormData({
       clientId: "",
-      requestType: "",
+      tripType: "round_trip",
       origin: "",
       destination: "",
       departureDate: null,
@@ -280,7 +337,8 @@ const RequestManager = () => {
       budgetRange: "",
       specialRequirements: "",
       notes: "",
-      priority: "medium"
+      priority: "medium",
+      segments: []
     });
     setNewClientData({
       firstName: "",
@@ -291,6 +349,45 @@ const RequestManager = () => {
       preferredClass: "business"
     });
     setIsNewClient(false);
+  };
+
+  const addSegment = () => {
+    setFormData(prev => ({
+      ...prev,
+      segments: [...prev.segments, { from: '', to: '', date: '', cabin: prev.classPreference }]
+    }));
+  };
+
+  const removeSegment = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      segments: prev.segments.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateSegment = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      segments: prev.segments.map((segment, i) => 
+        i === index ? { ...segment, [field]: value } : segment
+      )
+    }));
+  };
+
+  const handleCabinChange = (value: string, segmentIndex?: number) => {
+    if (segmentIndex !== undefined) {
+      // Update specific segment cabin
+      updateSegment(segmentIndex, 'cabin', value);
+    } else {
+      // Update default cabin preference and all segments if they match the current default
+      setFormData(prev => ({
+        ...prev,
+        classPreference: value,
+        segments: prev.segments.map(segment => 
+          segment.cabin === prev.classPreference ? { ...segment, cabin: value } : segment
+        )
+      }));
+    }
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -304,6 +401,19 @@ const RequestManager = () => {
       // update return date to match departure date
       if (field === 'departureDate' && value && newData.returnDate && newData.returnDate < value) {
         newData.returnDate = value;
+      }
+      
+      // When trip type changes to multi-city, initialize with 2 segments
+      if (field === 'tripType' && value === 'multi_city' && prev.segments.length === 0) {
+        newData.segments = [
+          { from: '', to: '', date: '', cabin: prev.classPreference },
+          { from: '', to: '', date: '', cabin: prev.classPreference }
+        ];
+      }
+      
+      // When trip type changes away from multi-city, clear segments
+      if (field === 'tripType' && value !== 'multi_city') {
+        newData.segments = [];
       }
       
       return newData;
@@ -647,7 +757,7 @@ const RequestManager = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="lastName" className="text-sm">Last Name *</Label>
+                        <Label htmlFor="lastName" className="text-sm">Last Name</Label>
                         <Input
                           id="lastName"
                           placeholder="Last name"
@@ -706,7 +816,7 @@ const RequestManager = () => {
               
               <div className="space-y-2">
                 <Label>Request Type *</Label>
-                <Select value={formData.requestType} onValueChange={(value) => handleInputChange('requestType', value)}>
+                <Select value={formData.tripType} onValueChange={(value) => handleInputChange('tripType', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -719,24 +829,6 @@ const RequestManager = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>From *</Label>
-                <AirportAutocomplete
-                  value={formData.origin}
-                  onChange={(value) => handleInputChange('origin', value)}
-                  placeholder="Select departure airport"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>To *</Label>
-                <AirportAutocomplete
-                  value={formData.destination}
-                  onChange={(value) => handleInputChange('destination', value)}
-                  placeholder="Select destination airport"
-                />
-              </div>
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -761,7 +853,7 @@ const RequestManager = () => {
                 </Popover>
               </div>
               
-              {formData.requestType === 'round_trip' && (
+              {formData.tripType === 'round_trip' && (
                 <div className="space-y-2">
                   <Label>Return Date</Label>
                   <Popover>
@@ -786,59 +878,220 @@ const RequestManager = () => {
               )}
             </div>
 
+            {/* Trip Type Specific Fields */}
+            {formData.tripType === 'multi_city' ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Flight Segments</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addSegment}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Segment
+                  </Button>
+                </div>
+                
+                {formData.segments.length === 0 && formData.tripType === 'multi_city' && (
+                  <div className="text-center p-6 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                    <p className="text-muted-foreground mb-2">No segments added yet</p>
+                    <Button type="button" variant="outline" onClick={addSegment}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add First Segment
+                    </Button>
+                  </div>
+                )}
+                
+                {formData.segments.map((segment, index) => (
+                  <div key={index} className="p-4 border rounded-lg bg-accent/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-medium">Segment {index + 1}</Label>
+                      {formData.segments.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeSegment(index)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm">From</Label>
+                        <AirportAutocomplete
+                          value={segment.from}
+                          onChange={(value) => updateSegment(index, 'from', value)}
+                          placeholder="Origin"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm">To</Label>
+                        <AirportAutocomplete
+                          value={segment.to}
+                          onChange={(value) => updateSegment(index, 'to', value)}
+                          placeholder="Destination"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm">Date</Label>
+                        <Input
+                          type="date"
+                          value={segment.date}
+                          onChange={(e) => updateSegment(index, 'date', e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <Label className="text-sm">Cabin Class</Label>
+                      <Select value={segment.cabin || formData.classPreference} onValueChange={(value) => handleCabinChange(value, index)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="economy">Economy</SelectItem>
+                          <SelectItem value="premium_economy">Premium Economy</SelectItem>
+                          <SelectItem value="business">Business</SelectItem>
+                          <SelectItem value="first">First Class</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>From *</Label>
+                  <AirportAutocomplete
+                    value={formData.origin}
+                    onChange={(value) => handleInputChange('origin', value)}
+                    placeholder="Select departure airport"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>To *</Label>
+                  <AirportAutocomplete
+                    value={formData.destination}
+                    onChange={(value) => handleInputChange('destination', value)}
+                    placeholder="Select destination airport"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Passenger Information */}
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Passengers</Label>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Adults (12+)</Label>
-                    <Select value={(formData.adults || 1).toString()} onValueChange={(value) => handleInputChange('adults', parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1,2,3,4,5,6,7,8].map(num => (
-                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Children (2-11)</Label>
-                    <Select value={(formData.children || 0).toString()} onValueChange={(value) => handleInputChange('children', parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[0,1,2,3,4,5,6,7,8].map(num => (
-                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Infants (0-2)</Label>
-                    <Select value={(formData.infants || 0).toString()} onValueChange={(value) => handleInputChange('infants', parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[0,1,2,3,4].map(num => (
-                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <Label className="text-base font-medium">Passengers</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Adults (12+) *</Label>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange('adults', Math.max(1, formData.adults - 1))}
+                      disabled={formData.adults <= 1}
+                    >
+                      -
+                    </Button>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="9"
+                      value={formData.adults}
+                      onChange={(e) => handleInputChange('adults', Math.max(1, Math.min(9, parseInt(e.target.value) || 1)))}
+                      className="text-center"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange('adults', Math.min(9, formData.adults + 1))}
+                      disabled={formData.adults >= 9}
+                    >
+                      +
+                    </Button>
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Children (2-11)</Label>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange('children', Math.max(0, formData.children - 1))}
+                      disabled={formData.children <= 0}
+                    >
+                      -
+                    </Button>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="8"
+                      value={formData.children}
+                      onChange={(e) => handleInputChange('children', Math.max(0, Math.min(8, parseInt(e.target.value) || 0)))}
+                      className="text-center"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange('children', Math.min(8, formData.children + 1))}
+                      disabled={formData.children >= 8}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Infants (0-2)</Label>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange('infants', Math.max(0, formData.infants - 1))}
+                      disabled={formData.infants <= 0}
+                    >
+                      -
+                    </Button>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="4"
+                      value={formData.infants}
+                      onChange={(e) => handleInputChange('infants', Math.max(0, Math.min(4, parseInt(e.target.value) || 0)))}
+                      className="text-center"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange('infants', Math.min(4, formData.infants + 1))}
+                      disabled={formData.infants >= 4}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-sm text-muted-foreground bg-accent/20 p-3 rounded-lg">
+                Total passengers: {formData.adults + formData.children + formData.infants}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Class</Label>
-                <Select value={formData.classPreference} onValueChange={(value) => handleInputChange('classPreference', value)}>
+                <Label>Default Cabin Class</Label>
+                <Select value={formData.classPreference} onValueChange={(value) => handleCabinChange(value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -849,6 +1102,9 @@ const RequestManager = () => {
                     <SelectItem value="first">First Class</SelectItem>
                   </SelectContent>
                 </Select>
+                {formData.tripType === 'multi_city' && (
+                  <p className="text-xs text-muted-foreground">Sets default for new segments</p>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -866,22 +1122,34 @@ const RequestManager = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Budget Range</Label>
-              <Input
-                placeholder="e.g., $5000-8000"
-                value={formData.budgetRange}
-                onChange={(e) => handleInputChange('budgetRange', e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Budget Range</Label>
+                <Input
+                  placeholder="e.g., $5,000 - $8,000"
+                  value={formData.budgetRange}
+                  onChange={(e) => handleInputChange('budgetRange', e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Special Requirements</Label>
+                <Input
+                  placeholder="e.g., wheelchair assistance, meal preferences"
+                  value={formData.specialRequirements}
+                  onChange={(e) => handleInputChange('specialRequirements', e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Notes</Label>
+              <Label>Additional Notes</Label>
               <Textarea
-                placeholder="Special requirements, preferences, etc."
+                placeholder="Any additional information, preferences, or special requests..."
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 rows={3}
+                className="resize-none"
               />
             </div>
           </div>
