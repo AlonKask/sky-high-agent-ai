@@ -219,13 +219,13 @@ const RequestDetail = () => {
                           onSave={async (value) => {
                             const { error } = await supabase
                               .from('requests')
-                              .update({ origin: value })
+                              .update({ origin: String(value) })
                               .eq('id', requestId);
                             if (!error) {
-                              setRequest(prev => ({ ...prev, origin: value.toString() }));
-                              toast.success('Origin updated');
+                              setRequest(prev => ({ ...prev, origin: String(value) }));
+                              toast({ title: "Success", description: "Origin updated" });
                             } else {
-                              toast.error('Failed to update origin');
+                              toast({ title: "Error", description: "Failed to update origin", variant: "destructive" });
                             }
                           }}
                           placeholder="Origin"
@@ -236,13 +236,13 @@ const RequestDetail = () => {
                           onSave={async (value) => {
                             const { error } = await supabase
                               .from('requests')
-                              .update({ destination: value })
+                              .update({ destination: String(value) })
                               .eq('id', requestId);
                             if (!error) {
-                              setRequest(prev => ({ ...prev, destination: value.toString() }));
-                              toast.success('Destination updated');
+                              setRequest(prev => ({ ...prev, destination: String(value) }));
+                              toast({ title: "Success", description: "Destination updated" });
                             } else {
-                              toast.error('Failed to update destination');
+                              toast({ title: "Error", description: "Failed to update destination", variant: "destructive" });
                             }
                           }}
                           placeholder="Destination"
@@ -253,13 +253,13 @@ const RequestDetail = () => {
                         onSave={async (value) => {
                           const { error } = await supabase
                             .from('requests')
-                            .update({ request_type: value })
+                            .update({ request_type: String(value) })
                             .eq('id', requestId);
                           if (!error) {
-                            setRequest(prev => ({ ...prev, request_type: value.toString() }));
-                            toast.success('Trip type updated');
+                            setRequest(prev => ({ ...prev, request_type: String(value) }));
+                            toast({ title: "Success", description: "Trip type updated" });
                           } else {
-                            toast.error('Failed to update trip type');
+                            toast({ title: "Error", description: "Failed to update trip type", variant: "destructive" });
                           }
                         }}
                         type="select"
@@ -284,13 +284,13 @@ const RequestDetail = () => {
                         onSave={async (value) => {
                           const { error } = await supabase
                             .from('requests')
-                            .update({ departure_date: value })
+                            .update({ departure_date: String(value) })
                             .eq('id', requestId);
                           if (!error) {
-                            setRequest(prev => ({ ...prev, departure_date: value.toString() }));
-                            toast.success('Departure date updated');
+                            setRequest(prev => ({ ...prev, departure_date: String(value) }));
+                            toast({ title: "Success", description: "Departure date updated" });
                           } else {
-                            toast.error('Failed to update departure date');
+                            toast({ title: "Error", description: "Failed to update departure date", variant: "destructive" });
                           }
                         }}
                         type="date"
@@ -311,13 +311,13 @@ const RequestDetail = () => {
                           onSave={async (value) => {
                             const { error } = await supabase
                               .from('requests')
-                              .update({ return_date: value })
+                              .update({ return_date: String(value) })
                               .eq('id', requestId);
                             if (!error) {
-                              setRequest(prev => ({ ...prev, return_date: value.toString() }));
-                              toast.success('Return date updated');
+                              setRequest(prev => ({ ...prev, return_date: String(value) }));
+                              toast({ title: "Success", description: "Return date updated" });
                             } else {
-                              toast.error('Failed to update return date');
+                              toast({ title: "Error", description: "Failed to update return date", variant: "destructive" });
                             }
                           }}
                           type="date"
@@ -345,9 +345,9 @@ const RequestDetail = () => {
                                   .eq('id', requestId);
                                 if (!error) {
                                   setRequest(prev => ({ ...prev, adults_count: Number(value) || 1 }));
-                                  toast.success('Adult count updated');
+                                  toast({ title: "Success", description: "Adult count updated" });
                                 } else {
-                                  toast.error('Failed to update adult count');
+                                  toast({ title: "Error", description: "Failed to update adult count", variant: "destructive" });
                                 }
                               }}
                               type="number"
@@ -364,9 +364,9 @@ const RequestDetail = () => {
                                   .eq('id', requestId);
                                 if (!error) {
                                   setRequest(prev => ({ ...prev, children_count: Number(value) || 0 }));
-                                  toast.success('Children count updated');
+                                  toast({ title: "Success", description: "Children count updated" });
                                 } else {
-                                  toast.error('Failed to update children count');
+                                  toast({ title: "Error", description: "Failed to update children count", variant: "destructive" });
                                 }
                               }}
                               type="number"
@@ -383,9 +383,9 @@ const RequestDetail = () => {
                                   .eq('id', requestId);
                                 if (!error) {
                                   setRequest(prev => ({ ...prev, infants_count: Number(value) || 0 }));
-                                  toast.success('Infants count updated');
+                                  toast({ title: "Success", description: "Infants count updated" });
                                 } else {
-                                  toast.error('Failed to update infants count');
+                                  toast({ title: "Error", description: "Failed to update infants count", variant: "destructive" });
                                 }
                               }}
                               type="number"
@@ -403,13 +403,13 @@ const RequestDetail = () => {
                             onSave={async (value) => {
                               const { error } = await supabase
                                 .from('requests')
-                                .update({ class_preference: value })
+                                .update({ class_preference: String(value) })
                                 .eq('id', requestId);
                               if (!error) {
-                                setRequest(prev => ({ ...prev, class_preference: value.toString() }));
-                                toast.success('Class preference updated');
+                                setRequest(prev => ({ ...prev, class_preference: String(value) }));
+                                toast({ title: "Success", description: "Class preference updated" });
                               } else {
-                                toast.error('Failed to update class preference');
+                                toast({ title: "Error", description: "Failed to update class preference", variant: "destructive" });
                               }
                             }}
                             type="select"
@@ -437,13 +437,13 @@ const RequestDetail = () => {
                       onSave={async (value) => {
                         const { error } = await supabase
                           .from('requests')
-                          .update({ special_requirements: value })
+                          .update({ special_requirements: String(value) })
                           .eq('id', requestId);
                         if (!error) {
-                          setRequest(prev => ({ ...prev, special_requirements: value.toString() }));
-                          toast.success('Special requirements updated');
+                          setRequest(prev => ({ ...prev, special_requirements: String(value) }));
+                          toast({ title: "Success", description: "Special requirements updated" });
                         } else {
-                          toast.error('Failed to update special requirements');
+                          toast({ title: "Error", description: "Failed to update special requirements", variant: "destructive" });
                         }
                       }}
                       type="textarea"
@@ -458,13 +458,13 @@ const RequestDetail = () => {
                       onSave={async (value) => {
                         const { error } = await supabase
                           .from('requests')
-                          .update({ budget_range: value })
+                          .update({ budget_range: String(value) })
                           .eq('id', requestId);
                         if (!error) {
-                          setRequest(prev => ({ ...prev, budget_range: value.toString() }));
-                          toast.success('Budget range updated');
+                          setRequest(prev => ({ ...prev, budget_range: String(value) }));
+                          toast({ title: "Success", description: "Budget range updated" });
                         } else {
-                          toast.error('Failed to update budget range');
+                          toast({ title: "Error", description: "Failed to update budget range", variant: "destructive" });
                         }
                       }}
                       placeholder="Add budget range..."
@@ -509,7 +509,11 @@ const RequestDetail = () => {
                       <QuoteCard
                         key={quote.id}
                         quote={quote}
-                        onEdit={(quote) => {
+                        isSelected={false}
+                        isExpanded={false}
+                        onToggleExpanded={() => {}}
+                        onToggleSelected={() => {}}
+                        onEdit={() => {
                           setEditingQuote(quote);
                           setNewQuote({
                             ...quote,
@@ -522,25 +526,25 @@ const RequestDetail = () => {
                           });
                           setShowQuoteDialog(true);
                         }}
-                        onDelete={async (quoteId) => {
+                        onToggleVisibility={() => {}}
+                        onDelete={async () => {
                           try {
                             const { error } = await supabase
                               .from('quotes')
                               .delete()
-                              .eq('id', quoteId);
+                              .eq('id', quote.id);
 
                             if (error) throw error;
 
-                            setQuotes(quotes.filter(q => q.id !== quoteId));
-                            toast.success('Quote deleted successfully');
+                            setQuotes(quotes.filter(q => q.id !== quote.id));
+                            toast({ title: "Success", description: "Quote deleted successfully" });
                           } catch (error) {
                             console.error('Error deleting quote:', error);
-                            toast.error('Failed to delete quote');
+                            toast({ title: "Error", description: "Failed to delete quote", variant: "destructive" });
                           }
                         }}
-                        onSendEmail={() => setShowEmailDialog(true)}
-                        client={client}
-                        request={request}
+                        onSendToEmail={() => setShowEmailDialog(true)}
+                        generateIFormatDisplay={() => ''}
                       />
                     ))}
                   </div>
@@ -626,7 +630,7 @@ const RequestDetail = () => {
             </Card>
 
             {/* Sabre Commands */}
-            <SabreCommandTemplates request={request} />
+            <SabreCommandTemplates onTemplateSelect={() => {}} />
           </div>
         </div>
       </div>
@@ -634,17 +638,20 @@ const RequestDetail = () => {
       {/* Quote Dialog */}
       <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
         <SabreOptionManager 
-          request={request}
-          client={client}
-          onQuoteCreated={(quote) => {
+          options={quotes}
+          onAddOption={(quote) => {
             setQuotes([quote, ...quotes]);
             setShowQuoteDialog(false);
-            toast.success('Quote created successfully');
+            toast({ title: "Success", description: "Quote created successfully" });
           }}
-          editingQuote={editingQuote}
-          onClose={() => {
+          onUpdateOption={(updatedQuote: any) => {
+            setQuotes(quotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
             setShowQuoteDialog(false);
-            setEditingQuote(null);
+            toast({ title: "Success", description: "Quote updated successfully" });
+          }}
+          onDeleteOption={(quoteId) => {
+            setQuotes(quotes.filter(q => q.id !== quoteId));
+            toast({ title: "Success", description: "Quote deleted successfully" });
           }}
         />
       </Dialog>
@@ -652,8 +659,9 @@ const RequestDetail = () => {
       {/* Email Dialog */}
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
         <EmailManager 
-          selectedEmails={[]}
-          onClose={() => setShowEmailDialog(false)}
+          clientEmail={client?.email}
+          clientId={client?.id}
+          requestId={request?.id}
         />
       </Dialog>
     </div>
