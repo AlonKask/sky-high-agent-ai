@@ -1862,6 +1862,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      health_check: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       update_client_memory: {
         Args: {
           p_user_id: string
