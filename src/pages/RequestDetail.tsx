@@ -1,95 +1,66 @@
-import { useState, useEffect } from "react";
-import UnifiedEmailBuilder from "@/components/UnifiedEmailBuilder";
-import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from '@/hooks/use-toast';
+import { InlineEditField } from '@/components/InlineEditField';
 import { 
   ArrowLeft, 
-  Edit, 
-  Save, 
-  Trash2, 
-  Mail, 
-  MessageSquare, 
+  Globe, 
+  Calendar, 
+  Users, 
   Plane, 
-  Calendar,
-  Users,
+  DollarSign, 
+  Send, 
+  Plus, 
+  Save, 
+  Edit, 
+  X, 
+  Trash2,
+  Mail,
+  MessageSquare,
   MapPin,
   Clock,
-  Send,
-  Plus,
-  Copy,
-  Phone,
-  DollarSign,
-  Star,
-  Globe,
-  CheckCircle,
-  AlertCircle,
-  FileText,
-  Settings,
-  ExternalLink,
-  MoreVertical,
-  Eye,
-  EyeOff,
-  Pencil,
-  Minus,
-  X
-} from "lucide-react";
-import { QuoteCard } from "@/components/QuoteCard";
-import { AirportAutocomplete } from "@/components/AirportAutocomplete";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
-import { SabreParser, ParsedItinerary } from "@/utils/sabreParser";
-import { createNotification } from "@/utils/notifications";
+  Star
+} from 'lucide-react';
 
+import { QuoteCard } from '@/components/QuoteCard';
+import EmailManager from '@/components/EmailManager';
+import SabreCommandTemplates from '@/components/SabreCommandTemplates';
+import { SabreParser } from '@/utils/sabreParser';
+import SabreOptionManager from '@/components/SabreOptionManager';
 
 const RequestDetail = () => {
   const { requestId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [request, setRequest] = useState<any>(null);
   const [client, setClient] = useState<any>(null);
+  const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [editedRequest, setEditedRequest] = useState<any>({});
-  const [segments, setSegments] = useState<any[]>([]);
-  
-  // Email/SMS state
-  const [emailContent, setEmailContent] = useState({
-    subject: "",
-    body: "",
-    recipient: ""
-  });
-
-  // Sabre parser state
-  const [sabreInput, setSabreInput] = useState("");
-  const [parsedFlights, setParsedFlights] = useState<ParsedItinerary | null>(null);
   const [showQuoteDialog, setShowQuoteDialog] = useState(false);
-  const [quoteData, setQuoteData] = useState({
-    fareType: 'revenue_published',
-    netPrice: '',
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any>(null);
+  const [newQuote, setNewQuote] = useState({
+    route: '',
+    fare_type: 'revenue',
+    net_price: '',
     markup: '',
-    ckFeeEnabled: false,
-    ckFeeAmount: '',
-    pseudoCity: '',
-    totalPrice: 0,
-    adultsCount: 1,
-    childrenCount: 0,
-    infantsCount: 0,
+    total_price: '',
+    valid_until: '',
+    notes: '',
+    segments: [],
+    total_segments: 0,
+    adults_count: 1,
+    children_count: 0,
+    infants_count: 0,
     adultNetPrice: '',
     adultMarkup: '',
     childNetPrice: '',
@@ -98,890 +69,120 @@ const RequestDetail = () => {
     infantMarkup: ''
   });
 
-  // Quotes state
-  const [quotes, setQuotes] = useState<any[]>([]);
-  const [editingQuote, setEditingQuote] = useState<any>(null);
-  const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
-  const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
-  const [showHiddenQuotes, setShowHiddenQuotes] = useState(false);
-  const [showSendQuoteDialog, setShowSendQuoteDialog] = useState(false);
-  const [emailPreview, setEmailPreview] = useState({
-    to: '',
-    subject: '',
-    body: '',
-    selectedQuotesList: [] as any[]
-  });
-  
+  // Helper function to format dates
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   useEffect(() => {
-    if (requestId && user) {
+    if (requestId) {
       fetchRequestDetails();
-      fetchQuotes();
     }
-  }, [requestId, user]);
+  }, [requestId]);
 
   const fetchRequestDetails = async () => {
     try {
-      setLoading(true);
-
-      // Get user role to determine data access
-      const { data: userRoleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-
-      const userRole = userRoleData?.role || 'user';
-
-      // Build query based on user role
-      let query = supabase
+      // Fetch request details
+      const { data: requestData, error: requestError } = await supabase
         .from('requests')
-        .select(`
-          *,
-          clients!inner(*)
-        `)
-        .eq('id', requestId);
-
-      // Apply user filtering only for regular users
-      if (userRole === 'user') {
-        query = query.eq('user_id', user.id);
-      }
-      
-      const { data: requestData, error: requestError } = await query.single();
-
-      if (requestError) {
-        toast.error('Failed to load request details');
-        navigate('/requests');
-        return;
-      }
-
-      setRequest(requestData);
-      setClient(requestData.clients);
-      setEditedRequest(requestData);
-      
-      // Initialize segments for multi-city trips
-      const requestSegments = Array.isArray(requestData.segments) ? requestData.segments : [];
-      setSegments(requestSegments.length > 0 ? requestSegments : [
-        { origin: requestData.origin, destination: requestData.destination, date: requestData.departure_date }
-      ]);
-      
-      setEmailContent(prev => ({
-        ...prev,
-        recipient: requestData.clients.email,
-        subject: `Travel Quote: ${requestData.origin} → ${requestData.destination}`
-      }));
-      
-    } catch (error) {
-      console.error('Error fetching request details:', error);
-      toast.error('Failed to load request details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchQuotes = async () => {
-    try {
-      // Get user role to determine data access
-      const { data: userRoleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
+        .select('*')
+        .eq('id', requestId)
         .single();
 
-      const userRole = userRoleData?.role || 'user';
+      if (requestError) throw requestError;
+      setRequest(requestData);
 
-      // Build query based on user role
-      let query = supabase
+      // Fetch client details
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', requestData.client_id)
+        .single();
+
+      if (clientError) throw clientError;
+      setClient(clientData);
+
+      // Fetch quotes
+      const { data: quotesData, error: quotesError } = await supabase
         .from('quotes')
         .select('*')
         .eq('request_id', requestId)
         .order('created_at', { ascending: false });
 
-      // Apply user filtering only for regular users
-      if (userRole === 'user') {
-        query = query.eq('user_id', user.id);
-      }
-
-      const { data: quotesData, error } = await query;
-
-      if (error) throw error;
+      if (quotesError) throw quotesError;
       setQuotes(quotesData || []);
-    } catch (error) {
-      console.error('Error fetching quotes:', error);
-    }
-  };
 
-  const handleSendEmail = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: emailContent.recipient,
-          subject: emailContent.subject,
-          html: emailContent.body.replace(/\n/g, '<br>'),
-          requestId: requestId,
-          clientId: client.id
-        }
+    } catch (error) {
+      console.error('Error fetching request details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load request details",
+        variant: "destructive"
       });
-
-      if (error) throw error;
-
-      await supabase.from('email_exchanges').insert({
-        user_id: user.id,
-        client_id: client.id,
-        request_id: requestId,
-        sender_email: user.email,
-        recipient_emails: [emailContent.recipient],
-        subject: emailContent.subject,
-        body: emailContent.body,
-        direction: 'outgoing',
-        status: 'sent',
-        email_type: 'quote'
-      });
-
-      toast.success('Email sent successfully');
-      setEmailContent(prev => ({ ...prev, body: "" }));
-    } catch (error) {
-      console.error('Error sending email:', error);
-      toast.error('Failed to send email. Please ensure email service is configured.');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const updateRequestStatus = async (newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('requests')
-        .update({ status: newStatus })
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      setRequest(prev => ({ ...prev, status: newStatus }));
-      toast.success('Request status updated successfully');
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Failed to update request status');
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending": return "bg-orange-500 text-white";
-      case "researching": return "bg-blue-500 text-white";
-      case "quote_sent": return "bg-purple-500 text-white";
-      case "confirmed": return "bg-green-500 text-white";
-      case "cancelled": return "bg-red-500 text-white";
-      default: return "bg-gray-500 text-white";
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "bg-red-100 text-red-800 border-red-200";
-      case "medium": return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "low": return "bg-green-100 text-green-800 border-green-200";
-      default: return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "pending": return <AlertCircle className="h-4 w-4" />;
-      case "researching": return <Clock className="h-4 w-4" />;
-      case "quote_sent": return <Send className="h-4 w-4" />;
-      case "confirmed": return <CheckCircle className="h-4 w-4" />;
-      default: return <FileText className="h-4 w-4" />;
-    }
-  };
-
-  const handleParseSabre = () => {
-    if (!sabreInput.trim()) {
-      toast.error('Please enter Sabre I-format data');
-      return;
-    }
-
-    try {
-      const parsed = SabreParser.parseIFormat(sabreInput);
-      if (parsed) {
-        setParsedFlights(parsed);
-        toast.success(`Successfully parsed ${parsed.totalSegments} flight segment${parsed.totalSegments > 1 ? 's' : ''}`);
-      } else {
-        toast.error('Could not parse the Sabre data. Please check the format.');
-      }
-    } catch (error) {
-      console.error('Parse error:', error);
-      toast.error('Error parsing Sabre data. Please check the format.');
-    }
-  };
-
-  // Helper function to reconstruct Sabre I format from stored segments
-  const reconstructSabreIFormat = (segments: any[]): string => {
-    return segments.map((segment, index) => {
-      const segmentNum = index + 1;
-      const flightNum = segment.flightNumber.replace(segment.airlineCode, '');
-      const date = new Date(segment.flightDate);
-      const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-      const day = date.getDate().toString().padStart(2, '0');
-      const dateStr = `${day}${month}`;
-      
-      // Convert 24h time back to 12h format for display
-      const convertTo12h = (time24: string): string => {
-        const [time, period] = time24.split(' ');
-        if (period) return time24; // Already in 12h format
-        
-        const [hours, minutes] = time.split(':');
-        const hour = parseInt(hours);
-        const ampm = hour >= 12 ? 'P' : 'A';
-        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-        return `${displayHour}${minutes}${ampm}`;
-      };
-      
-      const depTime = convertTo12h(segment.departureTime);
-      const arrTime = convertTo12h(segment.arrivalTime);
-      
-      return `${segmentNum} ${segment.airlineCode}  ${flightNum}${segment.bookingClass} ${dateStr} ${segment.dayOfWeek} ${segment.departureAirport}${segment.arrivalAirport} ${segment.statusCode}  ${depTime}  ${arrTime} /DC${segment.airlineCode} /E`;
-    }).join('\n');
-  };
-
-  const hasValidPricing = () => {
-    console.log('Validating pricing with quoteData:', {
-      netPrice: quoteData.netPrice,
-      adultNetPrice: quoteData.adultNetPrice,
-      adultMarkup: quoteData.adultMarkup,
-      adultsCount: quoteData.adultsCount
-    });
-    
-    // Check if legacy netPrice is provided
-    if (quoteData.netPrice && quoteData.netPrice.trim() !== '') {
-      console.log('Valid legacy netPrice found');
-      return true;
-    }
-    
-    // Check passenger-specific pricing
-    const adultsCount = quoteData.adultsCount || 0;
-    const childrenCount = quoteData.childrenCount || 0;
-    const infantsCount = quoteData.infantsCount || 0;
-    
-    // For adults (required if count > 0)
-    if (adultsCount > 0) {
-      const hasAdultNetPrice = quoteData.adultNetPrice && quoteData.adultNetPrice.trim() !== '';
-      const hasAdultMarkup = quoteData.adultMarkup && quoteData.adultMarkup.trim() !== '';
-      console.log('Adult validation:', { hasAdultNetPrice, hasAdultMarkup, adultsCount });
-      if (!hasAdultNetPrice && !hasAdultMarkup) {
-        console.log('Invalid: No adult pricing');
-        return false;
-      }
-    }
-    
-    // For children (required if count > 0)
-    if (childrenCount > 0) {
-      const hasChildNetPrice = quoteData.childNetPrice && quoteData.childNetPrice.trim() !== '';
-      const hasChildMarkup = quoteData.childMarkup && quoteData.childMarkup.trim() !== '';
-      if (!hasChildNetPrice && !hasChildMarkup) {
-        console.log('Invalid: No child pricing');
-        return false;
-      }
-    }
-    
-    // For infants (required if count > 0)
-    if (infantsCount > 0) {
-      const hasInfantNetPrice = quoteData.infantNetPrice && quoteData.infantNetPrice.trim() !== '';
-      const hasInfantMarkup = quoteData.infantMarkup && quoteData.infantMarkup.trim() !== '';
-      if (!hasInfantNetPrice && !hasInfantMarkup) {
-        console.log('Invalid: No infant pricing');
-        return false;
-      }
-    }
-    
-    // Must have at least one passenger with pricing
-    const isValid = adultsCount > 0 || childrenCount > 0 || infantsCount > 0;
-    console.log('Final validation result:', isValid);
-    return isValid;
-  };
-
-  const calculateTotalPrice = (data = quoteData) => {
-    const adultNet = parseFloat(data.adultNetPrice) || 0;
-    const adultMarkup = parseFloat(data.adultMarkup) || 0;
-    const childNet = parseFloat(data.childNetPrice) || 0;
-    const childMarkup = parseFloat(data.childMarkup) || 0;
-    const infantNet = parseFloat(data.infantNetPrice) || 0;
-    const infantMarkup = parseFloat(data.infantMarkup) || 0;
-    
-    const adultTotal = (adultNet + adultMarkup) * (data.adultsCount || 0);
-    const childTotal = (childNet + childMarkup) * (data.childrenCount || 0);
-    const infantTotal = (infantNet + infantMarkup) * (data.infantsCount || 0);
-    
-    const basePrice = adultTotal + childTotal + infantTotal;
-    const ckFee = data.ckFeeEnabled ? basePrice * 0.035 : 0;
-    return basePrice + ckFee;
-  };
-
-  const handleQuoteDataChange = (field: string, value: any) => {
-    const newData = { ...quoteData, [field]: value };
-    const totalPrice = calculateTotalPrice(newData);
-    setQuoteData({ ...newData, totalPrice });
-  };
-
-  const handleCreateQuote = async () => {
-    if (!editingQuote && !parsedFlights) {
-      toast.error('Please parse flight data first');
-      return;
-    }
-
-    const totalPrice = calculateTotalPrice();
-    
-    // Build passenger pricing object
-    const passengerPricing = {
-      adult: {
-        net: parseFloat(quoteData.adultNetPrice) || 0,
-        markup: parseFloat(quoteData.adultMarkup) || 0,
-        count: quoteData.adultsCount || 0
-      },
-      child: {
-        net: parseFloat(quoteData.childNetPrice) || 0,
-        markup: parseFloat(quoteData.childMarkup) || 0,
-        count: quoteData.childrenCount || 0
-      },
-      infant: {
-        net: parseFloat(quoteData.infantNetPrice) || 0,
-        markup: parseFloat(quoteData.infantMarkup) || 0,
-        count: quoteData.infantsCount || 0
-      }
-    };
-
-    try {
-      if (editingQuote) {
-        // Update existing quote
-        const baseTotal = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
-          return sum + (pricing.net + pricing.markup) * pricing.count;
-        }, 0);
-        const ckFee = quoteData.ckFeeEnabled ? baseTotal * 0.035 : 0;
-        const finalTotal = baseTotal + ckFee;
-
-        // Calculate total net and markup for legacy fields
-        const totalNet = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
-          return sum + pricing.net * pricing.count;
-        }, 0);
-        const totalMarkup = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
-          return sum + pricing.markup * pricing.count;
-        }, 0);
-
-        const { error } = await supabase
-          .from('quotes')
-          .update({
-            net_price: totalNet,
-            markup: totalMarkup,
-            passenger_pricing: passengerPricing,
-            ck_fee_enabled: quoteData.ckFeeEnabled,
-            ck_fee_amount: ckFee,
-            pseudo_city: quoteData.pseudoCity,
-            total_price: finalTotal,
-            adults_count: quoteData.adultsCount,
-            children_count: quoteData.childrenCount,
-            infants_count: quoteData.infantsCount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingQuote.id);
-
-        if (error) throw error;
-
-        // Update local state
-        setQuotes(prev => prev.map(q => 
-          q.id === editingQuote.id 
-            ? { 
-                ...q, 
-                net_price: totalNet,
-                markup: totalMarkup,
-                passenger_pricing: passengerPricing,
-                ck_fee_enabled: quoteData.ckFeeEnabled,
-                ck_fee_amount: ckFee,
-                pseudo_city: quoteData.pseudoCity,
-                total_price: finalTotal,
-                adults_count: quoteData.adultsCount,
-                children_count: quoteData.childrenCount,
-                infants_count: quoteData.infantsCount,
-                updated_at: new Date().toISOString()
-              }
-            : q
-        ));
-
-        toast.success('Quote updated successfully');
-        setEditingQuote(null);
-      } else {
-        // Create new quote with passenger pricing
-        const baseTotal = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
-          return sum + (pricing.net + pricing.markup) * pricing.count;
-        }, 0);
-        const ckFee = quoteData.ckFeeEnabled ? baseTotal * 0.035 : 0;
-        const finalTotal = baseTotal + ckFee;
-
-        // Calculate total net and markup for legacy fields
-        const totalNet = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
-          return sum + pricing.net * pricing.count;
-        }, 0);
-        const totalMarkup = Object.entries(passengerPricing).reduce((sum, [type, pricing]) => {
-          return sum + pricing.markup * pricing.count;
-        }, 0);
-
-        const { data, error } = await supabase
-          .from('quotes')
-          .insert({
-            user_id: user.id,
-            request_id: requestId,
-            client_id: client.id,
-            route: parsedFlights.route,
-            segments: parsedFlights.segments as any,
-            total_segments: parsedFlights.totalSegments,
-            fare_type: quoteData.fareType,
-            pseudo_city: quoteData.pseudoCity || null,
-            net_price: totalNet,
-            markup: totalMarkup,
-            passenger_pricing: passengerPricing,
-            ck_fee_enabled: quoteData.ckFeeEnabled,
-            ck_fee_amount: ckFee,
-            total_price: finalTotal,
-            adults_count: quoteData.adultsCount,
-            children_count: quoteData.childrenCount,
-            infants_count: quoteData.infantsCount
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setQuotes(prev => [data, ...prev]);
-        toast.success('Quote created successfully');
-
-        // Create a notification for the new quote
-        try {
-          await createNotification({
-            user_id: user.id,
-            title: 'New Quote Created',
-            message: `Quote for ${client?.first_name} ${client?.last_name} - ${parsedFlights.route} ($${totalPrice.toLocaleString()})`,
-            type: 'success',
-            priority: 'medium',
-            action_url: `/request/${requestId}`,
-            related_id: data.id,
-            related_type: 'quote'
-          });
-        } catch (notificationError) {
-          console.error('Failed to create notification:', notificationError);
-        }
-      }
-
-      // Reset form
-      setShowQuoteDialog(false);
-      setSabreInput("");
-      setParsedFlights(null);
-      setQuoteData({
-        fareType: 'revenue_published',
-        netPrice: '',
-        markup: '',
-        ckFeeEnabled: false,
-        ckFeeAmount: '',
-        pseudoCity: '',
-        totalPrice: 0,
-        adultsCount: 1,
-        childrenCount: 0,
-        infantsCount: 0,
-        adultNetPrice: '',
-        adultMarkup: '',
-        childNetPrice: '',
-        childMarkup: '',
-        infantNetPrice: '',
-        infantMarkup: ''
-      });
-    } catch (error) {
-      console.error('Error saving quote:', error);
-      toast.error(editingQuote ? 'Failed to update quote' : 'Failed to create quote');
-    }
-  };
-
-  const handleDeleteQuote = async (quoteId: string) => {
-    try {
-      const { error } = await supabase
-        .from('quotes')
-        .delete()
-        .eq('id', quoteId);
-
-      if (error) throw error;
-
-      setQuotes(prev => prev.filter(q => q.id !== quoteId));
-      toast.success('Quote deleted successfully');
-    } catch (error) {
-      console.error('Error deleting quote:', error);
-      toast.error('Failed to delete quote');
-    }
-  };
-
-  const handleToggleQuoteVisibility = async (quoteId: string, isHidden: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('quotes')
-        .update({ is_hidden: !isHidden })
-        .eq('id', quoteId);
-
-      if (error) throw error;
-
-      setQuotes(prev => prev.map(q => 
-        q.id === quoteId ? { ...q, is_hidden: !isHidden } : q
-      ));
-      
-      toast.success(`Quote ${!isHidden ? 'hidden' : 'shown'} successfully`);
-    } catch (error) {
-      console.error('Error updating quote visibility:', error);
-      toast.error('Failed to update quote visibility');
-    }
-  };
-
-  const handleSendQuoteToEmail = (quote: any) => {
-    let emailText = `\n\n✈️ FLIGHT QUOTE - ${quote.route}\n`;
-    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-
-    // Flight details
-    quote.segments.forEach((segment: any, index: number) => {
-      emailText += `🛫 SEGMENT ${index + 1}\n`;
-      emailText += `Flight: ${segment.flightNumber} (${segment.airlineCode})\n`;
-      emailText += `Route: ${segment.departureAirport} → ${segment.arrivalAirport}\n`;
-      emailText += `Class: ${segment.cabinClass}\n`;
-      emailText += `Departure: ${segment.departureTime}\n`;
-      emailText += `Arrival: ${segment.arrivalTime}${segment.arrivalDayOffset > 0 ? ` (+${segment.arrivalDayOffset} day)` : ''}\n\n`;
-    });
-
-    // Fare information
-    emailText += `💰 FARE DETAILS:\n`;
-    emailText += `Fare Type: ${quote.fare_type.replace('_', ' ').toUpperCase()}\n`;
-    if (quote.pseudo_city) {
-      emailText += `Pseudo City: ${quote.pseudo_city}\n`;
-    }
-    emailText += `Net Price: $${parseFloat(quote.net_price).toFixed(2)}\n`;
-    emailText += `Markup: $${parseFloat(quote.markup).toFixed(2)}\n`;
-    if (quote.ck_fee_enabled) {
-      emailText += `CK Fee (3.5%): $${parseFloat(quote.ck_fee_amount).toFixed(2)}\n`;
-    }
-    emailText += `TOTAL PRICE: $${parseFloat(quote.total_price).toFixed(2)}\n\n`;
-    
-    emailText += "Valid until: ____\n\n";
-    emailText += "Ready to book? Reply to confirm!\n";
-    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-
-    setEmailContent(prev => ({
-      ...prev,
-      body: prev.body + emailText
-    }));
-
-    toast.success('Quote added to email');
-  };
-
-  const addParsedFlightToEmail = () => {
-    if (!parsedFlights) return;
-
-    const formatTime = (time: string) => {
-      // Convert time back to display format if needed
-      return time;
-    };
-
-    let emailText = `\n\n✈️ FLIGHT ITINERARY - ${parsedFlights.route}\n`;
-    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-
-    parsedFlights.segments.forEach((segment, index) => {
-      emailText += `🛫 SEGMENT ${index + 1}\n`;
-      emailText += `Flight: ${segment.flightNumber} (${segment.airlineCode})\n`;
-      emailText += `Route: ${segment.departureAirport} → ${segment.arrivalAirport}\n`;
-      emailText += `Class: ${segment.cabinClass}\n`;
-      emailText += `Departure: ${segment.departureTime}\n`;
-      emailText += `Arrival: ${segment.arrivalTime}${segment.arrivalDayOffset > 0 ? ` (+${segment.arrivalDayOffset} day)` : ''}\n`;
-      if (segment.aircraftType) {
-        emailText += `Aircraft: ${segment.aircraftType}\n`;
-      }
-      emailText += "\n";
-    });
-
-    emailText += "💰 PRICING:\n";
-    emailText += "- Base Fare: $____\n";
-    emailText += "- Taxes & Fees: $____\n";
-    emailText += "- Total Price: $____\n\n";
-    emailText += "Valid until: ____\n\n";
-    emailText += "Ready to book? Reply to confirm!\n";
-    emailText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-
-    setEmailContent(prev => ({
-      ...prev,
-      body: prev.body + emailText
-    }));
-
-    toast.success('Flight details added to email');
-  };
-
-  const copyFlightDetails = () => {
-    if (!parsedFlights) return;
-
-    let copyText = `Flight Itinerary - ${parsedFlights.route}\n\n`;
-    parsedFlights.segments.forEach((segment, index) => {
-      copyText += `Segment ${index + 1}: ${segment.flightNumber} ${segment.departureAirport}-${segment.arrivalAirport}\n`;
-      copyText += `Class: ${segment.cabinClass}, Depart: ${segment.departureTime}, Arrive: ${segment.arrivalTime}\n\n`;
-    });
-
-    navigator.clipboard.writeText(copyText).then(() => {
-      toast.success('Flight details copied to clipboard');
-    }).catch(() => {
-      toast.error('Failed to copy to clipboard');
-    });
-  };
-
-  const handleQuoteSelection = (quoteId: string, selected: boolean) => {
-    const newSelected = new Set(selectedQuotes);
-    if (selected) {
-      newSelected.add(quoteId);
-    } else {
-      newSelected.delete(quoteId);
-    }
-    setSelectedQuotes(newSelected);
-  };
-
-  const handleSendSelectedQuotes = async () => {
-    if (selectedQuotes.size === 0) {
-      toast.error('Please select at least one quote to send');
-      return;
-    }
-
-    const selectedQuotesList = quotes.filter(q => selectedQuotes.has(q.id));
-    
-    // Generate email content
-    let emailText = `Dear ${client?.first_name},\n\n`;
-    emailText += `I have prepared ${selectedQuotesList.length} flight quote${selectedQuotesList.length > 1 ? 's' : ''} for your trip from ${request.origin} to ${request.destination}:\n\n`;
-
-    selectedQuotesList.forEach((quote, index) => {
-      emailText += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-      emailText += `✈️ OPTION ${index + 1}: ${quote.route}\n`;
-      emailText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
-      // Flight segments
-      quote.segments.forEach((segment: any, segIndex: number) => {
-        emailText += `🛫 SEGMENT ${segIndex + 1}\n`;
-        emailText += `Flight: ${segment.flightNumber} (${segment.airlineCode})\n`;
-        emailText += `Route: ${segment.departureAirport} → ${segment.arrivalAirport}\n`;
-        emailText += `Class: ${segment.cabinClass}\n`;
-        emailText += `Departure: ${segment.departureTime}\n`;
-        emailText += `Arrival: ${segment.arrivalTime}${segment.arrivalDayOffset > 0 ? ` (+${segment.arrivalDayOffset} day)` : ''}\n\n`;
-      });
-
-      // Pricing
-      emailText += `💰 FARE DETAILS:\n`;
-      emailText += `Fare Type: ${quote.fare_type.replace('_', ' ').toUpperCase()}\n`;
-      if (quote.pseudo_city) {
-        emailText += `Pseudo City: ${quote.pseudo_city}\n`;
-      }
-      emailText += `Net Price: $${parseFloat(quote.net_price).toFixed(2)}\n`;
-      emailText += `Markup: $${parseFloat(quote.markup).toFixed(2)}\n`;
-      if (quote.ck_fee_enabled) {
-        emailText += `CK Fee (3.5%): $${parseFloat(quote.ck_fee_amount).toFixed(2)}\n`;
-      }
-      emailText += `TOTAL PRICE: $${parseFloat(quote.total_price).toFixed(2)}\n\n`;
-
-      // I-Format data
-      emailText += `📋 TECHNICAL DETAILS:\n${generateIFormatDisplay(quote)}\n\n`;
-    });
-
-    emailText += `\nPlease review these options and let me know your preference. I'm here to answer any questions you may have.\n\n`;
-    emailText += `Best regards,\nYour Travel Agent`;
-
-    // Set up email preview
-    setEmailPreview({
-      to: client.email,
-      subject: `Flight Quote${selectedQuotesList.length > 1 ? 's' : ''}: ${request.origin} → ${request.destination}`,
-      body: emailText,
-      selectedQuotesList
-    });
-    setShowSendQuoteDialog(true);
-  };
-
-  const handleSendEmailFromPreview = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: [emailPreview.to],
-          subject: emailPreview.subject,
-          body: emailPreview.body,
-          requestId: requestId,
-          clientId: client.id,
-          emailType: 'quote'
-        }
-      });
-
-      if (error) throw error;
-
-      await supabase.from('email_exchanges').insert({
-        user_id: user.id,
-        client_id: client.id,
-        request_id: requestId,
-        sender_email: user.email,
-        recipient_emails: [emailPreview.to],
-        subject: emailPreview.subject,
-        body: emailPreview.body,
-        direction: 'outbound',
-        status: 'sent',
-        email_type: 'quote'
-      });
-
-      setSelectedQuotes(new Set());
-      setShowSendQuoteDialog(false);
-      toast.success(`Quote${emailPreview.selectedQuotesList.length > 1 ? 's' : ''} sent successfully!`);
-    } catch (error) {
-      console.error('Error sending quotes:', error);
-      toast.error('Failed to send quotes. Please ensure email service is configured.');
-    }
-  };
-
-  // Quote card handlers
-  const handleToggleQuoteExpanded = (quoteId: string) => {
-    const newExpanded = new Set(expandedQuotes);
-    if (newExpanded.has(quoteId)) {
-      newExpanded.delete(quoteId);
-    } else {
-      newExpanded.add(quoteId);
-    }
-    setExpandedQuotes(newExpanded);
-  };
-
-  const handleEditQuote = (quote: any) => {
-    setEditingQuote(quote);
-    setQuoteData({
-      fareType: quote.fare_type || 'revenue_published',
-      netPrice: quote.net_price.toString(),
-      markup: quote.markup.toString(),
-      ckFeeEnabled: quote.ck_fee_enabled,
-      ckFeeAmount: quote.ck_fee_amount.toString(),
-      pseudoCity: quote.pseudo_city || '',
-      totalPrice: quote.total_price,
-      adultsCount: quote.adults_count || 1,
-      childrenCount: quote.children_count || 0,
-      infantsCount: quote.infants_count || 0,
-      adultNetPrice: quote.passenger_pricing?.adult?.net || '',
-      adultMarkup: quote.passenger_pricing?.adult?.markup || '',
-      childNetPrice: quote.passenger_pricing?.child?.net || '',
-      childMarkup: quote.passenger_pricing?.child?.markup || '',
-      infantNetPrice: quote.passenger_pricing?.infant?.net || '',
-      infantMarkup: quote.passenger_pricing?.infant?.markup || ''
-    });
-    
-    // Reconstruct the original Sabre I format data
-    if (quote.segments && quote.segments.length > 0) {
-      const reconstructedSabreData = reconstructSabreIFormat(quote.segments);
-      setSabreInput(reconstructedSabreData);
-      setParsedFlights({
-        segments: quote.segments,
-        totalSegments: quote.total_segments,
-        route: quote.route,
-        isRoundTrip: quote.segments.length > 1 && 
-          quote.segments[0].departureAirport === quote.segments[quote.segments.length - 1].arrivalAirport
-      });
-    }
-    setShowQuoteDialog(true);
-  };
-
-  const generateIFormatDisplay = (quote: any) => {
-    if (!quote.segments || quote.segments.length === 0) return 'No I-format data available';
-    
-    let iFormatText = '';
-    quote.segments.forEach((segment: any, index: number) => {
-      const segNum = index + 1;
-      const airline = segment.airlineCode || 'XX';
-      const flightNum = segment.flightNumber?.replace(airline, '') || '000';
-      const bookingClass = segment.bookingClass || 'Y';
-      const date = segment.flightDate ? new Date(segment.flightDate).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }).replace(' ', '').toUpperCase() : '01JAN';
-      const dayOfWeek = segment.dayOfWeek || 'M';
-      const depAirport = segment.departureAirport || 'XXX';
-      const arrAirport = segment.arrivalAirport || 'XXX';
-      const depTime = segment.departureTime?.replace(/[^\d]/g, '').padStart(4, '0') + (segment.departureTime?.includes('PM') && !segment.departureTime?.includes('12:') ? 'P' : 'A') || '1200A';
-      const arrTime = segment.arrivalTime?.replace(/[^\d]/g, '').padStart(4, '0') + (segment.arrivalTime?.includes('PM') && !segment.arrivalTime?.includes('12:') ? 'P' : 'A') || '1200A';
-      
-      iFormatText += `${segNum} ${airline}${flightNum}${bookingClass} ${date} ${dayOfWeek} ${depAirport}${arrAirport}*SS1   ${depTime}  ${arrTime} /DC${airline} /E\n`;
-    });
-    
-    return iFormatText.trim();
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <p className="text-muted-foreground">Loading request details...</p>
-            </div>
-          </div>
+      <div className="container mx-auto px-6 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </div>
     );
   }
 
-  if (!request) {
+  if (!request || !client) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="container mx-auto px-6 py-8">
-          <div className="text-center">
-            <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
-              <Plane className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <h1 className="text-2xl font-semibold mb-4">Request not found</h1>
-            <p className="text-muted-foreground mb-6">The requested travel request could not be found.</p>
-            <Button onClick={() => navigate('/requests')} variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Requests
-            </Button>
-          </div>
+      <div className="container mx-auto px-6 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Request not found</h1>
+          <Button onClick={() => navigate('/requests')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Requests
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Enhanced Header with Gradient Background */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
-        <div className="container mx-auto px-6 py-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button 
-                variant="outline" 
+                variant="ghost" 
+                size="sm" 
                 onClick={() => navigate('/requests')}
-                className="hover:scale-105 transition-transform"
+                className="hover:bg-gray-100"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Requests
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
               </Button>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <Plane className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold">{client?.first_name} {client?.last_name}</h1>
-                  <p className="text-muted-foreground">
-                    {request.origin} → {request.destination}
-                  </p>
-                </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Request #{request.id.slice(0, 8)}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {client.first_name} {client.last_name} • {formatDate(request.created_at)}
+                </p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className={getPriorityColor(request.priority)}>
-                <Star className="h-3 w-3 mr-1" />
-                {request.priority} priority
+            <div className="flex items-center gap-2">
+              <Badge variant={request.status === 'pending' ? 'secondary' : 'default'}>
+                {request.status}
               </Badge>
-              <Badge className={`${getStatusColor(request.status)} flex items-center gap-1`}>
-                {getStatusIcon(request.status)}
-                {request.status.replace('_', ' ')}
-              </Badge>
+              <Badge variant="outline">{request.priority}</Badge>
             </div>
           </div>
         </div>
@@ -991,7 +192,7 @@ const RequestDetail = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Left Column - Request Details & Flight Options */}
           <div className="xl:col-span-2 space-y-6">
-            {/* Trip Information Card */}
+            {/* Trip Information Card - Inline Editable */}
             <Card className="border-0 shadow-lg">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
@@ -1000,980 +201,355 @@ const RequestDetail = () => {
                       <Globe className="h-5 w-5 text-primary" />
                       Trip Information
                     </CardTitle>
-                    <CardDescription>Complete travel request details and requirements</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!editing ? (
-                      <Button variant="outline" size="sm" onClick={() => {
-                        setEditing(true);
-                        setEditedRequest({
-                          ...request,
-                          adults_count: request.adults_count || 1,
-                          children_count: request.children_count || 0,
-                          infants_count: request.infants_count || 0,
-                          budget_range: request.budget_range || ''
-                        });
-                      }}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <>
-                        <Button variant="outline" size="sm" onClick={() => {
-                          setEditing(false);
-                          setEditedRequest(request);
-                        }}>
-                          Cancel
-                        </Button>
-                        <Button size="sm" onClick={async () => {
-                          try {
-                            const updateData: any = {
-                              origin: editedRequest.origin,
-                              destination: editedRequest.destination,
-                              request_type: editedRequest.request_type,
-                              adults_count: editedRequest.adults_count || 1,
-                              children_count: editedRequest.children_count || 0,
-                              infants_count: editedRequest.infants_count || 0,
-                              budget_range: editedRequest.budget_range || null
-                            };
-                            
-                            // Add segments for multi-city trips
-                            if (editedRequest.request_type === 'multi_city') {
-                              updateData.segments = segments;
-                            } else {
-                              updateData.segments = [];
-                            }
-                            
-                            const { error } = await supabase
-                              .from('requests')
-                              .update(updateData)
-                              .eq('id', requestId);
-                            
-                            if (error) throw error;
-                            
-                            setRequest(editedRequest);
-                            setEditing(false);
-                            toast.success('Trip information updated successfully');
-                          } catch (error) {
-                            console.error('Error updating request:', error);
-                            toast.error('Failed to update trip information');
-                          }
-                        }}>
-                          <Save className="h-4 w-4 mr-1" />
-                          Save
-                        </Button>
-                      </>
-                    )}
+                    <CardDescription>Click on any field to edit directly</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {editing ? (
-                  <div className="space-y-6">
-                    {/* Route Configuration */}
-                     <div className="space-y-4">
-                      <h3 className="font-semibold text-lg">Route Configuration</h3>
-                      
-                      {/* Trip Type Selection */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Trip Type</Label>
-                        <Select 
-                          value={editedRequest.request_type || ''} 
-                          onValueChange={(value) => {
-                            setEditedRequest(prev => ({ ...prev, request_type: value }));
-                            // Initialize segments based on trip type
-                            if (value === 'multi_city' && segments.length === 1) {
-                              setSegments([
-                                segments[0],
-                                { origin: '', destination: '', date: '' }
-                              ]);
-                            } else if (value !== 'multi_city') {
-                              setSegments([{ 
-                                origin: editedRequest.origin || request.origin, 
-                                destination: editedRequest.destination || request.destination, 
-                                date: request.departure_date 
-                              }]);
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select trip type" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background border shadow-lg z-50">
-                            <SelectItem value="one_way">One Way</SelectItem>
-                            <SelectItem value="round_trip">Round Trip</SelectItem>
-                            <SelectItem value="multi_city">Multi City</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Passenger Information */}
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-md">Passenger Information</h4>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Adults</Label>
-                            <Input
-                              type="number"
-                              value={editedRequest.adults_count === 0 ? '' : editedRequest.adults_count || ''}
-                              onChange={(e) => setEditedRequest(prev => ({ 
-                                ...prev, 
-                                adults_count: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 
-                              }))}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Children</Label>
-                            <Input
-                              type="number"
-                              value={editedRequest.children_count === 0 ? '' : editedRequest.children_count || ''}
-                              onChange={(e) => setEditedRequest(prev => ({ 
-                                ...prev, 
-                                children_count: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 
-                              }))}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Infants</Label>
-                            <Input
-                              type="number"
-                              value={editedRequest.infants_count === 0 ? '' : editedRequest.infants_count || ''}
-                              onChange={(e) => setEditedRequest(prev => ({ 
-                                ...prev, 
-                                infants_count: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 
-                              }))}
-                            />
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Total: {(editedRequest.adults_count || 1) + (editedRequest.children_count || 0) + (editedRequest.infants_count || 0)} passengers
-                        </div>
-                      </div>
-
-                      {/* Budget Range */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Budget Range ($)</Label>
-                        <Input
-                          type="text"
-                          placeholder="e.g., $5,000 - $10,000"
-                          value={editedRequest.budget_range || ''}
-                          onChange={(e) => setEditedRequest(prev => ({ ...prev, budget_range: e.target.value }))}
-                        />
-                      </div>
-
-                      {/* Route Input */}
-                      {editedRequest.request_type === 'multi_city' ? (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm font-medium">Flight Segments ({segments.length}/9)</Label>
-                            <div className="flex gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (segments.length < 9) {
-                                    setSegments([...segments, { origin: '', destination: '', date: '' }]);
-                                  }
-                                }}
-                                disabled={segments.length >= 9}
-                                className="h-8 px-3"
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add Segment
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (segments.length > 1) {
-                                    setSegments(segments.slice(0, -1));
-                                  }
-                                }}
-                                disabled={segments.length <= 1}
-                                className="h-8 px-3"
-                              >
-                                <Minus className="h-4 w-4 mr-1" />
-                                Remove
-                              </Button>
-                            </div>
-                          </div>
-                          
-                           <div className="space-y-3">
-                             {segments.map((segment, index) => (
-                               <div key={index} className="p-4 border rounded-lg bg-muted/20">
-                                 <div className="flex items-center justify-between mb-3">
-                                   <span className="text-sm font-semibold text-primary">Segment {index + 1}</span>
-                                   <Button
-                                     type="button"
-                                     size="sm"
-                                     variant="ghost"
-                                     onClick={() => {
-                                       if (segments.length > 1) {
-                                         const newSegments = segments.filter((_, i) => i !== index);
-                                         setSegments(newSegments);
-                                       }
-                                     }}
-                                     disabled={segments.length <= 1}
-                                     className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                   >
-                                     <X className="h-3 w-3" />
-                                   </Button>
-                                 </div>
-                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                   <div className="space-y-1">
-                                     <Label className="text-xs">From</Label>
-                                     <AirportAutocomplete
-                                       value={segment.origin || ''}
-                                       onChange={(value) => {
-                                         const newSegments = [...segments];
-                                         newSegments[index] = { ...segment, origin: value };
-                                         setSegments(newSegments);
-                                         if (index === 0) {
-                                           setEditedRequest(prev => ({ ...prev, origin: value }));
-                                         }
-                                       }}
-                                       placeholder="Select origin"
-                                     />
-                                   </div>
-                                   <div className="space-y-1">
-                                     <Label className="text-xs">To</Label>
-                                     <AirportAutocomplete
-                                       value={segment.destination || ''}
-                                       onChange={(value) => {
-                                         const newSegments = [...segments];
-                                         newSegments[index] = { ...segment, destination: value };
-                                         setSegments(newSegments);
-                                         if (index === segments.length - 1) {
-                                           setEditedRequest(prev => ({ ...prev, destination: value }));
-                                         }
-                                       }}
-                                       placeholder="Select destination"
-                                     />
-                                   </div>
-                                   <div className="space-y-1">
-                                     <Label className="text-xs">Departure Date</Label>
-                                     <Input
-                                       type="date"
-                                       value={segment.date || ''}
-                                       onChange={(e) => {
-                                         const newSegments = [...segments];
-                                         newSegments[index] = { ...segment, date: e.target.value };
-                                         setSegments(newSegments);
-                                       }}
-                                       className="h-9"
-                                     />
-                                   </div>
-                                 </div>
-                               </div>
-                             ))}
-                           </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <div className="space-y-2">
-                             <Label className="text-sm font-medium">From</Label>
-                             <AirportAutocomplete
-                               value={editedRequest.origin || ''}
-                               onChange={(value) => setEditedRequest(prev => ({ ...prev, origin: value }))}
-                               placeholder="Select origin"
-                             />
-                           </div>
-                           <div className="space-y-2">
-                             <Label className="text-sm font-medium">To</Label>
-                             <AirportAutocomplete
-                               value={editedRequest.destination || ''}
-                               onChange={(value) => setEditedRequest(prev => ({ ...prev, destination: value }))}
-                               placeholder="Select destination"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Trip Information - Inline Editable */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Route Information */}
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                     <MapPin className="h-5 w-5 text-blue-600" />
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground">Route</p>
-                        <p className="font-semibold">
-                          {request.request_type === 'multi_city' && segments.length > 1 
-                            ? `Multi-city (${segments.length} segments)`
-                            : `${request.origin} → ${request.destination}`
+                      <div className="font-semibold flex items-center gap-2">
+                        <InlineEditField
+                          value={request.origin}
+                          onSave={async (value) => {
+                            const { error } = await supabase
+                              .from('requests')
+                              .update({ origin: value })
+                              .eq('id', requestId);
+                            if (!error) {
+                              setRequest(prev => ({ ...prev, origin: value.toString() }));
+                              toast.success('Origin updated');
+                            } else {
+                              toast.error('Failed to update origin');
+                            }
+                          }}
+                          placeholder="Origin"
+                        />
+                        <span>→</span>
+                        <InlineEditField
+                          value={request.destination}
+                          onSave={async (value) => {
+                            const { error } = await supabase
+                              .from('requests')
+                              .update({ destination: value })
+                              .eq('id', requestId);
+                            if (!error) {
+                              setRequest(prev => ({ ...prev, destination: value.toString() }));
+                              toast.success('Destination updated');
+                            } else {
+                              toast.error('Failed to update destination');
+                            }
+                          }}
+                          placeholder="Destination"
+                        />
+                      </div>
+                      <InlineEditField
+                        value={request.request_type}
+                        onSave={async (value) => {
+                          const { error } = await supabase
+                            .from('requests')
+                            .update({ request_type: value })
+                            .eq('id', requestId);
+                          if (!error) {
+                            setRequest(prev => ({ ...prev, request_type: value.toString() }));
+                            toast.success('Trip type updated');
+                          } else {
+                            toast.error('Failed to update trip type');
                           }
-                        </p>
-                        <p className="text-xs text-muted-foreground">{request.request_type.replace('_', ' ')}</p>
-                        {request.request_type === 'multi_city' && segments.length > 1 && (
-                          <div className="text-xs text-muted-foreground mt-1 max-h-16 overflow-y-auto">
-                            {segments.slice(0, 3).map((segment, index) => (
-                              <div key={index}>
-                                {index + 1}. {segment.origin} → {segment.destination}
-                                {segment.date && ` (${new Date(segment.date).toLocaleDateString()})`}
-                              </div>
-                            ))}
-                            {segments.length > 3 && <div className="text-muted-foreground">... +{segments.length - 3} more</div>}
-                          </div>
-                        )}
+                        }}
+                        type="select"
+                        options={[
+                          { value: 'one_way', label: 'One Way' },
+                          { value: 'round_trip', label: 'Round Trip' },
+                          { value: 'multi_city', label: 'Multi-City' }
+                        ]}
+                        displayValue={request.request_type?.replace('_', ' ')}
+                        className="text-xs text-muted-foreground"
+                      />
                     </div>
                   </div>
                   
+                  {/* Departure Date */}
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                     <Calendar className="h-5 w-5 text-green-600" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm text-muted-foreground">Departure Date</p>
-                      <p className="font-semibold">{formatDate(request.departure_date)}</p>
+                      <InlineEditField
+                        value={request.departure_date}
+                        onSave={async (value) => {
+                          const { error } = await supabase
+                            .from('requests')
+                            .update({ departure_date: value })
+                            .eq('id', requestId);
+                          if (!error) {
+                            setRequest(prev => ({ ...prev, departure_date: value.toString() }));
+                            toast.success('Departure date updated');
+                          } else {
+                            toast.error('Failed to update departure date');
+                          }
+                        }}
+                        type="date"
+                        displayValue={formatDate(request.departure_date)}
+                        className="font-semibold"
+                      />
                     </div>
                   </div>
                   
-                  {request.return_date && (
+                  {/* Return Date */}
+                  {(request.return_date || request.request_type === 'round_trip') && (
                     <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                       <Calendar className="h-5 w-5 text-orange-600" />
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm text-muted-foreground">Return Date</p>
-                        <p className="font-semibold">{new Date(request.return_date).toLocaleDateString()}</p>
+                        <InlineEditField
+                          value={request.return_date}
+                          onSave={async (value) => {
+                            const { error } = await supabase
+                              .from('requests')
+                              .update({ return_date: value })
+                              .eq('id', requestId);
+                            if (!error) {
+                              setRequest(prev => ({ ...prev, return_date: value.toString() }));
+                              toast.success('Return date updated');
+                            } else {
+                              toast.error('Failed to update return date');
+                            }
+                          }}
+                          type="date"
+                          displayValue={request.return_date ? new Date(request.return_date).toLocaleDateString() : ''}
+                          className="font-semibold"
+                        />
                       </div>
                     </div>
                   )}
                    
-                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                  {/* Passengers and Class in one row */}
+                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors col-span-full">
                     <div className="flex items-center gap-3 flex-1">
                       <Users className="h-5 w-5 text-purple-600" />
                       <div className="flex-1">
                         <p className="text-sm text-muted-foreground">Passengers</p>
                         <div className="flex gap-4 text-sm font-medium">
-                          <span>Adults: {request.adults_count || 1}</span>
-                          <span>Children: {request.children_count || 0}</span>
-                          <span>Infants: {request.infants_count || 0}</span>
+                          <span>Adults: 
+                            <InlineEditField
+                              value={request.adults_count || 1}
+                              onSave={async (value) => {
+                                const { error } = await supabase
+                                  .from('requests')
+                                  .update({ adults_count: Number(value) || 1 })
+                                  .eq('id', requestId);
+                                if (!error) {
+                                  setRequest(prev => ({ ...prev, adults_count: Number(value) || 1 }));
+                                  toast.success('Adult count updated');
+                                } else {
+                                  toast.error('Failed to update adult count');
+                                }
+                              }}
+                              type="number"
+                              className="inline-block w-8 ml-1"
+                            />
+                          </span>
+                          <span>Children: 
+                            <InlineEditField
+                              value={request.children_count || 0}
+                              onSave={async (value) => {
+                                const { error } = await supabase
+                                  .from('requests')
+                                  .update({ children_count: Number(value) || 0 })
+                                  .eq('id', requestId);
+                                if (!error) {
+                                  setRequest(prev => ({ ...prev, children_count: Number(value) || 0 }));
+                                  toast.success('Children count updated');
+                                } else {
+                                  toast.error('Failed to update children count');
+                                }
+                              }}
+                              type="number"
+                              className="inline-block w-8 ml-1"
+                            />
+                          </span>
+                          <span>Infants: 
+                            <InlineEditField
+                              value={request.infants_count || 0}
+                              onSave={async (value) => {
+                                const { error } = await supabase
+                                  .from('requests')
+                                  .update({ infants_count: Number(value) || 0 })
+                                  .eq('id', requestId);
+                                if (!error) {
+                                  setRequest(prev => ({ ...prev, infants_count: Number(value) || 0 }));
+                                  toast.success('Infants count updated');
+                                } else {
+                                  toast.error('Failed to update infants count');
+                                }
+                              }}
+                              type="number"
+                              className="inline-block w-8 ml-1"
+                            />
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Plane className="h-5 w-5 text-blue-600" />
                         <div>
                           <p className="text-sm text-muted-foreground">Class</p>
-                          <p className="font-semibold capitalize">{request.class_preference}</p>
+                          <InlineEditField
+                            value={request.class_preference}
+                            onSave={async (value) => {
+                              const { error } = await supabase
+                                .from('requests')
+                                .update({ class_preference: value })
+                                .eq('id', requestId);
+                              if (!error) {
+                                setRequest(prev => ({ ...prev, class_preference: value.toString() }));
+                                toast.success('Class preference updated');
+                              } else {
+                                toast.error('Failed to update class preference');
+                              }
+                            }}
+                            type="select"
+                            options={[
+                              { value: 'economy', label: 'Economy' },
+                              { value: 'premium_economy', label: 'Premium Economy' },
+                              { value: 'business', label: 'Business' },
+                              { value: 'first', label: 'First' }
+                            ]}
+                            displayValue={request.class_preference?.replace('_', ' ')}
+                            className="font-semibold capitalize"
+                          />
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-                )}
 
-                
-
-                {(request.special_requirements || request.budget_range) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {request.special_requirements && (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h4 className="font-medium text-blue-900 mb-2">Special Requirements</h4>
-                        <p className="text-sm text-blue-700">{request.special_requirements}</p>
-                      </div>
-                    )}
-                    {request.budget_range && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <h4 className="font-medium text-green-900 mb-2">Budget Range</h4>
-                        <p className="text-sm text-green-700">{request.budget_range}</p>
-                      </div>
-                    )}
+                {/* Special Requirements and Budget */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-2">Special Requirements</h4>
+                    <InlineEditField
+                      value={request.special_requirements}
+                      onSave={async (value) => {
+                        const { error } = await supabase
+                          .from('requests')
+                          .update({ special_requirements: value })
+                          .eq('id', requestId);
+                        if (!error) {
+                          setRequest(prev => ({ ...prev, special_requirements: value.toString() }));
+                          toast.success('Special requirements updated');
+                        } else {
+                          toast.error('Failed to update special requirements');
+                        }
+                      }}
+                      type="textarea"
+                      placeholder="Add special requirements..."
+                      className="text-sm text-blue-700"
+                    />
                   </div>
-                )}
-
-                {request.notes && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <h4 className="font-medium text-amber-900 mb-2">Additional Notes</h4>
-                    <p className="text-sm text-amber-700">{request.notes}</p>
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 className="font-medium text-green-900 mb-2">Budget Range</h4>
+                    <InlineEditField
+                      value={request.budget_range}
+                      onSave={async (value) => {
+                        const { error } = await supabase
+                          .from('requests')
+                          .update({ budget_range: value })
+                          .eq('id', requestId);
+                        if (!error) {
+                          setRequest(prev => ({ ...prev, budget_range: value.toString() }));
+                          toast.success('Budget range updated');
+                        } else {
+                          toast.error('Failed to update budget range');
+                        }
+                      }}
+                      placeholder="Add budget range..."
+                      className="text-sm text-green-700"
+                    />
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
 
-            {/* Options Section - Combined Add Quote and Flight Quotes */}
+            {/* Quotes Section */}
             <Card className="border-0 shadow-lg">
-              <CardHeader>
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      Options
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      Flight Quotes ({quotes.length})
                     </CardTitle>
-                    <CardDescription>
-                      Create new quotes and manage existing flight options
-                    </CardDescription>
+                    <CardDescription>Manage pricing and flight options</CardDescription>
                   </div>
-                  <Button 
-                    onClick={() => setShowQuoteDialog(true)}
-                    size="sm"
-                    className="h-8 w-8 p-0 rounded-full"
-                  >
-                    <Plus className="h-4 w-4" />
+                  <Button onClick={() => setShowQuoteDialog(true)} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Quote
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
-                
-                {/* Existing Quotes */}
+              <CardContent>
                 {quotes.length === 0 ? (
-                  <div className="text-center text-sm text-muted-foreground">
-                    No quotes created yet. Click "Add New Quote" to create your first option.
+                  <div className="text-center py-8">
+                    <Plane className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No quotes yet</h3>
+                    <p className="text-gray-500 mb-4">Create your first flight quote to get started</p>
+                    <Button onClick={() => setShowQuoteDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Quote
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-base">
-                        Flight Quotes ({quotes.filter(q => !q.is_hidden).length})
-                      </h4>
-                    </div>
-                    
-                    {/* Quote Selection Controls */}
-                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="select-all"
-                            checked={selectedQuotes.size === quotes.filter(q => !q.is_hidden).length && quotes.filter(q => !q.is_hidden).length > 0}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedQuotes(new Set(quotes.filter(q => !q.is_hidden).map(q => q.id)));
-                              } else {
-                                setSelectedQuotes(new Set());
-                              }
-                            }}
-                          />
-                          <Label htmlFor="select-all" className="text-sm font-medium">
-                            Select All ({quotes.filter(q => !q.is_hidden).length})
-                          </Label>
-                        </div>
-                        {selectedQuotes.size > 0 && (
-                          <Badge variant="secondary">
-                            {selectedQuotes.size} selected
-                          </Badge>
-                        )}
-                      </div>
-                      <Button
-                        onClick={handleSendSelectedQuotes}
-                        disabled={selectedQuotes.size === 0}
-                        size="sm"
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Quote{selectedQuotes.size > 1 ? 's' : ''}
-                      </Button>
-                    </div>
+                    {quotes.map((quote) => (
+                      <QuoteCard
+                        key={quote.id}
+                        quote={quote}
+                        onEdit={(quote) => {
+                          setEditingQuote(quote);
+                          setNewQuote({
+                            ...quote,
+                            adultNetPrice: quote.passenger_pricing?.adult?.net_price || '',
+                            adultMarkup: quote.passenger_pricing?.adult?.markup || '',
+                            childNetPrice: quote.passenger_pricing?.child?.net_price || '',
+                            childMarkup: quote.passenger_pricing?.child?.markup || '',
+                            infantNetPrice: quote.passenger_pricing?.infant?.net_price || '',
+                            infantMarkup: quote.passenger_pricing?.infant?.markup || ''
+                          });
+                          setShowQuoteDialog(true);
+                        }}
+                        onDelete={async (quoteId) => {
+                          try {
+                            const { error } = await supabase
+                              .from('quotes')
+                              .delete()
+                              .eq('id', quoteId);
 
-                    {/* Scrollable Quotes Area */}
-                    <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 scroll-smooth">
-                      {quotes.filter(q => !q.is_hidden).map((quote) => (
-                        <QuoteCard
-                          key={quote.id}
-                          quote={quote}
-                          isSelected={selectedQuotes.has(quote.id)}
-                          isExpanded={expandedQuotes.has(quote.id)}
-                          onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
-                          onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
-                          onEdit={() => handleEditQuote(quote)}
-                          onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
-                          onDelete={() => handleDeleteQuote(quote.id)}
-                          onSendToEmail={() => handleSendQuoteToEmail(quote)}
-                          generateIFormatDisplay={generateIFormatDisplay}
-                        />
-                      ))}
-                    </div>
-                    
-                    {/* Floating Action Button for Mobile */}
-                    {selectedQuotes.size > 0 && (
-                      <div className="fixed bottom-6 right-6 z-20 md:hidden">
-                        <Button
-                          onClick={handleSendSelectedQuotes}
-                          size="lg"
-                          className="rounded-full shadow-lg animate-scale-in"
-                        >
-                          <Send className="h-5 w-5 mr-2" />
-                          Send ({selectedQuotes.size})
-                        </Button>
-                      </div>
-                    )}
+                            if (error) throw error;
 
-                    {/* Bottom Action Bar for better accessibility */}
-                    {selectedQuotes.size > 0 && (
-                      <div className="sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t p-4 -mx-6 -mb-6 mt-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline" className="animate-fade-in">
-                              {selectedQuotes.size} quote{selectedQuotes.size > 1 ? 's' : ''} selected
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedQuotes(new Set())}
-                            >
-                              Clear Selection
-                            </Button>
-                          </div>
-                          <Button
-                            onClick={handleSendSelectedQuotes}
-                            size="sm"
-                            className="transition-all duration-200"
-                          >
-                            <Send className="h-4 w-4 mr-2" />
-                            Send Selected Quote{selectedQuotes.size > 1 ? 's' : ''}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {quotes.filter(q => q.is_hidden).length > 0 && (
-                      <div className="pt-4 border-t space-y-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowHiddenQuotes(!showHiddenQuotes)}
-                          className="w-full justify-start"
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          {showHiddenQuotes ? 'Hide' : 'Show'} Hidden Quotes ({quotes.filter(q => q.is_hidden).length})
-                        </Button>
-                        
-                        {showHiddenQuotes && (
-                          <div className="space-y-3">
-                            {quotes.filter(q => q.is_hidden).map((quote) => (
-                              <QuoteCard
-                                key={quote.id}
-                                quote={quote}
-                                isSelected={selectedQuotes.has(quote.id)}
-                                isExpanded={expandedQuotes.has(quote.id)}
-                                onToggleExpanded={() => handleToggleQuoteExpanded(quote.id)}
-                                onToggleSelected={(selected) => handleQuoteSelection(quote.id, selected)}
-                                onEdit={() => handleEditQuote(quote)}
-                                onToggleVisibility={() => handleToggleQuoteVisibility(quote.id, quote.is_hidden)}
-                                onDelete={() => handleDeleteQuote(quote.id)}
-                                onSendToEmail={() => handleSendQuoteToEmail(quote)}
-                                generateIFormatDisplay={generateIFormatDisplay}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                            setQuotes(quotes.filter(q => q.id !== quoteId));
+                            toast.success('Quote deleted successfully');
+                          } catch (error) {
+                            console.error('Error deleting quote:', error);
+                            toast.error('Failed to delete quote');
+                          }
+                        }}
+                        onSendEmail={() => setShowEmailDialog(true)}
+                        client={client}
+                        request={request}
+                      />
+                    ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Quote Dialog */}
-            <Dialog open={showQuoteDialog} onOpenChange={(open) => {
-              setShowQuoteDialog(open);
-              if (!open) {
-                setEditingQuote(null);
-                setQuoteData({
-                  fareType: 'revenue_published',
-                  netPrice: '',
-                  markup: '',
-                  ckFeeEnabled: false,
-                  ckFeeAmount: '',
-                  pseudoCity: '',
-                  totalPrice: 0,
-                  adultsCount: 1,
-                  childrenCount: 0,
-                  infantsCount: 0,
-                  adultNetPrice: '',
-                  adultMarkup: '',
-                  childNetPrice: '',
-                  childMarkup: '',
-                  infantNetPrice: '',
-                  infantMarkup: ''
-                });
-              }
-            }}>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-primary" />
-                    {editingQuote ? 'Edit Quote' : 'Create Flight Quote'}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {editingQuote ? 'Update the quote details below' : 'Parse Sabre I-format data and configure pricing details'}
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-6">
-                  {/* Sabre Input Section */}
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium">Sabre I-Format Input</Label>
-                    <Textarea
-                      placeholder="Paste Sabre *I or VI command output here..."
-                      className="h-32 font-mono text-sm"
-                      value={sabreInput}
-                      onChange={(e) => setSabreInput(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Button onClick={handleParseSabre} disabled={!sabreInput.trim()}>
-                        <Plane className="h-4 w-4 mr-2" />
-                        Parse Flight Data
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setSabreInput("")}
-                        disabled={!sabreInput.trim()}
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Parsed Flight Information */}
-                  {parsedFlights && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <Label className="text-base font-medium">Parsed Flight Information</Label>
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium">{parsedFlights.route}</h4>
-                            <Badge variant="outline">
-                              {parsedFlights.totalSegments} segment{parsedFlights.totalSegments > 1 ? 's' : ''}
-                            </Badge>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            {parsedFlights.segments.map((segment, index) => (
-                              <div key={index} className="p-3 bg-background rounded border">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="secondary">{segment.flightNumber}</Badge>
-                                    <span className="text-sm font-medium">
-                                      {segment.departureAirport} → {segment.arrivalAirport}
-                                    </span>
-                                  </div>
-                                  <Badge className="bg-blue-100 text-blue-800">
-                                    {segment.cabinClass}
-                                  </Badge>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                                  <div>
-                                    <span className="font-medium">Departure:</span> {segment.departureTime}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Arrival:</span> {segment.arrivalTime}
-                                    {segment.arrivalDayOffset > 0 && <span className="text-orange-600"> +{segment.arrivalDayOffset}d</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* Fare Configuration */}
-                      <div className="space-y-4">
-                        <Label className="text-base font-medium">Fare Configuration</Label>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Fare Type */}
-                          <div className="space-y-2">
-                            <Label>Fare Type</Label>
-                            <Select 
-                              value={quoteData.fareType} 
-                              onValueChange={(value) => handleQuoteDataChange('fareType', value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select fare type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="revenue_published">Revenue - Published</SelectItem>
-                                <SelectItem value="revenue_private">Revenue - Private</SelectItem>
-                                <SelectItem value="tourfare">Tour Fare</SelectItem>
-                                <SelectItem value="award">Award</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Pseudo City - shown for specific fare types */}
-                          {(quoteData.fareType === 'revenue_private' || quoteData.fareType === 'tourfare') && (
-                            <div className="space-y-2">
-                              <Label>Pseudo City</Label>
-                              <Input
-                                placeholder="Enter pseudo city"
-                                value={quoteData.pseudoCity}
-                                onChange={(e) => handleQuoteDataChange('pseudoCity', e.target.value)}
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Passenger Configuration */}
-                        <div className="space-y-4">
-                          <Label className="text-base font-medium">Passenger Information</Label>
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                              <Label>Adults</Label>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={quoteData.adultsCount || ''}
-                                onChange={(e) => handleQuoteDataChange('adultsCount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
-                                placeholder="1"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Children</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                value={quoteData.childrenCount || ''}
-                                onChange={(e) => handleQuoteDataChange('childrenCount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
-                                placeholder="0"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Infants</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                value={quoteData.infantsCount || ''}
-                                onChange={(e) => handleQuoteDataChange('infantsCount', e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
-                                placeholder="0"
-                              />
-                            </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            Total passengers: {(quoteData.adultsCount || 0) + (quoteData.childrenCount || 0) + (quoteData.infantsCount || 0)}
-                          </div>
-                        </div>
-
-                        {/* Passenger Pricing Details */}
-                        <div className="space-y-6">
-                          <Label className="text-base font-medium">Pricing by Passenger Type</Label>
-                          
-                          {/* Adult Pricing */}
-                          {quoteData.adultsCount > 0 && (
-                            <div className="p-4 border rounded-lg space-y-3">
-                              <h4 className="font-medium text-sm flex items-center gap-2">
-                                Adult Pricing <Badge variant="outline">{quoteData.adultsCount} passenger{quoteData.adultsCount > 1 ? 's' : ''}</Badge>
-                              </h4>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                  <Label className="text-sm">Net Price ($)</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={quoteData.adultNetPrice}
-                                    onChange={(e) => handleQuoteDataChange('adultNetPrice', e.target.value)}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-sm">Markup ($)</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={quoteData.adultMarkup}
-                                    onChange={(e) => handleQuoteDataChange('adultMarkup', e.target.value)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Subtotal: ${((parseFloat(quoteData.adultNetPrice) || 0) + (parseFloat(quoteData.adultMarkup) || 0) * quoteData.adultsCount).toFixed(2)}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Child Pricing */}
-                          {quoteData.childrenCount > 0 && (
-                            <div className="p-4 border rounded-lg space-y-3">
-                              <h4 className="font-medium text-sm flex items-center gap-2">
-                                Child Pricing <Badge variant="outline">{quoteData.childrenCount} passenger{quoteData.childrenCount > 1 ? 's' : ''}</Badge>
-                              </h4>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                  <Label className="text-sm">Net Price ($)</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={quoteData.childNetPrice}
-                                    onChange={(e) => handleQuoteDataChange('childNetPrice', e.target.value)}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-sm">Markup ($)</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={quoteData.childMarkup}
-                                    onChange={(e) => handleQuoteDataChange('childMarkup', e.target.value)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Subtotal: ${((parseFloat(quoteData.childNetPrice) || 0) + (parseFloat(quoteData.childMarkup) || 0) * quoteData.childrenCount).toFixed(2)}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Infant Pricing */}
-                          {quoteData.infantsCount > 0 && (
-                            <div className="p-4 border rounded-lg space-y-3">
-                              <h4 className="font-medium text-sm flex items-center gap-2">
-                                Infant Pricing <Badge variant="outline">{quoteData.infantsCount} passenger{quoteData.infantsCount > 1 ? 's' : ''}</Badge>
-                              </h4>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                  <Label className="text-sm">Net Price ($)</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={quoteData.infantNetPrice}
-                                    onChange={(e) => handleQuoteDataChange('infantNetPrice', e.target.value)}
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-sm">Markup ($)</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={quoteData.infantMarkup}
-                                    onChange={(e) => handleQuoteDataChange('infantMarkup', e.target.value)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Subtotal: ${((parseFloat(quoteData.infantNetPrice) || 0) + (parseFloat(quoteData.infantMarkup) || 0) * quoteData.infantsCount).toFixed(2)}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Total Price Summary */}
-                          <div className="p-4 bg-muted/50 rounded-lg">
-                            <div className="flex justify-between items-center font-medium">
-                              <span>Total Price:</span>
-                              <span className="text-lg">${calculateTotalPrice().toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* CK Fee Checkbox */}
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="ckFee"
-                            checked={quoteData.ckFeeEnabled}
-                            onCheckedChange={(checked) => handleQuoteDataChange('ckFeeEnabled', checked)}
-                          />
-                          <Label htmlFor="ckFee" className="text-sm">
-                            Add CK Fee (3.5% of total): ${quoteData.ckFeeEnabled ? (calculateTotalPrice() * 0.035).toFixed(2) : '0.00'}
-                          </Label>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-3 justify-end">
-                        <Button 
-                          variant="outline"
-                          onClick={() => setShowQuoteDialog(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={handleCreateQuote}
-                          disabled={!hasValidPricing()}
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          {editingQuote ? 'Update Quote' : 'Save Quote'}
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            {/* Email Template Editor Dialog */}
-            <Dialog open={showSendQuoteDialog} onOpenChange={setShowSendQuoteDialog}>
-              <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
-                <DialogHeader className="flex-shrink-0">
-                  <DialogTitle className="flex items-center gap-2">
-                    <Mail className="h-5 w-5 text-primary" />
-                    Email Template Editor - {emailPreview.selectedQuotesList.length} Quote{emailPreview.selectedQuotesList.length > 1 ? 's' : ''}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Create beautiful, professional emails using our templates or compose from scratch
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="flex-1 overflow-hidden">
-                  <UnifiedEmailBuilder
-                    clientId={client?.id || ''}
-                    requestId={requestId || ''}
-                    quotes={emailPreview.selectedQuotesList}
-                    client={client || { id: '', first_name: '', last_name: '', email: '' }}
-                    onSendEmail={(reviewData) => {
-                      setShowSendQuoteDialog(false);
-                      toast.success("Email sent successfully! Client will receive options with review portal access.");
-                    }}
-                    onCancel={() => setShowSendQuoteDialog(false)}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-
-
-            {/* Quick Actions */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-primary" />
-                  Quick Actions & Status Updates
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => updateRequestStatus('researching')}
-                    className="hover:scale-105 transition-transform"
-                  >
-                    <Clock className="mr-2 h-4 w-4" />
-                    Start Research
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => updateRequestStatus('quote_sent')}
-                    className="hover:scale-105 transition-transform"
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    Mark Quoted
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate(`/client/${client.id}`)}
-                    className="hover:scale-105 transition-transform"
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View Client
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="hover:scale-105 transition-transform"
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Duplicate Request
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column - Client Info & Communication */}
+          {/* Right Column - Client Information */}
           <div className="space-y-6">
             {/* Client Information */}
             <Card className="border-0 shadow-lg">
@@ -1984,106 +560,102 @@ const RequestDetail = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-center pb-4 border-b">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Users className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-lg">
-                    {client?.first_name} {client?.last_name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{client?.email}</p>
-                  {client?.phone && (
-                    <div className="flex items-center justify-center gap-1 mt-1">
-                      <Phone className="h-3 w-3 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">{client?.phone}</p>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Bookings:</span>
-                    <span className="font-medium">{client?.total_bookings || 0}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Spent:</span>
-                    <span className="font-medium">${client?.total_spent || 0}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Preferred Class:</span>
-                    <span className="font-medium capitalize">{client?.preferred_class}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Last Trip:</span>
-                    <span className="font-medium">
-                      {client?.last_trip_date ? new Date(client.last_trip_date).toLocaleDateString() : 'N/A'}
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <span className="text-lg font-semibold text-primary">
+                      {client.first_name?.[0]}{client.last_name?.[0]}
                     </span>
                   </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">
+                      {client.first_name} {client.last_name}
+                    </h3>
+                    <p className="text-sm text-gray-500">{client.email}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => navigate(`/client/${client.id}`)}
                   >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View Full Profile
+                    View Profile
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
 
+                <Separator />
 
-            {/* Request Timeline */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  Request Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="font-medium">Request Created</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(request.created_at).toLocaleDateString()} at {new Date(request.created_at).toLocaleTimeString()}
-                      </p>
+                <div className="space-y-3">
+                  {client.phone && (
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <MessageSquare className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <span className="text-sm">{client.phone}</span>
+                    </div>
+                  )}
+                  
+                  {client.company && (
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                        <Star className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <span className="text-sm">{client.company}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 bg-green-50 rounded-lg flex items-center justify-center">
+                      <DollarSign className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">${(client.total_spent || 0).toLocaleString()}</span>
+                      <span className="text-gray-500 ml-1">total spent</span>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${
-                      request.status === 'pending' ? 'bg-orange-500' :
-                      request.status === 'researching' ? 'bg-blue-500' :
-                      request.status === 'quote_sent' ? 'bg-purple-500' :
-                      request.status === 'confirmed' ? 'bg-green-500' :
-                      'bg-gray-500'
-                    }`}></div>
-                    <div>
-                      <p className="font-medium">Current Status: {request.status.replace('_', ' ')}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Last updated: {new Date(request.updated_at).toLocaleDateString()}
-                      </p>
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 bg-orange-50 rounded-lg flex items-center justify-center">
+                      <Plane className="h-4 w-4 text-orange-600" />
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-gray-300 rounded-full mt-2"></div>
-                    <div>
-                      <p className="font-medium text-muted-foreground">Travel Date</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(request.departure_date)}
-                      </p>
+                    <div className="text-sm">
+                      <span className="font-medium">{client.total_bookings || 0}</span>
+                      <span className="text-gray-500 ml-1">bookings</span>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Sabre Commands */}
+            <SabreCommandTemplates request={request} />
           </div>
         </div>
       </div>
+
+      {/* Quote Dialog */}
+      <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
+        <SabreOptionManager 
+          request={request}
+          client={client}
+          onQuoteCreated={(quote) => {
+            setQuotes([quote, ...quotes]);
+            setShowQuoteDialog(false);
+            toast.success('Quote created successfully');
+          }}
+          editingQuote={editingQuote}
+          onClose={() => {
+            setShowQuoteDialog(false);
+            setEditingQuote(null);
+          }}
+        />
+      </Dialog>
+
+      {/* Email Dialog */}
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <EmailManager 
+          selectedEmails={[]}
+          onClose={() => setShowEmailDialog(false)}
+        />
+      </Dialog>
     </div>
   );
 };
