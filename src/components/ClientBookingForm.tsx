@@ -542,7 +542,7 @@ const ClientBookingForm = ({ quote, client, onBack }: ClientBookingFormProps) =>
           onClick={() => {
             if (currentStep === 3) {
               // Handle booking submission
-              console.log('Booking submitted');
+              // Booking submitted successfully
             } else {
               setCurrentStep(Math.min(3, currentStep + 1));
             }

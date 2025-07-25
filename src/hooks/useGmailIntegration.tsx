@@ -34,7 +34,7 @@ export const useGmailIntegration = () => {
     }
 
     try {
-      console.log('Checking Gmail status for user:', user.id);
+      // Checking Gmail status for user
       const { data, error } = await supabase
         .from('user_preferences')
         .select('gmail_user_email, gmail_access_token, updated_at')

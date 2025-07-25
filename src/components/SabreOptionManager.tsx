@@ -108,10 +108,10 @@ interface SabreOptionManagerProps {
       const infantValid = hasValidCount(newOption.infantsCount) && isValidPrice(newOption.infantPrice);
       const legacyValid = isValidPrice(newOption.netPrice);
       
-      console.log('Revenue validation results:', { adultValid, childValid, infantValid, legacyValid });
+      // Revenue validation completed
       
       const result = adultValid || childValid || infantValid || legacyValid;
-      console.log('Final revenue validation result:', result);
+      // Final revenue validation completed
       return result;
     } else if (newOption.quoteType === "award") {
       // For award quotes, require program and points
@@ -121,13 +121,13 @@ interface SabreOptionManagerProps {
                          !isNaN(Number(newOption.numberOfPoints)) && 
                          Number(newOption.numberOfPoints) > 0;
       
-      console.log('Award validation results:', { programValid, pointsValid });
+      // Award validation completed
       
       const result = programValid && pointsValid;
-      console.log('Final award validation result:', result);
+      // Final award validation completed
       return result;
     }
-    console.log('Allowing draft save');
+    // Allowing draft save
     return true; // Allow saving drafts without pricing
   };
 
@@ -164,7 +164,7 @@ interface SabreOptionManagerProps {
         const parsed = SabreParser.parseIFormat(content);
         if (parsed) {
           parsedInfo = parsed;
-          console.log('Successfully parsed I format:', parsed);
+          // Successfully parsed I format
         }
       } catch (error) {
         console.error('Error parsing I format:', error);

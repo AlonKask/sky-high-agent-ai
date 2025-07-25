@@ -156,7 +156,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
         scope: 'https://www.googleapis.com/auth/gmail.readonly',
         callback: (response: any) => {
           if (response.access_token) {
-            console.log('Successfully authenticated with new API');
+            // Successfully authenticated with new API
             fetchGmailEmails(response.access_token);
           } else {
             console.error('No access token received:', response);
@@ -301,7 +301,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
   // Listen for Gmail sync events to refresh email list
   useEffect(() => {
     const handleGmailSync = () => {
-      console.log('Gmail sync detected, refreshing email list...');
+      // Gmail sync detected, refreshing email list
       setRefreshKey(prev => prev + 1);
     };
 
