@@ -8,6 +8,7 @@ import { SecurityProvider } from "@/components/SecurityProvider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { AuthGuard } from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Emails from "./pages/Emails";
@@ -49,7 +50,7 @@ function App() {
                       <Route path="/options/:token" element={<OptionsReview />} />
                       <Route path="/view-option/:token/:quoteId" element={<ViewOption />} />
                       <Route path="*" element={
-                        <>
+                        <AuthGuard>
                           <AppSidebar />
                           <main className="flex-1 overflow-hidden">
                             <div className="h-full overflow-auto">
@@ -70,7 +71,7 @@ function App() {
                               </Routes>
                             </div>
                           </main>
-                        </>
+                        </AuthGuard>
                       } />
                     </Routes>
                   </div>
