@@ -81,10 +81,28 @@ async function syncUserEmails(supabaseClient: any, userPrefs: any) {
           .single();
 
         if (!existingEmail) {
+          // Find client by email address
+          let clientId = null;
+          const { data: clients } = await supabaseClient
+            .from('clients')
+            .select('id, email')
+            .eq('user_id', userPrefs.user_id);
+
+          if (clients) {
+            for (const client of clients) {
+              const clientEmail = client.email.replace(/[<>"]/g, '').trim();
+              if (from.includes(clientEmail) || to.includes(clientEmail)) {
+                clientId = client.id;
+                break;
+              }
+            }
+          }
+
           await supabaseClient
             .from('email_exchanges')
             .insert({
               user_id: userPrefs.user_id,
+              client_id: clientId,
               message_id: msgData.id,
               thread_id: msgData.threadId,
               subject: subject,

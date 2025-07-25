@@ -169,11 +169,30 @@ serve(async (req) => {
           .single();
 
         if (!existingEmail) {
+          // Find client by email address
+          let clientId = null;
+          const { data: clients } = await supabaseClient
+            .from('clients')
+            .select('id, email')
+            .eq('user_id', userId);
+
+          if (clients) {
+            for (const client of clients) {
+              const clientEmail = client.email.replace(/[<>"]/g, '').trim();
+              if (from.includes(clientEmail) || 
+                  recipientEmails.some(email => email.includes(clientEmail))) {
+                clientId = client.id;
+                break;
+              }
+            }
+          }
+
           // Store email in database
           const { error: insertError } = await supabaseClient
             .from('email_exchanges')
             .insert({
               user_id: userId,
+              client_id: clientId,
               message_id: messageData.id,
               thread_id: messageData.threadId,
               subject,
