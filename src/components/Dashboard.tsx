@@ -330,7 +330,7 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
                   <div 
                     key={request.id} 
                     className="group flex items-center justify-between p-4 border rounded-lg hover:bg-gradient-subtle transition-all duration-200 cursor-pointer"
-                    onClick={() => navigate(`/request/${request.id}`)}
+                    onClick={() => navigate(`/requests/${request.id}`)}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10 group-hover:bg-accent/20 transition-colors">

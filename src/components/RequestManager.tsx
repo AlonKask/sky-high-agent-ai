@@ -542,7 +542,7 @@ const RequestManager = () => {
             <Card 
               key={request.id} 
               className="minimal-card hover:bg-accent/50 transition-all duration-200 cursor-pointer group"
-              onClick={() => navigate(`/request/${request.id}`)}
+              onClick={() => navigate(`/requests/${request.id}`)}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">

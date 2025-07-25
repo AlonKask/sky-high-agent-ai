@@ -470,7 +470,7 @@ const Calendar = () => {
                 {selectedEvent.request_id && (
                   <Button 
                     variant="outline"
-                    onClick={() => window.open(`/request/${selectedEvent.request_id}`, '_blank')}
+                    onClick={() => window.open(`/requests/${selectedEvent.request_id}`, '_blank')}
                   >
                     View Request
                   </Button>
