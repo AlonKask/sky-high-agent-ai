@@ -334,64 +334,67 @@ const RequestDetail = () => {
                       <Users className="h-5 w-5 text-purple-600" />
                       <div className="flex-1">
                         <p className="text-sm text-muted-foreground">Passengers</p>
-                        <div className="flex gap-4 text-sm font-medium">
-                          <span>Adults: 
-                            <InlineEditField
-                              value={request.adults_count || 1}
-                              onSave={async (value) => {
-                                const { error } = await supabase
-                                  .from('requests')
-                                  .update({ adults_count: Number(value) || 1 })
-                                  .eq('id', requestId);
-                                if (!error) {
-                                  setRequest(prev => ({ ...prev, adults_count: Number(value) || 1 }));
-                                  toast({ title: "Success", description: "Adult count updated" });
-                                } else {
-                                  toast({ title: "Error", description: "Failed to update adult count", variant: "destructive" });
-                                }
-                              }}
-                              type="number"
-                              className="inline-block w-8 ml-1"
-                            />
-                          </span>
-                          <span>Children: 
-                            <InlineEditField
-                              value={request.children_count || 0}
-                              onSave={async (value) => {
-                                const { error } = await supabase
-                                  .from('requests')
-                                  .update({ children_count: Number(value) || 0 })
-                                  .eq('id', requestId);
-                                if (!error) {
-                                  setRequest(prev => ({ ...prev, children_count: Number(value) || 0 }));
-                                  toast({ title: "Success", description: "Children count updated" });
-                                } else {
-                                  toast({ title: "Error", description: "Failed to update children count", variant: "destructive" });
-                                }
-                              }}
-                              type="number"
-                              className="inline-block w-8 ml-1"
-                            />
-                          </span>
-                          <span>Infants: 
-                            <InlineEditField
-                              value={request.infants_count || 0}
-                              onSave={async (value) => {
-                                const { error } = await supabase
-                                  .from('requests')
-                                  .update({ infants_count: Number(value) || 0 })
-                                  .eq('id', requestId);
-                                if (!error) {
-                                  setRequest(prev => ({ ...prev, infants_count: Number(value) || 0 }));
-                                  toast({ title: "Success", description: "Infants count updated" });
-                                } else {
-                                  toast({ title: "Error", description: "Failed to update infants count", variant: "destructive" });
-                                }
-                              }}
-                              type="number"
-                              className="inline-block w-8 ml-1"
-                            />
-                          </span>
+                         <div className="flex gap-6 text-sm font-medium">
+                           <div className="flex items-center gap-1">
+                             <span>Adults:</span>
+                             <InlineEditField
+                               value={request.adults_count || 1}
+                               onSave={async (value) => {
+                                 const { error } = await supabase
+                                   .from('requests')
+                                   .update({ adults_count: Number(value) || 1 })
+                                   .eq('id', requestId);
+                                 if (!error) {
+                                   setRequest(prev => ({ ...prev, adults_count: Number(value) || 1 }));
+                                   toast({ title: "Success", description: "Adult count updated" });
+                                 } else {
+                                   toast({ title: "Error", description: "Failed to update adult count", variant: "destructive" });
+                                 }
+                               }}
+                               type="number"
+                               className="inline-block w-12 text-center"
+                             />
+                           </div>
+                           <div className="flex items-center gap-1">
+                             <span>Children:</span>
+                             <InlineEditField
+                               value={request.children_count || 0}
+                               onSave={async (value) => {
+                                 const { error } = await supabase
+                                   .from('requests')
+                                   .update({ children_count: Number(value) || 0 })
+                                   .eq('id', requestId);
+                                 if (!error) {
+                                   setRequest(prev => ({ ...prev, children_count: Number(value) || 0 }));
+                                   toast({ title: "Success", description: "Children count updated" });
+                                 } else {
+                                   toast({ title: "Error", description: "Failed to update children count", variant: "destructive" });
+                                 }
+                               }}
+                               type="number"
+                               className="inline-block w-12 text-center"
+                             />
+                           </div>
+                           <div className="flex items-center gap-1">
+                             <span>Infants:</span>
+                             <InlineEditField
+                               value={request.infants_count || 0}
+                               onSave={async (value) => {
+                                 const { error } = await supabase
+                                   .from('requests')
+                                   .update({ infants_count: Number(value) || 0 })
+                                   .eq('id', requestId);
+                                 if (!error) {
+                                   setRequest(prev => ({ ...prev, infants_count: Number(value) || 0 }));
+                                   toast({ title: "Success", description: "Infants count updated" });
+                                 } else {
+                                   toast({ title: "Error", description: "Failed to update infants count", variant: "destructive" });
+                                 }
+                               }}
+                               type="number"
+                               className="inline-block w-12 text-center"
+                             />
+                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
