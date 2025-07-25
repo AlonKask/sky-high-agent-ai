@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => ({
     // Production optimizations
     minify: mode === 'production' ? 'esbuild' : false,
     sourcemap: mode !== 'production',
+    target: 'esnext',
+    outDir: 'dist',
+    assetsDir: 'assets',
     rollupOptions: {
       output: {
         manualChunks: {
@@ -27,6 +30,20 @@ export default defineConfig(({ mode }) => ({
           charts: ['recharts'],
           supabase: ['@supabase/supabase-js'],
         },
+        // Optimize asset names for caching
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return `assets/images/[name]-[hash][extname]`;
+          }
+          if (/css/i.test(ext)) {
+            return `assets/css/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
       },
     },
     // Performance budgets
@@ -39,10 +56,15 @@ export default defineConfig(({ mode }) => ({
       'X-Frame-Options': 'DENY',
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-XSS-Protection': '1; mode=block',
     } : {},
   },
   define: {
     // Ensure proper environment variable handling
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
+    __PRODUCTION__: JSON.stringify(mode === 'production'),
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', '@supabase/supabase-js'],
   },
 }));
