@@ -72,7 +72,7 @@ const Auth = () => {
           title: "Welcome back!",
           description: "Successfully signed in.",
         });
-        window.location.href = "/";
+        navigate("/", { replace: true });
       }
     } catch (error) {
       toast({
@@ -151,7 +151,7 @@ const Auth = () => {
             title: "Account Created!",
             description: "Welcome to AviaSales! You're now signed in.",
           });
-          window.location.href = "/";
+          navigate("/", { replace: true });
         } else {
           // Email confirmation required
           toast({
