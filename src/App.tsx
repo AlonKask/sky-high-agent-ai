@@ -43,44 +43,200 @@ function App() {
           <SecurityProvider>
             <BrowserRouter>
               <ErrorBoundary>
-                <SidebarProvider>
-                  <div className="flex h-screen w-full">
-                    <Routes>
-                      <Route path="/auth" element={<Auth />} />
-                      <Route path="/options/:token" element={<OptionsReview />} />
-                      <Route path="/view-option/:token/:quoteId" element={<ViewOption />} />
-                      <Route path="*" element={
-                        <AuthGuard>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/options/:token" element={<OptionsReview />} />
+                  <Route path="/view-option/:token/:quoteId" element={<ViewOption />} />
+                  
+                  {/* Protected routes */}
+                  <Route path="/" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
                           <AppSidebar />
                           <main className="flex-1 overflow-hidden">
                             <div className="h-full overflow-auto">
-                              <Routes>
-                                <Route path="/" element={<Index />} />
-                                <Route path="/emails" element={<Emails />} />
-                                <Route path="/clients" element={<Clients />} />
-                                <Route path="/clients/:id" element={<ClientProfile />} />
-                                <Route path="/bookings" element={<Bookings />} />
-                                <Route path="/bookings/:id" element={<BookingDetail />} />
-                                <Route path="/requests" element={<Requests />} />
-                                <Route path="/requests/:id" element={<RequestDetail />} />
-                                <Route path="/calendar" element={<Calendar />} />
-                                <Route path="/analytics" element={<Analytics />} />
-                                <Route path="/messages" element={<Messages />} />
-                                <Route path="/agent-statistics" element={<AgentStatistics />} />
-                                <Route path="*" element={<NotFound />} />
-                              </Routes>
+                              <Index />
                             </div>
                           </main>
-                        </AuthGuard>
-                      } />
-                    </Routes>
-                  </div>
-                </SidebarProvider>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/emails" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <Emails />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/clients" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <Clients />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/clients/:id" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <ClientProfile />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/bookings" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <Bookings />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/bookings/:id" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <BookingDetail />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/requests" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <Requests />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/requests/:id" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <RequestDetail />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/calendar" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <Calendar />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/analytics" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <Analytics />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/messages" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <Messages />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="/agent-statistics" element={
+                    <AuthGuard>
+                      <SidebarProvider>
+                        <div className="flex h-screen w-full">
+                          <AppSidebar />
+                          <main className="flex-1 overflow-hidden">
+                            <div className="h-full overflow-auto">
+                              <AgentStatistics />
+                            </div>
+                          </main>
+                        </div>
+                      </SidebarProvider>
+                    </AuthGuard>
+                  } />
+                  
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <Toaster />
               </ErrorBoundary>
             </BrowserRouter>
           </SecurityProvider>
         </AuthProvider>
-        <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );
