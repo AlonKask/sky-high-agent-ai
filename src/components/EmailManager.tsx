@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { config } from "@/lib/config";
+import { logger } from "@/utils/logger";
 
 // Extend Window interface for Google APIs
 declare global {
@@ -86,7 +87,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching emails:', error);
+        logger.error('Error fetching emails:', error);
         toast({
           title: "Error",
           description: "Failed to fetch email history",
@@ -100,7 +101,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
         direction: email.direction as 'inbound' | 'outbound'
       })));
     } catch (error) {
-      console.error('Error:', error);
+      logger.error('Error:', error);
       toast({
         title: "Error",
         description: "Failed to fetch email history",
@@ -135,7 +136,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
         initializeGoogleAuth();
       }
     } catch (error) {
-      console.error('Error syncing with Gmail:', error);
+      logger.error('Error syncing with Gmail:', error);
       toast({
         title: "Error",
         description: "Failed to sync with Gmail",
@@ -159,7 +160,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
             // Successfully authenticated with new API
             fetchGmailEmails(response.access_token);
           } else {
-            console.error('No access token received:', response);
+            logger.error('No access token received:', response);
             toast({
               title: "Authentication Failed",
               description: "Failed to receive access token from Google",
@@ -169,7 +170,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
           }
         },
         error_callback: (error: any) => {
-          console.error('Google Auth error:', error);
+          logger.error('Google Auth error:', error);
           toast({
             title: "Gmail Authentication Error",
             description: `Authentication failed: ${error.type || 'Unknown error'}`,
@@ -201,7 +202,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
       });
 
       if (error) {
-        console.error('Error fetching Gmail emails:', error);
+        logger.error('Error fetching Gmail emails:', error);
         toast({
           title: "Error",
           description: "Failed to fetch emails from Gmail",
@@ -219,7 +220,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
       fetchEmails();
 
     } catch (error) {
-      console.error('Error:', error);
+      logger.error('Error:', error);
       toast({
         title: "Error",
         description: "Failed to sync Gmail emails",
@@ -255,7 +256,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
       });
 
       if (error) {
-        console.error('Error sending email:', error);
+        logger.error('Error sending email:', error);
         toast({
           title: "Error",
           description: "Failed to send email",
@@ -283,7 +284,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
       fetchEmails();
 
     } catch (error) {
-      console.error('Error:', error);
+      logger.error('Error:', error);
       toast({
         title: "Error",
         description: "Failed to send email",
