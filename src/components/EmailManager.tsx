@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { logger } from "@/utils/logger";
+import ExpandableEmailCard from "./ExpandableEmailCard";
 
 
 interface EmailExchange {
@@ -50,6 +51,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
   const [isSending, setIsSending] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
   const { toast } = useToast();
   const { authStatus, triggerSync } = useGmailIntegration();
 
@@ -310,40 +312,18 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
           </div>
         ) : (
           <ScrollArea className="h-96">
-            <div className="space-y-4">
+            <div className="space-y-3">
               {emails.map((email) => (
-                <div key={email.id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getDirectionBadge(email.direction)}
-                      <Badge variant="outline" className="text-xs">
-                        {email.email_type}
-                      </Badge>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      {formatDate(email.created_at)}
-                    </span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">{email.subject}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      From: {email.sender_email}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      To: {email.recipient_emails.join(', ')}
-                    </p>
-                  </div>
-                  <Separator />
-                  <div className="text-sm">
-                    <div 
-                      dangerouslySetInnerHTML={{ 
-                        __html: email.body.length > 200 
-                          ? email.body.substring(0, 200) + '...' 
-                          : email.body 
-                      }} 
-                    />
-                  </div>
-                </div>
+                <ExpandableEmailCard
+                  key={email.id}
+                  email={email}
+                  isExpanded={expandedEmailId === email.id}
+                  onToggleExpand={() => setExpandedEmailId(
+                    expandedEmailId === email.id ? null : email.id
+                  )}
+                  clientId={clientId}
+                  requestId={requestId}
+                />
               ))}
             </div>
           </ScrollArea>
