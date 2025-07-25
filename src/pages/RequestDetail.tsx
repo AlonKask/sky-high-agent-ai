@@ -1321,38 +1321,39 @@ const RequestDetail = () => {
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                     <Calendar className="h-5 w-5 text-green-600" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Departure</p>
+                      <p className="text-sm text-muted-foreground">Departure Date</p>
                       <p className="font-semibold">{formatDate(request.departure_date)}</p>
-                      {request.return_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Return: {new Date(request.return_date).toLocaleDateString()}
-                        </p>
-                      )}
                     </div>
                   </div>
                   
-                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
-                     <Users className="h-5 w-5 text-purple-600" />
-                     <div className="flex-1">
-                       <p className="text-sm text-muted-foreground">Passengers</p>
-                       <div className="text-sm font-medium space-y-1">
-                         <div className="flex gap-4">
-                           <span>Adults: {request.adults_count || 1}</span>
-                           <span>Children: {request.children_count || 0}</span>
-                           <span>Infants: {request.infants_count || 0}</span>
-                         </div>
-                         <p className="text-xs text-muted-foreground">
-                           Total: {(request.adults_count || 1) + (request.children_count || 0) + (request.infants_count || 0)} passengers
-                         </p>
-                       </div>
-                     </div>
-                   </div>
-                  
+                  {request.return_date && (
+                    <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                      <Calendar className="h-5 w-5 text-orange-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Return Date</p>
+                        <p className="font-semibold">{new Date(request.return_date).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  )}
+                   
                   <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
-                    <Plane className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Class</p>
-                      <p className="font-semibold capitalize">{request.class_preference}</p>
+                    <div className="flex items-center gap-3 flex-1">
+                      <Users className="h-5 w-5 text-purple-600" />
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground">Passengers</p>
+                        <div className="flex gap-4 text-sm font-medium">
+                          <span>Adults: {request.adults_count || 1}</span>
+                          <span>Children: {request.children_count || 0}</span>
+                          <span>Infants: {request.infants_count || 0}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Plane className="h-5 w-5 text-blue-600" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Class</p>
+                          <p className="font-semibold capitalize">{request.class_preference}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
