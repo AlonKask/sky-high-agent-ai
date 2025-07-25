@@ -331,15 +331,15 @@ export const AIEmailAssistant: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto h-[800px] grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className="w-full h-full flex overflow-hidden">
       {/* Conversations Sidebar */}
-      <Card className="lg:col-span-1">
-        <CardHeader>
+      <div className="w-80 border-r border-border bg-muted/30 flex flex-col">
+        <div className="p-4 border-b flex-shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
               Conversations
-            </CardTitle>
+            </h3>
             <Button
               variant="outline"
               size="sm"
@@ -349,18 +349,18 @@ export const AIEmailAssistant: React.FC = () => {
               <Plus className="w-4 h-4" />
             </Button>
           </div>
-        </CardHeader>
+        </div>
         
-        <CardContent className="p-0">
-          <ScrollArea className="h-[600px]">
+        <div className="flex-1 min-h-0">
+          <ScrollArea className="h-full">
             <div className="space-y-2 p-4">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                     activeConversation === conversation.id
-                      ? 'bg-primary/10 border-primary/20'
-                      : 'bg-muted/50 hover:bg-muted'
+                      ? 'bg-primary/10 border border-primary/20'
+                      : 'bg-background hover:bg-muted'
                   }`}
                   onClick={() => setActiveConversation(conversation.id)}
                 >
@@ -397,51 +397,60 @@ export const AIEmailAssistant: React.FC = () => {
               )}
             </div>
           </ScrollArea>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Chat Interface */}
-      <Card className="lg:col-span-3 flex flex-col">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="p-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
-            AI Email Assistant
+            <h3 className="text-lg font-semibold">AI Email Assistant</h3>
             <Badge variant="secondary" className="ml-auto">
               <CheckCircle2 className="w-3 h-3 mr-1" />
               Online
             </Badge>
-          </CardTitle>
-        </CardHeader>
-        
-        <Separator />
+          </div>
+        </div>
         
         {/* Messages */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-[500px]">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
             {messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
+              <div className="h-full flex items-center justify-center p-8">
+                <div className="text-center max-w-md">
                   <Bot className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                   <h3 className="text-lg font-semibold mb-2">Welcome to AI Email Assistant</h3>
                   <p className="text-muted-foreground mb-4">
                     I can help you manage emails, draft responses, and provide insights.
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-lg mx-auto">
+                  <div className="grid grid-cols-1 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setInputMessage("Analyze my recent emails")}
+                      className="text-left justify-start"
                     >
                       <Mail className="w-4 h-4 mr-2" />
-                      Analyze Emails
+                      Analyze my recent emails
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setInputMessage("Help me draft a professional email")}
+                      className="text-left justify-start"
                     >
                       <Sparkles className="w-4 h-4 mr-2" />
-                      Draft Email
+                      Help me draft a professional email
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInputMessage("What are my most important emails today?")}
+                      className="text-left justify-start"
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      What are my most important emails today?
                     </Button>
                   </div>
                 </div>
@@ -454,13 +463,18 @@ export const AIEmailAssistant: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
             )}
+            
+            {isLoading && (
+              <div className="flex items-center gap-2 p-4 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>AI is thinking...</span>
+              </div>
+            )}
           </ScrollArea>
         </div>
         
-        <Separator />
-        
         {/* Input */}
-        <div className="p-4">
+        <div className="p-4 border-t flex-shrink-0">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
@@ -491,7 +505,7 @@ export const AIEmailAssistant: React.FC = () => {
             </div>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

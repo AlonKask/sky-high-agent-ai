@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
+import { EmailSyncManager } from '@/utils/emailSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,7 +26,10 @@ import {
   Mail,
   MailOpen,
   ArrowLeft,
-  Plus
+  Plus,
+  Bot,
+  Sparkles,
+  Settings
 } from 'lucide-react';
 import {
   Dialog,
@@ -39,6 +43,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import { ManualGmailFix } from '@/components/ManualGmailFix';
+import { Switch } from '@/components/ui/switch';
 
 interface EmailExchange {
   id: string;
@@ -64,7 +69,8 @@ interface EmailExchange {
 const Emails = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { authStatus, connectGmail, disconnectGmail, triggerSync } = useGmailIntegration();
+  const { authStatus, connectGmail, disconnectGmail } = useGmailIntegration();
+  const emailSyncManager = EmailSyncManager.getInstance();
   
   // Core state
   const [emails, setEmails] = useState<any[]>([]);
@@ -77,6 +83,10 @@ const Emails = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('inbox');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Enhanced sync options
+  const [aiProcessingEnabled, setAiProcessingEnabled] = useState(true);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
   
   // Filter and sorting state
   const [sortBy, setSortBy] = useState<'received_at' | 'subject' | 'sender_email'>('received_at');
@@ -290,9 +300,12 @@ const Emails = () => {
       
       // Set up periodic sync every 5 minutes
       const intervalId = setInterval(async () => {
-        if (authStatus.isConnected) {
+        if (authStatus.isConnected && autoSyncEnabled) {
           try {
-            await triggerSync();
+            await emailSyncManager.syncEmails({ 
+              includeAIProcessing: aiProcessingEnabled, 
+              showProgress: false 
+            });
             await loadEmailsFromDB();
           } catch (error) {
             console.error('Background sync failed:', error);
@@ -434,7 +447,18 @@ const Emails = () => {
                     </p>
                     <div className="flex gap-2">
                       <Button 
-                        onClick={triggerSync}
+                        onClick={async () => {
+                          setSyncing(true);
+                          try {
+                            await emailSyncManager.syncEmails({ 
+                              includeAIProcessing: aiProcessingEnabled, 
+                              showProgress: true 
+                            });
+                            await loadEmailsFromDB();
+                          } finally {
+                            setSyncing(false);
+                          }
+                        }}
                         disabled={syncing}
                         variant="outline"
                         size="sm"
