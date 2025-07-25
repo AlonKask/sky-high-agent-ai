@@ -6,22 +6,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Send, RefreshCw, Plus } from "lucide-react";
+import { Mail, Send, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { config } from "@/lib/config";
+import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { logger } from "@/utils/logger";
 
-// Extend Window interface for Google APIs
-declare global {
-  interface Window {
-    google: any;
-    gapi: any;
-  }
-}
 
 interface EmailExchange {
   id: string;
@@ -58,6 +51,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const { toast } = useToast();
+  const { authStatus, triggerSync } = useGmailIntegration();
 
   // New email form state
   const [newEmail, setNewEmail] = useState({
@@ -112,124 +106,6 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
     }
   };
 
-  const syncWithGmail = async () => {
-    if (!clientEmail) {
-      toast({
-        title: "Error",
-        description: "Client email is required to sync with Gmail",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      
-      // Initialize Google Auth
-      if (!window.google) {
-        // Load Google API
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.onload = initializeGoogleAuth;
-        document.head.appendChild(script);
-      } else {
-        initializeGoogleAuth();
-      }
-    } catch (error) {
-      logger.error('Error syncing with Gmail:', error);
-      toast({
-        title: "Error",
-        description: "Failed to sync with Gmail",
-        variant: "destructive"
-      });
-      setIsLoading(false);
-    }
-  };
-
-  const initializeGoogleAuth = () => {
-    // Use the newer Google Identity Services API
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.onload = () => {
-      // @ts-ignore - Google Identity Services
-      window.google.accounts.oauth2.initTokenClient({
-        client_id: config.google.clientId,
-        scope: 'https://www.googleapis.com/auth/gmail.readonly',
-        callback: (response: any) => {
-          if (response.access_token) {
-            // Successfully authenticated with new API
-            fetchGmailEmails(response.access_token);
-          } else {
-            logger.error('No access token received:', response);
-            toast({
-              title: "Authentication Failed",
-              description: "Failed to receive access token from Google",
-              variant: "destructive"
-            });
-            setIsLoading(false);
-          }
-        },
-        error_callback: (error: any) => {
-          logger.error('Google Auth error:', error);
-          toast({
-            title: "Gmail Authentication Error",
-            description: `Authentication failed: ${error.type || 'Unknown error'}`,
-            variant: "destructive"
-          });
-          setIsLoading(false);
-        }
-      }).requestAccessToken();
-    };
-    script.onerror = () => {
-      toast({
-        title: "Google API Error",
-        description: "Failed to load Google authentication services",
-        variant: "destructive"
-      });
-      setIsLoading(false);
-    };
-    document.head.appendChild(script);
-  };
-
-  const fetchGmailEmails = async (accessToken: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('fetch-gmail-emails', {
-        body: {
-          clientEmail,
-          accessToken,
-          maxResults: 50
-        }
-      });
-
-      if (error) {
-        logger.error('Error fetching Gmail emails:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch emails from Gmail",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Success",
-        description: `Synced ${data.emailCount} emails from Gmail`,
-      });
-
-      // Refresh the email list
-      fetchEmails();
-
-    } catch (error) {
-      logger.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to sync Gmail emails",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const sendEmail = async () => {
     if (!newEmail.to || !newEmail.subject || !newEmail.body) {
@@ -314,6 +190,17 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
     };
   }, []);
 
+  // Auto-sync Gmail every 5 minutes when connected
+  useEffect(() => {
+    if (!authStatus.isConnected) return;
+
+    const syncInterval = setInterval(() => {
+      triggerSync();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(syncInterval);
+  }, [authStatus.isConnected, triggerSync]);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
@@ -335,15 +222,6 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
             Email Communication
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={syncWithGmail}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Sync Gmail
-            </Button>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
