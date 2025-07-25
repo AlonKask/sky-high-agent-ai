@@ -471,9 +471,19 @@ Your Travel Agent`;
         <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                {editingId ? "Edit Quote" : "Create New Quote"}
-              </DialogTitle>
+              <div className="flex justify-between items-center">
+                <DialogTitle>
+                  {editingId ? "Edit Quote" : "Create New Quote"}
+                </DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDialogClose}
+                  className="h-6 w-6"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </DialogHeader>
             
             <div className="space-y-6">
