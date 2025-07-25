@@ -13,9 +13,7 @@ import {
   Calendar, 
   TrendingUp, 
   Bot,
-  Shield,
-  Zap,
-  MessageSquare
+  Shield
 } from "lucide-react";
 
 const Index = () => {
@@ -60,45 +58,6 @@ const Index = () => {
           Intelligent email management powered by AI. Analyze, draft, and manage your emails 
           with advanced natural language processing and CRM integration.
         </p>
-      </div>
-
-      {/* Features Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Smart Analysis</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              AI-powered email analysis with sentiment detection and key information extraction
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Draft Generation</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Generate professional email responses with context-aware suggestions
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CRM Integration</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Seamlessly integrated with your client management and booking systems
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       <Separator />
