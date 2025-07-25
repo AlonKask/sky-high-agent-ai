@@ -6,193 +6,187 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, Check, X, Mail, Copy, Share2 } from "lucide-react";
-import { SabreParser, ParsedItinerary } from "@/utils/sabreParser";
+import { Plus, Edit, Trash2, Mail, Share2 } from "lucide-react";
+import { SabreParser } from "@/utils/sabreParser";
 import { EmailTemplateGenerator } from "@/utils/emailTemplateGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-interface SabreOption {
+import { useAuth } from "@/hooks/useAuth";
+
+// Interface that matches the database quotes table structure
+interface Quote {
   id: string;
-  format: "I" | "VI";
-  content: string;
-  parsedInfo?: ParsedItinerary;
-  status: "draft" | "quoted" | "selected" | "expired";
-  quoteType: "award" | "revenue";
-  // Passenger breakdown
-  adultsCount?: number;
-  childrenCount?: number;
-  infantsCount?: number;
-  // Passenger pricing
-  adultPrice?: number;
-  childPrice?: number;
-  infantPrice?: number;
-  // Revenue fields
-  fareType?: "tour_fare" | "private" | "published";
-  numberOfBags?: number;
-  weightOfBags?: number;
-  netPrice?: number;
-  // Award fields
-  awardProgram?: string;
-  numberOfPoints?: number;
-  taxes?: number;
-  // Common pricing fields
-  markup?: number;
-  minimumMarkup?: number;
-  issuingFee?: number;
-  ckFees?: boolean;
-  sellingPrice?: number;
-  validUntil?: string;
+  user_id: string;
+  request_id: string;
+  client_id: string;
+  route: string;
+  segments: any;
+  total_segments: number;
+  fare_type: string;
+  pseudo_city?: string;
+  net_price: number;
+  markup: number;
+  ck_fee_enabled: boolean;
+  ck_fee_amount: number;
+  total_price: number;
+  status: string;
+  is_hidden: boolean;
   notes?: string;
-  createdAt: string;
+  valid_until?: string;
+  created_at: string;
+  updated_at: string;
+  client_token?: string;
+  adults_count?: number;
+  children_count?: number;
+  infants_count?: number;
+  passenger_pricing?: any;
+  content?: string;
+  format?: string;
+  quote_type?: string;
+  adult_price?: number;
+  child_price?: number;
+  infant_price?: number;
+  number_of_bags?: number;
+  weight_of_bags?: number;
+  award_program?: string;
+  number_of_points?: number;
+  taxes?: number;
+  minimum_markup?: number;
+  issuing_fee?: number;
 }
+
 interface SabreOptionManagerProps {
-  options: SabreOption[];
-  onAddOption: (option: Omit<SabreOption, 'id' | 'createdAt'>) => void;
-  onUpdateOption: (id: string, updates: Partial<SabreOption>) => void;
-  onDeleteOption: (id: string) => void;
+  quotes: Quote[];
+  requestId: string;
+  clientId: string;
+  onQuoteAdded: () => void;
+  onQuoteUpdated: () => void;
+  onQuoteDeleted: () => void;
 }
+
 const SabreOptionManager = ({
-  options,
-  onAddOption,
-  onUpdateOption,
-  onDeleteOption
+  quotes,
+  requestId,
+  clientId,
+  onQuoteAdded,
+  onQuoteUpdated,
+  onQuoteDeleted
 }: SabreOptionManagerProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [emailDialogOpen, setEmailDialogOpen] = useState<string | null>(null);
-  const {
-    toast
-  } = useToast();
-  const initialOptionState: Omit<SabreOption, 'id' | 'createdAt'> = {
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const initialQuoteState = {
     format: "I",
     content: "",
     status: "draft",
-    quoteType: "revenue",
-    ckFees: false
+    quote_type: "revenue",
+    ck_fee_enabled: false,
+    route: "",
+    fare_type: "tour_fare",
+    net_price: 0,
+    markup: 0,
+    ck_fee_amount: 0,
+    total_price: 0,
+    adults_count: 1,
+    children_count: 0,
+    infants_count: 0,
+    adult_price: 0,
+    child_price: 0,
+    infant_price: 0,
+    segments: [],
+    total_segments: 0,
+    taxes: 0,
+    issuing_fee: 0,
+    award_program: "",
+    number_of_points: 0,
+    notes: ""
   };
-  const [newOption, setNewOption] = useState<Omit<SabreOption, 'id' | 'createdAt'>>(initialOptionState);
+
+  const [newQuote, setNewQuote] = useState(initialQuoteState);
+
   const resetQuoteForm = () => {
-    setNewOption({
-      ...initialOptionState
-    });
+    setNewQuote({ ...initialQuoteState });
     setEditingId(null);
   };
+
   const hasValidPricing = () => {
-    console.log('Validating pricing for newOption:', {
-      quoteType: newOption.quoteType,
-      adultsCount: newOption.adultsCount,
-      adultPrice: newOption.adultPrice,
-      childrenCount: newOption.childrenCount,
-      childPrice: newOption.childPrice,
-      infantsCount: newOption.infantsCount,
-      infantPrice: newOption.infantPrice,
-      netPrice: newOption.netPrice,
-      awardProgram: newOption.awardProgram,
-      numberOfPoints: newOption.numberOfPoints
-    });
-    if (newOption.quoteType === "revenue") {
-      // Helper function to check if a value is a valid price (number >= 0, including 0)
+    if (newQuote.quote_type === "revenue") {
       const isValidPrice = (value: any) => {
         return value !== null && value !== undefined && value !== "" && !isNaN(Number(value)) && Number(value) >= 0;
       };
-
-      // Check if passenger count is valid (> 0)
-      const hasValidCount = (count: any) => {
-        return count !== null && count !== undefined && Number(count) > 0;
-      };
-
-      // For revenue quotes, require at least one passenger type with valid pricing
-      const adultValid = hasValidCount(newOption.adultsCount) && isValidPrice(newOption.adultPrice);
-      const childValid = hasValidCount(newOption.childrenCount) && isValidPrice(newOption.childPrice);
-      const infantValid = hasValidCount(newOption.infantsCount) && isValidPrice(newOption.infantPrice);
-      const legacyValid = isValidPrice(newOption.netPrice);
-      console.log('Revenue validation results:', {
-        adultValid,
-        childValid,
-        infantValid,
-        legacyValid
-      });
-      const result = adultValid || childValid || infantValid || legacyValid;
-      console.log('Final revenue validation result:', result);
-      return result;
-    } else if (newOption.quoteType === "award") {
-      // For award quotes, require program and points
-      const programValid = newOption.awardProgram && newOption.awardProgram.trim() !== "";
-      const pointsValid = newOption.numberOfPoints !== null && newOption.numberOfPoints !== undefined && !isNaN(Number(newOption.numberOfPoints)) && Number(newOption.numberOfPoints) > 0;
-      console.log('Award validation results:', {
-        programValid,
-        pointsValid
-      });
-      const result = programValid && pointsValid;
-      console.log('Final award validation result:', result);
-      return result;
+      return isValidPrice(newQuote.net_price) || isValidPrice(newQuote.adult_price);
+    } else if (newQuote.quote_type === "award") {
+      return newQuote.award_program && newQuote.award_program.trim() !== "" && newQuote.number_of_points > 0;
     }
-    console.log('Allowing draft save');
-    return true; // Allow saving drafts without pricing
+    return true;
   };
-  const awardPrograms = ["AA", "AC", "AC (Status)", "AF", "AF (Under Pax)", "AF (Premier Status)", "AD", "NH", "AS", "AMEX", "BA", "BA UK", "CX", "CM", "DL", "DL 15%", "EK", "EK UPG", "EK (Platinum)", "HA", "AY", "G3", "LH", "LH (Senator)", "LH Evouchers (set of 2)", "AV", "LA", "LY Vouchers", "LY Miles", "QR", "QF", "SQ", "SK", "WN", "TP", "TK", "TK Online", "UA", "UA Status Miles", "UA TB or ETC", "UA Plus Points", "UA Plus Points GS", "VS", "VA", "EY", "B6"];
-  const pricePerPoint = [1.8, 1.4, 1.5, 1.3, 1.5, 1.8, 0.55, 1.4, 1.55, 0, 1.25, 1.35, 1.5, 1.8, 1.25, 1.35, 1.45, 1.4, 2.0, 1.3, 1.3, 0.55, 2.0, 2.1, 600, 1.35, 0.65, 0.05, 1.3, 1.3, 1.4, 1.5, 1.6, 1.2, 1.15, 1.4, 1.6, 1.6, 1.8, 0.07, 25, 40, 1.3, 1.5, 1.3, 1.2];
-  const getPricePerPoint = (program: string): number => {
-    const index = awardPrograms.indexOf(program);
-    return index !== -1 ? pricePerPoint[index] : 0;
-  };
+
   const detectFormat = (content: string): "I" | "VI" => {
     if (content.toLowerCase().includes("vi*") || content.toLowerCase().startsWith("vi")) {
       return "VI";
     }
     return "I";
   };
+
   const handleContentChange = (content: string) => {
     const format = detectFormat(content);
-    let parsedInfo: ParsedItinerary | undefined = undefined;
-    if (format === "I" && content.trim()) {
-      try {
-        const parsed = SabreParser.parseIFormat(content);
-        if (parsed) {
-          parsedInfo = parsed;
-          console.log('Successfully parsed I format:', parsed);
-        }
-      } catch (error) {
-        console.error('Error parsing I format:', error);
-      }
-    }
-    setNewOption(prev => ({
+    setNewQuote(prev => ({
       ...prev,
       content,
-      format,
-      parsedInfo
+      format
     }));
   };
+
   const calculateSellingPrice = () => {
-    if (newOption.quoteType === "revenue") {
-      const netPrice = newOption.netPrice || 0;
-      const markup = newOption.markup || 0;
-      const issuingFee = newOption.issuingFee || 0;
+    if (newQuote.quote_type === "revenue") {
+      const netPrice = newQuote.net_price || 0;
+      const markup = newQuote.markup || 0;
+      const issuingFee = newQuote.issuing_fee || 0;
       let sellingPrice = netPrice + markup + issuingFee;
-      if (newOption.ckFees) {
-        sellingPrice = sellingPrice / (1 - 0.035); // Add 3.5% CK fees
+      if (newQuote.ck_fee_enabled) {
+        sellingPrice = sellingPrice / (1 - 0.035);
       }
-      setNewOption(prev => ({
+      setNewQuote(prev => ({
         ...prev,
-        sellingPrice: Math.round(sellingPrice * 100) / 100
+        total_price: Math.round(sellingPrice * 100) / 100
       }));
-    } else if (newOption.quoteType === "award" && newOption.awardProgram) {
-      const points = newOption.numberOfPoints || 0;
-      const priceRate = getPricePerPoint(newOption.awardProgram);
-      const netPrice = points / 1000 * priceRate; // Convert points to thousands for calculation
-      const taxes = newOption.taxes || 0;
-      const markup = newOption.markup || 0;
-      const sellingPrice = netPrice + taxes + markup;
-      setNewOption(prev => ({
+    } else if (newQuote.quote_type === "award") {
+      const taxes = newQuote.taxes || 0;
+      const markup = newQuote.markup || 0;
+      const sellingPrice = taxes + markup;
+      setNewQuote(prev => ({
         ...prev,
-        sellingPrice: Math.round(sellingPrice * 100) / 100
+        total_price: Math.round(sellingPrice * 100) / 100
       }));
     }
   };
-  const handleSubmit = () => {
-    if (!newOption.content.trim()) {
+
+  const parseRouteFromContent = (content: string): string => {
+    try {
+      if (content.trim() && detectFormat(content) === "I") {
+        const parsed = SabreParser.parseIFormat(content);
+        return parsed?.route || "Unknown Route";
+      }
+    } catch (error) {
+      console.error("Failed to parse route:", error);
+    }
+    return "Manual Entry";
+  };
+
+  const handleSubmit = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create quotes.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!newQuote.content.trim()) {
       toast({
         title: "Content Required",
         description: "Please enter Sabre command or itinerary content.",
@@ -200,100 +194,185 @@ const SabreOptionManager = ({
       });
       return;
     }
+
     if (!hasValidPricing()) {
       toast({
         title: "Pricing Required",
-        description: newOption.quoteType === "revenue" ? "Please enter pricing for at least one passenger type or net price." : "Please select award program and enter number of points.",
+        description: newQuote.quote_type === "revenue" 
+          ? "Please enter net price or adult price." 
+          : "Please select award program and enter number of points.",
         variant: "destructive"
       });
       return;
     }
-    let parsedInfo;
-    if (newOption.format === "I" && newOption.content.trim()) {
-      try {
-        parsedInfo = SabreParser.parseIFormat(newOption.content);
-      } catch (error) {
-        console.error("Failed to parse itinerary:", error);
-        toast({
-          title: "Parsing Warning",
-          description: "Could not parse itinerary format, but quote will be saved."
-        });
-      }
+
+    try {
+      const route = parseRouteFromContent(newQuote.content);
+      
+      const quoteData = {
+        user_id: user.id,
+        request_id: requestId,
+        client_id: clientId,
+        route,
+        content: newQuote.content,
+        format: newQuote.format,
+        quote_type: newQuote.quote_type,
+        fare_type: newQuote.fare_type,
+        net_price: newQuote.net_price,
+        markup: newQuote.markup,
+        ck_fee_enabled: newQuote.ck_fee_enabled,
+        ck_fee_amount: newQuote.ck_fee_amount,
+        total_price: newQuote.total_price,
+        status: newQuote.status,
+        adults_count: newQuote.adults_count,
+        children_count: newQuote.children_count,
+        infants_count: newQuote.infants_count,
+        adult_price: newQuote.adult_price,
+        child_price: newQuote.child_price,
+        infant_price: newQuote.infant_price,
+        award_program: newQuote.award_program,
+        number_of_points: newQuote.number_of_points,
+        taxes: newQuote.taxes,
+        issuing_fee: newQuote.issuing_fee,
+        notes: newQuote.notes,
+        segments: [],
+        total_segments: 1
+      };
+
+      const { error } = await supabase.from('quotes').insert(quoteData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Quote created successfully."
+      });
+
+      resetQuoteForm();
+      setIsDialogOpen(false);
+      onQuoteAdded();
+    } catch (error) {
+      console.error('Error creating quote:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create quote. Please try again.",
+        variant: "destructive"
+      });
     }
-    onAddOption({
-      ...newOption,
-      parsedInfo
-    });
-    resetQuoteForm();
-    setIsDialogOpen(false);
   };
-  const handleEdit = (option: SabreOption) => {
-    setNewOption({
-      format: option.format,
-      content: option.content,
-      status: option.status,
-      quoteType: option.quoteType,
-      adultsCount: option.adultsCount,
-      childrenCount: option.childrenCount,
-      infantsCount: option.infantsCount,
-      adultPrice: option.adultPrice,
-      childPrice: option.childPrice,
-      infantPrice: option.infantPrice,
-      fareType: option.fareType,
-      numberOfBags: option.numberOfBags,
-      weightOfBags: option.weightOfBags,
-      netPrice: option.netPrice,
-      awardProgram: option.awardProgram,
-      numberOfPoints: option.numberOfPoints,
-      taxes: option.taxes,
-      markup: option.markup,
-      minimumMarkup: option.minimumMarkup,
-      issuingFee: option.issuingFee,
-      ckFees: option.ckFees || false,
-      sellingPrice: option.sellingPrice,
-      validUntil: option.validUntil,
-      notes: option.notes
+
+  const handleEdit = (quote: Quote) => {
+    setNewQuote({
+      format: quote.format || "I",
+      content: quote.content || "",
+      status: quote.status,
+      quote_type: quote.quote_type || "revenue",
+      ck_fee_enabled: quote.ck_fee_enabled,
+      route: quote.route,
+      fare_type: quote.fare_type,
+      net_price: quote.net_price,
+      markup: quote.markup,
+      ck_fee_amount: quote.ck_fee_amount,
+      total_price: quote.total_price,
+      adults_count: quote.adults_count || 1,
+      children_count: quote.children_count || 0,
+      infants_count: quote.infants_count || 0,
+      adult_price: quote.adult_price || 0,
+      child_price: quote.child_price || 0,
+      infant_price: quote.infant_price || 0,
+      segments: quote.segments || [],
+      total_segments: quote.total_segments,
+      taxes: quote.taxes || 0,
+      issuing_fee: quote.issuing_fee || 0,
+      award_program: quote.award_program || "",
+      number_of_points: quote.number_of_points || 0,
+      notes: quote.notes || ""
     });
-    setEditingId(option.id);
+    setEditingId(quote.id);
     setIsDialogOpen(true);
   };
-  const handleSaveEdit = () => {
-    if (!editingId) return;
-    if (!newOption.content.trim()) {
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !user?.id) return;
+
+    try {
+      const route = parseRouteFromContent(newQuote.content);
+      
+      const updateData = {
+        route,
+        content: newQuote.content,
+        format: newQuote.format,
+        quote_type: newQuote.quote_type,
+        fare_type: newQuote.fare_type,
+        net_price: newQuote.net_price,
+        markup: newQuote.markup,
+        ck_fee_enabled: newQuote.ck_fee_enabled,
+        ck_fee_amount: newQuote.ck_fee_amount,
+        total_price: newQuote.total_price,
+        status: newQuote.status,
+        adults_count: newQuote.adults_count,
+        children_count: newQuote.children_count,
+        infants_count: newQuote.infants_count,
+        adult_price: newQuote.adult_price,
+        child_price: newQuote.child_price,
+        infant_price: newQuote.infant_price,
+        award_program: newQuote.award_program,
+        number_of_points: newQuote.number_of_points,
+        taxes: newQuote.taxes,
+        issuing_fee: newQuote.issuing_fee,
+        notes: newQuote.notes
+      };
+
+      const { error } = await supabase
+        .from('quotes')
+        .update(updateData)
+        .eq('id', editingId);
+
+      if (error) throw error;
+
       toast({
-        title: "Content Required",
-        description: "Please enter Sabre command or itinerary content.",
+        title: "Success",
+        description: "Quote updated successfully."
+      });
+
+      resetQuoteForm();
+      setIsDialogOpen(false);
+      onQuoteUpdated();
+    } catch (error) {
+      console.error('Error updating quote:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update quote. Please try again.",
         variant: "destructive"
       });
-      return;
     }
-    if (!hasValidPricing()) {
-      toast({
-        title: "Pricing Required",
-        description: newOption.quoteType === "revenue" ? "Please enter pricing for at least one passenger type or net price." : "Please select award program and enter number of points.",
-        variant: "destructive"
-      });
-      return;
-    }
-    let parsedInfo;
-    if (newOption.format === "I" && newOption.content.trim()) {
-      try {
-        parsedInfo = SabreParser.parseIFormat(newOption.content);
-      } catch (error) {
-        console.error("Failed to parse itinerary:", error);
-        toast({
-          title: "Parsing Warning",
-          description: "Could not parse itinerary format, but quote will be updated."
-        });
-      }
-    }
-    onUpdateOption(editingId, {
-      ...newOption,
-      parsedInfo
-    });
-    resetQuoteForm();
-    setIsDialogOpen(false);
   };
+
+  const handleDelete = async (quoteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('quotes')
+        .delete()
+        .eq('id', quoteId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Quote deleted successfully."
+      });
+
+      onQuoteDeleted();
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete quote. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "draft":
@@ -308,483 +387,474 @@ const SabreOptionManager = ({
         return "bg-gray-100 text-gray-800";
     }
   };
-  const handleGenerateEmail = (option: SabreOption) => {
-    const emailContent = EmailTemplateGenerator.generateItineraryEmail(option, "Valued Client");
+
+  const handleGenerateEmail = (quote: Quote) => {
+    const emailContent = `Subject: Flight Quote - ${quote.route}
+
+Dear Client,
+
+Please find your flight quote details below:
+
+Route: ${quote.route}
+Quote Type: ${quote.quote_type}
+Total Price: $${quote.total_price}
+${quote.quote_type === 'revenue' ? `Net Price: $${quote.net_price}` : `Points Required: ${quote.number_of_points?.toLocaleString()}`}
+Status: ${quote.status}
+
+${quote.notes ? `Notes: ${quote.notes}` : ''}
+
+Please let me know if you have any questions.
+
+Best regards,
+Your Travel Agent`;
+
     navigator.clipboard.writeText(emailContent);
     toast({
       title: "Email Template Copied",
       description: "The email template has been copied to your clipboard."
     });
   };
-  const handleShareWithClient = async (option: SabreOption) => {
+
+  const handleShareWithClient = async (quote: Quote) => {
     try {
-      // For demo purposes, we'll create a mock quote entry in Supabase
-      // In a real implementation, this would come from the existing quotes table
-      const {
-        data: quoteData,
-        error
-      } = await supabase.from('quotes').insert({
-        user_id: 'demo-user-id',
-        // In real app, get from auth
-        client_id: 'demo-client-id',
-        // In real app, get from context
-        request_id: 'demo-request-id',
-        // In real app, get from context
-        route: option.parsedInfo?.route || 'Unknown Route',
-        total_price: option.sellingPrice || 0,
-        net_price: option.netPrice || 0,
-        segments: option.parsedInfo || {},
-        fare_type: option.fareType || 'unknown',
-        status: 'draft',
-        notes: option.notes || '',
-        markup: option.markup || 0,
-        total_segments: option.parsedInfo?.totalSegments || 1
-      }).select('id, client_token').single();
-      if (error) throw error;
-      const clientLink = `${window.location.origin}/option/${quoteData.id}?token=${quoteData.client_token}`;
+      const clientLink = `${window.location.origin}/option/${quote.id}?token=${quote.client_token}`;
       navigator.clipboard.writeText(clientLink);
       toast({
         title: "Client Link Copied",
-        description: "The unique client link has been copied to your clipboard. Share this with your client to let them view and book this option."
+        description: "The unique client link has been copied to your clipboard."
       });
     } catch (error) {
       console.error('Error creating client link:', error);
       toast({
         title: "Error",
-        description: "Failed to create client link. Please try again."
+        description: "Failed to create client link. Please try again.",
+        variant: "destructive"
       });
     }
   };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Quote Options</CardTitle>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetQuoteForm()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Quote
+          {!isDialogOpen && (
+            <Button onClick={() => {
+              resetQuoteForm();
+              setIsDialogOpen(true);
+            }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Quote
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {/* Quote Form Dialog */}
+        {isDialogOpen && (
+          <div className="mb-6 p-6 border rounded-lg bg-muted/30">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                {editingId ? "Edit Quote" : "Create New Quote"}
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  resetQuoteForm();
+                  setIsDialogOpen(false);
+                }}
+              >
+                Cancel
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingId ? "Edit Quote" : "Create New Quote"}
-                </DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-6">
-                {/* Quote Type Selection */}
+            </div>
+            
+            <div className="space-y-6">
+              {/* Quote Type Selection */}
+              <div className="space-y-2">
+                <Label>Quote Type</Label>
+                <Select
+                  value={newQuote.quote_type}
+                  onValueChange={(value: "award" | "revenue") =>
+                    setNewQuote(prev => ({ ...prev, quote_type: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="revenue">Revenue</SelectItem>
+                    <SelectItem value="award">Award</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sabre Content */}
+              <div className="space-y-2">
+                <Label>Sabre Command/Itinerary Content *</Label>
+                <Textarea
+                  value={newQuote.content}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  placeholder="Enter Sabre I-format or VI command..."
+                  className="min-h-[120px] font-mono text-sm"
+                />
+                {newQuote.format && (
+                  <Badge variant="outline">Format: {newQuote.format}</Badge>
+                )}
+              </div>
+
+              {/* Passenger Counts */}
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Quote Type</Label>
-                  <Select
-                    value={newOption.quoteType}
-                    onValueChange={(value: "award" | "revenue") =>
-                      setNewOption(prev => ({ ...prev, quoteType: value }))
+                  <Label>Adults</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newQuote.adults_count}
+                    onChange={(e) =>
+                      setNewQuote(prev => ({
+                        ...prev,
+                        adults_count: parseInt(e.target.value) || 0
+                      }))
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="revenue">Revenue</SelectItem>
-                      <SelectItem value="award">Award</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Sabre Content */}
-                <div className="space-y-2">
-                  <Label>Sabre Command/Itinerary Content *</Label>
-                  <Textarea
-                    value={newOption.content}
-                    onChange={(e) => handleContentChange(e.target.value)}
-                    placeholder="Enter Sabre I-format or VI command..."
-                    className="min-h-[120px] font-mono text-sm"
                   />
-                  {newOption.format && (
-                    <Badge variant="outline">Format: {newOption.format}</Badge>
-                  )}
                 </div>
-
-                {/* Passenger Counts */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Adults</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={newOption.adultsCount || ""}
-                      onChange={(e) =>
-                        setNewOption(prev => ({
-                          ...prev,
-                          adultsCount: e.target.value ? parseInt(e.target.value) : undefined
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Children</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={newOption.childrenCount || ""}
-                      onChange={(e) =>
-                        setNewOption(prev => ({
-                          ...prev,
-                          childrenCount: e.target.value ? parseInt(e.target.value) : undefined
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Infants</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={newOption.infantsCount || ""}
-                      onChange={(e) =>
-                        setNewOption(prev => ({
-                          ...prev,
-                          infantsCount: e.target.value ? parseInt(e.target.value) : undefined
-                        }))
-                      }
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label>Children</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newQuote.children_count}
+                    onChange={(e) =>
+                      setNewQuote(prev => ({
+                        ...prev,
+                        children_count: parseInt(e.target.value) || 0
+                      }))
+                    }
+                  />
                 </div>
+                <div className="space-y-2">
+                  <Label>Infants</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newQuote.infants_count}
+                    onChange={(e) =>
+                      setNewQuote(prev => ({
+                        ...prev,
+                        infants_count: parseInt(e.target.value) || 0
+                      }))
+                    }
+                  />
+                </div>
+              </div>
 
-                {/* Revenue Quote Fields */}
-                {newOption.quoteType === "revenue" && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Revenue Quote Details</h3>
-                    
-                    {/* Passenger Pricing */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>Adult Price</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={newOption.adultPrice || ""}
-                          onChange={(e) =>
-                            setNewOption(prev => ({
-                              ...prev,
-                              adultPrice: e.target.value ? parseFloat(e.target.value) : undefined
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Child Price</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={newOption.childPrice || ""}
-                          onChange={(e) =>
-                            setNewOption(prev => ({
-                              ...prev,
-                              childPrice: e.target.value ? parseFloat(e.target.value) : undefined
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Infant Price</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={newOption.infantPrice || ""}
-                          onChange={(e) =>
-                            setNewOption(prev => ({
-                              ...prev,
-                              infantPrice: e.target.value ? parseFloat(e.target.value) : undefined
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    {/* Fare Details */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Fare Type</Label>
-                        <Select
-                          value={newOption.fareType || ""}
-                          onValueChange={(value) =>
-                            setNewOption(prev => ({ ...prev, fareType: value as any }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select fare type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="tour_fare">Tour Fare</SelectItem>
-                            <SelectItem value="private">Private</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Net Price</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={newOption.netPrice || ""}
-                          onChange={(e) =>
-                            setNewOption(prev => ({
-                              ...prev,
-                              netPrice: e.target.value ? parseFloat(e.target.value) : undefined
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Award Quote Fields */}
-                {newOption.quoteType === "award" && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Award Quote Details</h3>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Award Program *</Label>
-                        <Select
-                          value={newOption.awardProgram || ""}
-                          onValueChange={(value) =>
-                            setNewOption(prev => ({ ...prev, awardProgram: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select award program" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {awardPrograms.map((program) => (
-                              <SelectItem key={program} value={program}>
-                                {program}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Number of Points *</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={newOption.numberOfPoints || ""}
-                          onChange={(e) =>
-                            setNewOption(prev => ({
-                              ...prev,
-                              numberOfPoints: e.target.value ? parseInt(e.target.value) : undefined
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Taxes & Fees</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={newOption.taxes || ""}
-                        onChange={(e) =>
-                          setNewOption(prev => ({
-                            ...prev,
-                            taxes: e.target.value ? parseFloat(e.target.value) : undefined
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Common Pricing Fields */}
+              {/* Revenue Quote Fields */}
+              {newQuote.quote_type === "revenue" && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Pricing & Fees</h3>
+                  <h4 className="font-semibold">Revenue Quote Details</h4>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Markup</Label>
+                      <Label>Net Price *</Label>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={newOption.markup || ""}
+                        value={newQuote.net_price}
                         onChange={(e) =>
-                          setNewOption(prev => ({
+                          setNewQuote(prev => ({
                             ...prev,
-                            markup: e.target.value ? parseFloat(e.target.value) : undefined
+                            net_price: parseFloat(e.target.value) || 0
                           }))
                         }
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Issuing Fee</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={newOption.issuingFee || ""}
-                        onChange={(e) =>
-                          setNewOption(prev => ({
-                            ...prev,
-                            issuingFee: e.target.value ? parseFloat(e.target.value) : undefined
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="ckFees"
-                      checked={newOption.ckFees || false}
-                      onCheckedChange={(checked) =>
-                        setNewOption(prev => ({ ...prev, ckFees: !!checked }))
-                      }
-                    />
-                    <Label htmlFor="ckFees">Include CK Fees (3.5%)</Label>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={calculateSellingPrice}
-                    className="w-full"
-                  >
-                    Calculate Selling Price
-                  </Button>
-
-                  {newOption.sellingPrice && (
-                    <div className="p-4 bg-muted rounded-lg">
-                      <Label className="text-lg font-semibold">
-                        Calculated Selling Price: ${newOption.sellingPrice}
-                      </Label>
-                    </div>
-                  )}
-                </div>
-
-                {/* Additional Details */}
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Valid Until</Label>
-                      <Input
-                        type="date"
-                        value={newOption.validUntil || ""}
-                        onChange={(e) =>
-                          setNewOption(prev => ({ ...prev, validUntil: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Status</Label>
+                      <Label>Fare Type</Label>
                       <Select
-                        value={newOption.status}
-                        onValueChange={(value: any) =>
-                          setNewOption(prev => ({ ...prev, status: value }))
+                        value={newQuote.fare_type}
+                        onValueChange={(value) =>
+                          setNewQuote(prev => ({ ...prev, fare_type: value }))
                         }
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="quoted">Quoted</SelectItem>
-                          <SelectItem value="selected">Selected</SelectItem>
-                          <SelectItem value="expired">Expired</SelectItem>
+                          <SelectItem value="tour_fare">Tour Fare</SelectItem>
+                          <SelectItem value="private">Private</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Adult Price</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newQuote.adult_price}
+                        onChange={(e) =>
+                          setNewQuote(prev => ({
+                            ...prev,
+                            adult_price: parseFloat(e.target.value) || 0
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Child Price</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newQuote.child_price}
+                        onChange={(e) =>
+                          setNewQuote(prev => ({
+                            ...prev,
+                            child_price: parseFloat(e.target.value) || 0
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Infant Price</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newQuote.infant_price}
+                        onChange={(e) =>
+                          setNewQuote(prev => ({
+                            ...prev,
+                            infant_price: parseFloat(e.target.value) || 0
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Award Quote Fields */}
+              {newQuote.quote_type === "award" && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold">Award Quote Details</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Award Program *</Label>
+                      <Input
+                        value={newQuote.award_program}
+                        onChange={(e) =>
+                          setNewQuote(prev => ({ ...prev, award_program: e.target.value }))
+                        }
+                        placeholder="e.g., AA, DL, UA"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Number of Points *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={newQuote.number_of_points}
+                        onChange={(e) =>
+                          setNewQuote(prev => ({
+                            ...prev,
+                            number_of_points: parseInt(e.target.value) || 0
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={newOption.notes || ""}
+                    <Label>Taxes & Fees</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newQuote.taxes}
                       onChange={(e) =>
-                        setNewOption(prev => ({ ...prev, notes: e.target.value }))
+                        setNewQuote(prev => ({
+                          ...prev,
+                          taxes: parseFloat(e.target.value) || 0
+                        }))
                       }
-                      placeholder="Additional notes about this quote..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Common Pricing Fields */}
+              <div className="space-y-4">
+                <h4 className="font-semibold">Pricing & Fees</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Markup</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newQuote.markup}
+                      onChange={(e) =>
+                        setNewQuote(prev => ({
+                          ...prev,
+                          markup: parseFloat(e.target.value) || 0
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Issuing Fee</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newQuote.issuing_fee}
+                      onChange={(e) =>
+                        setNewQuote(prev => ({
+                          ...prev,
+                          issuing_fee: parseFloat(e.target.value) || 0
+                        }))
+                      }
                     />
                   </div>
                 </div>
 
-                {/* Form Actions */}
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      resetQuoteForm();
-                      setIsDialogOpen(false);
-                    }}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="ckFees"
+                    checked={newQuote.ck_fee_enabled}
+                    onCheckedChange={(checked) =>
+                      setNewQuote(prev => ({ ...prev, ck_fee_enabled: !!checked }))
+                    }
+                  />
+                  <Label htmlFor="ckFees">Include CK Fees (3.5%)</Label>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={calculateSellingPrice}
+                  className="w-full"
+                >
+                  Calculate Selling Price
+                </Button>
+
+                {newQuote.total_price > 0 && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <Label className="text-lg font-semibold">
+                      Calculated Selling Price: ${newQuote.total_price}
+                    </Label>
+                  </div>
+                )}
+              </div>
+
+              {/* Additional Details */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={newQuote.status}
+                    onValueChange={(value) =>
+                      setNewQuote(prev => ({ ...prev, status: value }))
+                    }
                   >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={editingId ? handleSaveEdit : handleSubmit}
-                  >
-                    {editingId ? "Update Quote" : "Create Quote"}
-                  </Button>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="quoted">Quoted</SelectItem>
+                      <SelectItem value="selected">Selected</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={newQuote.notes}
+                    onChange={(e) =>
+                      setNewQuote(prev => ({ ...prev, notes: e.target.value }))
+                    }
+                    placeholder="Additional notes about this quote..."
+                  />
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
 
-      <CardContent>
-        {options.length === 0 ? (
+              {/* Form Actions */}
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    resetQuoteForm();
+                    setIsDialogOpen(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={editingId ? handleSaveEdit : handleSubmit}
+                >
+                  {editingId ? "Update Quote" : "Create Quote"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quotes List */}
+        {quotes.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             No quotes created yet. Click "Add Quote" to create your first quote option.
           </div>
         ) : (
           <div className="space-y-4">
-            {options.map((option) => (
-              <Card key={option.id} className="p-4">
+            {quotes.map((quote) => (
+              <Card key={quote.id} className="p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center space-x-2">
-                    <Badge variant="outline">{option.format}</Badge>
-                    <Badge className={getStatusColor(option.status)}>{option.status}</Badge>
-                    <Badge variant="outline">{option.quoteType}</Badge>
+                    <Badge variant="outline">{quote.format || "I"}</Badge>
+                    <Badge className={getStatusColor(quote.status)}>{quote.status}</Badge>
+                    <Badge variant="outline">{quote.quote_type || "revenue"}</Badge>
                   </div>
                   <div className="flex space-x-2">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEdit(option)}
+                      onClick={() => handleEdit(quote)}
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleGenerateEmail(option)}
+                      onClick={() => handleGenerateEmail(quote)}
                     >
                       <Mail className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleShareWithClient(option)}
+                      onClick={() => handleShareWithClient(quote)}
                     >
                       <Share2 className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onDeleteOption(option.id)}
+                      onClick={() => handleDelete(quote.id)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -793,52 +863,47 @@ const SabreOptionManager = ({
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <strong>Route:</strong> {option.parsedInfo?.route || "Not parsed"}
+                    <strong>Route:</strong> {quote.route}
                   </div>
                   <div>
-                    <strong>Selling Price:</strong> ${option.sellingPrice || "TBD"}
+                    <strong>Total Price:</strong> ${quote.total_price}
                   </div>
-                  {option.quoteType === "revenue" && (
+                  {quote.quote_type === "revenue" && (
                     <>
                       <div>
-                        <strong>Net Price:</strong> ${option.netPrice || "TBD"}
+                        <strong>Net Price:</strong> ${quote.net_price}
                       </div>
                       <div>
-                        <strong>Fare Type:</strong> {option.fareType || "TBD"}
+                        <strong>Fare Type:</strong> {quote.fare_type}
                       </div>
                     </>
                   )}
-                  {option.quoteType === "award" && (
+                  {quote.quote_type === "award" && (
                     <>
                       <div>
-                        <strong>Program:</strong> {option.awardProgram || "TBD"}
+                        <strong>Program:</strong> {quote.award_program}
                       </div>
                       <div>
-                        <strong>Points:</strong> {option.numberOfPoints?.toLocaleString() || "TBD"}
+                        <strong>Points:</strong> {quote.number_of_points?.toLocaleString()}
                       </div>
                     </>
-                  )}
-                  {option.validUntil && (
-                    <div>
-                      <strong>Valid Until:</strong> {option.validUntil}
-                    </div>
                   )}
                 </div>
 
-                {option.notes && (
+                {quote.notes && (
                   <div className="mt-3 p-2 bg-muted rounded text-sm">
-                    <strong>Notes:</strong> {option.notes}
+                    <strong>Notes:</strong> {quote.notes}
                   </div>
                 )}
 
-                {option.content && (
+                {quote.content && (
                   <div className="mt-3">
                     <details>
                       <summary className="cursor-pointer text-sm font-medium">
                         View Sabre Content
                       </summary>
                       <pre className="mt-2 p-2 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-x-auto">
-                        {option.content}
+                        {quote.content}
                       </pre>
                     </details>
                   </div>
@@ -851,4 +916,5 @@ const SabreOptionManager = ({
     </Card>
   );
 };
+
 export default SabreOptionManager;

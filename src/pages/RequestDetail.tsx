@@ -654,26 +654,30 @@ const RequestDetail = () => {
         </div>
       </div>
 
-      {/* Quote Dialog */}
-      <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
-        <SabreOptionManager 
-          options={quotes}
-          onAddOption={(quote) => {
-            setQuotes([quote, ...quotes]);
-            setShowQuoteDialog(false);
-            toast({ title: "Success", description: "Quote created successfully" });
-          }}
-          onUpdateOption={(updatedQuote: any) => {
-            setQuotes(quotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
-            setShowQuoteDialog(false);
-            toast({ title: "Success", description: "Quote updated successfully" });
-          }}
-          onDeleteOption={(quoteId) => {
-            setQuotes(quotes.filter(q => q.id !== quoteId));
-            toast({ title: "Success", description: "Quote deleted successfully" });
-          }}
-        />
-      </Dialog>
+      {/* Quote Dialog - Now handled internally by SabreOptionManager */}
+      {showQuoteDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
+            <SabreOptionManager 
+              quotes={quotes}
+              requestId={id}
+              clientId={request.client_id}
+              onQuoteAdded={() => {
+                fetchRequestDetails();
+                setShowQuoteDialog(false);
+              }}
+              onQuoteUpdated={() => {
+                fetchRequestDetails();
+                setShowQuoteDialog(false);
+              }}
+              onQuoteDeleted={() => {
+                fetchRequestDetails();
+                setShowQuoteDialog(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Email Dialog */}
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>

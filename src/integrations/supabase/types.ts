@@ -1289,85 +1289,124 @@ export type Database = {
       }
       quotes: {
         Row: {
+          adult_price: number | null
           adults_count: number | null
+          award_program: string | null
+          child_price: number | null
           children_count: number | null
           ck_fee_amount: number
           ck_fee_enabled: boolean
           client_id: string
           client_token: string | null
+          content: string | null
           created_at: string
           fare_type: string
+          format: string | null
           id: string
+          infant_price: number | null
           infants_count: number | null
           is_hidden: boolean
+          issuing_fee: number | null
           markup: number
+          minimum_markup: number | null
           net_price: number
           notes: string | null
+          number_of_bags: number | null
+          number_of_points: number | null
           passenger_pricing: Json | null
           pseudo_city: string | null
+          quote_type: string | null
           request_id: string
           route: string
           segments: Json
           status: string
+          taxes: number | null
           total_price: number
           total_segments: number
           updated_at: string
           user_id: string
           valid_until: string | null
+          weight_of_bags: number | null
         }
         Insert: {
+          adult_price?: number | null
           adults_count?: number | null
+          award_program?: string | null
+          child_price?: number | null
           children_count?: number | null
           ck_fee_amount?: number
           ck_fee_enabled?: boolean
           client_id: string
           client_token?: string | null
+          content?: string | null
           created_at?: string
           fare_type: string
+          format?: string | null
           id?: string
+          infant_price?: number | null
           infants_count?: number | null
           is_hidden?: boolean
+          issuing_fee?: number | null
           markup?: number
+          minimum_markup?: number | null
           net_price: number
           notes?: string | null
+          number_of_bags?: number | null
+          number_of_points?: number | null
           passenger_pricing?: Json | null
           pseudo_city?: string | null
+          quote_type?: string | null
           request_id: string
           route: string
           segments: Json
           status?: string
+          taxes?: number | null
           total_price: number
           total_segments: number
           updated_at?: string
           user_id: string
           valid_until?: string | null
+          weight_of_bags?: number | null
         }
         Update: {
+          adult_price?: number | null
           adults_count?: number | null
+          award_program?: string | null
+          child_price?: number | null
           children_count?: number | null
           ck_fee_amount?: number
           ck_fee_enabled?: boolean
           client_id?: string
           client_token?: string | null
+          content?: string | null
           created_at?: string
           fare_type?: string
+          format?: string | null
           id?: string
+          infant_price?: number | null
           infants_count?: number | null
           is_hidden?: boolean
+          issuing_fee?: number | null
           markup?: number
+          minimum_markup?: number | null
           net_price?: number
           notes?: string | null
+          number_of_bags?: number | null
+          number_of_points?: number | null
           passenger_pricing?: Json | null
           pseudo_city?: string | null
+          quote_type?: string | null
           request_id?: string
           route?: string
           segments?: Json
           status?: string
+          taxes?: number | null
           total_price?: number
           total_segments?: number
           updated_at?: string
           user_id?: string
           valid_until?: string | null
+          weight_of_bags?: number | null
         }
         Relationships: []
       }
