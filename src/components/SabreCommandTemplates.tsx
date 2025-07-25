@@ -83,6 +83,70 @@ const SabreCommandTemplates = ({
     type: "Classes",
     codes: ["F", "C", "J", "W", "Y", "B", "M", "H"]
   }];
-  return;
+  return (
+    <div className="space-y-6">
+      {templates.map((category) => (
+        <Card key={category.category}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {category.icon}
+              {category.category}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3">
+              {category.commands.map((cmd) => (
+                <div
+                  key={cmd.name}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                  onClick={() => onTemplateSelect(cmd.command)}
+                >
+                  <div>
+                    <div className="font-medium">{cmd.name}</div>
+                    <div className="text-sm text-muted-foreground">{cmd.description}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono">
+                      {cmd.command}
+                    </Badge>
+                    <Button size="sm" variant="ghost">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Reference Codes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            {quickCodes.map((section) => (
+              <div key={section.type}>
+                <h4 className="font-medium mb-2">{section.type}</h4>
+                <div className="flex flex-wrap gap-2">
+                  {section.codes.map((code) => (
+                    <Badge
+                      key={code}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                      onClick={() => onTemplateSelect(code)}
+                    >
+                      {code}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
 export default SabreCommandTemplates;
