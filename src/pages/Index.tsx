@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import AIEmailAssistant from "@/components/AIEmailAssistant";
+import AIEmailAssistant from "@/components/AIEmailAssistant/AIEmailAssistant";
 import { 
   Mail, 
   Users, 
