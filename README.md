@@ -1,73 +1,236 @@
-# Welcome to your Lovable project
+# AviaSales CRM System
 
-## Project info
+A comprehensive travel agency CRM system built with React, TypeScript, and Supabase, featuring advanced AI capabilities, security monitoring, and production-ready deployment.
 
-**URL**: https://lovable.dev/projects/b7f1977e-e173-476b-99ff-3f86c3c87e08
+## 🚀 Features
 
-## How can I edit this code?
+### Core CRM Features
+- **Client Management**: Complete client database with contact information, preferences, and travel history
+- **Booking Management**: Flight booking system with real-time pricing and availability
+- **Quote Generation**: Automated quote creation with markup calculations and client-specific pricing
+- **Email Integration**: Gmail integration with AI-powered email analysis and response generation
+- **Communication Tracking**: Comprehensive communication history and analytics
 
-There are several ways of editing your application.
+### AI-Powered Features
+- **AI Email Assistant**: Intelligent email classification, response generation, and sentiment analysis
+- **Lead Scoring**: Automated lead qualification and priority scoring
+- **Client Intelligence**: Behavioral analysis, preference learning, and upselling opportunities
+- **Sales Insights**: Performance analytics and conversion tracking
 
-**Use Lovable**
+### Security & Compliance
+- **Row Level Security (RLS)**: Database-level access control
+- **Audit Logging**: Comprehensive activity tracking and compliance reporting
+- **Data Encryption**: Client-side and server-side encryption for sensitive data
+- **GDPR Compliance**: Data portability, deletion rights, and consent management
+- **Security Monitoring**: Real-time threat detection and incident response
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b7f1977e-e173-476b-99ff-3f86c3c87e08) and start prompting.
+### Production Features
+- **Performance Monitoring**: Real-time application performance tracking
+- **Error Tracking**: Automated error detection and reporting
+- **Health Checks**: System health monitoring and alerting
+- **CI/CD Pipeline**: Automated testing, security scanning, and deployment
+- **Docker Support**: Containerized deployment with Nginx and security headers
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Technology Stack
 
-**Use your preferred IDE**
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for fast development and optimized builds
+- **Tailwind CSS** with custom design system
+- **Radix UI** components for accessibility
+- **React Router** for navigation
+- **React Query** for data fetching and caching
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Backend & Database
+- **Supabase** for database, authentication, and real-time features
+- **PostgreSQL** with Row Level Security
+- **Edge Functions** for serverless API endpoints
+- **Real-time subscriptions** for live updates
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### AI & Integrations
+- **OpenAI API** for AI-powered features
+- **Gmail API** for email integration
+- **RingCentral** for communication management
+- **Flight data APIs** for real-time pricing
 
-Follow these steps:
+### DevOps & Security
+- **GitHub Actions** for CI/CD
+- **Docker** for containerization
+- **Nginx** for reverse proxy and security
+- **SSL/TLS** encryption
+- **Security headers** and CSP
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🚦 Quick Start
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Git
+- Docker (optional)
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Development Setup
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd aviasales-crm
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local with your configuration
+   ```
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Access the application**
+   - Open http://localhost:8080 in your browser
+
+### Production Deployment
+
+1. **Configure secrets in GitHub**
+   - `SUPABASE_PROJECT_REF`
+   - `SUPABASE_ACCESS_TOKEN`
+   - `SUPABASE_DB_PASSWORD`
+
+2. **Configure Supabase secrets**
+   - `OPENAI_API_KEY`
+   - `GOOGLE_CLIENT_SECRET`
+   - `RINGCENTRAL_CLIENT_SECRET`
+   - `RESEND_API_KEY`
+
+3. **Deploy**
+   ```bash
+   git push origin main
+   ```
+
+## 📁 Project Structure
+
+```
+├── src/
+│   ├── components/          # Reusable UI components
+│   ├── pages/              # Application pages
+│   ├── hooks/              # Custom React hooks
+│   ├── utils/              # Utility functions
+│   ├── integrations/       # External service integrations
+│   └── lib/                # Configuration and setup
+├── supabase/
+│   ├── functions/          # Edge Functions
+│   ├── migrations/         # Database migrations
+│   └── config.toml         # Supabase configuration
+├── .github/
+│   └── workflows/          # CI/CD pipelines
+├── docker-compose.yml      # Docker configuration
+├── Dockerfile             # Container definition
+└── nginx.conf             # Nginx configuration
 ```
 
-**Edit a file directly in GitHub**
+## 🔒 Security Features
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Database Security
+- Row Level Security (RLS) on all tables
+- Audit logging for all data changes
+- Encrypted storage for sensitive data
+- Regular security scans and updates
 
-**Use GitHub Codespaces**
+### Application Security
+- Content Security Policy (CSP)
+- HTTPS enforcement
+- XSS and CSRF protection
+- Rate limiting on API endpoints
+- Input validation and sanitization
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Authentication & Authorization
+- JWT-based authentication
+- Role-based access control
+- Session management
+- Multi-factor authentication support
 
-## What technologies are used for this project?
+## 📊 Monitoring & Analytics
 
-This project is built with:
+### Performance Monitoring
+- Core Web Vitals tracking
+- Application performance metrics
+- Database query performance
+- Real-time error tracking
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Security Monitoring
+- Failed authentication attempts
+- Suspicious activity detection
+- Data access logging
+- Compliance reporting
 
-## How can I deploy this project?
+### Business Analytics
+- User engagement metrics
+- Conversion tracking
+- Revenue analytics
+- Customer behavior insights
 
-Simply open [Lovable](https://lovable.dev/projects/b7f1977e-e173-476b-99ff-3f86c3c87e08) and click on Share -> Publish.
+## 🧪 Testing
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+# Run type checking
+npm run type-check
 
-Yes, you can!
+# Run linting
+npm run lint
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Fix linting issues
+npm run lint:fix
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+# Security audit
+npm run security:audit
+```
+
+## 📚 Documentation
+
+- [Security Guide](./SECURITY.md) - Comprehensive security documentation
+- [Deployment Guide](./DEPLOYMENT.md) - Production deployment instructions
+- [API Documentation](./docs/api.md) - API endpoints and usage
+- [Component Library](./docs/components.md) - UI component documentation
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: Check the docs/ directory
+- **Issues**: Create an issue on GitHub
+- **Security**: See SECURITY.md for security-related concerns
+- **Email**: support@aviasales-crm.com
+
+## 🗓️ Roadmap
+
+### Q1 2025
+- [ ] Mobile application
+- [ ] Advanced AI features
+- [ ] Integration with more travel APIs
+- [ ] Enhanced reporting dashboard
+
+### Q2 2025
+- [ ] Multi-language support
+- [ ] Advanced workflow automation
+- [ ] Custom branding options
+- [ ] Enterprise features
+
+---
+
+Built with ❤️ by the AviaSales CRM Team
