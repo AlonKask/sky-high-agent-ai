@@ -158,7 +158,7 @@ export const InlineEditField: React.FC<InlineEditFieldProps> = ({
       }}
       title="Click to edit"
     >
-      {displayValue || value || <span className="text-muted-foreground italic">Click to add</span>}
+      {displayValue || value || ""}
     </div>
   );
 };
