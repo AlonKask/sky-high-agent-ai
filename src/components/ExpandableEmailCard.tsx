@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { SafeHtmlRenderer } from "@/components/SafeHtmlRenderer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -195,10 +194,11 @@ const ExpandableEmailCard = ({
             <div className="space-y-4">
               <div>
                 <h5 className="font-medium mb-2">Message Content</h5>
-                <SafeHtmlRenderer 
-                  html={formatEmailBody(email.body)}
+                <div 
                   className="prose prose-sm max-w-none bg-muted/30 rounded-lg p-4 border"
-                  type="email"
+                  dangerouslySetInnerHTML={{ 
+                    __html: formatEmailBody(email.body)
+                  }}
                 />
               </div>
 

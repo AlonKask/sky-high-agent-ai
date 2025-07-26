@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -382,10 +381,11 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="bg-muted/30 rounded-lg p-4 h-[300px] overflow-auto">
-                  <SafeHtmlRenderer 
-                    html={generateEmailHTML().replace('{REVIEW_URL}', '#review-portal')}
+                  <div 
                     className="bg-white rounded border min-h-full"
-                    type="email"
+                    dangerouslySetInnerHTML={{ 
+                      __html: generateEmailHTML().replace('{REVIEW_URL}', '#review-portal') 
+                    }}
                   />
                 </div>
               </CardContent>

@@ -14,7 +14,6 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: mode === 'production' ? '/' : '/',
   build: {
     // Production optimizations
     minify: mode === 'production' ? 'esbuild' : false,

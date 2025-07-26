@@ -6,9 +6,8 @@ import { toast } from 'sonner';
 
 interface SecurityContextType {
   isSecure: boolean;
-  checkPermission: (action: string) => Promise<boolean>;
+  checkPermission: (action: string) => boolean;
   logSecurityEvent: (event: string, details?: any) => void;
-  validateSession: () => Promise<boolean>;
 }
 
 const SecurityContext = createContext<SecurityContextType | undefined>(undefined);
@@ -31,81 +30,56 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [user]);
 
-  const validateSession = async (): Promise<boolean> => {
+  const validateSession = async () => {
     try {
       const { data, error } = await supabase.auth.getSession();
       
       if (error || !data.session) {
         setIsSecure(false);
-        return false;
+        return;
       }
 
-      // Check if session is still valid and not expired
-      const now = new Date().getTime() / 1000;
-      if (data.session.expires_at && data.session.expires_at < now) {
-        setIsSecure(false);
-        toast.error('Session expired. Please sign in again.');
-        return false;
-      }
-
-      // Verify user is still valid
+      // Check if session is still valid
       const { data: userdata, error: userError } = await supabase.auth.getUser();
       
       if (userError || !userdata.user) {
         setIsSecure(false);
         toast.error('Session expired. Please sign in again.');
-        return false;
+        return;
       }
 
       setIsSecure(true);
-      return true;
     } catch (error) {
       console.error('Session validation error:', error);
       setIsSecure(false);
-      return false;
     }
   };
 
-  const checkPermission = async (action: string): Promise<boolean> => {
+  const checkPermission = (action: string): boolean => {
     if (!user || !isSecure) return false;
     
-    try {
-      // Check user role from database for admin functions
-      if (action === 'admin_functions') {
-        const { data: userRole } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .single();
-        
-        return !!userRole;
-      }
-      
-      // Basic permission checks for regular actions
-      const basicPermissions = {
-        'send_email': true,
-        'view_emails': true,
-        'manage_clients': true,
-        'ai_assistant': true,
-      };
+    // Basic permission checks - can be extended
+    const permissions = {
+      'send_email': true,
+      'view_emails': true,
+      'manage_clients': true,
+      'ai_assistant': true,
+      'admin_functions': user.email?.endsWith('@admin.com') || false,
+    };
 
-      return basicPermissions[action as keyof typeof basicPermissions] || false;
-    } catch (error) {
-      console.error('Permission check failed:', error);
-      return false;
-    }
+    return permissions[action as keyof typeof permissions] || false;
   };
 
   const logSecurityEvent = async (event: string, details?: any) => {
     try {
-      // Use the secure function we created
-      await supabase.rpc('log_security_event', {
-        p_event_type: event,
-        p_severity: 'medium',
-        p_details: details || {},
-        p_user_id: user?.id
-      });
+      await supabase.from('audit_logs').insert([{
+        user_id: user?.id,
+        table_name: 'security_events',
+        operation: event,
+        new_values: details,
+        ip_address: null, // Would need to be captured on server side
+        timestamp: new Date().toISOString(),
+      }]);
     } catch (error) {
       console.error('Error logging security event:', error);
     }
@@ -115,7 +89,6 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     isSecure,
     checkPermission,
     logSecurityEvent,
-    validateSession,
   };
 
   return (

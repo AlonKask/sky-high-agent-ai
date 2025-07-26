@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LoadingFallback } from "./LoadingFallback";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -24,7 +24,11 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   }, [user, loading, navigate, location]);
 
   if (loading) {
-    return <LoadingFallback />;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!user) {

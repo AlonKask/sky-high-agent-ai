@@ -1866,15 +1866,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
-      log_security_event: {
-        Args: {
-          p_event_type: string
-          p_severity: string
-          p_details?: Json
-          p_user_id?: string
-        }
-        Returns: string
-      }
       update_client_memory: {
         Args: {
           p_user_id: string

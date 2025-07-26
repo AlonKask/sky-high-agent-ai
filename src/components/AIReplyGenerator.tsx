@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { SafeHtmlRenderer } from "@/components/SafeHtmlRenderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -476,10 +475,11 @@ const AIReplyGenerator = ({
                         />
                       ) : (
                         <ScrollArea className="h-64">
-                          <SafeHtmlRenderer 
-                            html={editMode ? editedReply : generatedReply.body}
+                          <div 
                             className="prose prose-sm max-w-none"
-                            type="email"
+                            dangerouslySetInnerHTML={{ 
+                              __html: editMode ? editedReply : generatedReply.body 
+                            }}
                           />
                         </ScrollArea>
                       )}

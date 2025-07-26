@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -333,10 +332,7 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
           ) : (
             /* Raw Email Content */
             <div className="prose max-w-none">
-              <SafeHtmlRenderer 
-                html={email.body || email.snippet || ''}
-                type="email"
-              />
+              <div dangerouslySetInnerHTML={{ __html: email.body || email.snippet }} />
             </div>
           )}
         </ScrollArea>
