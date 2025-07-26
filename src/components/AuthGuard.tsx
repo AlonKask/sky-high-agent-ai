@@ -15,13 +15,13 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   useEffect(() => {
     if (!loading && !user && location.pathname !== '/auth') {
       // Store the attempted URL to redirect back after login
-      const returnUrl = location.pathname;
+      const returnUrl = location.pathname !== '/auth' ? location.pathname : '/';
       navigate('/auth', { 
         replace: true,
         state: { returnUrl }
       });
     }
-  }, [user, loading, navigate, location.pathname]);
+  }, [user, loading, navigate, location]);
 
   if (loading) {
     return <LoadingFallback />;

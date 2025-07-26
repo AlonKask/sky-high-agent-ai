@@ -10,7 +10,7 @@ interface AgentProfileProps {
 }
 
 export const AgentProfile: React.FC<AgentProfileProps> = ({ className = '' }) => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const getDisplayName = () => {
@@ -29,13 +29,8 @@ export const AgentProfile: React.FC<AgentProfileProps> = ({ className = '' }) =>
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/auth');
-    } catch (error) {
-      console.error('Error signing out:', error);
-      navigate('/auth');
-    }
+    // Implement logout functionality
+    window.location.href = '/auth';
   };
 
   if (!user) {
