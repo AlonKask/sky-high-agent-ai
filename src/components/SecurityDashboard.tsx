@@ -51,10 +51,10 @@ const SecurityDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (role === 'admin') {
+    if (user && role === 'admin') {
       loadSecurityData();
     }
-  }, [role]);
+  }, [user, role]);
 
   const loadSecurityData = async () => {
     try {
@@ -190,7 +190,8 @@ const SecurityDashboard = () => {
     }
   };
 
-  if (role !== 'admin') {
+  // Use proper role-based access control instead of simple string comparison
+  if (!user || role !== 'admin') {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="w-full max-w-md">
@@ -199,6 +200,7 @@ const SecurityDashboard = () => {
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
               You need administrator privileges to access the security dashboard.
+              {!user && ' Please sign in first.'}
             </CardDescription>
           </CardHeader>
         </Card>
