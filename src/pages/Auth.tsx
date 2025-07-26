@@ -24,11 +24,11 @@ const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        window.location.href = "/";
+        navigate("/", { replace: true });
       }
     };
     checkUser();
-  }, []);
+  }, [navigate]);
 
   const cleanupAuthState = () => {
     Object.keys(localStorage).forEach((key) => {
