@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { useAuth } from '@/hooks/useAuth';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
@@ -773,7 +774,10 @@ const Emails = () => {
               {/* Email Body */}
               <ScrollArea className="flex-1 p-4">
                 <div className="prose max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: selectedEmail.body }} />
+                  <SafeHtmlRenderer 
+                    html={selectedEmail.body}
+                    type="email"
+                  />
                 </div>
               </ScrollArea>
             </div>
