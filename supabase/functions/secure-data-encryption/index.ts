@@ -64,8 +64,44 @@ serve(async (req) => {
     if (operation === 'encrypt') {
       const encryptRequest = requestData as EncryptionRequest;
       
-      // Simple encryption (in production, use proper encryption like AES-256-GCM)
-      const encryptedData = btoa(encryptRequest.data); // Base64 encoding as placeholder
+      // Proper AES-256-GCM encryption
+      const encoder = new TextEncoder();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      
+      // Generate key from secure source (in production, use proper key management)
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(`${user.id}-${encryptRequest.dataType}-key`),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveBits', 'deriveKey']
+      );
+
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: encoder.encode(user.id),
+          iterations: 100000,
+          hash: 'SHA-256',
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+
+      const encryptedBuffer = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        encoder.encode(encryptRequest.data)
+      );
+
+      // Combine IV and encrypted data
+      const result = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+      result.set(iv);
+      result.set(new Uint8Array(encryptedBuffer), iv.length);
+      
+      const encryptedData = btoa(String.fromCharCode(...result));
       
       // Log data access
       await supabaseClient.from('sensitive_data_access').insert({
@@ -88,8 +124,52 @@ serve(async (req) => {
     } else if (operation === 'decrypt') {
       const decryptRequest = requestData as DecryptionRequest;
       
-      // Simple decryption (in production, use proper decryption)
-      const decryptedData = atob(decryptRequest.encryptedData); // Base64 decoding as placeholder
+      // Proper AES-256-GCM decryption
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      
+      try {
+        const encryptedBuffer = Uint8Array.from(atob(decryptRequest.encryptedData), c => c.charCodeAt(0));
+        const iv = encryptedBuffer.slice(0, 12);
+        const encrypted = encryptedBuffer.slice(12);
+
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw',
+          encoder.encode(`${user.id}-${decryptRequest.dataType}-key`),
+          { name: 'PBKDF2' },
+          false,
+          ['deriveBits', 'deriveKey']
+        );
+
+        const key = await crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: encoder.encode(user.id),
+            iterations: 100000,
+            hash: 'SHA-256',
+          },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt']
+        );
+
+        const decryptedBuffer = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: iv },
+          key,
+          encrypted
+        );
+
+        const decryptedData = decoder.decode(decryptedBuffer);
+      } catch (decryptError) {
+        await supabaseClient.from('security_events').insert({
+          user_id: user.id,
+          event_type: 'admin_action',
+          severity: 'high',
+          details: { operation: 'decryption_failed', error: 'Invalid encrypted data' }
+        });
+        throw new Error('Decryption failed');
+      }
       
       // Log data access with reason
       await supabaseClient.from('sensitive_data_access').insert({

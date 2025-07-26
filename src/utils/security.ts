@@ -162,6 +162,52 @@ export const checkRateLimit = (key: string, maxRequests: number = 10, windowMs: 
   return true;
 };
 
+/**
+ * Enhanced error handling with security logging
+ */
+export const handleSecurityError = async (error: Error, context: string, userId?: string) => {
+  console.error(`Security error in ${context}:`, error);
+  
+  // Log security event if possible
+  try {
+    await logSecurityEvent({
+      event_type: 'suspicious_activity',
+      severity: 'medium',
+      details: {
+        context,
+        error_message: error.message,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (logError) {
+    console.error('Failed to log security event:', logError);
+  }
+};
+
+/**
+ * Validate database constraint before insert
+ */
+export const preValidateEmailExchange = (data: any): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (!data.status || !['draft', 'sent', 'delivered', 'failed', 'bounced', 'read', 'replied'].includes(data.status)) {
+    errors.push('Invalid email status');
+  }
+  
+  if (!data.direction || !['inbound', 'outbound'].includes(data.direction)) {
+    errors.push('Invalid email direction');
+  }
+  
+  if (!data.user_id) {
+    errors.push('User ID is required');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
 // Secure random token generation
 export const generateSecureToken = (length: number = 32): string => {
   const array = new Uint8Array(length);

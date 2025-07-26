@@ -70,11 +70,31 @@ export const validateUserInput = <T>(schema: z.ZodSchema<T>, data: unknown): T =
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(error.errors.map(e => e.message).join(', '));
+      const formattedError = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+      throw new Error(`Validation failed: ${formattedError}`);
     }
     throw new Error('Invalid input');
   }
 };
+
+// Email exchange status validation
+export const validateEmailStatus = (status: string): boolean => {
+  const validStatuses = ['draft', 'sent', 'delivered', 'failed', 'bounced', 'read', 'replied'];
+  return validStatuses.includes(status);
+};
+
+// Enhanced email validation with additional checks
+export const validateEmailExchange = z.object({
+  subject: z.string().min(1).max(200),
+  body: z.string().min(1).max(50000),
+  sender_email: emailSchema,
+  recipient_emails: z.array(emailSchema).min(1).max(10),
+  status: z.string().refine(validateEmailStatus, {
+    message: "Invalid email status"
+  }),
+  direction: z.enum(['inbound', 'outbound']),
+  email_type: z.string().optional().default('general')
+});
 
 // Rate limiting validation
 export const isValidRequestRate = (lastRequestTime: number, minInterval: number = 1000): boolean => {
