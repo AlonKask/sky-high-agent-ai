@@ -8,6 +8,7 @@ import { SecurityProvider } from "@/components/SecurityProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
+import SearchResults from "./pages/SearchResults";
 import Auth from "./pages/Auth";
 import Emails from "./pages/Emails";
 import Clients from "./pages/Clients";
@@ -43,12 +44,13 @@ function App() {
               <ErrorBoundary>
                 <Routes>
                   {/* Public routes */}
+                  <Route path="/" element={<Index />} />
+                  <Route path="/search-results" element={<SearchResults />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/options/:token" element={<OptionsReview />} />
                   <Route path="/view-option/:token/:quoteId" element={<ViewOption />} />
                   
                   {/* Protected routes */}
-                  <Route path="/" element={<Layout><Index /></Layout>} />
                   <Route path="/emails" element={<Layout><Emails /></Layout>} />
                   <Route path="/clients" element={<Layout><Clients /></Layout>} />
                   <Route path="/clients/:id" element={<Layout><ClientProfile /></Layout>} />
