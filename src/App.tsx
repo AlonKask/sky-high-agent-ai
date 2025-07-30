@@ -9,6 +9,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import SearchResults from "./pages/SearchResults";
+import PassengerInformation from "./pages/PassengerInformation";
 import Auth from "./pages/Auth";
 import Emails from "./pages/Emails";
 import Clients from "./pages/Clients";
@@ -46,6 +47,7 @@ function App() {
                   {/* Public routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/search-results" element={<SearchResults />} />
+                  <Route path="/booking/passenger-info" element={<PassengerInformation />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/options/:token" element={<OptionsReview />} />
                   <Route path="/view-option/:token/:quoteId" element={<ViewOption />} />
