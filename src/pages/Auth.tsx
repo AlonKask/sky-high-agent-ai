@@ -149,9 +149,9 @@ const Auth = () => {
           // User is automatically confirmed
           toast({
             title: "Account Created!",
-            description: "Welcome to AviaSales! You're now signed in.",
+            description: "Welcome to SkyBook! You're now signed in.",
           });
-          navigate("/", { replace: true });
+          navigate("/my-trips", { replace: true });
         } else {
           // Email confirmation required
           toast({
@@ -173,17 +173,20 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 flex items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-primary to-accent">
-            <Plane className="h-8 w-8 text-primary-foreground" />
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Plane className="h-8 w-8 text-primary" />
+            <span className="text-2xl font-bold">SkyBook</span>
           </div>
-          <CardTitle className="text-2xl font-bold">AviaSales</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {mode === "signin" ? "Welcome back" : "Create your account"}
+          </CardTitle>
           <CardDescription>
             {mode === "signin" 
-              ? "Business Class Tickets - Sign in to your account" 
-              : "Join AviaSales - Create your account to get started"
+              ? "Sign in to manage your trips and bookings" 
+              : "Join SkyBook to start booking amazing flights"
             }
           </CardDescription>
         </CardHeader>
