@@ -75,40 +75,44 @@ const Settings = () => {
       setLoading(true);
       
       // Fetch profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
       
-      if (profileData) {
-        setProfile({
-          first_name: profileData.first_name || '',
-          last_name: profileData.last_name || '',
-          email: profileData.email || user?.email || '',
-          phone: profileData.phone || '',
-          company: profileData.company || ''
-        });
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
       }
+      
+      setProfile({
+        first_name: profileData?.first_name || '',
+        last_name: profileData?.last_name || '',
+        email: profileData?.email || user?.email || '',
+        phone: profileData?.phone || '',
+        company: profileData?.company || ''
+      });
 
       // Fetch preferences
-      const { data: preferencesData } = await supabase
+      const { data: preferencesData, error: preferencesError } = await supabase
         .from('user_preferences')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
       
-      if (preferencesData) {
-        setPreferences({
-          email_notifications: preferencesData.email_notifications ?? true,
-          sms_notifications: preferencesData.sms_notifications ?? false,
-          marketing_emails: false, // Not in DB schema yet
-          theme: (preferencesData.theme as 'light' | 'dark' | 'system') || 'system',
-          language: preferencesData.language || 'en',
-          timezone: preferencesData.timezone || 'UTC',
-          currency: preferencesData.currency || 'USD'
-        });
+      if (preferencesError) {
+        console.error('Error fetching preferences:', preferencesError);
       }
+      
+      setPreferences({
+        email_notifications: preferencesData?.email_notifications ?? true,
+        sms_notifications: preferencesData?.sms_notifications ?? false,
+        marketing_emails: false, // Not in DB schema yet
+        theme: (preferencesData?.theme as 'light' | 'dark' | 'system') || 'system',
+        language: preferencesData?.language || 'en',
+        timezone: preferencesData?.timezone || 'UTC',
+        currency: preferencesData?.currency || 'USD'
+      });
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast({
