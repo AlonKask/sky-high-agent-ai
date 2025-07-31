@@ -1,21 +1,21 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface MemoryContext {
-  userMemory?: any;
-  clientMemories?: any[];
-  salesMemories?: any[];
-  recentInteractions?: any[];
+interface ChatRequest {
+  message: string;
+  context: {
+    user_id: string;
+    conversation_id?: string;
+    recent_messages?: any[];
+    current_page?: string;
+  };
+  conversation_id?: string;
 }
 
 serve(async (req) => {
@@ -24,45 +24,120 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, context, clientId, requestId, currentPage } = await req.json();
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('AI Assistant called with:', { currentPage, clientId, requestId, messagesCount: messages.length });
-    
-    // Get user from auth
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase configuration missing');
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      throw new Error('Invalid authentication');
+    const { message, context, conversation_id }: ChatRequest = await req.json();
+
+    console.log('AI Assistant Request:', { message, context });
+
+    // Get user memory and context
+    let userMemory = '';
+    let clientMemories: any[] = [];
+    let businessData = {};
+
+    try {
+      // Fetch user memory
+      const { data: userMemoryData } = await supabase
+        .from('user_memories')
+        .select('summary')
+        .eq('user_id', context.user_id)
+        .single();
+
+      if (userMemoryData?.summary) {
+        userMemory = userMemoryData.summary;
+      }
+
+      // Fetch client memories for relevant context
+      const { data: clientMemoryData } = await supabase
+        .from('client_memories')
+        .select('*')
+        .eq('user_id', context.user_id)
+        .limit(10);
+
+      clientMemories = clientMemoryData || [];
+
+      // Get recent business data for context
+      const [clientsRes, bookingsRes, requestsRes, emailsRes] = await Promise.all([
+        supabase.from('clients').select('*').eq('user_id', context.user_id).limit(20),
+        supabase.from('bookings').select('*').eq('user_id', context.user_id).limit(20),
+        supabase.from('requests').select('*').eq('user_id', context.user_id).limit(20),
+        supabase.from('email_exchanges').select('*').eq('user_id', context.user_id).limit(10)
+      ]);
+
+      businessData = {
+        clients: clientsRes.data || [],
+        bookings: bookingsRes.data || [],
+        requests: requestsRes.data || [],
+        emails: emailsRes.data || []
+      };
+    } catch (error) {
+      console.error('Error fetching context data:', error);
     }
 
-    console.log('User authenticated:', user.id);
+    // Build comprehensive system prompt with memory and context
+    const systemPrompt = `You are an advanced AI assistant for a travel CRM system with comprehensive business intelligence and memory capabilities.
 
-    // Fetch comprehensive memory context
-    const memoryContext = await fetchMemoryContext(supabase, user.id, clientId, requestId);
-    console.log('Memory context loaded:', {
-      hasUserMemory: !!memoryContext.userMemory,
-      clientMemoriesCount: memoryContext.clientMemories?.length || 0,
-      salesMemoriesCount: memoryContext.salesMemories?.length || 0
-    });
-    
-    // Build enhanced system prompt with memory
-    const systemPrompt = buildSystemPromptWithMemory(memoryContext, context, currentPage, clientId);
-    
-    // Determine if this looks like a navigation or search request
-    const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
-    const isNavigationRequest = lastMessage.includes('get me to') || lastMessage.includes('go to') || lastMessage.includes('show me') || lastMessage.includes('navigate to') || lastMessage.includes('take me to');
-    const isSearchRequest = lastMessage.includes('do i have') || lastMessage.includes('find') || lastMessage.includes('search for') || lastMessage.includes('look for');
-    
-    console.log('Request analysis:', { isNavigationRequest, isSearchRequest, lastMessage });
+CONTEXT & MEMORY:
+User Memory: ${userMemory || 'No previous interactions recorded'}
 
-    // Call OpenAI with memory-enhanced context
+Client Memories (recent interactions):
+${clientMemories.map(cm => `
+- Client: ${cm.relationship_summary}
+- Preferences: ${JSON.stringify(cm.preferences)}
+- Pain Points: ${JSON.stringify(cm.pain_points)}
+- Last Interaction: ${cm.last_interaction}
+`).join('\n')}
+
+BUSINESS DATA CONTEXT:
+- Total Clients: ${(businessData as any).clients?.length || 0}
+- Recent Bookings: ${(businessData as any).bookings?.length || 0}
+- Pending Requests: ${(businessData as any).requests?.filter((r: any) => r.status === 'pending').length || 0}
+- Recent Emails: ${(businessData as any).emails?.length || 0}
+
+CURRENT CONTEXT:
+- Page: ${context.current_page || 'Unknown'}
+- Conversation ID: ${conversation_id || 'New conversation'}
+
+CAPABILITIES:
+1. Email Management: Help with email analysis, drafting, and automation
+2. Client Management: Provide insights about clients and relationships
+3. Travel Planning: Assist with booking coordination and travel advice
+4. Business Intelligence: Analyze performance and provide strategic insights
+5. Lead Scoring: Evaluate client potential and opportunities
+6. Memory Management: Remember and recall important client interactions
+
+INSTRUCTIONS:
+- Be concise but comprehensive in your responses
+- Use the business data to provide specific, actionable insights
+- Remember important details for future interactions
+- If asked about specific clients or bookings, reference the actual data
+- Suggest next steps and actions when appropriate
+- Maintain a professional, helpful tone
+- Always prioritize data accuracy and client confidentiality
+
+If you need to update user or client memories based on this conversation, indicate this in your metadata.`;
+    
+    // Prepare messages array
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...(context.recent_messages || []).slice(-5),
+      { role: 'user', content: message }
+    ];
+
+    console.log('Sending request to OpenAI...');
+
+    // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -71,12 +146,9 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'gpt-4.1-2025-04-14',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages
-        ],
-        temperature: 0.3,
-        max_tokens: 1500,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 1000,
         tools: [
           {
             type: 'function',
