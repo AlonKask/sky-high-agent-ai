@@ -34,21 +34,27 @@ export const useGmailIntegration = () => {
     }
 
     try {
-      // Checking Gmail status for user
+      // For now, we'll use the user's email from their profile as a demo
       const { data, error } = await supabase
         .from('profiles')
-        .select('email, updated_at')
+        .select('email')
         .eq('id', user.id)
         .single();
-
-      // Check if user has Gmail tokens stored
-      const userEmail = data?.email;
-      const isConnected = !!userEmail;
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching user profile:', error);
         throw error;
       }
+
+      // Check if user has Gmail tokens stored in user_preferences
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('gmail_user_email, gmail_access_token, updated_at')
+        .eq('user_id', user.id)
+        .single();
+
+      const userEmail = prefs?.gmail_user_email || data?.email;
+      const isConnected = !!(prefs?.gmail_access_token && userEmail);
 
       console.log('Gmail connection status:', {
         isConnected,
@@ -59,7 +65,7 @@ export const useGmailIntegration = () => {
         isConnected,
         userEmail: userEmail || null,
         isLoading: false,
-        lastSync: data?.updated_at ? new Date(data.updated_at) : null
+        lastSync: prefs?.updated_at ? new Date(prefs.updated_at) : null
       });
 
     } catch (error) {
@@ -158,7 +164,7 @@ export const useGmailIntegration = () => {
               
               toast({
                 title: "Gmail Connected",
-                description: `Successfully connected ${event.data.userEmail}. Syncing emails...`,
+                description: `Successfully connected ${event.data.userEmail}. You can now sync emails using the demo sync.`,
               });
 
               // Refresh status to get latest sync info
@@ -320,9 +326,9 @@ export const useGmailIntegration = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('enhanced-email-sync', {
+      const { data, error } = await supabase.functions.invoke('demo-email-sync', {
         body: {
-          userEmail: authStatus.userEmail,
+          userEmail: authStatus.userEmail || user.email,
           includeAIProcessing: false
         },
         headers: {
@@ -335,7 +341,7 @@ export const useGmailIntegration = () => {
       if (data?.success) {
         toast({
           title: "Sync Complete",
-          description: `Synced ${data.stored || 0} new emails`,
+          description: data.message || `Synced ${data.stored || 0} new emails`,
         });
         
         // Update last sync time
