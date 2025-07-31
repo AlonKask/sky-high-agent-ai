@@ -37,7 +37,7 @@ export const useGmailIntegration = () => {
       // Checking Gmail status for user
       const { data, error } = await supabase
         .from('profiles')
-        .select('email')
+        .select('email, updated_at')
         .eq('id', user.id)
         .single();
 
