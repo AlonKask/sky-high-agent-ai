@@ -120,45 +120,65 @@ export class EmailContentParser {
   }
 
   private static cleanHtmlContent(html: string): string {
-    // Remove HTML tags while preserving structure
-    let cleaned = html
-      .replace(/<style[^>]*>.*?<\/style>/gis, '')
-      .replace(/<script[^>]*>.*?<\/script>/gis, '')
-      .replace(/<head[^>]*>.*?<\/head>/gis, '')
-      .replace(/<!--.*?-->/gs, '');
+    try {
+      // Handle empty or undefined content
+      if (!html || typeof html !== 'string') {
+        return '';
+      }
 
-    // Convert common HTML elements to plain text with formatting
-    cleaned = cleaned
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<p[^>]*>/gi, '')
-      .replace(/<div[^>]*>/gi, '\n')
-      .replace(/<\/div>/gi, '')
-      .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n$1\n')
-      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
-      .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
-      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
-      .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
-      .replace(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi, '$2 ($1)')
-      .replace(/<[^>]+>/g, '');
+      // Remove potentially dangerous content first
+      let cleaned = html
+        .replace(/<style[^>]*>.*?<\/style>/gis, '')
+        .replace(/<script[^>]*>.*?<\/script>/gis, '')
+        .replace(/<head[^>]*>.*?<\/head>/gis, '')
+        .replace(/<!--.*?-->/gs, '');
 
-    // Decode HTML entities
-    cleaned = cleaned
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+      // Extract images with proper handling
+      const images = [];
+      cleaned = cleaned.replace(/<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*>/gi, (match, src, alt) => {
+        images.push({ src, alt: alt || 'Image' });
+        return `[image: ${alt || 'image'}]`;
+      });
 
-    // Clean up excessive whitespace
-    cleaned = cleaned
-      .replace(/\n\s*\n\s*\n/g, '\n\n')
-      .replace(/[ \t]+/g, ' ')
-      .trim();
+      // Convert HTML structure to readable text with preserved formatting
+      cleaned = cleaned
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<p[^>]*>/gi, '')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<div[^>]*>/gi, '')
+        .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n')
+        .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+        .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+        .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+        .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+        .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, '> $1')
+        .replace(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/gi, '$2 ($1)')
+        .replace(/<[^>]+>/g, ' '); // Remove any remaining tags
 
-    return cleaned;
+      // Decode HTML entities
+      cleaned = cleaned
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+
+      // Clean up whitespace and formatting
+      cleaned = cleaned
+        .replace(/\n\s*\n\s*\n+/g, '\n\n') // Max 2 consecutive newlines
+        .replace(/[ \t]+/g, ' ') // Collapse multiple spaces
+        .replace(/^\s+|\s+$/gm, '') // Trim each line
+        .trim();
+
+      return cleaned;
+    } catch (error) {
+      console.error('Error cleaning HTML content:', error);
+      return html; // Return original content if cleaning fails
+    }
   }
 
   private static extractImages(content: string): ImageInfo[] {
@@ -321,22 +341,36 @@ export class EmailContentParser {
   private static extractFinancialData(content: string): FinancialData[] {
     const financial: FinancialData[] = [];
 
-    Object.entries(this.FINANCIAL_PATTERNS).forEach(([type, pattern]) => {
-      let match;
-      while ((match = pattern.exec(content)) !== null) {
-        const amount = parseFloat(match[1].replace(/,/g, ''));
-        const currency = match[2] || 'USD';
-        
-        financial.push({
-          type: type as any,
-          amount,
-          currency,
-          label: match[0]
-        });
-      }
-    });
+    try {
+      // Enhanced patterns for financial data extraction
+      const patterns = {
+        profit: /(?:Clean Profit|Profit After|Profit):\s*\*?[\$€£¥]?([\d,]+\.?\d*)\s*(USD|EUR|GBP|JPY)?\s*\*?/gi,
+        price: /(?:Net Price|Selling Price|Total|Amount|Price):\s*[\$€£¥]?([\d,]+\.?\d*)\s*(USD|EUR|GBP|JPY)?/gi,
+        fee: /(?:Service Fee|IF|CK|Tips|TP|CFAR|FT):\s*[\$€£¥]?([\d,]+\.?\d*)\s*(USD|EUR|GBP|JPY)?/gi
+      };
 
-    return financial;
+      Object.entries(patterns).forEach(([type, pattern]) => {
+        let match;
+        const usedPattern = new RegExp(pattern.source, pattern.flags);
+        while ((match = usedPattern.exec(content)) !== null) {
+          const amount = parseFloat(match[1].replace(/,/g, ''));
+          if (!isNaN(amount)) {
+            const currency = match[2] || 'USD';
+            financial.push({
+              type: type as any,
+              amount,
+              currency,
+              label: match[0].trim()
+            });
+          }
+        }
+      });
+
+      return financial;
+    } catch (error) {
+      console.error('Error extracting financial data:', error);
+      return [];
+    }
   }
 
   private static extractFlightInfo(content: string): FlightInfo[] {
@@ -364,13 +398,31 @@ export class EmailContentParser {
 
   private static extractBookingReferences(content: string): string[] {
     const refs: string[] = [];
-    let match;
+    
+    try {
+      // Enhanced booking reference patterns
+      const patterns = [
+        /(?:EK #|Booking|PNR|Reference|Confirmation):\s*([A-Z0-9]{4,8})/gi,
+        /\b([A-Z]{6})\b/g, // 6-letter codes like LNEKP2
+        /\b([A-Z0-9]{5,7})\b(?=\s*-\s*Booked)/gi // Codes before "Booked"
+      ];
 
-    while ((match = this.FLIGHT_PATTERNS.bookingRef.exec(content)) !== null) {
-      refs.push(match[1]);
+      patterns.forEach(pattern => {
+        let match;
+        const usedPattern = new RegExp(pattern.source, pattern.flags);
+        while ((match = usedPattern.exec(content)) !== null) {
+          const ref = match[1];
+          if (ref && !refs.includes(ref)) {
+            refs.push(ref);
+          }
+        }
+      });
+
+      return refs;
+    } catch (error) {
+      console.error('Error extracting booking references:', error);
+      return [];
     }
-
-    return refs;
   }
 
   private static extractStructuredData(content: string, subject: string): StructuredData[] {

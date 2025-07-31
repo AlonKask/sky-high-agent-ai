@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
-import { RichEmailRenderer } from '@/components/RichEmailRenderer';
+import SafeEmailRenderer from '@/components/SafeEmailRenderer';
 import { useAuth } from '@/hooks/useAuth';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,7 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ManualGmailFix } from '@/components/ManualGmailFix';
 import { Switch } from '@/components/ui/switch';
@@ -785,7 +785,7 @@ const Emails = () => {
               {/* Email Body */}
               <ScrollArea className="flex-1 p-4">
                 {useRichEmailView ? (
-                  <RichEmailRenderer 
+                  <SafeEmailRenderer 
                     emailBody={selectedEmail.body}
                     subject={selectedEmail.subject}
                     showRawContent={false}
