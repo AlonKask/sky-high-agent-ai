@@ -21,7 +21,17 @@ import {
   Phone,
   Lock,
   Globe,
-  Save
+  Save,
+  Users,
+  UserCog,
+  Database,
+  Calendar,
+  BarChart3,
+  DollarSign,
+  Terminal,
+  Bug,
+  Code,
+  Settings as SettingsIcon
 } from 'lucide-react';
 
 interface UserPreferences {
@@ -189,6 +199,259 @@ const Settings = () => {
     }
   };
 
+  const renderRoleSpecificContent = () => {
+    switch (selectedViewRole) {
+      case 'admin':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  User Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button variant="outline" className="w-full justify-start">
+                  <Users className="h-4 w-4 mr-2" />
+                  View All Users
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <UserCog className="h-4 w-4 mr-2" />
+                  Manage User Roles
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Security Audit
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <SettingsIcon className="h-5 w-5" />
+                  System Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button variant="outline" className="w-full justify-start">
+                  <SettingsIcon className="h-4 w-4 mr-2" />
+                  Global Settings
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <Database className="h-4 w-4 mr-2" />
+                  Database Management
+                </Button>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'manager':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Team Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button variant="outline" className="w-full justify-start">
+                  <Users className="h-4 w-4 mr-2" />
+                  Team Overview
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Schedule Management
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Performance Reports
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Business Operations
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button variant="outline" className="w-full justify-start">
+                  <SettingsIcon className="h-4 w-4 mr-2" />
+                  Workflow Settings
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Commission Settings
+                </Button>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      case 'dev':
+        return (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Terminal className="h-5 w-5" />
+                  Developer Tools
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button variant="outline" className="w-full justify-start">
+                  <Terminal className="h-4 w-4 mr-2" />
+                  API Console
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <Bug className="h-4 w-4 mr-2" />
+                  Debug Logs
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <Code className="h-4 w-4 mr-2" />
+                  System Monitoring
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Environment Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button variant="outline" className="w-full justify-start">
+                  <SettingsIcon className="h-4 w-4 mr-2" />
+                  Environment Variables
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <Database className="h-4 w-4 mr-2" />
+                  Database Schema
+                </Button>
+              </CardContent>
+            </Card>
+          </>
+        );
+
+      default:
+        return (
+          <>
+            {/* Notification Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Notifications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Email Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                  </div>
+                  <Switch
+                    checked={preferences.email_notifications}
+                    onCheckedChange={(checked) => setPreferences({...preferences, email_notifications: checked})}
+                  />
+                </div>
+                
+                <Separator />
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>SMS Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive urgent notifications via SMS</p>
+                  </div>
+                  <Switch
+                    checked={preferences.sms_notifications}
+                    onCheckedChange={(checked) => setPreferences({...preferences, sms_notifications: checked})}
+                  />
+                </div>
+                
+                <Separator />
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Marketing Emails</Label>
+                    <p className="text-sm text-muted-foreground">Receive promotional content</p>
+                  </div>
+                  <Switch
+                    checked={preferences.marketing_emails}
+                    onCheckedChange={(checked) => setPreferences({...preferences, marketing_emails: checked})}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* App Preferences */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  App Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Theme</Label>
+                  <Select value={preferences.theme} onValueChange={(value) => setPreferences({...preferences, theme: value as any})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select value={preferences.language} onValueChange={(value) => setPreferences({...preferences, language: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="fr">French</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select value={preferences.currency} onValueChange={(value) => setPreferences({...preferences, currency: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="EUR">EUR (€)</SelectItem>
+                      <SelectItem value="GBP">GBP (£)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button onClick={savePreferences} disabled={saving} className="w-full">
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? 'Saving...' : 'Save Preferences'}
+                </Button>
+              </CardContent>
+            </Card>
+          </>
+        );
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -204,7 +467,14 @@ const Settings = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences</p>
+          <p className="text-muted-foreground">
+            Manage your account settings and preferences
+            {role === 'dev' && selectedViewRole !== role && (
+              <span className="ml-2 text-primary font-medium">
+                • Viewing as {selectedViewRole}
+              </span>
+            )}
+          </p>
         </div>
         <Badge variant="outline">
           <User className="h-3 w-3 mr-1" />
@@ -291,111 +561,8 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Notification Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Email Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-              </div>
-              <Switch
-                checked={preferences.email_notifications}
-                onCheckedChange={(checked) => setPreferences({...preferences, email_notifications: checked})}
-              />
-            </div>
-            
-            <Separator />
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>SMS Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive urgent notifications via SMS</p>
-              </div>
-              <Switch
-                checked={preferences.sms_notifications}
-                onCheckedChange={(checked) => setPreferences({...preferences, sms_notifications: checked})}
-              />
-            </div>
-            
-            <Separator />
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Marketing Emails</Label>
-                <p className="text-sm text-muted-foreground">Receive promotional content</p>
-              </div>
-              <Switch
-                checked={preferences.marketing_emails}
-                onCheckedChange={(checked) => setPreferences({...preferences, marketing_emails: checked})}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* App Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5" />
-              App Preferences
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Theme</Label>
-              <Select value={preferences.theme} onValueChange={(value) => setPreferences({...preferences, theme: value as any})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select theme" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                  <SelectItem value="system">System</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Language</Label>
-              <Select value={preferences.language} onValueChange={(value) => setPreferences({...preferences, language: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                  <SelectItem value="fr">French</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <Select value={preferences.currency} onValueChange={(value) => setPreferences({...preferences, currency: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD ($)</SelectItem>
-                  <SelectItem value="EUR">EUR (€)</SelectItem>
-                  <SelectItem value="GBP">GBP (£)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button onClick={savePreferences} disabled={saving} className="w-full">
-              <Save className="h-4 w-4 mr-2" />
-              {saving ? 'Saving...' : 'Save Preferences'}
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Role-specific content */}
+        {renderRoleSpecificContent()}
 
         {/* Security Settings */}
         <Card>
