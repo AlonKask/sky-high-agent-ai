@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { User, Clock, CheckCircle, AlertTriangle, Eye } from "lucide-react";
+import { User, Clock, CheckCircle, AlertTriangle, Eye, MessageSquare, TrendingUp, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AddAgentDialog } from "@/components/dialogs/AddAgentDialog";
 
 interface AgentPerformance {
   agent_id: string;
@@ -13,6 +14,8 @@ interface AgentPerformance {
   target: number;
   requests_handled: number;
   conversion_rate: number;
+  reply_rate: number;
+  avg_response_time: number;
   status: 'online' | 'offline' | 'busy';
 }
 
@@ -30,6 +33,7 @@ export const SupervisorDashboard = () => {
   const [followUpRequests, setFollowUpRequests] = useState<RequestData[]>([]);
   const [availableRequests, setAvailableRequests] = useState<RequestData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamReplyRate, setTeamReplyRate] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,7 +64,13 @@ export const SupervisorDashboard = () => {
           .not('assigned_to', 'is', null)
           .gte('created_at', thisMonth.toISOString());
 
-        // Calculate agent performance
+        // Fetch email exchanges for reply rate calculation
+        const { data: emailExchanges } = await supabase
+          .from('email_exchanges')
+          .select('user_id, direction, created_at, client_id')
+          .gte('created_at', thisMonth.toISOString());
+
+        // Calculate agent performance with reply rates
         const agentPerformance: AgentPerformance[] = userRoles?.map(agent => {
           const profile = profiles?.find(p => p.id === agent.user_id);
           const agentName = profile ? 
@@ -69,12 +79,38 @@ export const SupervisorDashboard = () => {
           
           const userBookings = agentBookings?.filter(b => b.user_id === agent.user_id) || [];
           const userRequests = agentRequests?.filter(r => r.assigned_to === agent.user_id) || [];
+          const userEmails = emailExchanges?.filter(e => e.user_id === agent.user_id) || [];
           
           const profit = userBookings.reduce((sum, booking) => sum + (booking.commission || 0), 0);
-          const totalRevenue = userBookings.reduce((sum, booking) => sum + (booking.total_price || 0), 0);
           const requestsHandled = userRequests.length;
           const completedRequests = userRequests.filter(r => r.status === 'completed').length;
           const conversionRate = requestsHandled > 0 ? (completedRequests / requestsHandled) * 100 : 0;
+
+          // Calculate reply rate and response time
+          const inboundEmails = userEmails.filter(e => e.direction === 'inbound');
+          const outboundEmails = userEmails.filter(e => e.direction === 'outbound');
+          const replyRate = inboundEmails.length > 0 ? (outboundEmails.length / inboundEmails.length) * 100 : 0;
+          
+          // Calculate average response time (simplified - using hours)
+          let totalResponseTime = 0;
+          let responseCount = 0;
+          
+          inboundEmails.forEach(inbound => {
+            const replies = outboundEmails.filter(outbound => 
+              outbound.client_id === inbound.client_id && 
+              new Date(outbound.created_at) > new Date(inbound.created_at)
+            );
+            if (replies.length > 0) {
+              const firstReply = replies.sort((a, b) => 
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              )[0];
+              const responseTime = (new Date(firstReply.created_at).getTime() - new Date(inbound.created_at).getTime()) / (1000 * 60 * 60);
+              totalResponseTime += responseTime;
+              responseCount++;
+            }
+          });
+          
+          const avgResponseTime = responseCount > 0 ? totalResponseTime / responseCount : 0;
 
           return {
             agent_id: agent.user_id,
@@ -83,9 +119,16 @@ export const SupervisorDashboard = () => {
             target: agent.role === 'sales_agent' ? 20000 : 15000,
             requests_handled: requestsHandled,
             conversion_rate: Math.round(conversionRate),
+            reply_rate: Math.round(replyRate),
+            avg_response_time: Math.round(avgResponseTime * 10) / 10,
             status: Math.random() > 0.3 ? 'online' : 'offline' as 'online' | 'offline' | 'busy'
           };
         }) || [];
+
+        // Calculate team reply rate
+        const totalInbound = emailExchanges?.filter(e => e.direction === 'inbound').length || 0;
+        const totalOutbound = emailExchanges?.filter(e => e.direction === 'outbound').length || 0;
+        const teamReplyRateCalc = totalInbound > 0 ? (totalOutbound / totalInbound) * 100 : 0;
 
         // Fetch requests needing follow-up
         const { data: followUpData } = await supabase
@@ -142,6 +185,7 @@ export const SupervisorDashboard = () => {
         setAgents(agentPerformance);
         setFollowUpRequests(followUps);
         setAvailableRequests(available);
+        setTeamReplyRate(Math.round(teamReplyRateCalc));
       } catch (error) {
         console.error('Error fetching supervisor data:', error);
       } finally {
@@ -175,18 +219,22 @@ export const SupervisorDashboard = () => {
 
   const totalProfit = agents.reduce((sum, agent) => sum + agent.profit, 0);
   const onlineAgents = agents.filter(agent => agent.status === 'online').length;
-  const averageConversion = agents.reduce((sum, agent) => sum + agent.conversion_rate, 0) / agents.length;
+  const averageConversion = agents.length > 0 ? agents.reduce((sum, agent) => sum + agent.conversion_rate, 0) / agents.length : 0;
+  const averageResponseTime = agents.length > 0 ? agents.reduce((sum, agent) => sum + agent.avg_response_time, 0) / agents.length : 0;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Supervisor Dashboard</h1>
-        <Badge variant="default">
-          Team Status: {onlineAgents}/{agents.length} Online
-        </Badge>
+        <div className="flex items-center gap-3">
+          <AddAgentDialog onAgentAdded={() => window.location.reload()} />
+          <Badge variant="default">
+            Team Status: {onlineAgents}/{agents.length} Online
+          </Badge>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Team Profit</CardTitle>
@@ -229,22 +277,61 @@ export const SupervisorDashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Team Reply Rate</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageConversion.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">team average</p>
-            <Progress value={averageConversion} className="mt-2" />
+            <div className="text-2xl font-bold">{teamReplyRate}%</div>
+            <p className="text-xs text-muted-foreground">emails replied</p>
+            <Progress value={teamReplyRate} className="mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{averageResponseTime.toFixed(1)}h</div>
+            <p className="text-xs text-muted-foreground">average reply time</p>
+            <Badge variant={averageResponseTime < 2 ? "default" : "secondary"} className="mt-2">
+              {averageResponseTime < 2 ? "Excellent" : "Good"}
+            </Badge>
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common supervisor tasks</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-4">
+            <AddAgentDialog onAgentAdded={() => window.location.reload()} />
+            <Button variant="outline">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Generate Report
+            </Button>
+            <Button variant="outline">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Team Message
+            </Button>
+            <Button variant="outline">
+              <Eye className="h-4 w-4 mr-2" />
+              View Analytics
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Agent Performance</CardTitle>
-            <CardDescription>Individual agent metrics and status</CardDescription>
+            <CardDescription>Individual agent metrics and reply rates</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {agents.map((agent, index) => (
@@ -257,7 +344,10 @@ export const SupervisorDashboard = () => {
                   <div>
                     <p className="text-sm font-medium">{agent.agent_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {agent.requests_handled} requests | {agent.conversion_rate}% conversion
+                      {agent.requests_handled} requests | {agent.reply_rate}% reply rate
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {agent.conversion_rate}% conversion | {agent.avg_response_time}h avg response
                     </p>
                   </div>
                 </div>
