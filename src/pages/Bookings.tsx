@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
-import BookingManager from "@/components/BookingManager";
+import EnhancedBookingManager from "@/components/EnhancedBookingManager";
 
 const Bookings = () => {
   const { user, loading } = useAuth();
@@ -21,7 +21,7 @@ const Bookings = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <BookingManager />
+      <EnhancedBookingManager />
     </div>
   );
 };

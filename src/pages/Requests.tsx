@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
-import RequestManager from "@/components/RequestManager";
+import EnhancedRequestManager from "@/components/EnhancedRequestManager";
 
 const Requests = () => {
   const { user, loading } = useAuth();
@@ -21,7 +21,7 @@ const Requests = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <RequestManager />
+      <EnhancedRequestManager />
     </div>
   );
 };
