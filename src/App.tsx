@@ -22,6 +22,9 @@ import Messages from "./pages/Messages";
 import AgentStatistics from "./pages/AgentStatistics";
 import OptionsReview from "./pages/OptionsReview";
 import ViewOption from "./pages/ViewOption";
+import PublicRequest from "./pages/PublicRequest";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -46,6 +49,7 @@ function App() {
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/options/:token" element={<OptionsReview />} />
                   <Route path="/view-option/:token/:quoteId" element={<ViewOption />} />
+                  <Route path="/public-request" element={<PublicRequest />} />
                   
                   {/* Protected routes */}
                   <Route path="/" element={<Layout><Index /></Layout>} />
@@ -60,6 +64,8 @@ function App() {
                   <Route path="/analytics" element={<Layout><Analytics /></Layout>} />
                   <Route path="/messages" element={<Layout><Messages /></Layout>} />
                   <Route path="/agent-statistics" element={<Layout><AgentStatistics /></Layout>} />
+                  <Route path="/reports" element={<Layout><Reports /></Layout>} />
+                  <Route path="/settings" element={<Layout><Settings /></Layout>} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>

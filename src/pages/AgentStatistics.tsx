@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, TrendingUp, Users, DollarSign, Clock, Phone, MessageSquare, Target, Award, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AgentStats {
   monthsWorked: number;
@@ -25,19 +26,94 @@ const AgentStatistics = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<AgentStats>({
-    monthsWorked: 18,
-    moneyMade: 485750,
-    salaryReceived: 78400,
-    clients: 247,
-    returnClients: 156,
-    averageCallTime: "12:34",
-    averageResponseRate: 94.8,
-    averageTicketPrice: 3850,
-    averageProfitPerSale: 1250,
-    totalBookings: 189,
-    conversionRate: 76.5,
-    customerSatisfaction: 4.8
+    monthsWorked: 0,
+    moneyMade: 0,
+    salaryReceived: 0,
+    clients: 0,
+    returnClients: 0,
+    averageCallTime: "0:00",
+    averageResponseRate: 0,
+    averageTicketPrice: 0,
+    averageProfitPerSale: 0,
+    totalBookings: 0,
+    conversionRate: 0,
+    customerSatisfaction: 0
   });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchAgentStats();
+    }
+  }, [user]);
+
+  const fetchAgentStats = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch user creation date for months worked
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('created_at')
+        .eq('id', user?.id)
+        .single();
+      
+      // Fetch bookings for revenue calculations
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('total_price, commission, created_at')
+        .eq('user_id', user?.id);
+      
+      // Fetch clients
+      const { data: clients } = await supabase
+        .from('clients')
+        .select('id, created_at, total_bookings')
+        .eq('user_id', user?.id);
+      
+      // Fetch requests for conversion calculations
+      const { data: requests } = await supabase
+        .from('requests')
+        .select('id, status')
+        .eq('user_id', user?.id);
+      
+      // Calculate stats
+      const monthsWorked = profile?.created_at 
+        ? Math.max(1, Math.floor((new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30)))
+        : 1;
+      
+      const totalRevenue = bookings?.reduce((sum, booking) => sum + (booking.total_price || 0), 0) || 0;
+      const totalCommission = bookings?.reduce((sum, booking) => sum + (booking.commission || 0), 0) || 0;
+      const totalBookings = bookings?.length || 0;
+      const totalClients = clients?.length || 0;
+      const returnClients = clients?.filter(client => (client.total_bookings || 0) > 1).length || 0;
+      
+      const totalRequests = requests?.length || 0;
+      const convertedRequests = requests?.filter(req => req.status === 'confirmed').length || 0;
+      const conversionRate = totalRequests > 0 ? (convertedRequests / totalRequests) * 100 : 0;
+      
+      const averageTicketPrice = totalBookings > 0 ? totalRevenue / totalBookings : 0;
+      const averageProfitPerSale = totalBookings > 0 ? totalCommission / totalBookings : 0;
+      
+      setStats({
+        monthsWorked,
+        moneyMade: totalRevenue,
+        salaryReceived: totalCommission,
+        clients: totalClients,
+        returnClients,
+        averageCallTime: "N/A", // Would need call data
+        averageResponseRate: 85, // Default placeholder
+        averageTicketPrice,
+        averageProfitPerSale,
+        totalBookings,
+        conversionRate,
+        customerSatisfaction: 4.5 // Default placeholder
+      });
+    } catch (error) {
+      console.error('Error fetching agent stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getDisplayName = () => {
     if (user?.user_metadata?.full_name) {
@@ -82,6 +158,16 @@ const AgentStatistics = () => {
       </CardContent>
     </Card>
   );
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">

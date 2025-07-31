@@ -66,9 +66,15 @@ const navigationItems = [
   },
   { 
     title: "Analytics", 
-    url: "/analytics/overview", 
+    url: "/analytics", 
     icon: BarChart3,
     description: "Business insights"
+  },
+  { 
+    title: "Reports", 
+    url: "/reports", 
+    icon: FileText,
+    description: "Advanced reports"
   },
 ];
 
