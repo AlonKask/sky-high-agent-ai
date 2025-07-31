@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 interface PaymentData {
   cardholderName: string;
@@ -42,6 +45,7 @@ interface PaymentData {
 const Payment = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [paymentData, setPaymentData] = useState<PaymentData>({
     cardholderName: "",
@@ -62,16 +66,61 @@ const Payment = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState(false);
+  const [bookingData, setBookingData] = useState<any>(null);
+  const [selectedFlight, setSelectedFlight] = useState<any>(null);
+  const [passengerInfo, setPassengerInfo] = useState<any>(null);
+  const [bookingTotal, setBookingTotal] = useState(0);
 
-  // Mock data from previous steps
-  const [bookingTotal] = useState(4526.40); // Including add-ons
-  const [flightData] = useState({
-    airline: "Emirates",
-    flightNumber: "EK 213",
-    route: "Houston → Lagos",
-    date: "Jan 10, 2025",
-    passengers: "1 Adult, Business Class"
-  });
+  useEffect(() => {
+    // Check authentication
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    // Load all booking data
+    const savedBookingData = localStorage.getItem('bookingData');
+    const savedFlight = localStorage.getItem('selectedFlight');
+    const savedPassengerInfo = localStorage.getItem('passengerInfo');
+
+    if (!savedBookingData || !savedFlight || !savedPassengerInfo) {
+      toast({
+        title: "Incomplete booking data",
+        description: "Please start a new booking process",
+        variant: "destructive"
+      });
+      navigate('/');
+      return;
+    }
+
+    try {
+      const bookingData = JSON.parse(savedBookingData);
+      const flight = JSON.parse(savedFlight);
+      const passengers = JSON.parse(savedPassengerInfo);
+
+      setBookingData(bookingData);
+      setSelectedFlight(flight);
+      setPassengerInfo(passengers);
+      
+      // Calculate total (flight + taxes + any add-ons)
+      const flightPrice = flight.price || 0;
+      const taxes = flightPrice * 0.12; // 12% taxes
+      const total = flightPrice + taxes;
+      setBookingTotal(total);
+
+      // Pre-fill cardholder name from passenger info
+      if (passengers.passengers && passengers.passengers[0]) {
+        const firstPassenger = passengers.passengers[0];
+        setPaymentData(prev => ({
+          ...prev,
+          cardholderName: `${firstPassenger.firstName} ${firstPassenger.lastName}`.trim()
+        }));
+      }
+    } catch (error) {
+      console.error('Error parsing booking data:', error);
+      navigate('/');
+    }
+  }, [user, navigate, toast]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -147,27 +196,90 @@ const Payment = () => {
 
     setProcessing(true);
     
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Store booking confirmation data
-    const confirmationData = {
-      bookingReference: "SKY" + Math.random().toString(36).substr(2, 6).toUpperCase(),
-      flightData,
-      totalPaid: bookingTotal + paymentData.serviceTip,
-      paymentData: {
-        last4: paymentData.cardNumber.slice(-4),
-        cardType: "Visa" // Would detect from card number
+    try {
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Generate booking reference
+      const bookingReference = "SKY" + Math.random().toString(36).substr(2, 6).toUpperCase();
+      
+      // Create the booking in database
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: user?.id,
+          client_id: user?.id, // Use user as client for direct bookings
+          booking_reference: bookingReference,
+          airline: selectedFlight.airline,
+          flight_number: selectedFlight.flightNumber,
+          route: selectedFlight.route,
+          departure_date: selectedFlight.departureTime ? format(new Date(selectedFlight.departureTime), 'yyyy-MM-dd HH:mm:ss') : new Date().toISOString(),
+          arrival_date: selectedFlight.arrivalTime ? format(new Date(selectedFlight.arrivalTime), 'yyyy-MM-dd HH:mm:ss') : new Date().toISOString(),
+          passengers: passengerInfo.passengers?.length || 1,
+          class: bookingData.searchData?.class || 'business',
+          total_price: bookingTotal + paymentData.serviceTip,
+          status: 'confirmed',
+          payment_status: 'paid'
+        })
+        .select()
+        .single();
+
+      if (bookingError) {
+        throw bookingError;
       }
-    };
-    
-    localStorage.setItem('bookingConfirmation', JSON.stringify(confirmationData));
-    navigate('/booking/confirmation');
-    
-    toast({
-      title: "Booking confirmed!",
-      description: "Your flight has been successfully booked.",
-    });
+
+      // Create notifications
+      await supabase.rpc('create_notification', {
+        p_user_id: user?.id,
+        p_title: 'Booking Confirmed',
+        p_message: `Your flight booking ${bookingReference} has been confirmed`,
+        p_type: 'booking_confirmed',
+        p_related_id: booking.id,
+        p_related_type: 'booking'
+      });
+
+      // Store confirmation data
+      const confirmationData = {
+        bookingReference,
+        bookingId: booking.id,
+        flightData: {
+          airline: selectedFlight.airline,
+          flightNumber: selectedFlight.flightNumber,
+          route: selectedFlight.route,
+          date: selectedFlight.departureTime ? format(new Date(selectedFlight.departureTime), 'MMM dd, yyyy') : '',
+          passengers: `${passengerInfo.passengers?.length || 1} ${passengerInfo.passengers?.length === 1 ? 'Passenger' : 'Passengers'}`
+        },
+        totalPaid: bookingTotal + paymentData.serviceTip,
+        paymentData: {
+          last4: paymentData.cardNumber.slice(-4),
+          cardType: "Visa" // Would detect from card number in real app
+        }
+      };
+      
+      localStorage.setItem('bookingConfirmation', JSON.stringify(confirmationData));
+      
+      // Clear booking progress data
+      localStorage.removeItem('bookingData');
+      localStorage.removeItem('selectedFlight');
+      localStorage.removeItem('passengerInfo');
+      localStorage.removeItem('bookingProgress');
+      
+      navigate('/booking/confirmation');
+      
+      toast({
+        title: "Booking confirmed!",
+        description: `Your flight has been successfully booked. Reference: ${bookingReference}`,
+      });
+    } catch (error) {
+      console.error('Error completing booking:', error);
+      toast({
+        title: "Booking failed",
+        description: "There was an error processing your booking. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const finalTotal = bookingTotal + paymentData.serviceTip;
@@ -222,30 +334,36 @@ const Payment = () => {
                   </Button>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3">
-                    <Plane className="h-5 w-5 text-primary" />
-                    <div>
-                      <div className="font-medium">{flightData.airline} {flightData.flightNumber}</div>
-                      <div className="text-sm text-muted-foreground">{flightData.route}</div>
+               <CardContent className="space-y-4">
+                {selectedFlight && passengerInfo && (
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-3">
+                      <Plane className="h-5 w-5 text-primary" />
+                      <div>
+                        <div className="font-medium">{selectedFlight.airline} {selectedFlight.flightNumber}</div>
+                        <div className="text-sm text-muted-foreground">{selectedFlight.route}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <User className="h-5 w-5 text-primary" />
+                      <div>
+                        <div className="font-medium">
+                          {passengerInfo.passengers?.length || 1} {passengerInfo.passengers?.length === 1 ? 'Passenger' : 'Passengers'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedFlight.departureTime ? format(new Date(selectedFlight.departureTime), 'MMM dd, yyyy') : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-5 w-5 text-primary" />
+                      <div>
+                        <div className="font-medium">Confirmation Email</div>
+                        <div className="text-sm text-muted-foreground">{passengerInfo.contactInfo?.email || user?.email}</div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <User className="h-5 w-5 text-primary" />
-                    <div>
-                      <div className="font-medium">{flightData.passengers}</div>
-                      <div className="text-sm text-muted-foreground">{flightData.date}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-primary" />
-                    <div>
-                      <div className="font-medium">Confirmation Email</div>
-                      <div className="text-sm text-muted-foreground">john@example.com</div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -524,12 +642,18 @@ const Payment = () => {
                 <CardTitle>Final Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="font-medium">{flightData.airline} {flightData.flightNumber}</div>
-                  <div className="text-sm text-muted-foreground">{flightData.route}</div>
-                  <div className="text-sm text-muted-foreground">{flightData.date}</div>
-                  <div className="text-sm text-muted-foreground">{flightData.passengers}</div>
-                </div>
+                {selectedFlight && passengerInfo && (
+                  <div className="space-y-2">
+                    <div className="font-medium">{selectedFlight.airline} {selectedFlight.flightNumber}</div>
+                    <div className="text-sm text-muted-foreground">{selectedFlight.route}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {selectedFlight.departureTime ? format(new Date(selectedFlight.departureTime), 'MMM dd, yyyy') : ''}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {passengerInfo.passengers?.length || 1} {passengerInfo.passengers?.length === 1 ? 'Passenger' : 'Passengers'}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="border-t pt-4 space-y-2">
                   <div className="flex justify-between">

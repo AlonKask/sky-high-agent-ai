@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PassengerInfo {
   title: string;
@@ -25,6 +27,7 @@ interface PassengerInfo {
 const PassengerInformation = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [passengers, setPassengers] = useState<PassengerInfo[]>([
     {
@@ -45,6 +48,44 @@ const PassengerInformation = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [bookingData, setBookingData] = useState<any>(null);
+  const [selectedFlight, setSelectedFlight] = useState<any>(null);
+
+  useEffect(() => {
+    // Check if user is authenticated
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    // Load booking data
+    const savedBookingData = localStorage.getItem('bookingData');
+    const savedFlight = localStorage.getItem('selectedFlight');
+    
+    if (!savedBookingData || !savedFlight) {
+      toast({
+        title: "No booking data found",
+        description: "Please start a new search",
+        variant: "destructive"
+      });
+      navigate('/');
+      return;
+    }
+
+    try {
+      setBookingData(JSON.parse(savedBookingData));
+      setSelectedFlight(JSON.parse(savedFlight));
+      
+      // Pre-fill contact info with user's profile
+      setContactInfo(prev => ({
+        ...prev,
+        email: user.email || ""
+      }));
+    } catch (error) {
+      console.error('Error parsing booking data:', error);
+      navigate('/');
+    }
+  }, [user, navigate, toast]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -78,13 +119,45 @@ const PassengerInformation = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleContinue = () => {
-    if (validateForm()) {
+  const handleContinue = async () => {
+    if (!validateForm()) return;
+
+    try {
+      // Save passenger information to database
+      const passengerData = {
+        user_id: user?.id,
+        booking_data: bookingData,
+        flight_data: selectedFlight,
+        passengers: passengers,
+        contact_info: contactInfo,
+        step: 'passenger_info_completed'
+      };
+
+      // Save to localStorage for now (will be saved to DB in final booking step)
       localStorage.setItem('passengerInfo', JSON.stringify({ passengers, contactInfo }));
+      localStorage.setItem('bookingProgress', JSON.stringify(passengerData));
+
+      // Create notification for booking progress
+      if (user?.id) {
+        await supabase.rpc('create_notification', {
+          p_user_id: user.id,
+          p_title: 'Booking in Progress',
+          p_message: `Flight booking for ${selectedFlight?.airline} ${selectedFlight?.flightNumber} - passenger information completed`,
+          p_type: 'booking_progress'
+        });
+      }
+
       navigate('/booking/add-ons');
       toast({
         title: "Information saved",
         description: "Proceeding to add-ons and protection...",
+      });
+    } catch (error) {
+      console.error('Error saving passenger info:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save information. Please try again.",
+        variant: "destructive"
       });
     }
   };
@@ -362,27 +435,35 @@ const PassengerInformation = () => {
                 <CardTitle>Booking Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="font-medium">Emirates EK 213</div>
-                  <div className="text-sm text-muted-foreground">Houston → Lagos</div>
-                  <div className="text-sm text-muted-foreground">Jan 10, 2025</div>
-                </div>
-                <div className="border-t pt-4">
-                  <div className="flex justify-between">
-                    <span>Flight Price</span>
-                    <span>$4,200.00</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Taxes & Fees</span>
-                    <span>$157.40</span>
-                  </div>
-                </div>
-                <div className="border-t pt-4">
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span>$4,357.40</span>
-                  </div>
-                </div>
+                {selectedFlight && (
+                  <>
+                    <div className="space-y-2">
+                      <div className="font-medium">
+                        {selectedFlight.airline} {selectedFlight.flightNumber}
+                      </div>
+                      <div className="text-sm text-muted-foreground">{selectedFlight.origin} → {selectedFlight.destination}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {selectedFlight.departureTime ? format(new Date(selectedFlight.departureTime), 'MMM dd, yyyy') : ''}
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <div className="flex justify-between">
+                        <span>Flight Price</span>
+                        <span>${selectedFlight.price?.toLocaleString() || '0'}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Taxes & Fees</span>
+                        <span>${(selectedFlight.price * 0.12).toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <div className="flex justify-between font-bold">
+                        <span>Total</span>
+                        <span>${(selectedFlight.price * 1.12).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>

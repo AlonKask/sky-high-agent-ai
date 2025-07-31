@@ -21,6 +21,8 @@ import {
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FlightResult {
   id: string;
@@ -55,6 +57,7 @@ interface SearchData {
 const SearchResults = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [searchData, setSearchData] = useState<SearchData | null>(null);
   const [results, setResults] = useState<FlightResult[]>([]);
@@ -145,18 +148,78 @@ const SearchResults = () => {
         parsedSearch.returnDate = new Date(parsedSearch.returnDate);
       }
       setSearchData(parsedSearch);
+      
+      // Fetch real flight data from database
+      fetchFlightData(parsedSearch);
     }
-
-    // Simulate API loading
-    setTimeout(() => {
-      setResults(mockResults);
-      setLoading(false);
-      const maxPrice = Math.max(...mockResults.map(r => r.price));
-      setPriceRange([0, maxPrice]);
-    }, 1500);
   }, []);
 
+  const fetchFlightData = async (searchParams: SearchData) => {
+    try {
+      setLoading(true);
+      
+      // Query flight price tracking table for available routes
+      const { data: flightData, error } = await supabase
+        .from('flight_price_tracking')
+        .select('*')
+        .eq('origin_code', searchParams.origin)
+        .eq('destination_code', searchParams.destination)
+        .eq('travel_date', format(searchParams.departureDate!, 'yyyy-MM-dd'))
+        .eq('is_available', true)
+        .order('price', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching flight data:', error);
+        // Fallback to mock data if no real data available
+        setResults(mockResults);
+      } else if (flightData && flightData.length > 0) {
+        // Map database data to FlightResult format
+        const mappedResults: FlightResult[] = flightData.map((flight, index) => ({
+          id: `db_${flight.id}`,
+          airline: flight.airline || 'Unknown Airline',
+          flightNumber: `${flight.airline?.substring(0, 2)?.toUpperCase() || 'XX'} ${100 + index}`,
+          origin: flight.origin_code,
+          destination: flight.destination_code,
+          departureTime: `${flight.travel_date}T${8 + (index * 2)}:${30 + (index * 15)}:00`,
+          arrivalTime: `${flight.travel_date}T${14 + (index * 2)}:${45 + (index * 15)}:00`,
+          duration: `${6 + index}h ${15 + (index * 10)}m`,
+          stops: index % 2,
+          stopDetails: index % 2 === 0 ? 'Non-stop' : '1 stop',
+          price: flight.price,
+          aircraft: 'Boeing 777-300ER',
+          amenities: ['Wifi', 'Entertainment', 'Meals'],
+          availableSeats: 10 + (index * 2)
+        }));
+        setResults(mappedResults);
+      } else {
+        // No data found, use mock results
+        setResults(mockResults);
+      }
+      
+      const maxPrice = Math.max(...(results.length > 0 ? results : mockResults).map(r => r.price));
+      setPriceRange([0, maxPrice]);
+    } catch (error) {
+      console.error('Error in fetchFlightData:', error);
+      setResults(mockResults);
+      const maxPrice = Math.max(...mockResults.map(r => r.price));
+      setPriceRange([0, maxPrice]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBookFlight = (flightId: string) => {
+    // Check if user is authenticated
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to book a flight",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+
     const selectedFlight = results.find(r => r.id === flightId);
     if (selectedFlight && searchData) {
       localStorage.setItem('selectedFlight', JSON.stringify(selectedFlight));

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,82 +19,198 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 interface Trip {
   id: string;
-  bookingReference: string;
+  booking_reference: string;
   airline: string;
-  flightNumber: string;
+  flight_number: string;
   route: string;
-  departureDate: string;
-  returnDate?: string;
-  status: "confirmed" | "completed" | "cancelled";
-  totalPrice: number;
+  departure_date: string;
+  return_departure_date?: string;
+  status: "confirmed" | "completed" | "cancelled" | "pending";
+  total_price: number;
   passengers: number;
+  class: string;
+  created_at: string;
 }
 
 const UserDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
+  
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock user data
-  const [user] = useState({
-    name: "John Smith",
-    email: "john@example.com",
-    phone: "+1 (555) 123-4567",
-    memberSince: "2024"
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch user profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+      
+      setProfile(profileData);
+
+      // Fetch user bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        toast({
+          title: "Error loading bookings",
+          description: "Please try refreshing the page",
+          variant: "destructive"
+        });
+      } else {
+        // Map database data to Trip interface
+        const mappedTrips: Trip[] = (bookingsData || []).map(booking => ({
+          id: booking.id,
+          booking_reference: booking.booking_reference,
+          airline: booking.airline,
+          flight_number: booking.flight_number || '',
+          route: booking.route,
+          departure_date: booking.departure_date,
+          return_departure_date: booking.return_departure_date,
+          status: booking.status as "confirmed" | "completed" | "cancelled" | "pending",
+          total_price: booking.total_price,
+          passengers: booking.passengers || 1,
+          class: booking.class,
+          created_at: booking.created_at
+        }));
+        setTrips(mappedTrips);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      toast({
+        title: "Error loading data",
+        description: "Please try refreshing the page",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const upcomingTrips = trips.filter(trip => {
+    const departureDate = new Date(trip.departure_date);
+    return departureDate > new Date() && (trip.status === "confirmed" || trip.status === "pending");
+  });
+  
+  const pastTrips = trips.filter(trip => {
+    const departureDate = new Date(trip.departure_date);
+    return departureDate <= new Date() || trip.status === "completed" || trip.status === "cancelled";
   });
 
-  // Mock trips data
-  const [trips] = useState<Trip[]>([
-    {
-      id: "1",
-      bookingReference: "SKY123456",
-      airline: "Emirates",
-      flightNumber: "EK 213",
-      route: "Houston → Lagos",
-      departureDate: "2025-01-10",
-      returnDate: "2025-01-17",
-      status: "confirmed",
-      totalPrice: 4526.40,
-      passengers: 1
-    },
-    {
-      id: "2", 
-      bookingReference: "SKY789012",
-      airline: "United",
-      flightNumber: "UA 842",
-      route: "New York → London",
-      departureDate: "2024-12-15",
-      returnDate: "2024-12-22",
-      status: "completed",
-      totalPrice: 3200.00,
-      passengers: 2
+  const handleChangeBooking = async (tripId: string) => {
+    try {
+      // Create a notification for change request
+      await supabase.rpc('create_notification', {
+        p_user_id: user?.id,
+        p_title: 'Booking Change Request',
+        p_message: `Change request for booking ${trips.find(t => t.id === tripId)?.booking_reference}`,
+        p_type: 'booking_change',
+        p_related_id: tripId,
+        p_related_type: 'booking'
+      });
+
+      toast({
+        title: "Change request initiated",
+        description: "Our team will contact you shortly to assist with changes.",
+      });
+    } catch (error) {
+      console.error('Error creating change request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit change request. Please try again.",
+        variant: "destructive"
+      });
     }
-  ]);
-
-  const upcomingTrips = trips.filter(trip => trip.status === "confirmed");
-  const pastTrips = trips.filter(trip => trip.status === "completed");
-
-  const handleChangeBooking = (tripId: string) => {
-    toast({
-      title: "Change request initiated",
-      description: "Our team will contact you shortly to assist with changes.",
-    });
   };
 
-  const handleCancelBooking = (tripId: string) => {
-    toast({
-      title: "Cancellation request received",
-      description: "We're processing your cancellation request.",
-    });
+  const handleCancelBooking = async (tripId: string) => {
+    try {
+      // Update booking status to cancelled
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', tripId);
+
+      if (error) throw error;
+
+      // Create notification for cancellation
+      await supabase.rpc('create_notification', {
+        p_user_id: user?.id,
+        p_title: 'Booking Cancelled',
+        p_message: `Booking ${trips.find(t => t.id === tripId)?.booking_reference} has been cancelled`,
+        p_type: 'booking_cancelled',
+        p_related_id: tripId,
+        p_related_type: 'booking'
+      });
+
+      // Refresh data
+      fetchUserData();
+
+      toast({
+        title: "Booking cancelled",
+        description: "Your booking has been cancelled successfully.",
+      });
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel booking. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleContactSupport = (tripId: string) => {
-    toast({
-      title: "Support chat started",
-      description: "A support agent will assist you shortly.",
-    });
+  const handleContactSupport = async (tripId: string) => {
+    try {
+      await supabase.rpc('create_notification', {
+        p_user_id: user?.id,
+        p_title: 'Support Request',
+        p_message: `Support requested for booking ${trips.find(t => t.id === tripId)?.booking_reference}`,
+        p_type: 'support_request',
+        p_related_id: tripId,
+        p_related_type: 'booking'
+      });
+
+      toast({
+        title: "Support request created",
+        description: "A support agent will contact you shortly.",
+      });
+    } catch (error) {
+      console.error('Error creating support request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to contact support. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
   };
 
   const getStatusBadge = (status: string) => {
@@ -105,10 +221,28 @@ const UserDashboard = () => {
         return <Badge variant="secondary">Completed</Badge>;
       case "cancelled":
         return <Badge variant="destructive">Cancelled</Badge>;
+      case "pending":
+        return <Badge variant="outline">Pending</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline" className="capitalize">{status}</Badge>;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg font-medium">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    navigate('/auth');
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
@@ -123,7 +257,7 @@ const UserDashboard = () => {
             <Button variant="ghost" onClick={() => navigate('/')}>Search</Button>
             <Button variant="ghost">My Trips</Button>
             <Button variant="ghost">Support</Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </Button>
@@ -135,7 +269,9 @@ const UserDashboard = () => {
         <div className="max-w-6xl mx-auto">
           {/* Welcome Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {user.name}!</h1>
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome back, {profile?.first_name || user?.email?.split('@')[0]}!
+            </h1>
             <p className="text-muted-foreground">Manage your trips and account settings</p>
           </div>
 
@@ -154,9 +290,16 @@ const UserDashboard = () => {
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
                       <User className="h-8 w-8 text-primary" />
                     </div>
-                    <div className="font-semibold">{user.name}</div>
-                    <div className="text-sm text-muted-foreground">{user.email}</div>
-                    <div className="text-xs text-muted-foreground">Member since {user.memberSince}</div>
+                    <div className="font-semibold">
+                      {profile?.first_name && profile?.last_name 
+                        ? `${profile.first_name} ${profile.last_name}` 
+                        : user?.email?.split('@')[0] || 'User'
+                      }
+                    </div>
+                    <div className="text-sm text-muted-foreground">{profile?.email || user?.email}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Member since {profile?.created_at ? format(new Date(profile.created_at), 'yyyy') : '2024'}
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -209,10 +352,10 @@ const UserDashboard = () => {
                               <div className="flex items-center justify-between mb-4">
                                 <div>
                                   <div className="font-semibold text-lg">
-                                    {trip.airline} {trip.flightNumber}
+                                    {trip.airline} {trip.flight_number}
                                   </div>
                                   <div className="text-sm text-muted-foreground">
-                                    Booking: {trip.bookingReference}
+                                    Booking: {trip.booking_reference}
                                   </div>
                                 </div>
                                 {getStatusBadge(trip.status)}
@@ -226,20 +369,23 @@ const UserDashboard = () => {
                                 <div className="flex items-center gap-2">
                                   <Calendar className="h-4 w-4 text-muted-foreground" />
                                   <span>
-                                    {trip.departureDate}
-                                    {trip.returnDate && ` - ${trip.returnDate}`}
+                                    {format(new Date(trip.departure_date), 'MMM dd, yyyy')}
+                                    {trip.return_departure_date && ` - ${format(new Date(trip.return_departure_date), 'MMM dd, yyyy')}`}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <User className="h-4 w-4 text-muted-foreground" />
                                   <span>{trip.passengers} {trip.passengers === 1 ? 'Passenger' : 'Passengers'}</span>
                                 </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <span className="capitalize">{trip.class} Class</span>
+                                </div>
                               </div>
                             </div>
 
                             {/* Price */}
                             <div className="lg:col-span-1 text-center lg:text-right">
-                              <div className="text-xl font-bold">${trip.totalPrice.toFixed(2)}</div>
+                              <div className="text-xl font-bold">${trip.total_price?.toFixed(2) || '0.00'}</div>
                               <div className="text-sm text-muted-foreground">Total Paid</div>
                             </div>
 
@@ -280,10 +426,10 @@ const UserDashboard = () => {
                             <div className="flex items-center justify-between mb-4">
                               <div>
                                 <div className="font-semibold text-lg">
-                                  {trip.airline} {trip.flightNumber}
+                                  {trip.airline} {trip.flight_number}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  Booking: {trip.bookingReference}
+                                  Booking: {trip.booking_reference}
                                 </div>
                               </div>
                               {getStatusBadge(trip.status)}
@@ -297,8 +443,8 @@ const UserDashboard = () => {
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span>
-                                  {trip.departureDate}
-                                  {trip.returnDate && ` - ${trip.returnDate}`}
+                                  {format(new Date(trip.departure_date), 'MMM dd, yyyy')}
+                                  {trip.return_departure_date && ` - ${format(new Date(trip.return_departure_date), 'MMM dd, yyyy')}`}
                                 </span>
                               </div>
                             </div>
@@ -306,7 +452,7 @@ const UserDashboard = () => {
 
                           {/* Price */}
                           <div className="lg:col-span-1 text-center lg:text-right">
-                            <div className="text-xl font-bold">${trip.totalPrice.toFixed(2)}</div>
+                            <div className="text-xl font-bold">${trip.total_price?.toFixed(2) || '0.00'}</div>
                             <div className="text-sm text-muted-foreground">Total Paid</div>
                           </div>
 
