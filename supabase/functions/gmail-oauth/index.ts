@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,7 +8,12 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
+  // SECURITY: Apply rate limiting to OAuth endpoint
+  return await withRateLimit(req, {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 5, // 5 OAuth attempts per 15 minutes per IP
+  }, async () => {
+    console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -84,23 +90,18 @@ serve(async (req) => {
 
       const token = authHeader.replace('Bearer ', '');
       
-      // Decode JWT to get user ID (simple base64 decode of payload)
+      // SECURITY: Use proper Supabase authentication instead of manual JWT decoding
       try {
-        const parts = token.split('.');
-        if (parts.length !== 3) {
-          throw new Error('Invalid JWT format');
+        const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+        
+        if (error || !user) {
+          throw new Error('Authentication failed');
         }
         
-        const payload = JSON.parse(atob(parts[1]));
-        userId = payload.sub;
-        
-        if (!userId) {
-          throw new Error('No user ID in token');
-        }
-        
+        userId = user.id;
         console.log(`👤 Authenticated user: ${userId}`);
       } catch (error) {
-        console.log(`❌ Failed to decode JWT token: ${error.message}`);
+        console.log(`❌ Authentication failed: ${error.message}`);
         return new Response(
           JSON.stringify({ 
             success: false, 

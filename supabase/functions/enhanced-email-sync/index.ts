@@ -280,7 +280,16 @@ async function syncUserEmailsEnhanced(
 }
 
 serve(async (req) => {
-  console.log(`🚀 Enhanced Email Sync Request: ${req.method} ${req.url}`);
+  // SECURITY: Apply moderate rate limiting to email sync
+  return await withRateLimit(req, {
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 10, // 10 sync requests per minute per user
+    keyGenerator: (req: Request) => {
+      const authHeader = req.headers.get('authorization');
+      return authHeader ? `user:${authHeader}` : 'anonymous';
+    }
+  }, async () => {
+    console.log(`🚀 Enhanced Email Sync Request: ${req.method} ${req.url}`);
   
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
