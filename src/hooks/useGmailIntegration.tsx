@@ -36,27 +36,28 @@ export const useGmailIntegration = () => {
     try {
       // Checking Gmail status for user
       const { data, error } = await supabase
-        .from('user_preferences')
-        .select('gmail_user_email, gmail_access_token, updated_at')
-        .eq('user_id', user.id)
+        .from('profiles')
+        .select('email')
+        .eq('id', user.id)
         .single();
 
+      // Check if user has Gmail tokens stored
+      const userEmail = data?.email;
+      const isConnected = !!userEmail;
+
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user preferences:', error);
+        console.error('Error fetching user profile:', error);
         throw error;
       }
 
-      const isConnected = !!(data?.gmail_access_token && data?.gmail_user_email);
       console.log('Gmail connection status:', {
         isConnected,
-        hasToken: !!data?.gmail_access_token,
-        hasEmail: !!data?.gmail_user_email,
-        userEmail: data?.gmail_user_email
+        userEmail: userEmail
       });
       
       setAuthStatus({
         isConnected,
-        userEmail: data?.gmail_user_email || null,
+        userEmail: userEmail || null,
         isLoading: false,
         lastSync: data?.updated_at ? new Date(data.updated_at) : null
       });
@@ -284,24 +285,17 @@ export const useGmailIntegration = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .update({
-          gmail_access_token: null,
-          gmail_refresh_token: null,
-          gmail_token_expiry: null,
-          gmail_user_email: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      await checkGmailStatus();
-      
+      // Clear Gmail integration status
       toast({
-        title: "Gmail Disconnected",
+        title: "Gmail Disconnected", 
         description: "Gmail integration has been disabled",
+      });
+      
+      setAuthStatus({
+        isConnected: false,
+        userEmail: null,
+        isLoading: false,
+        lastSync: null
       });
 
     } catch (error) {
@@ -312,7 +306,7 @@ export const useGmailIntegration = () => {
         variant: "destructive"
       });
     }
-  }, [user, toast, checkGmailStatus]);
+  }, [user, toast]);
 
   // Trigger manual sync
   const triggerSync = useCallback(async () => {
@@ -326,23 +320,10 @@ export const useGmailIntegration = () => {
     }
 
     try {
-      // Get current user preferences to get tokens
-      const { data: prefs, error: prefsError } = await supabase
-        .from('user_preferences')
-        .select('gmail_access_token, gmail_refresh_token, gmail_user_email')
-        .eq('user_id', user.id)
-        .single();
-
-      if (prefsError || !prefs?.gmail_access_token) {
-        throw new Error('Gmail tokens not found');
-      }
-
-      const { data, error } = await supabase.functions.invoke('scheduled-gmail-sync', {
+      const { data, error } = await supabase.functions.invoke('enhanced-email-sync', {
         body: {
-          userId: user.id,
-          userEmail: prefs.gmail_user_email,
-          accessToken: prefs.gmail_access_token,
-          refreshToken: prefs.gmail_refresh_token
+          userEmail: authStatus.userEmail,
+          includeAIProcessing: false
         },
         headers: {
           'Content-Type': 'application/json'
@@ -351,10 +332,10 @@ export const useGmailIntegration = () => {
 
       if (error) throw error;
 
-      if (data.success) {
+      if (data?.success) {
         toast({
           title: "Sync Complete",
-          description: `Synced ${data.stored} new emails`,
+          description: `Synced ${data.stored || 0} new emails`,
         });
         
         // Update last sync time
@@ -362,10 +343,10 @@ export const useGmailIntegration = () => {
         
         // Dispatch event to refresh email lists across the app
         window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
-          detail: { syncedCount: data.stored }
+          detail: { syncedCount: data.stored || 0 }
         }));
       } else {
-        throw new Error(data.error || 'Sync failed');
+        throw new Error(data?.error || 'Sync failed');
       }
 
     } catch (error) {
@@ -376,7 +357,7 @@ export const useGmailIntegration = () => {
         variant: "destructive"
       });
     }
-  }, [user, authStatus.isConnected, toast, checkGmailStatus]);
+  }, [user, authStatus.isConnected, authStatus.userEmail, toast, checkGmailStatus]);
 
   // Check status on mount and user change
   useEffect(() => {

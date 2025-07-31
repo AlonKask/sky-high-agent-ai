@@ -121,30 +121,12 @@ const Emails = () => {
         .eq('user_id', user.id)
         .order('received_at', { ascending: false });
 
-      // Apply folder-specific filters with better logic
-      if (selectedFolder === 'sent') {
-        query = query.eq('direction', 'outbound');
-      } else if (selectedFolder === 'inbox') {
-        query = query.eq('direction', 'inbound');
-      } else if (selectedFolder === 'archived') {
-        query = query.eq('metadata->>archived', 'true');
-      } else if (selectedFolder === 'drafts') {
-        query = query.or('status.eq.draft,metadata->>gmail_labels.ilike.%DRAFT%');
-      } else if (selectedFolder === 'trash') {
-        query = query.or('status.eq.deleted,metadata->>gmail_labels.ilike.%TRASH%');
-      }
-
-      // Exclude archived/deleted from inbox and sent unless specifically viewing those folders
-      if (!['archived', 'trash'].includes(selectedFolder)) {
-        query = query.neq('metadata->>archived', 'true').neq('status', 'deleted');
-      }
-
-      // Apply search filter
+      // Apply search filter first
       if (searchQuery.trim()) {
         query = query.or(`subject.ilike.%${searchQuery}%,sender_email.ilike.%${searchQuery}%,body.ilike.%${searchQuery}%`);
       }
 
-      const { data, error } = await query.limit(100);
+      const { data, error } = await query.limit(200);
       
       if (error) {
         console.error('Database query error:', error);
@@ -158,7 +140,7 @@ const Emails = () => {
       console.error('Error loading emails:', error);
       toast({
         title: "Error",
-        description: `Failed to load emails: ${error.message}`,
+        description: `Failed to load emails: ${error?.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
