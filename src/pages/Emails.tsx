@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
+import { RichEmailRenderer } from '@/components/RichEmailRenderer';
 import { useAuth } from '@/hooks/useAuth';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
@@ -88,6 +89,7 @@ const Emails = () => {
   // Enhanced sync options
   const [aiProcessingEnabled, setAiProcessingEnabled] = useState(true);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
+  const [useRichEmailView, setUseRichEmailView] = useState(true);
   
   // Filter and sorting state
   const [sortBy, setSortBy] = useState<'received_at' | 'subject' | 'sender_email'>('received_at');
@@ -758,6 +760,13 @@ const Emails = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setUseRichEmailView(!useRichEmailView)}
+                    >
+                      {useRichEmailView ? <FileText className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                    </Button>
+                    <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleArchiveEmails([selectedEmail.id])}
@@ -775,12 +784,21 @@ const Emails = () => {
               
               {/* Email Body */}
               <ScrollArea className="flex-1 p-4">
-                <div className="prose max-w-none">
-                  <SafeHtmlRenderer 
-                    html={selectedEmail.body}
-                    type="email"
+                {useRichEmailView ? (
+                  <RichEmailRenderer 
+                    emailBody={selectedEmail.body}
+                    subject={selectedEmail.subject}
+                    showRawContent={false}
+                    onToggleRaw={() => setUseRichEmailView(false)}
                   />
-                </div>
+                ) : (
+                  <div className="prose max-w-none">
+                    <SafeHtmlRenderer 
+                      html={selectedEmail.body}
+                      type="email"
+                    />
+                  </div>
+                )}
               </ScrollArea>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SafeHtmlRenderer } from "@/components/SafeHtmlRenderer";
+import RichEmailRenderer from "@/components/RichEmailRenderer/RichEmailRenderer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,9 @@ import {
   Loader2,
   CheckCircle,
   AlertTriangle,
-  XCircle
+  XCircle,
+  Sparkles,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AIReplyGenerator from "./AIReplyGenerator";
@@ -59,6 +62,7 @@ const ExpandableEmailCard = ({
   requestId 
 }: ExpandableEmailCardProps) => {
   const [showReplyGenerator, setShowReplyGenerator] = useState(false);
+  const [useRichRenderer, setUseRichRenderer] = useState(true);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -193,14 +197,42 @@ const ExpandableEmailCard = ({
 
             {/* Email Body */}
             <div className="space-y-4">
-              <div>
-                <h5 className="font-medium mb-2">Message Content</h5>
+              <div className="flex items-center justify-between mb-4">
+                <h5 className="font-medium">Message Content</h5>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setUseRichRenderer(!useRichRenderer)}
+                  className="gap-2"
+                >
+                  {useRichRenderer ? (
+                    <>
+                      <FileText className="h-4 w-4" />
+                      Show Basic
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Show Rich
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {useRichRenderer ? (
+                <RichEmailRenderer 
+                  emailBody={email.body}
+                  subject={email.subject}
+                  showRawContent={false}
+                  onToggleRaw={() => setUseRichRenderer(false)}
+                />
+              ) : (
                 <SafeHtmlRenderer 
                   html={formatEmailBody(email.body)}
                   className="prose prose-sm max-w-none bg-muted/30 rounded-lg p-4 border"
                   type="email"
                 />
-              </div>
+              )}
 
               {/* Attachments */}
               {email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (
