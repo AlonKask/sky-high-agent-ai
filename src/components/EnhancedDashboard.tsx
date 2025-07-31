@@ -8,13 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { RoleSelector } from "./RoleSelector";
 import { UserRole, useUserRole } from "@/hooks/useUserRole";
+import { useRoleView } from "@/contexts/RoleViewContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   Users, Plane, Calendar, TrendingUp, Clock, MapPin, Search, Plus, 
   ExternalLink, ArrowRight, Filter, Globe, Star, Award, Zap,
   Shield, BarChart3, AlertCircle, CheckCircle2, Timer, DollarSign,
-  Mail, Phone, FileText, Briefcase
+  Mail, Phone, FileText, Briefcase, Code, Database, Bug, Settings
 } from "lucide-react";
 
 interface EnhancedDashboardProps {
@@ -25,7 +26,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { role: userRole, loading: roleLoading } = useUserRole();
-  const [selectedViewRole, setSelectedViewRole] = useState<UserRole>('user');
+  const { selectedViewRole, setSelectedViewRole, isRoleSwitchingEnabled } = useRoleView();
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -41,11 +42,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [activeRequests, setActiveRequests] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (userRole && !roleLoading) {
-      setSelectedViewRole(userRole);
-    }
-  }, [userRole, roleLoading]);
+  // Remove the local selectedViewRole management since it's now handled by context
 
   useEffect(() => {
     if (user) {
@@ -149,6 +146,55 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
 
     // Render different stats based on role
     switch (selectedViewRole) {
+      case 'dev':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">System Health</CardTitle>
+                <Code className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-purple-600">Optimal</div>
+                <p className="text-xs text-muted-foreground">All services running</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="card-elevated border-0 bg-gradient-to-br from-cyan-50 to-cyan-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Database Status</CardTitle>
+                <Database className="h-4 w-4 text-cyan-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-cyan-600">Active</div>
+                <p className="text-xs text-muted-foreground">All tables accessible</p>
+              </CardContent>
+            </Card>
+
+            <Card className="card-elevated border-0 bg-gradient-to-br from-yellow-50 to-yellow-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Debug Mode</CardTitle>
+                <Bug className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-yellow-600">Enabled</div>
+                <p className="text-xs text-muted-foreground">Full debug access</p>
+              </CardContent>
+            </Card>
+
+            <Card className="card-elevated border-0 bg-gradient-to-br from-slate-50 to-slate-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">API Status</CardTitle>
+                <Settings className="h-4 w-4 text-slate-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-600">Online</div>
+                <p className="text-xs text-muted-foreground">All endpoints active</p>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
       case 'admin':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -314,7 +360,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
           </p>
         </div>
         
-        {userRole && userRole !== 'user' && (
+        {isRoleSwitchingEnabled && userRole && (
           <RoleSelector
             currentRole={userRole}
             selectedViewRole={selectedViewRole}

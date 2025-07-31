@@ -1,5 +1,7 @@
 import { useUserRole } from "@/hooks/useUserRole";
+import { useRoleView } from "@/contexts/RoleViewContext";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import EnhancedDashboard from "./EnhancedDashboard";
 import { DeveloperDashboard } from "./dashboards/DeveloperDashboard";
 import { ManagerDashboard } from "./dashboards/ManagerDashboard";
 import { SupervisorDashboard } from "./dashboards/SupervisorDashboard";
@@ -9,6 +11,7 @@ import { SalesAgentDashboard } from "./dashboards/SalesAgentDashboard";
 
 export const RoleDashboard = () => {
   const { role, loading } = useUserRole();
+  const { selectedViewRole, isRoleSwitchingEnabled } = useRoleView();
 
   if (loading) {
     return <LoadingSpinner />;
@@ -25,6 +28,12 @@ export const RoleDashboard = () => {
     );
   }
 
+  // Use enhanced dashboard for role switching if enabled, otherwise use role-specific dashboards
+  if (isRoleSwitchingEnabled) {
+    return <EnhancedDashboard />;
+  }
+
+  // Fallback to role-specific dashboards for users without role switching
   switch (role) {
     case 'dev':
       return <DeveloperDashboard />;
@@ -39,7 +48,7 @@ export const RoleDashboard = () => {
     case 'sales_agent':
       return <SalesAgentDashboard />;
     case 'admin':
-      return <ManagerDashboard />;
+      return <EnhancedDashboard />;
     default:
       return (
         <div className="flex items-center justify-center h-64">

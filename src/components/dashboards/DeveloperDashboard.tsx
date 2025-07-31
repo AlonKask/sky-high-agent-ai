@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Database, Users, AlertTriangle, Server, Clock, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Activity, Database, Users, AlertTriangle, Server, Clock, TrendingUp, Code, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useRoleView } from "@/contexts/RoleViewContext";
+import { RoleSelector } from "@/components/RoleSelector";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface SystemMetrics {
   api_usage: number;
@@ -15,6 +19,8 @@ interface SystemMetrics {
 }
 
 export const DeveloperDashboard = () => {
+  const { role: userRole } = useUserRole();
+  const { selectedViewRole, setSelectedViewRole, isRoleSwitchingEnabled } = useRoleView();
   const [metrics, setMetrics] = useState<SystemMetrics>({
     api_usage: 0,
     uptime_percentage: 0,
@@ -109,10 +115,23 @@ export const DeveloperDashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Developer Dashboard</h1>
-        <Badge variant={metrics.uptime_percentage > 99 ? "default" : "destructive"}>
-          System Status: {metrics.uptime_percentage > 99 ? "Healthy" : "Issues Detected"}
-        </Badge>
+        <div>
+          <h1 className="text-3xl font-bold">Developer Dashboard</h1>
+          <p className="text-muted-foreground">System monitoring and development tools</p>
+        </div>
+        <div className="flex items-center gap-4">
+          {isRoleSwitchingEnabled && userRole && (
+            <RoleSelector
+              currentRole={userRole}
+              selectedViewRole={selectedViewRole}
+              onRoleChange={setSelectedViewRole}
+              className="w-64"
+            />
+          )}
+          <Badge variant={metrics.uptime_percentage > 99 ? "default" : "destructive"}>
+            System Status: {metrics.uptime_percentage > 99 ? "Healthy" : "Issues Detected"}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

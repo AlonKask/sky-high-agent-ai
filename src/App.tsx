@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SecurityProvider } from "@/components/SecurityProvider";
+import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
@@ -42,8 +43,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <SecurityProvider>
-            <BrowserRouter>
+          <RoleViewProvider>
+            <SecurityProvider>
+              <BrowserRouter>
               <ErrorBoundary>
                 <Routes>
                   {/* Public routes */}
@@ -75,8 +77,9 @@ function App() {
               </ErrorBoundary>
             </BrowserRouter>
           </SecurityProvider>
-        </AuthProvider>
-      </TooltipProvider>
+        </RoleViewProvider>
+      </AuthProvider>
+    </TooltipProvider>
     </QueryClientProvider>
   );
 }

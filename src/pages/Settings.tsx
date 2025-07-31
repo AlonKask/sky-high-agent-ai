@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole, UserRole } from '@/hooks/useUserRole';
+import { useRoleView } from '@/contexts/RoleViewContext';
 import { RoleSelector } from '@/components/RoleSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,10 +48,10 @@ interface UserPreferences {
 const Settings = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
+  const { selectedViewRole, setSelectedViewRole, isRoleSwitchingEnabled } = useRoleView();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [selectedViewRole, setSelectedViewRole] = useState<UserRole>(role || 'user');
   const [profile, setProfile] = useState({
     first_name: '',
     last_name: '',
@@ -74,11 +75,7 @@ const Settings = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (role) {
-      setSelectedViewRole(role);
-    }
-  }, [role]);
+  // Role is now managed by global context
 
   const fetchUserData = async () => {
     try {
@@ -482,8 +479,8 @@ const Settings = () => {
         </Badge>
       </div>
 
-      {/* Role Selector for Dev users */}
-      {role === 'dev' && (
+      {/* Role Selector for users with role switching enabled */}
+      {isRoleSwitchingEnabled && role && (
         <RoleSelector
           currentRole={role}
           selectedViewRole={selectedViewRole}
