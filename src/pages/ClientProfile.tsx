@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const ClientProfile = () => {
-  const { clientId } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
@@ -35,7 +35,7 @@ const ClientProfile = () => {
   });
 
   const fetchClientData = async () => {
-    if (!clientId) {
+    if (!id) {
       setError("No client ID provided");
       setLoading(false);
       return;
@@ -48,7 +48,7 @@ const ClientProfile = () => {
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('*')
-        .eq('id', clientId)
+        .eq('id', id)
         .single();
 
       if (clientError) {
@@ -72,7 +72,7 @@ const ClientProfile = () => {
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('client_id', id)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -86,7 +86,7 @@ const ClientProfile = () => {
       const { data: requestsData, error: requestsError } = await supabase
         .from('requests')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('client_id', id)
         .order('created_at', { ascending: false });
 
       if (requestsError) {
@@ -117,7 +117,7 @@ const ClientProfile = () => {
       const { error } = await supabase
         .from('clients')
         .update(updateData)
-        .eq('id', clientId);
+        .eq('id', id);
 
       if (error) {
         console.error('Error updating client:', error);
@@ -163,7 +163,7 @@ const ClientProfile = () => {
 
   useEffect(() => {
     fetchClientData();
-  }, [clientId]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -444,7 +444,7 @@ const ClientProfile = () => {
               <div className="space-y-3">
                 {requests.map((request) => (
                   <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                       onClick={() => navigate(`/requests/${request.id}`)}>
+                       onClick={() => navigate(`/request/${request.id}`)}>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />

@@ -104,22 +104,33 @@ const EnhancedClientManager = () => {
       const { data, error } = await supabase
         .from('clients')
         .select(`
-          *,
-          bookings:bookings(count)
+          id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          company,
+          client_type,
+          total_bookings,
+          total_spent,
+          last_trip_date,
+          created_at,
+          notes,
+          preferred_class
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching clients:', error);
-        toast.error('Failed to load clients');
+        toast.error('Failed to load clients. Please try again.');
         return;
       }
 
       setClients(data || []);
     } catch (error) {
-      console.error('Error fetching clients:', error);
-      toast.error('Failed to load clients');
+      console.error('Unexpected error fetching clients:', error);
+      toast.error('An unexpected error occurred while loading clients.');
     } finally {
       setLoading(false);
     }
@@ -131,7 +142,19 @@ const EnhancedClientManager = () => {
     try {
       const { data, error } = await supabase
         .from('client_intelligence')
-        .select('*')
+        .select(`
+          id,
+          client_id,
+          booking_patterns,
+          preferred_routes,
+          avg_ticket_price,
+          profit_potential,
+          price_sensitivity,
+          risk_score,
+          seasonal_preferences,
+          upselling_opportunities,
+          last_analysis
+        `)
         .eq('user_id', user.id);
 
       if (error) {
@@ -146,7 +169,7 @@ const EnhancedClientManager = () => {
 
       setClientIntelligence(intelligenceMap);
     } catch (error) {
-      console.error('Error fetching client intelligence:', error);
+      console.error('Unexpected error fetching client intelligence:', error);
     }
   };
 
@@ -227,7 +250,11 @@ const EnhancedClientManager = () => {
 
       if (error) {
         console.error('Error creating client:', error);
-        toast.error('Failed to create client');
+        if (error.code === '23505') {
+          toast.error('A client with this email already exists');
+        } else {
+          toast.error('Failed to create client. Please check your input and try again.');
+        }
         return;
       }
 
