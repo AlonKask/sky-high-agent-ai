@@ -1,8 +1,8 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
-import EnhancedClientManager from "@/components/EnhancedClientManager";
+import AdvancedReporting from "@/components/AdvancedReporting";
 
-const Clients = () => {
+const Reports = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -21,9 +21,9 @@ const Clients = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <EnhancedClientManager />
+      <AdvancedReporting />
     </div>
   );
 };
 
-export default Clients;
+export default Reports;
