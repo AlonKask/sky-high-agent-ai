@@ -558,6 +558,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          client_type: string | null
           company: string | null
           created_at: string | null
           data_classification: string | null
@@ -580,6 +581,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          client_type?: string | null
           company?: string | null
           created_at?: string | null
           data_classification?: string | null
@@ -602,6 +604,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          client_type?: string | null
           company?: string | null
           created_at?: string | null
           data_classification?: string | null
@@ -1437,9 +1440,52 @@ export type Database = {
         }
         Relationships: []
       }
+      request_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          assigned_to: string
+          created_at: string
+          id: string
+          notes: string | null
+          request_id: string
+          status: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          assigned_to: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_id: string
+          status?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          assigned_to?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_assignments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests: {
         Row: {
           adults_count: number | null
+          assigned_to: string | null
+          assignment_status: string | null
           budget_range: string | null
           children_count: number | null
           class_preference: string | null
@@ -1464,6 +1510,8 @@ export type Database = {
         }
         Insert: {
           adults_count?: number | null
+          assigned_to?: string | null
+          assignment_status?: string | null
           budget_range?: string | null
           children_count?: number | null
           class_preference?: string | null
@@ -1488,6 +1536,8 @@ export type Database = {
         }
         Update: {
           adults_count?: number | null
+          assigned_to?: string | null
+          assignment_status?: string | null
           budget_range?: string | null
           children_count?: number | null
           class_preference?: string | null
@@ -1652,6 +1702,69 @@ export type Database = {
           ip_address?: unknown | null
           timestamp?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      system_metrics: {
+        Row: {
+          id: string
+          metric_data: Json | null
+          metric_type: string
+          metric_value: number
+          recorded_at: string
+        }
+        Insert: {
+          id?: string
+          metric_data?: Json | null
+          metric_type: string
+          metric_value: number
+          recorded_at?: string
+        }
+        Update: {
+          id?: string
+          metric_data?: Json | null
+          metric_type?: string
+          metric_value?: number
+          recorded_at?: string
+        }
+        Relationships: []
+      }
+      team_performance: {
+        Row: {
+          bookings_count: number | null
+          conversion_rate: number | null
+          created_at: string
+          id: string
+          period_end: string
+          period_start: string
+          profit: number | null
+          supervisor_id: string | null
+          team_member_id: string
+          updated_at: string
+        }
+        Insert: {
+          bookings_count?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          period_end: string
+          period_start: string
+          profit?: number | null
+          supervisor_id?: string | null
+          team_member_id: string
+          updated_at?: string
+        }
+        Update: {
+          bookings_count?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          profit?: number | null
+          supervisor_id?: string | null
+          team_member_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
