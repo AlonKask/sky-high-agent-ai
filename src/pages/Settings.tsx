@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole, UserRole } from '@/hooks/useUserRole';
+import { RoleSelector } from '@/components/RoleSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,9 +36,11 @@ interface UserPreferences {
 
 const Settings = () => {
   const { user } = useAuth();
+  const { role } = useUserRole();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [selectedViewRole, setSelectedViewRole] = useState<UserRole>(role || 'user');
   const [profile, setProfile] = useState({
     first_name: '',
     last_name: '',
@@ -59,6 +63,12 @@ const Settings = () => {
       fetchUserData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (role) {
+      setSelectedViewRole(role);
+    }
+  }, [role]);
 
   const fetchUserData = async () => {
     try {
@@ -197,6 +207,16 @@ const Settings = () => {
           {user?.email}
         </Badge>
       </div>
+
+      {/* Role Selector for Dev users */}
+      {role === 'dev' && (
+        <RoleSelector
+          currentRole={role}
+          selectedViewRole={selectedViewRole}
+          onRoleChange={setSelectedViewRole}
+          className="mb-6"
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Profile Settings */}

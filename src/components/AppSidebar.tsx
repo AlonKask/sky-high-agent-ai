@@ -16,9 +16,11 @@ import {
   Zap,
   TrendingUp,
   Bot,
-  Sparkles
+  Sparkles,
+  Shield
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
 
 import {
   Sidebar,
@@ -96,6 +98,7 @@ const communicationItems = [
 export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
+  const { role } = useUserRole();
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -189,6 +192,36 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Dev-only User Management */}
+        {role === 'dev' && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
+              Development
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                     <NavLink 
+                       to="/users" 
+                       className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/users")}`}
+                       title={isCollapsed ? "Users" : ""}
+                     >
+                       <Shield className="h-5 w-5" />
+                      {!isCollapsed && (
+                        <div className="flex flex-col">
+                          <span>Users</span>
+                          <span className="text-xs text-muted-foreground">Staff management</span>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>

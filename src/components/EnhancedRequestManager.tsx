@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle } from "lucide-react";
+import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Request {
   id: string;
@@ -33,10 +35,12 @@ interface Request {
 const EnhancedRequestManager = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [takingRequest, setTakingRequest] = useState<string | null>(null);
+  const [showTakeRequestDropdown, setShowTakeRequestDropdown] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -164,8 +168,11 @@ const EnhancedRequestManager = () => {
     }
   };
 
-  const RequestCard = ({ request, showTakeButton = false }: { request: Request; showTakeButton?: boolean }) => (
-    <Card className="card-elevated hover:shadow-large transition-all duration-200">
+  const RequestCard = ({ request }: { request: Request }) => (
+    <Card 
+      className="card-elevated hover:shadow-large transition-all duration-200 cursor-pointer"
+      onClick={() => navigate(`/request/${request.id}`)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -211,29 +218,6 @@ const EnhancedRequestManager = () => {
             <span>{new Date(request.created_at).toLocaleDateString()}</span>
           </div>
         </div>
-
-        {showTakeButton && (
-          <div className="pt-2 border-t">
-            <Button
-              onClick={() => handleTakeRequest(request.id)}
-              disabled={takingRequest === request.id}
-              className="w-full"
-              size="sm"
-            >
-              {takingRequest === request.id ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Taking Request...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Take Request
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -251,6 +235,8 @@ const EnhancedRequestManager = () => {
     );
   }
 
+  const availableRequests = newClientRequests.concat(returnClientRequests);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -262,15 +248,59 @@ const EnhancedRequestManager = () => {
           </p>
         </div>
         
-        {/* Search */}
-        <div className="relative w-full lg:w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search requests..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex items-center gap-4">
+          {/* Take Request Button */}
+          {availableRequests.length > 0 && (
+            <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
+              <DropdownMenuTrigger asChild>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Take Request ({availableRequests.length})
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 max-h-60 overflow-y-auto">
+                {availableRequests.map((request) => (
+                  <DropdownMenuItem
+                    key={request.id}
+                    className="p-3 cursor-pointer"
+                    onClick={() => {
+                      handleTakeRequest(request.id);
+                      setShowTakeRequestDropdown(false);
+                    }}
+                  >
+                    <div className="flex flex-col w-full">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {request.clients?.first_name} {request.clients?.last_name}
+                        </span>
+                        <Badge variant="outline" className={request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' : 'border-green-200 text-green-600'}>
+                          {request.clients?.client_type}
+                        </Badge>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {request.origin} → {request.destination}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(request.departure_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
+          {/* Search */}
+          <div className="relative w-full lg:w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search requests..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
       </div>
 
@@ -312,7 +342,7 @@ const EnhancedRequestManager = () => {
           ) : (
             <div className="space-y-4">
               {newClientRequests.map((request) => (
-                <RequestCard key={request.id} request={request} showTakeButton />
+                <RequestCard key={request.id} request={request} />
               ))}
             </div>
           )}
@@ -338,7 +368,7 @@ const EnhancedRequestManager = () => {
           ) : (
             <div className="space-y-4">
               {returnClientRequests.map((request) => (
-                <RequestCard key={request.id} request={request} showTakeButton />
+                <RequestCard key={request.id} request={request} />
               ))}
             </div>
           )}
