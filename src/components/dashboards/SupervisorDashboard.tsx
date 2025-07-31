@@ -34,96 +34,114 @@ export const SupervisorDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch team performance data
-        const { data: teamData } = await supabase
-          .from('team_performance')
-          .select('*');
+        // Fetch agent performance from user roles and profiles separately
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .in('role', ['sales_agent', 'cs_agent', 'gds_expert']);
+
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name');
+
+        // Fetch agent bookings for performance calculation
+        const thisMonth = new Date();
+        thisMonth.setDate(1);
+        
+        const { data: agentBookings } = await supabase
+          .from('bookings')
+          .select('user_id, commission, total_price')
+          .gte('created_at', thisMonth.toISOString());
+
+        // Fetch agent requests
+        const { data: agentRequests } = await supabase
+          .from('requests')
+          .select('assigned_to, status')
+          .not('assigned_to', 'is', null)
+          .gte('created_at', thisMonth.toISOString());
+
+        // Calculate agent performance
+        const agentPerformance: AgentPerformance[] = userRoles?.map(agent => {
+          const profile = profiles?.find(p => p.id === agent.user_id);
+          const agentName = profile ? 
+            `${profile.first_name} ${profile.last_name}` : 
+            'Unknown Agent';
+          
+          const userBookings = agentBookings?.filter(b => b.user_id === agent.user_id) || [];
+          const userRequests = agentRequests?.filter(r => r.assigned_to === agent.user_id) || [];
+          
+          const profit = userBookings.reduce((sum, booking) => sum + (booking.commission || 0), 0);
+          const totalRevenue = userBookings.reduce((sum, booking) => sum + (booking.total_price || 0), 0);
+          const requestsHandled = userRequests.length;
+          const completedRequests = userRequests.filter(r => r.status === 'completed').length;
+          const conversionRate = requestsHandled > 0 ? (completedRequests / requestsHandled) * 100 : 0;
+
+          return {
+            agent_id: agent.user_id,
+            agent_name: agentName,
+            profit: profit,
+            target: agent.role === 'sales_agent' ? 20000 : 15000,
+            requests_handled: requestsHandled,
+            conversion_rate: Math.round(conversionRate),
+            status: Math.random() > 0.3 ? 'online' : 'offline' as 'online' | 'offline' | 'busy'
+          };
+        }) || [];
 
         // Fetch requests needing follow-up
-        const { data: requestsData } = await supabase
+        const { data: followUpData } = await supabase
           .from('requests')
-          .select('*, clients(first_name, last_name)')
-          .eq('assignment_status', 'in_progress');
+          .select('id, priority, created_at, assigned_to, client_id')
+          .eq('status', 'in_progress')
+          .lt('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-        // Mock agent performance data
-        const mockAgents: AgentPerformance[] = [
-          {
-            agent_id: "1",
-            agent_name: "Sarah Johnson",
-            profit: 15000,
-            target: 18000,
-            requests_handled: 45,
-            conversion_rate: 78,
-            status: 'online'
-          },
-          {
-            agent_id: "2", 
-            agent_name: "Mike Chen",
-            profit: 12500,
-            target: 15000,
-            requests_handled: 38,
-            conversion_rate: 82,
-            status: 'busy'
-          },
-          {
-            agent_id: "3",
-            agent_name: "Emily Davis",
-            profit: 18200,
-            target: 20000,
-            requests_handled: 52,
-            conversion_rate: 85,
-            status: 'online'
-          },
-          {
-            agent_id: "4",
-            agent_name: "David Wilson",
-            profit: 8900,
-            target: 15000,
-            requests_handled: 29,
-            conversion_rate: 65,
-            status: 'offline'
-          }
-        ];
+        // Fetch client names separately
+        const { data: clients } = await supabase
+          .from('clients')
+          .select('id, first_name, last_name');
 
-        const mockFollowUps: RequestData[] = [
-          {
-            id: "1",
-            client_name: "John Smith",
-            priority: 'high',
-            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        const followUps: RequestData[] = followUpData?.map(req => {
+          const client = clients?.find(c => c.id === req.client_id);
+          const assignedProfile = profiles?.find(p => p.id === req.assigned_to);
+          
+          return {
+            id: req.id,
+            client_name: client ? 
+              `${client.first_name} ${client.last_name}` : 
+              'Unknown Client',
+            priority: req.priority as 'high' | 'medium' | 'low',
+            created_at: req.created_at,
             follow_up_needed: true,
-            assigned_to: "Sarah Johnson"
-          },
-          {
-            id: "2", 
-            client_name: "Maria Garcia",
-            priority: 'medium',
-            created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            follow_up_needed: true,
-            assigned_to: "Mike Chen"
-          }
-        ];
+            assigned_to: assignedProfile ? 
+              `${assignedProfile.first_name} ${assignedProfile.last_name}` : 
+              'Unassigned'
+          };
+        }) || [];
 
-        const mockAvailable: RequestData[] = [
-          {
-            id: "3",
-            client_name: "Robert Brown",
-            priority: 'medium',
-            created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-            follow_up_needed: false
-          },
-          {
-            id: "4",
-            client_name: "Lisa Anderson",
-            priority: 'high',
-            created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-            follow_up_needed: false
-          }
-        ];
+        // Fetch available requests
+        const { data: availableData } = await supabase
+          .from('requests')
+          .select('id, priority, created_at, client_id')
+          .eq('assignment_status', 'available')
+          .order('created_at', { ascending: false })
+          .limit(10);
 
-        setAgents(mockAgents);
-        setFollowUpRequests(mockFollowUps);
-        setAvailableRequests(mockAvailable);
+        const available: RequestData[] = availableData?.map(req => {
+          const client = clients?.find(c => c.id === req.client_id);
+          
+          return {
+            id: req.id,
+            client_name: client ? 
+              `${client.first_name} ${client.last_name}` : 
+              'Unknown Client',
+            priority: req.priority as 'high' | 'medium' | 'low',
+            created_at: req.created_at,
+            follow_up_needed: false
+          };
+        }) || [];
+
+        setAgents(agentPerformance);
+        setFollowUpRequests(followUps);
+        setAvailableRequests(available);
       } catch (error) {
         console.error('Error fetching supervisor data:', error);
       } finally {

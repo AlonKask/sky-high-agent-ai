@@ -37,75 +37,110 @@ export const SalesAgentDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch bookings for profit calculation
+        const user = (await supabase.auth.getUser()).data.user;
+        if (!user) return;
+
+        // Fetch personal bookings for profit calculation
+        const thisMonth = new Date();
+        thisMonth.setDate(1);
+        
         const { data: bookings } = await supabase
           .from('bookings')
           .select('commission, total_price')
-          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-          .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+          .eq('user_id', user.id)
+          .gte('created_at', thisMonth.toISOString());
 
         const personalProfit = bookings?.reduce((sum, booking) => sum + (booking.commission || 0), 0) || 0;
 
-        // Mock data for demonstration
-        const mockInquiries: Inquiry[] = [
-          {
-            id: "1",
-            client_name: "Emma Thompson",
-            subject: "Corporate travel package",
-            received_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-            value_estimate: 15000
-          },
-          {
-            id: "2",
-            client_name: "James Wilson",
-            subject: "Family vacation to Europe",
-            received_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            value_estimate: 8500
-          },
-          {
-            id: "3",
-            client_name: "Sarah Martinez",
-            subject: "Business trip to Asia",
-            received_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-            value_estimate: 12000
-          }
-        ];
+        // Fetch new inquiries from requests
+        const { data: newRequests } = await supabase
+          .from('requests')
+          .select('id, created_at, quoted_price, client_id')
+          .eq('assigned_to', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(10);
 
-        const mockFollowUps: ClientFollowUp[] = [
-          {
-            id: "1",
-            client_name: "Michael Brown",
-            last_contact: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            priority: 'high',
-            value: 25000,
-            status: 'hot'
-          },
-          {
-            id: "2",
-            client_name: "Lisa Garcia",
-            last_contact: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            priority: 'medium',
-            value: 12000,
-            status: 'warm'
-          },
-          {
-            id: "3",
-            client_name: "David Lee",
-            last_contact: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            priority: 'low',
-            value: 8000,
-            status: 'cold'
+        // Fetch client names for requests
+        const { data: clients } = await supabase
+          .from('clients')
+          .select('id, first_name, last_name');
+
+        const inquiries: Inquiry[] = newRequests?.map(req => {
+          const client = clients?.find(c => c.id === req.client_id);
+          
+          return {
+            id: req.id,
+            client_name: client ? 
+              `${client.first_name} ${client.last_name}` : 
+              'Unknown Client',
+            subject: 'Travel Request',
+            received_at: req.created_at,
+            value_estimate: req.quoted_price || 5000
+          };
+        }) || [];
+
+        // Fetch follow-up clients from recent email exchanges
+        const { data: recentEmails } = await supabase
+          .from('email_exchanges')
+          .select('client_id, created_at, sender_email')
+          .eq('user_id', user.id)
+          .eq('direction', 'outbound')
+          .gte('created_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false });
+
+        // Group by client and get latest contact
+        const clientContactMap = new Map();
+        recentEmails?.forEach(email => {
+          if (!clientContactMap.has(email.client_id)) {
+            clientContactMap.set(email.client_id, {
+              client_name: email.sender_email?.split('@')[0] || 'Unknown Client',
+              last_contact: email.created_at,
+              client_id: email.client_id
+            });
           }
-        ];
+        });
+
+        // Get client quotes for value estimation
+        const { data: clientQuotes } = await supabase
+          .from('quotes')
+          .select('client_id, total_price')
+          .eq('user_id', user.id)
+          .in('client_id', Array.from(clientContactMap.keys()));
+
+        const followUps: ClientFollowUp[] = Array.from(clientContactMap.values()).map(contact => {
+          const clientQuote = clientQuotes?.find(q => q.client_id === contact.client_id);
+          const daysSinceContact = Math.floor((Date.now() - new Date(contact.last_contact).getTime()) / (24 * 60 * 60 * 1000));
+          
+          return {
+            id: contact.client_id,
+            client_name: contact.client_name,
+            last_contact: contact.last_contact,
+            priority: daysSinceContact > 7 ? 'high' : daysSinceContact > 3 ? 'medium' : 'low',
+            value: clientQuote?.total_price || 8000,
+            status: daysSinceContact > 7 ? 'cold' : daysSinceContact > 3 ? 'warm' : 'hot'
+          };
+        });
+
+        // Calculate conversion rate
+        const { data: allRequests } = await supabase
+          .from('requests')
+          .select('status')
+          .eq('assigned_to', user.id)
+          .gte('created_at', thisMonth.toISOString());
+
+        const totalRequests = allRequests?.length || 0;
+        const completedRequests = allRequests?.filter(r => r.status === 'completed').length || 0;
+        const conversionRate = totalRequests > 0 ? (completedRequests / totalRequests) * 100 : 0;
 
         setMetrics({
-          personal_profit: personalProfit || 18500,
-          commission: (personalProfit || 18500) * 0.08,
+          personal_profit: personalProfit,
+          commission: personalProfit * 0.08,
           monthly_target: 25000,
-          conversion_rate: 78
+          conversion_rate: Math.round(conversionRate)
         });
-        setInquiries(mockInquiries);
-        setFollowUps(mockFollowUps);
+        setInquiries(inquiries);
+        setFollowUps(followUps);
       } catch (error) {
         console.error('Error fetching sales agent data:', error);
       } finally {

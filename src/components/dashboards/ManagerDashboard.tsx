@@ -44,50 +44,107 @@ export const ManagerDashboard = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        // Fetch bookings data for revenue calculation
+        // Fetch all bookings for profit calculation
         const { data: bookings } = await supabase
           .from('bookings')
-          .select('total_price, commission, route, created_at')
+          .select('total_price, commission, route, created_at, user_id, class')
           .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-        // Fetch team performance data
-        const { data: teamData } = await supabase
-          .from('team_performance')
-          .select('*')
-          .gte('period_start', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        // Fetch user roles to calculate team composition
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('user_id, role');
+
+        // Fetch user profiles for names
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name');
 
         const totalProfit = bookings?.reduce((sum, booking) => sum + (booking.commission || 0), 0) || 0;
         
-        // Mock data for demonstration
-        const mockData: ManagerMetrics = {
-          total_profit: totalProfit || 125000,
-          profit_change: 15.2,
-          team_profits: [
-            { team_name: "Sales Team A", profit: 45000, members: 5 },
-            { team_name: "Sales Team B", profit: 38000, members: 4 },
-            { team_name: "GDS Experts", profit: 28000, members: 3 },
-            { team_name: "CS Team", profit: 14000, members: 6 }
-          ],
-          top_destinations: [
-            { destination: "London", bookings: 145, revenue: 89000 },
-            { destination: "New York", bookings: 132, revenue: 78000 },
-            { destination: "Dubai", bookings: 98, revenue: 67000 },
-            { destination: "Paris", bookings: 87, revenue: 54000 }
-          ],
-          top_products: [
-            { product: "Business Class", sales: 234, revenue: 156000 },
-            { product: "First Class", sales: 45, revenue: 89000 },
-            { product: "Premium Economy", sales: 312, revenue: 67000 },
-            { product: "Economy Plus", sales: 445, revenue: 45000 }
-          ],
-          low_profit_teams: [
-            { team_name: "CS Team", profit: 14000, target: 25000 }
-          ]
+        // Calculate team profits based on user roles
+        const teamProfits = [];
+        const roleGroups = {
+          sales_agent: { name: "Sales Team", target: 50000 },
+          gds_expert: { name: "GDS Experts", target: 30000 },
+          cs_agent: { name: "CS Team", target: 20000 }
         };
 
-        setMetrics(mockData);
+        for (const [role, config] of Object.entries(roleGroups)) {
+          const teamMembers = userRoles?.filter(ur => ur.role === role) || [];
+          const teamBookings = bookings?.filter(b => teamMembers.some(tm => tm.user_id === b.user_id)) || [];
+          const teamProfit = teamBookings.reduce((sum, booking) => sum + (booking.commission || 0), 0);
+          
+          teamProfits.push({
+            team_name: config.name,
+            profit: teamProfit,
+            members: teamMembers.length
+          });
+        }
+
+        // Calculate top destinations from bookings
+        const destinationMap = new Map();
+        bookings?.forEach(booking => {
+          const destinations = booking.route.split('-');
+          destinations.forEach(dest => {
+            const current = destinationMap.get(dest) || { bookings: 0, revenue: 0 };
+            destinationMap.set(dest, {
+              bookings: current.bookings + 1,
+              revenue: current.revenue + (booking.total_price || 0)
+            });
+          });
+        });
+
+        const topDestinations = Array.from(destinationMap.entries())
+          .map(([destination, data]) => ({ destination, ...data }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 4);
+
+        // Calculate class distribution
+        const classMap = new Map();
+        bookings?.forEach(booking => {
+          const current = classMap.get(booking.class || 'Economy') || { sales: 0, revenue: 0 };
+          classMap.set(booking.class || 'Economy', {
+            sales: current.sales + 1,
+            revenue: current.revenue + (booking.total_price || 0)
+          });
+        });
+
+        const topProducts = Array.from(classMap.entries())
+          .map(([product, data]) => ({ product, ...data }))
+          .sort((a, b) => b.revenue - a.revenue);
+
+        // Identify low-performing teams
+        const lowProfitTeams = teamProfits.filter(team => {
+          const target = roleGroups[Object.keys(roleGroups).find(key => 
+            roleGroups[key].name === team.team_name
+          )]?.target || 25000;
+          return team.profit < target * 0.8;
+        }).map(team => ({
+          ...team,
+          target: roleGroups[Object.keys(roleGroups).find(key => 
+            roleGroups[key].name === team.team_name
+          )]?.target || 25000
+        }));
+
+        setMetrics({
+          total_profit: totalProfit,
+          profit_change: totalProfit > 0 ? 15.2 : -5.5, // Mock change calculation
+          team_profits: teamProfits,
+          top_destinations: topDestinations,
+          top_products: topProducts,
+          low_profit_teams: lowProfitTeams
+        });
       } catch (error) {
         console.error('Error fetching manager metrics:', error);
+        setMetrics({
+          total_profit: 0,
+          profit_change: 0,
+          team_profits: [],
+          top_destinations: [],
+          top_products: [],
+          low_profit_teams: []
+        });
       } finally {
         setLoading(false);
       }

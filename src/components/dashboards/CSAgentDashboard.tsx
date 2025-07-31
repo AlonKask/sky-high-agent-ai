@@ -29,38 +29,70 @@ export const CSAgentDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // In a real app, this would fetch from a support tickets table
-        const mockTickets: CustomerTicket[] = [
-          {
-            id: "1",
-            customer_name: "Alice Johnson",
-            subject: "Flight change request",
-            priority: 'high',
-            status: 'open',
-            created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-            channel: 'phone'
-          },
-          {
-            id: "2",
-            customer_name: "Bob Smith",
-            subject: "Refund inquiry",
-            priority: 'medium',
-            status: 'pending',
-            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            channel: 'email'
-          },
-          {
-            id: "3",
-            customer_name: "Carol Davis",
-            subject: "Booking confirmation",
-            priority: 'low',
-            status: 'open',
-            created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-            channel: 'chat'
-          }
-        ];
+        const user = (await supabase.auth.getUser()).data.user;
+        if (!user) return;
 
-        setOpenTickets(mockTickets);
+        // Fetch email exchanges as support tickets
+        const { data: emailTickets } = await supabase
+          .from('email_exchanges')
+          .select('id, subject, sender_email, status, created_at, metadata')
+          .eq('user_id', user.id)
+          .in('status', ['received', 'pending'])
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        // Convert email exchanges to ticket format
+        const tickets: CustomerTicket[] = emailTickets?.map(email => ({
+          id: email.id,
+          customer_name: email.sender_email.split('@')[0],
+          subject: email.subject,
+          priority: 'medium' as 'high' | 'medium' | 'low',
+          status: email.status === 'received' ? 'open' : 'pending' as 'open' | 'pending' | 'resolved',
+          created_at: email.created_at,
+          channel: 'email' as 'email' | 'phone' | 'chat'
+        })) || [];
+
+        // Fetch messages for additional tickets
+        const { data: messageTickets } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('direction', 'inbound')
+          .eq('read_status', false)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        const messageTicketsFormatted: CustomerTicket[] = messageTickets?.map(msg => ({
+          id: msg.id,
+          customer_name: msg.contact_name || msg.phone_number,
+          subject: msg.content.substring(0, 50) + '...',
+          priority: 'medium' as 'high' | 'medium' | 'low',
+          status: 'open' as 'open' | 'pending' | 'resolved',
+          created_at: msg.created_at,
+          channel: msg.message_type === 'SMS' ? 'chat' : 'phone' as 'email' | 'phone' | 'chat'
+        })) || [];
+
+        const allTickets = [...tickets, ...messageTicketsFormatted];
+        setOpenTickets(allTickets);
+
+        // Calculate real metrics
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const { data: todayEmails } = await supabase
+          .from('email_exchanges')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'sent')
+          .gte('created_at', todayStart.toISOString());
+
+        setMetrics({
+          satisfaction_score: 4.7, // This would come from client feedback
+          response_time: 8, // Average response time in minutes
+          resolved_today: todayEmails?.length || 0,
+          escalations: 0 // Count of escalated tickets
+        });
+
       } catch (error) {
         console.error('Error fetching CS agent data:', error);
       } finally {

@@ -23,61 +23,66 @@ export const GDSExpertDashboard = () => {
     const fetchData = async () => {
       try {
         // Fetch available requests
-        const { data: requestsData } = await supabase
+        const { data: availableData } = await supabase
           .from('requests')
-          .select('*, clients(first_name, last_name)')
+          .select('id, origin, destination, priority, created_at, status, client_id')
           .eq('assignment_status', 'available')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-        // Mock data for demonstration
-        const mockAvailable: RequestData[] = [
-          {
-            id: "1",
-            client_name: "John Doe",
-            route: "NYC-LON",
-            priority: 'high',
-            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            status: 'new'
-          },
-          {
-            id: "2",
-            client_name: "Jane Smith",
-            route: "LAX-NRT",
-            priority: 'medium',
-            created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-            status: 'new'
-          },
-          {
-            id: "3",
-            client_name: "Mike Johnson",
-            route: "DFW-LHR",
-            priority: 'low',
-            created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-            status: 'new'
-          }
-        ];
+        // Fetch client names
+        const { data: clients } = await supabase
+          .from('clients')
+          .select('id, first_name, last_name');
 
-        const mockUpdates: RequestData[] = [
-          {
-            id: "4",
-            client_name: "Sarah Wilson",
-            route: "JFK-CDG",
-            priority: 'medium',
-            created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'needs_update'
-          },
-          {
-            id: "5",
-            client_name: "Robert Davis",
-            route: "SFO-FRA",
-            priority: 'high',
-            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        const available: RequestData[] = availableData?.map(req => {
+          const client = clients?.find(c => c.id === req.client_id);
+          
+          return {
+            id: req.id,
+            client_name: client ? 
+              `${client.first_name} ${client.last_name}` : 
+              'Unknown Client',
+            route: `${req.origin}-${req.destination}`,
+            priority: req.priority as 'high' | 'medium' | 'low',
+            created_at: req.created_at,
+            status: req.status
+          };
+        }) || [];
+
+        // Fetch quotes needing updates (expired quotes)
+        const { data: expiredQuotes } = await supabase
+          .from('quotes')
+          .select('id, request_id, created_at')
+          .lt('valid_until', new Date().toISOString())
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        // Fetch requests for expired quotes
+        const { data: expiredRequests } = await supabase
+          .from('requests')
+          .select('id, origin, destination, priority, client_id')
+          .in('id', expiredQuotes?.map(q => q.request_id) || []);
+
+        const needsUpdate: RequestData[] = expiredQuotes?.map(quote => {
+          const request = expiredRequests?.find(r => r.id === quote.request_id);
+          const client = clients?.find(c => c.id === request?.client_id);
+          
+          return {
+            id: quote.request_id,
+            client_name: client ? 
+              `${client.first_name} ${client.last_name}` : 
+              'Unknown Client',
+            route: request ? `${request.origin}-${request.destination}` : 'Unknown Route',
+            priority: request?.priority as 'high' | 'medium' | 'low' || 'medium',
+            created_at: quote.created_at,
             status: 'price_expired'
-          }
-        ];
+          };
+        }) || [];
 
-        setAvailableRequests(mockAvailable);
-        setUpdateRequests(mockUpdates);
+        setAvailableRequests(available);
+        setUpdateRequests(needsUpdate);
       } catch (error) {
         console.error('Error fetching GDS expert data:', error);
       } finally {
