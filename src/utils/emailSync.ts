@@ -59,6 +59,7 @@ export class EmailSyncManager {
       }
 
       // Call enhanced email sync function
+      console.log('🚀 Invoking enhanced email sync...');
       const { data, error } = await supabase.functions.invoke('enhanced-email-sync', {
         body: {
           userId: user.id,
@@ -68,6 +69,8 @@ export class EmailSyncManager {
           includeAIProcessing: options.includeAIProcessing || false
         }
       });
+
+      console.log('📧 Email sync response:', { data, error });
 
       if (error) {
         throw error;

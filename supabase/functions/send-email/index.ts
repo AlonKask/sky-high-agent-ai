@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface SendEmailRequest {
-  to: string[];
+  to: string | string[];
   cc?: string[];
   bcc?: string[];
   subject: string;
@@ -16,6 +16,7 @@ interface SendEmailRequest {
   clientId?: string;
   requestId?: string;
   emailType?: 'quote' | 'follow_up' | 'confirmation' | 'general' | 'booking_update';
+  email_type?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -59,17 +60,22 @@ const handler = async (req: Request): Promise<Response> => {
       body, 
       clientId, 
       requestId, 
-      emailType = 'general' 
+      emailType = 'general',
+      email_type
     }: SendEmailRequest = await req.json();
 
-    console.log('Sending email:', { to, subject, emailType });
+    // Normalize 'to' field to array
+    const toArray = Array.isArray(to) ? to : [to];
+    const finalEmailType = email_type || emailType;
+
+    console.log('Sending email:', { to: toArray, subject, emailType: finalEmailType });
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
     // Send email via Resend
     const emailResponse = await resend.emails.send({
       from: "Travel Agent <onboarding@resend.dev>",
-      to,
+      to: toArray,
       cc,
       bcc,
       subject,
@@ -89,12 +95,12 @@ const handler = async (req: Request): Promise<Response> => {
         subject,
         body,
         sender_email: "Travel Agent <onboarding@resend.dev>",
-        recipient_emails: to,
+        recipient_emails: toArray,
         cc_emails: cc || [],
         bcc_emails: bcc || [],
         direction: 'outbound',
         status: 'sent',
-        email_type: emailType,
+        email_type: finalEmailType,
         metadata: { resend_response: emailResponse }
       });
 

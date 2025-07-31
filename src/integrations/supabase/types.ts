@@ -1968,6 +1968,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      handle_email_sync_status: {
+        Args: {
+          p_user_id: string
+          p_folder_name: string
+          p_last_sync_at: string
+          p_last_sync_count: number
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _user_id: string

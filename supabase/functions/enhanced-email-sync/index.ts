@@ -213,7 +213,7 @@ async function syncUserEmailsEnhanced(supabaseClient: any, userPrefs: any, inclu
             cc_emails: cc ? [cc] : [],
             bcc_emails: bcc ? [bcc] : [],
             direction: direction,
-            status: 'received',
+            status: direction === 'inbound' ? 'received' : 'sent',
             received_at: date ? new Date(date).toISOString() : new Date().toISOString(),
             metadata: {
               gmail_labels: msgData.labelIds || [],
@@ -257,16 +257,17 @@ async function syncUserEmailsEnhanced(supabaseClient: any, userPrefs: any, inclu
     storedCount = finalEmails.length;
   }
 
-  // Update sync status
-  await supabaseClient
-    .from('email_sync_status')
-    .upsert({
-      user_id: userPrefs.user_id,
-      folder_name: 'inbox',
-      last_sync_at: new Date().toISOString(),
-      last_sync_count: storedCount,
-      updated_at: new Date().toISOString()
-    });
+  // Update sync status using the new function
+  const { error: syncStatusError } = await supabaseClient.rpc('handle_email_sync_status', {
+    p_user_id: userPrefs.user_id,
+    p_folder_name: 'inbox',
+    p_last_sync_at: new Date().toISOString(),
+    p_last_sync_count: storedCount
+  });
+
+  if (syncStatusError) {
+    console.error('❌ Sync status update error:', syncStatusError);
+  }
 
   console.log(`✅ Enhanced sync completed for ${userPrefs.gmail_user_email}: ${storedCount} stored, ${errors.length} errors`);
   

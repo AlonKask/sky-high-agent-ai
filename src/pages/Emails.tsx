@@ -121,17 +121,22 @@ const Emails = () => {
         .eq('user_id', user.id)
         .order('received_at', { ascending: false });
 
-      // Apply folder-specific filters
+      // Apply folder-specific filters with better logic
       if (selectedFolder === 'sent') {
-        query = query.eq('direction', 'outbound').or('metadata->>archived.is.null,metadata->>archived.neq.true');
+        query = query.eq('direction', 'outbound');
       } else if (selectedFolder === 'inbox') {
-        query = query.eq('direction', 'inbound').or('metadata->>archived.is.null,metadata->>archived.neq.true');
+        query = query.eq('direction', 'inbound');
       } else if (selectedFolder === 'archived') {
         query = query.eq('metadata->>archived', 'true');
       } else if (selectedFolder === 'drafts') {
-        query = query.ilike('metadata->>gmail_labels', '%DRAFT%');
+        query = query.or('status.eq.draft,metadata->>gmail_labels.ilike.%DRAFT%');
       } else if (selectedFolder === 'trash') {
-        query = query.ilike('metadata->>gmail_labels', '%TRASH%');
+        query = query.or('status.eq.deleted,metadata->>gmail_labels.ilike.%TRASH%');
+      }
+
+      // Exclude archived/deleted from inbox and sent unless specifically viewing those folders
+      if (!['archived', 'trash'].includes(selectedFolder)) {
+        query = query.neq('metadata->>archived', 'true').neq('status', 'deleted');
       }
 
       // Apply search filter
@@ -141,7 +146,10 @@ const Emails = () => {
 
       const { data, error } = await query.limit(100);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database query error:', error);
+        throw error;
+      }
       
       setEmails(data || []);
       updateEmailStats(data || []);
@@ -150,7 +158,7 @@ const Emails = () => {
       console.error('Error loading emails:', error);
       toast({
         title: "Error",
-        description: "Failed to load emails",
+        description: `Failed to load emails: ${error.message}`,
         variant: "destructive"
       });
     } finally {
@@ -261,15 +269,24 @@ const Emails = () => {
     }
 
     try {
-      const { error } = await supabase.functions.invoke('send-email', {
+      const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: composeData.to,
           subject: composeData.subject,
-          body: composeData.body
+          body: composeData.body,
+          email_type: 'outbound'
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Send email function error:', error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error('Send email response error:', data.error);
+        throw new Error(data.error);
+      }
 
       toast({
         title: "Success",
@@ -303,13 +320,16 @@ const Emails = () => {
       const intervalId = setInterval(async () => {
         if (authStatus.isConnected && autoSyncEnabled) {
           try {
+            console.log('🔄 Starting background email sync...');
             await emailSyncManager.syncEmails({ 
               includeAIProcessing: aiProcessingEnabled, 
               showProgress: false 
             });
             await loadEmailsFromDB();
+            console.log('✅ Background sync completed');
           } catch (error) {
-            console.error('Background sync failed:', error);
+            console.error('❌ Background sync failed:', error);
+            // Don't show error toasts for background sync failures
           }
         } else {
           loadEmailsFromDB();
