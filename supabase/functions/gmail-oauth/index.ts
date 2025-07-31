@@ -559,16 +559,18 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error(`❌ Gmail OAuth error:`, error);
+    console.error(`❌ Gmail OAuth Error:`, error);
     return new Response(
-      JSON.stringify({
-        error: error.message,
-        success: false
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+      JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error',
+        details: error.message 
+      }), 
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }
+  }); // Close withRateLimit
 });

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withRateLimit } from '../_shared/rate-limiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -404,18 +405,18 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error(`❌ Enhanced email sync error:`, error);
+    console.error('❌ Enhanced Email Sync Error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-        stored: 0,
-        errors: [error.message]
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+      JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error',
+        details: error.message 
+      }), 
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }
+  }); // Close withRateLimit
 });
