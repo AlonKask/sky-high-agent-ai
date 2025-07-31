@@ -1041,6 +1041,42 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_credentials: {
+        Row: {
+          access_token: string
+          created_at: string | null
+          gmail_user_email: string
+          id: string
+          refresh_token: string | null
+          scope: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string | null
+          gmail_user_email: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string | null
+          gmail_user_email?: string
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       gmail_notifications: {
         Row: {
           created_at: string

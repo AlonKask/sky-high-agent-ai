@@ -34,38 +34,33 @@ export const useGmailIntegration = () => {
     }
 
     try {
-      // For now, we'll use the user's email from their profile as a demo
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user profile:', error);
-        throw error;
-      }
-
-      // Check if user has Gmail tokens stored in user_preferences
-      const { data: prefs } = await supabase
-        .from('user_preferences')
-        .select('gmail_user_email, gmail_access_token, updated_at')
+      // Check if user has Gmail credentials stored in new gmail_credentials table
+      const { data: credentials, error } = await supabase
+        .from('gmail_credentials')
+        .select('gmail_user_email, access_token, updated_at, token_expires_at')
         .eq('user_id', user.id)
         .single();
 
-      const userEmail = prefs?.gmail_user_email || data?.email;
-      const isConnected = !!(prefs?.gmail_access_token && userEmail);
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching Gmail credentials:', error);
+        throw error;
+      }
+
+      const isConnected = !!(credentials?.access_token && credentials?.gmail_user_email);
+      const isTokenExpired = credentials?.token_expires_at ? 
+        new Date(credentials.token_expires_at) < new Date() : false;
 
       console.log('Gmail connection status:', {
-        isConnected,
-        userEmail: userEmail
+        isConnected: isConnected && !isTokenExpired,
+        userEmail: credentials?.gmail_user_email,
+        tokenExpired: isTokenExpired
       });
       
       setAuthStatus({
-        isConnected,
-        userEmail: userEmail || null,
+        isConnected: isConnected && !isTokenExpired,
+        userEmail: credentials?.gmail_user_email || null,
         isLoading: false,
-        lastSync: prefs?.updated_at ? new Date(prefs.updated_at) : null
+        lastSync: credentials?.updated_at ? new Date(credentials.updated_at) : null
       });
 
     } catch (error) {
@@ -326,7 +321,7 @@ export const useGmailIntegration = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('demo-email-sync', {
+      const { data, error } = await supabase.functions.invoke('enhanced-email-sync', {
         body: {
           userEmail: authStatus.userEmail || user.email,
           includeAIProcessing: false
