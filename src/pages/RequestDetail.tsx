@@ -45,6 +45,10 @@ const RequestDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showQuoteDialog, setShowQuoteDialog] = useState(false);
   
+  // Local state for managing UI updates
+  const [localTripType, setLocalTripType] = useState<string>('');
+  const [segments, setSegments] = useState<any[]>([]);
+  
   const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
@@ -84,6 +88,20 @@ const RequestDetail = () => {
       fetchRequestDetails();
     }
   }, [id]);
+
+  // Update local state when request data changes
+  useEffect(() => {
+    if (request) {
+      setLocalTripType(request.request_type || '');
+      // Initialize segments for multi-city if they exist
+      if (request.segments) {
+        setSegments(Array.isArray(request.segments) ? request.segments : []);
+      } else if (request.request_type === 'multi_city') {
+        // Initialize with basic segment structure for multi-city
+        setSegments([{ origin: request.origin, destination: request.destination, departure_date: request.departure_date }]);
+      }
+    }
+  }, [request]);
 
   const fetchRequestDetails = async () => {
     try {
@@ -249,16 +267,43 @@ const RequestDetail = () => {
                         />
                       </div>
                       <InlineEditField
-                        value={request.request_type}
+                        value={localTripType}
                         onSave={async (value) => {
+                          const stringValue = String(value);
+                          setLocalTripType(stringValue); // Update local state immediately
+                          
+                          // Prepare update object
+                          const updateData: any = { request_type: stringValue };
+                          
+                          // Clear return date if switching to one-way
+                          if (stringValue === 'one_way') {
+                            updateData.return_date = null;
+                          }
+                          
                           const { error } = await supabase
                             .from('requests')
-                            .update({ request_type: String(value) })
+                            .update(updateData)
                             .eq('id', id);
+                            
                           if (!error) {
-                            setRequest(prev => ({ ...prev, request_type: String(value) }));
+                            setRequest(prev => ({ 
+                              ...prev, 
+                              request_type: stringValue,
+                              ...(stringValue === 'one_way' ? { return_date: null } : {})
+                            }));
+                            
+                            // Initialize segments for multi-city
+                            if (stringValue === 'multi_city' && segments.length === 0) {
+                              setSegments([{ 
+                                origin: request.origin, 
+                                destination: request.destination, 
+                                departure_date: request.departure_date 
+                              }]);
+                            }
+                            
                             toast({ title: "Success", description: "Trip type updated" });
                           } else {
+                            setLocalTripType(request.request_type); // Revert on error
                             toast({ title: "Error", description: "Failed to update trip type", variant: "destructive" });
                           }
                         }}
@@ -268,7 +313,7 @@ const RequestDetail = () => {
                           { value: 'round_trip', label: 'Round Trip' },
                           { value: 'multi_city', label: 'Multi-City' }
                         ]}
-                        displayValue={request.request_type?.replace('_', ' ')}
+                        displayValue={localTripType?.replace('_', ' ')}
                         className="text-xs text-muted-foreground"
                       />
                     </div>
@@ -300,14 +345,14 @@ const RequestDetail = () => {
                     </div>
                   </div>
                   
-                  {/* Return Date */}
-                  {(request.return_date || request.request_type === 'round_trip') && (
+                  {/* Return Date - Only show for round trip */}
+                  {localTripType === 'round_trip' && (
                     <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
                       <Calendar className="h-5 w-5 text-orange-600" />
                       <div className="flex-1">
                         <p className="text-sm text-muted-foreground">Return Date</p>
                         <InlineEditField
-                          value={request.return_date}
+                          value={request.return_date || ''}
                           onSave={async (value) => {
                             const { error } = await supabase
                               .from('requests')
@@ -322,8 +367,97 @@ const RequestDetail = () => {
                           }}
                           type="date"
                           displayValue={request.return_date ? new Date(request.return_date).toLocaleDateString() : ''}
+                          placeholder="Select return date"
                           className="font-semibold"
                         />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Multi-City Segments */}
+                  {localTripType === 'multi_city' && (
+                    <div className="col-span-full">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-sm text-muted-foreground">Flight Segments</h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSegments([...segments, { origin: '', destination: '', departure_date: '' }]);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Segment
+                          </Button>
+                        </div>
+                        {segments.map((segment, index) => (
+                          <div key={index} className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                            <span className="text-sm font-medium text-muted-foreground w-8">#{index + 1}</span>
+                            <Input
+                              placeholder="Origin"
+                              value={segment.origin || ''}
+                              onChange={(e) => {
+                                const newSegments = [...segments];
+                                newSegments[index] = { ...newSegments[index], origin: e.target.value };
+                                setSegments(newSegments);
+                              }}
+                              className="flex-1"
+                            />
+                            <span className="text-muted-foreground">→</span>
+                            <Input
+                              placeholder="Destination"
+                              value={segment.destination || ''}
+                              onChange={(e) => {
+                                const newSegments = [...segments];
+                                newSegments[index] = { ...newSegments[index], destination: e.target.value };
+                                setSegments(newSegments);
+                              }}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="date"
+                              value={segment.departure_date || ''}
+                              onChange={(e) => {
+                                const newSegments = [...segments];
+                                newSegments[index] = { ...newSegments[index], departure_date: e.target.value };
+                                setSegments(newSegments);
+                              }}
+                              className="flex-1"
+                            />
+                            {segments.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const newSegments = segments.filter((_, i) => i !== index);
+                                  setSegments(newSegments);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            const { error } = await supabase
+                              .from('requests')
+                              .update({ segments: segments })
+                              .eq('id', id);
+                            if (!error) {
+                              setRequest(prev => ({ ...prev, segments: segments }));
+                              toast({ title: "Success", description: "Segments updated" });
+                            } else {
+                              toast({ title: "Error", description: "Failed to update segments", variant: "destructive" });
+                            }
+                          }}
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Save Segments
+                        </Button>
                       </div>
                     </div>
                   )}
