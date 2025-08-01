@@ -1973,6 +1973,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      can_modify_data: {
+        Args: { _user_id: string; _resource_user_id: string }
+        Returns: boolean
+      }
       cleanup_old_conversations: {
         Args: Record<PropertyKey, never>
         Returns: undefined

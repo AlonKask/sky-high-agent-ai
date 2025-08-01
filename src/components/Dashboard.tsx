@@ -136,19 +136,19 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
                 <DialogTitle>Quick Actions</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-2 gap-4 py-4">
-                <Button variant="outline" className="h-20 flex-col" onClick={() => setCurrentView?.("bookings")}>
+                <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/bookings")}>
                   <Plane className="h-6 w-6 mb-2" />
                   New Booking
                 </Button>
-                <Button variant="outline" className="h-20 flex-col" onClick={() => setCurrentView?.("clients")}>
+                <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/clients")}>
                   <Users className="h-6 w-6 mb-2" />
                   Add Client
                 </Button>
-                <Button variant="outline" className="h-20 flex-col" onClick={() => setCurrentView?.("requests")}>
+                <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/requests")}>
                   <Calendar className="h-6 w-6 mb-2" />
                   New Request
                 </Button>
-                <Button variant="outline" className="h-20 flex-col" onClick={() => alert("Analytics feature coming soon!")}>
+                <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/analytics")}>
                   <TrendingUp className="h-6 w-6 mb-2" />
                   Analytics
                 </Button>
@@ -161,7 +161,7 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card 
           className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
-          onClick={() => setCurrentView?.("clients")}
+          onClick={() => navigate("/clients")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
@@ -175,7 +175,7 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
 
         <Card 
           className="card-elevated border-0 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
-          onClick={() => setCurrentView?.("requests")}
+          onClick={() => navigate("/requests")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
@@ -189,7 +189,7 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
 
         <Card 
           className="card-elevated border-0 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
-          onClick={() => navigate("/analytics/revenue")}
+          onClick={() => navigate("/analytics")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
@@ -263,7 +263,7 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
                   <CardTitle>Recent Bookings</CardTitle>
                   <CardDescription>Latest confirmed and pending bookings</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setCurrentView("bookings")}>
+                <Button variant="outline" size="sm" onClick={() => navigate("/bookings")}>
                   View All
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -318,9 +318,9 @@ const Dashboard = ({ setCurrentView }: DashboardProps) => {
                   <CardTitle>Active Requests</CardTitle>
                   <CardDescription>Current client requests requiring attention</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" disabled>
-                  No Requests
-                  <ExternalLink className="ml-2 h-4 w-4" />
+                <Button variant="outline" size="sm" onClick={() => navigate("/requests")}>
+                  View All
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </CardHeader>

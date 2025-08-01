@@ -28,31 +28,7 @@ export const RoleDashboard = () => {
     );
   }
 
-  // Use enhanced dashboard for role switching if enabled, otherwise use role-specific dashboards
-  if (isRoleSwitchingEnabled) {
-    return <EnhancedDashboard />;
-  }
-
-  // Fallback to role-specific dashboards for users without role switching
-  switch (role) {
-    case 'admin':
-      return <DeveloperDashboard />;
-    case 'manager':
-      return <ManagerDashboard />;
-    case 'supervisor':
-      return <SupervisorDashboard />;
-    case 'gds_expert':
-      return <GDSExpertDashboard />;
-    case 'agent':
-      return <CSAgentDashboard />;
-    default:
-      return (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold mb-2">Unknown Role</h2>
-            <p className="text-muted-foreground">Your role is not recognized. Please contact support.</p>
-          </div>
-        </div>
-      );
-  }
+  // Always use enhanced dashboard for all authenticated users
+  // All buttons will be clickable, with role-based data filtering handled by RLS
+  return <EnhancedDashboard />;
 };
