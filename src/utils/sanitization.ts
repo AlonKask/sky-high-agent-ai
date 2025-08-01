@@ -48,11 +48,16 @@ export const sanitizeEmailContent = (content: string): string => {
   return DOMPurify.sanitize(content, {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'em', 'u', 'a', 'span', 'div', 
-      'table', 'tr', 'td', 'th', 'thead', 'tbody', 'ul', 'ol', 'li'
+      'table', 'tr', 'td', 'th', 'thead', 'tbody', 'ul', 'ol', 'li',
+      'img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'
     ],
-    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
-    FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'iframe', 'style'],
-    FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover', 'style'],
+    ALLOWED_ATTR: [
+      'href', 'target', 'rel', 'class', 'src', 'alt', 'width', 'height', 
+      'style', 'title', 'loading', 'decoding'
+    ],
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'iframe'],
+    FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover'],
   });
 };
 

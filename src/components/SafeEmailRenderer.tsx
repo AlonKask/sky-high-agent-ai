@@ -19,10 +19,12 @@ import {
   ExternalLink,
   Receipt,
   CreditCard,
-  Sparkles
+  Sparkles,
+  ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeEmailContent } from '@/utils/sanitization';
 import DOMPurify from 'dompurify';
 
 interface SafeEmailRendererProps {
@@ -55,6 +57,13 @@ interface ExtractedData {
     website?: string;
     address?: string;
   } | null;
+  images: Array<{
+    src: string;
+    alt?: string;
+    width?: string;
+    height?: string;
+    type: 'signature' | 'header' | 'content' | 'attachment';
+  }>;
 }
 
 const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
@@ -68,15 +77,16 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
   const [expandedSections, setExpandedSections] = useState({
     signature: true,
     financial: true,
-    booking: true
+    booking: true,
+    images: true
   });
 
   const extractedData = useMemo(() => {
     return extractEmailData(emailBody);
   }, [emailBody]);
 
-  const cleanedBody = useMemo(() => {
-    return cleanEmailContent(emailBody);
+  const sanitizedHtml = useMemo(() => {
+    return sanitizeEmailContent(emailBody);
   }, [emailBody]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -122,9 +132,10 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
             </Button>
           )}
         </div>
-        <div className="bg-muted/30 p-4 rounded-lg border font-mono text-sm whitespace-pre-wrap">
-          {cleanedBody}
-        </div>
+        <div 
+          className="bg-muted/30 p-4 rounded-lg border text-sm"
+          dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+        />
       </div>
     );
   }
@@ -139,7 +150,7 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
             Enhanced Email View
           </Badge>
           <Badge variant="outline">
-            {extractedData.financialData.length + extractedData.bookingRefs.length} Items Extracted
+            {extractedData.financialData.length + extractedData.bookingRefs.length + extractedData.images.length} Items Extracted
           </Badge>
         </div>
         {onToggleRaw && (
@@ -155,18 +166,10 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
           <CardTitle className="text-lg">Email Content</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose max-w-none text-sm leading-relaxed">
-            {cleanedBody.split('\n\n').map((paragraph, index) => (
-              <p key={index} className="mb-4 last:mb-0">
-                {paragraph.split('\n').map((line, lineIndex) => (
-                  <React.Fragment key={lineIndex}>
-                    {line}
-                    {lineIndex < paragraph.split('\n').length - 1 && <br />}
-                  </React.Fragment>
-                ))}
-              </p>
-            ))}
-          </div>
+          <div 
+            className="prose max-w-none text-sm leading-relaxed email-content"
+            dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+          />
         </CardContent>
       </Card>
 
@@ -355,6 +358,65 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
           </Card>
         </Collapsible>
       )}
+
+      {/* Images */}
+      {extractedData.images.length > 0 && (
+        <Collapsible open={expandedSections.images} onOpenChange={() => toggleSection('images')}>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    Images ({extractedData.images.length})
+                  </div>
+                  {expandedSections.images ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {extractedData.images.map((image, index) => (
+                    <div key={index} className="bg-muted/30 p-3 rounded-lg border">
+                      <div className="aspect-square bg-background rounded-md overflow-hidden mb-2">
+                        <img
+                          src={image.src}
+                          alt={image.alt || `Email image ${index + 1}`}
+                          className="w-full h-full object-contain"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-muted-foreground"><svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Badge variant="outline" className="text-xs">
+                          {image.type}
+                        </Badge>
+                        {image.alt && (
+                          <p className="text-xs text-muted-foreground">{image.alt}</p>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => copyToClipboard(image.src, 'Image URL')}
+                          className="h-6 text-xs w-full"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy URL
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
     </div>
   );
 };
@@ -412,7 +474,8 @@ function extractEmailData(content: string): ExtractedData {
     financialData: extractFinancialData(cleanContent),
     bookingRefs: extractBookingReferences(cleanContent),
     contactInfo: extractContactInfo(cleanContent),
-    businessInfo: extractBusinessSignature(cleanContent)
+    businessInfo: extractBusinessSignature(cleanContent),
+    images: extractImages(content)
   };
 }
 
@@ -550,6 +613,43 @@ function extractBusinessSignature(content: string) {
   }
 
   return Object.keys(signature).length > 0 ? signature : null;
+}
+
+function extractImages(content: string) {
+  const images = [];
+  const imgPattern = /<img[^>]+>/gi;
+  const matches = content.match(imgPattern) || [];
+  
+  matches.forEach((imgTag, index) => {
+    const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+    const altMatch = imgTag.match(/alt=["']([^"']+)["']/i);
+    const widthMatch = imgTag.match(/width=["']([^"']+)["']/i);
+    const heightMatch = imgTag.match(/height=["']([^"']+)["']/i);
+    
+    if (srcMatch && srcMatch[1]) {
+      // Categorize image type based on src URL and context
+      let type: 'signature' | 'header' | 'content' | 'attachment' = 'content';
+      const src = srcMatch[1].toLowerCase();
+      
+      if (src.includes('signature') || src.includes('logo') || content.toLowerCase().includes('signature')) {
+        type = 'signature';
+      } else if (src.includes('header') || src.includes('banner')) {
+        type = 'header';
+      } else if (src.includes('attachment') || src.includes('upload')) {
+        type = 'attachment';
+      }
+      
+      images.push({
+        src: srcMatch[1],
+        alt: altMatch ? altMatch[1] : undefined,
+        width: widthMatch ? widthMatch[1] : undefined,
+        height: heightMatch ? heightMatch[1] : undefined,
+        type
+      });
+    }
+  });
+  
+  return images;
 }
 
 export default SafeEmailRenderer;
