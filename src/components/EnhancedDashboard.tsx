@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { RoleSelector } from "./RoleSelector";
+
 import { UserRole, useUserRole } from "@/hooks/useUserRole";
 import { useRoleView } from "@/contexts/RoleViewContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -368,14 +368,6 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
           </p>
         </div>
         
-        {isRoleSwitchingEnabled && userRole && (
-          <RoleSelector
-            currentRole={userRole}
-            selectedViewRole={selectedViewRole}
-            onRoleChange={setSelectedViewRole}
-            className="w-64"
-          />
-        )}
       </div>
 
       {/* Dynamic Stats Cards */}

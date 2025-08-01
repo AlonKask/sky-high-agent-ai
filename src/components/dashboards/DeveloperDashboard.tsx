@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Activity, Database, Users, AlertTriangle, Server, Clock, TrendingUp, Code, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRoleView } from "@/contexts/RoleViewContext";
-import { RoleSelector } from "@/components/RoleSelector";
+
 import { useUserRole } from "@/hooks/useUserRole";
 
 interface SystemMetrics {
@@ -122,14 +122,6 @@ export const DeveloperDashboard = () => {
           <p className="text-muted-foreground">System monitoring and development tools</p>
         </div>
         <div className="flex items-center gap-4">
-          {isRoleSwitchingEnabled && userRole && (
-            <RoleSelector
-              currentRole={userRole}
-              selectedViewRole={selectedViewRole}
-              onRoleChange={setSelectedViewRole}
-              className="w-64"
-            />
-          )}
           <Badge variant={metrics.uptime_percentage > 99 ? "default" : "destructive"}>
             System Status: {metrics.uptime_percentage > 99 ? "Healthy" : "Issues Detected"}
           </Badge>
