@@ -46,7 +46,7 @@ const Users = () => {
   });
 
   useEffect(() => {
-    if (user && ['dev', 'admin', 'manager', 'supervisor'].includes(role || '')) {
+    if (user && ['supervisor', 'manager', 'dev'].includes(role || '')) {
       fetchUsers();
     }
   }, [user, role]);
@@ -187,7 +187,8 @@ const Users = () => {
     );
   }
 
-  if (!user || !['dev', 'admin', 'manager', 'supervisor'].includes(role || '')) {
+  if (!user || !['supervisor', 'manager', 'dev'].includes(role || '')) {
+    console.log('User role access denied:', { user: !!user, role, allowedRoles: ['supervisor', 'manager', 'dev'] });
     return <Navigate to="/" replace />;
   }
 
