@@ -14,6 +14,8 @@ import { EmailTemplateGenerator } from "@/utils/emailTemplateGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { QuoteCard } from "@/components/QuoteCard";
+import UnifiedEmailBuilder from "@/components/UnifiedEmailBuilder";
 
 // Interface that matches the database quotes table structure
 interface Quote {
@@ -26,11 +28,11 @@ interface Quote {
   total_segments: number;
   fare_type: string;
   pseudo_city?: string;
-  net_price: number;
-  markup: number;
+  net_price: string;
+  markup: string;
   ck_fee_enabled: boolean;
-  ck_fee_amount: number;
-  total_price: number;
+  ck_fee_amount: string;
+  total_price: string;
   status: string;
   is_hidden: boolean;
   notes?: string;
@@ -82,6 +84,10 @@ const SabreOptionManager = ({
 }: SabreOptionManagerProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
+  const [expandedQuotes, setExpandedQuotes] = useState<string[]>([]);
+  const [showEmailBuilder, setShowEmailBuilder] = useState(false);
+  const [currentClient, setCurrentClient] = useState<any>(null);
   const dialogOpen = isOpen !== undefined ? isOpen : isDialogOpen;
   const { toast } = useToast();
   const { user } = useAuth();
@@ -416,30 +422,73 @@ const SabreOptionManager = ({
   };
 
   const handleGenerateEmail = (quote: Quote) => {
-    const emailContent = `Subject: Flight Quote - ${quote.route}
+    setSelectedQuotes([quote.id]);
+    openEmailBuilder();
+  };
 
-Dear Client,
+  const openEmailBuilder = async () => {
+    try {
+      const { data: clientData, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .single();
 
-Please find your flight quote details below:
+      if (error) throw error;
+      
+      setCurrentClient(clientData);
+      setShowEmailBuilder(true);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load client data",
+        variant: "destructive",
+      });
+    }
+  };
 
-Route: ${quote.route}
-Quote Type: ${quote.quote_type}
-Total Price: $${quote.total_price}
-${quote.quote_type === 'revenue' ? `Net Price: $${quote.net_price}` : `Points Required: ${quote.number_of_points?.toLocaleString()}`}
-Status: ${quote.status}
+  const handleToggleQuoteSelection = (quoteId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedQuotes(prev => [...prev, quoteId]);
+    } else {
+      setSelectedQuotes(prev => prev.filter(id => id !== quoteId));
+    }
+  };
 
-${quote.notes ? `Notes: ${quote.notes}` : ''}
+  const handleToggleQuoteExpansion = (quoteId: string) => {
+    setExpandedQuotes(prev => 
+      prev.includes(quoteId) 
+        ? prev.filter(id => id !== quoteId)
+        : [...prev, quoteId]
+    );
+  };
 
-Please let me know if you have any questions.
+  const handleToggleVisibility = async (quote: Quote) => {
+    try {
+      const { error } = await supabase
+        .from("quotes")
+        .update({ is_hidden: !quote.is_hidden })
+        .eq("id", quote.id);
 
-Best regards,
-Your Travel Agent`;
+      if (error) throw error;
 
-    navigator.clipboard.writeText(emailContent);
-    toast({
-      title: "Email Template Copied",
-      description: "The email template has been copied to your clipboard."
-    });
+      toast({
+        title: quote.is_hidden ? "Quote shown" : "Quote hidden",
+        description: `Quote has been ${quote.is_hidden ? "shown" : "hidden"}.`,
+      });
+
+      onQuoteUpdated();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const generateIFormatDisplay = (quote: Quote) => {
+    return quote.content || "No Sabre content available";
   };
 
   const handleShareWithClient = async (quote: Quote) => {
@@ -466,17 +515,25 @@ Your Travel Agent`;
         <div className="flex justify-between items-center">
           <CardTitle>Quote Options</CardTitle>
           {!dialogOpen && (
-            <Button onClick={() => {
-              resetQuoteForm();
-              if (isOpen !== undefined && onOpen) {
-                onOpen();
-              } else {
-                setIsDialogOpen(true);
-              }
-            }}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Quote
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedQuotes.length > 0 && (
+                <Button variant="outline" onClick={openEmailBuilder}>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Selected ({selectedQuotes.length})
+                </Button>
+              )}
+              <Button onClick={() => {
+                resetQuoteForm();
+                if (isOpen !== undefined && onOpen) {
+                  onOpen();
+                } else {
+                  setIsDialogOpen(true);
+                }
+              }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Quote
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -870,97 +927,58 @@ Example:
         ) : (
           <div className="space-y-4">
             {quotes.map((quote) => (
-              <Card key={quote.id} className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">{quote.format || "I"}</Badge>
-                    <Badge className={getStatusColor(quote.status)}>{quote.status}</Badge>
-                    <Badge variant="outline">{quote.quote_type || "revenue"}</Badge>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(quote)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleGenerateEmail(quote)}
-                    >
-                      <Mail className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleShareWithClient(quote)}
-                    >
-                      <Share2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(quote.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <strong>Route:</strong> {quote.route}
-                  </div>
-                  <div>
-                    <strong>Total Price:</strong> ${quote.total_price}
-                  </div>
-                  {quote.quote_type === "revenue" && (
-                    <>
-                      <div>
-                        <strong>Net Price:</strong> ${quote.net_price}
-                      </div>
-                      <div>
-                        <strong>Fare Type:</strong> {quote.fare_type}
-                      </div>
-                    </>
-                  )}
-                  {quote.quote_type === "award" && (
-                    <>
-                      <div>
-                        <strong>Program:</strong> {quote.award_program}
-                      </div>
-                      <div>
-                        <strong>Points:</strong> {quote.number_of_points?.toLocaleString()}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {quote.notes && (
-                  <div className="mt-3 p-2 bg-muted rounded text-sm">
-                    <strong>Notes:</strong> {quote.notes}
-                  </div>
-                )}
-
-                {quote.content && (
-                  <div className="mt-3">
-                    <details>
-                      <summary className="cursor-pointer text-sm font-medium">
-                        View Sabre Content
-                      </summary>
-                      <pre className="mt-2 p-2 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-x-auto">
-                        {quote.content}
-                      </pre>
-                    </details>
-                  </div>
-                )}
-              </Card>
+              <QuoteCard
+                key={quote.id}
+                quote={quote}
+                isSelected={selectedQuotes.includes(quote.id)}
+                isExpanded={expandedQuotes.includes(quote.id)}
+                onToggleExpanded={() => handleToggleQuoteExpansion(quote.id)}
+                onToggleSelected={(selected) => handleToggleQuoteSelection(quote.id, selected)}
+                onEdit={() => handleEdit(quote)}
+                onToggleVisibility={() => handleToggleVisibility(quote)}
+                onDelete={() => handleDelete(quote.id)}
+                onSendToEmail={() => handleGenerateEmail(quote)}
+                generateIFormatDisplay={generateIFormatDisplay}
+              />
             ))}
           </div>
         )}
       </CardContent>
+
+      {/* Email Builder Modal */}
+      {showEmailBuilder && currentClient && (
+        <Dialog open={showEmailBuilder} onOpenChange={setShowEmailBuilder}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+            <UnifiedEmailBuilder
+              clientId={clientId}
+              requestId={requestId}
+              quotes={quotes.filter(q => selectedQuotes.includes(q.id)).map(q => ({
+                id: q.id,
+                route: q.route,
+                total_price: parseFloat(q.total_price),
+                fare_type: q.fare_type,
+                segments: q.segments || [],
+                valid_until: q.valid_until || '',
+                notes: q.notes,
+                net_price: parseFloat(q.net_price),
+                markup: parseFloat(q.markup),
+                ck_fee_amount: parseFloat(q.ck_fee_amount),
+                ck_fee_enabled: q.ck_fee_enabled
+              }))}
+              client={currentClient}
+              onSendEmail={() => {
+                setShowEmailBuilder(false);
+                setSelectedQuotes([]);
+                toast({
+                  title: "Email sent successfully",
+                  description: "Your quote email has been sent to the client.",
+                });
+              }}
+              onCancel={() => setShowEmailBuilder(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 };
