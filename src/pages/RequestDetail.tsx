@@ -25,7 +25,6 @@ import {
   Edit, 
   X, 
   Trash2,
-  Mail,
   MessageSquare,
   MapPin,
   Clock,
@@ -33,7 +32,6 @@ import {
 } from 'lucide-react';
 
 import { QuoteCard } from '@/components/QuoteCard';
-import EmailManager from '@/components/EmailManager';
 
 import { SabreParser } from '@/utils/sabreParser';
 import SabreOptionManager from '@/components/SabreOptionManager';
@@ -46,7 +44,7 @@ const RequestDetail = () => {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showQuoteDialog, setShowQuoteDialog] = useState(false);
-  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  
   const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
@@ -205,6 +203,13 @@ const RequestDetail = () => {
                     </CardTitle>
                     <CardDescription>Click on any field to edit directly</CardDescription>
                   </div>
+                  <Button 
+                    onClick={() => setShowQuoteDialog(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Quote
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -582,14 +587,6 @@ const RequestDetail = () => {
         }}
       />
 
-      {/* Email Dialog */}
-      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-        <EmailManager 
-          clientEmail={client?.email}
-          clientId={client?.id}
-          requestId={request?.id}
-        />
-      </Dialog>
     </div>
   );
 };
