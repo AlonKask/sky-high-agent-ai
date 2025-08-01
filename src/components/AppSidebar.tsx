@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useRoleView } from "@/contexts/RoleViewContext";
 
 import {
   Sidebar,
@@ -99,6 +100,7 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const { role } = useUserRole();
+  const { selectedViewRole } = useRoleView();
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -194,10 +196,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Management Tools for Supervisors, Managers, and Developers */}
-        {(role === 'supervisor' || role === 'manager' || role === 'admin') && (
+        {(selectedViewRole === 'supervisor' || selectedViewRole === 'manager' || selectedViewRole === 'admin') && (
           <SidebarGroup>
             <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
-              {role === 'admin' ? 'Administration' : 'Management'}
+              {selectedViewRole === 'admin' ? 'Administration' : 'Management'}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>

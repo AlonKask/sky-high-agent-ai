@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole, UserRole } from '@/hooks/useUserRole';
+import { useRoleView } from '@/contexts/RoleViewContext';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ interface UserData {
 const Users = () => {
   const { user, loading: authLoading } = useAuth();
   const { role } = useUserRole();
+  const { selectedViewRole } = useRoleView();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,10 +48,10 @@ const Users = () => {
   });
 
   useEffect(() => {
-    if (user && ['supervisor', 'manager', 'admin'].includes(role || '')) {
+    if (user && ['supervisor', 'manager', 'admin'].includes(selectedViewRole || '')) {
       fetchUsers();
     }
-  }, [user, role]);
+  }, [user, selectedViewRole]);
 
   const fetchUsers = async () => {
     try {
@@ -185,8 +187,8 @@ const Users = () => {
     );
   }
 
-  if (!user || !['supervisor', 'manager', 'admin'].includes(role || '')) {
-    console.log('User role access denied:', { user: !!user, role, allowedRoles: ['supervisor', 'manager', 'admin'] });
+  if (!user || !['supervisor', 'manager', 'admin'].includes(selectedViewRole || '')) {
+    console.log('User role access denied:', { user: !!user, selectedViewRole, allowedRoles: ['supervisor', 'manager', 'admin'] });
     return <Navigate to="/" replace />;
   }
 
@@ -286,16 +288,16 @@ const Users = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
-                    {(role === 'admin' || role === 'manager' || role === 'supervisor') && (
+                    {(selectedViewRole === 'admin' || selectedViewRole === 'manager' || selectedViewRole === 'supervisor') && (
                       <>
                         <SelectItem value="agent">Agent</SelectItem>
                         <SelectItem value="gds_expert">GDS Expert</SelectItem>
                       </>
                     )}
-                    {(role === 'admin' || role === 'manager') && (
+                    {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
                       <SelectItem value="supervisor">Supervisor</SelectItem>
                     )}
-                    {role === 'admin' && (
+                    {selectedViewRole === 'admin' && (
                       <SelectItem value="manager">Manager</SelectItem>
                     )}
                   </SelectContent>
