@@ -161,17 +161,30 @@ const Users = () => {
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     try {
-      const { error } = await supabase
+      console.log('Updating role for user:', userId, 'to role:', newRole);
+      
+      const { data, error } = await supabase
         .from('user_roles')
-        .upsert({ user_id: userId, role: newRole });
+        .upsert({ 
+          user_id: userId, 
+          role: newRole 
+        }, { 
+          onConflict: 'user_id' 
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error updating user role:', error);
+        toast.error(`Failed to update user role: ${error.message}`);
+        return;
+      }
 
+      console.log('Role update successful:', data);
       toast.success('User role updated successfully');
-      fetchUsers();
+      fetchUsers(); // Refresh the list
     } catch (error) {
-      console.error('Error updating user role:', error);
-      toast.error('Failed to update user role');
+      console.error('Unexpected error updating user role:', error);
+      toast.error('An unexpected error occurred while updating the user role');
     }
   };
 
