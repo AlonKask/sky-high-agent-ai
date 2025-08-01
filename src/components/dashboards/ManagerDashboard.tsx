@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -31,6 +32,7 @@ interface ManagerMetrics {
 }
 
 export const ManagerDashboard = () => {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<ManagerMetrics>({
     total_profit: 0,
     profit_change: 0,
@@ -184,7 +186,7 @@ export const ManagerDashboard = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/reports')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -199,7 +201,7 @@ export const ManagerDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/users')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Team Performance</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -211,7 +213,7 @@ export const ManagerDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/analytics')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Top Destinations</CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -223,7 +225,7 @@ export const ManagerDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/users')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Alerts</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />

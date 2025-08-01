@@ -260,11 +260,11 @@ export const SalesAgentDashboard = () => {
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={() => window.open(`tel:${inquiry.id}`, '_self')}>
                     <Phone className="h-3 w-3 mr-1" />
                     Call
                   </Button>
-                  <Button size="sm">
+                  <Button size="sm" onClick={() => window.open('/emails', '_blank')}>
                     <Mail className="h-3 w-3 mr-1" />
                     Reply
                   </Button>
@@ -301,7 +301,7 @@ export const SalesAgentDashboard = () => {
                   <Badge variant={client.priority === 'high' ? 'destructive' : 'secondary'}>
                     {client.priority}
                   </Badge>
-                  <Button size="sm">
+                  <Button size="sm" onClick={() => window.open(`/clients/${client.id}`, '_blank')}>
                     Contact
                   </Button>
                 </div>

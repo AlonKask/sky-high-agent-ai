@@ -149,7 +149,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
       case 'dev':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="card-elevated border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/analytics')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">System Health</CardTitle>
                 <Code className="h-4 w-4 text-purple-600" />
@@ -160,7 +161,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
             
-            <Card className="card-elevated border-0 bg-gradient-to-br from-cyan-50 to-cyan-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-cyan-50 to-cyan-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/analytics')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Database Status</CardTitle>
                 <Database className="h-4 w-4 text-cyan-600" />
@@ -171,7 +173,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-yellow-50 to-yellow-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-yellow-50 to-yellow-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/settings')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Debug Mode</CardTitle>
                 <Bug className="h-4 w-4 text-yellow-600" />
@@ -182,7 +185,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-slate-50 to-slate-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-slate-50 to-slate-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/settings')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">API Status</CardTitle>
                 <Settings className="h-4 w-4 text-slate-600" />
@@ -198,7 +202,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
       case 'admin':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="card-elevated border-0 bg-gradient-to-br from-red-50 to-red-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-red-50 to-red-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/analytics')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">System Status</CardTitle>
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -209,7 +214,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
             
-            <Card className="card-elevated border-0 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/reports')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                 <DollarSign className="h-4 w-4 text-green-600" />
@@ -220,7 +226,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/clients')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
                 <Users className="h-4 w-4 text-blue-600" />
@@ -231,7 +238,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-orange-50 to-orange-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-orange-50 to-orange-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/requests')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
                 <Timer className="h-4 w-4 text-orange-600" />
@@ -297,7 +305,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
       default:
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="stat-card" onClick={() => setCurrentView?.("clients")}>
+            <div className="stat-card cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/clients')}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Clients</p>
@@ -307,7 +315,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </div>
             </div>
 
-            <div className="stat-card">
+            <div className="stat-card cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/reports')}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Revenue</p>
@@ -317,7 +325,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </div>
             </div>
 
-            <div className="stat-card" onClick={() => setCurrentView?.("requests")}>
+            <div className="stat-card cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/requests')}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Requests</p>
@@ -327,7 +335,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </div>
             </div>
 
-            <div className="stat-card" onClick={() => setCurrentView?.("bookings")}>
+            <div className="stat-card cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/bookings')}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Bookings</p>
@@ -385,15 +393,15 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
           />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="h-12" onClick={() => setCurrentView?.("clients")}>
+          <Button variant="outline" size="lg" className="h-12" onClick={() => navigate('/clients')}>
             <Plus className="h-4 w-4 mr-2" />
             New Client
           </Button>
-          <Button variant="outline" size="lg" className="h-12" onClick={() => setCurrentView?.("requests")}>
+          <Button variant="outline" size="lg" className="h-12" onClick={() => navigate('/requests')}>
             <FileText className="h-4 w-4 mr-2" />
             New Request
           </Button>
-          <Button variant="outline" size="lg" className="h-12" onClick={() => setCurrentView?.("bookings")}>
+          <Button variant="outline" size="lg" className="h-12" onClick={() => navigate('/bookings')}>
             <Plane className="h-4 w-4 mr-2" />
             New Booking
           </Button>

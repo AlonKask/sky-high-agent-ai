@@ -217,7 +217,7 @@ export const CSAgentDashboard = () => {
                   <Badge variant={ticket.status === 'open' ? 'default' : 'secondary'}>
                     {ticket.status}
                   </Badge>
-                  <Button size="sm">
+                  <Button size="sm" onClick={() => window.open('/emails', '_blank')}>
                     Respond
                   </Button>
                 </div>
@@ -266,19 +266,19 @@ export const CSAgentDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-2 md:grid-cols-4">
-            <Button variant="outline" className="justify-start">
+            <Button variant="outline" className="justify-start" onClick={() => window.open('/messages', '_blank')}>
               <Phone className="h-4 w-4 mr-2" />
               Make Call
             </Button>
-            <Button variant="outline" className="justify-start">
+            <Button variant="outline" className="justify-start" onClick={() => window.open('/emails', '_blank')}>
               <Mail className="h-4 w-4 mr-2" />
               Send Email
             </Button>
-            <Button variant="outline" className="justify-start">
+            <Button variant="outline" className="justify-start" onClick={() => window.open('/messages', '_blank')}>
               <MessageSquare className="h-4 w-4 mr-2" />
               Live Chat
             </Button>
-            <Button variant="outline" className="justify-start">
+            <Button variant="outline" className="justify-start" onClick={() => window.open('/users', '_blank')}>
               <Users className="h-4 w-4 mr-2" />
               Escalate
             </Button>

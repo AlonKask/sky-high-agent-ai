@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plane, Clock, RefreshCw, TrendingUp, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface RequestData {
   id: string;
@@ -15,9 +17,12 @@ interface RequestData {
 }
 
 export const GDSExpertDashboard = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [availableRequests, setAvailableRequests] = useState<RequestData[]>([]);
   const [updateRequests, setUpdateRequests] = useState<RequestData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -98,11 +103,16 @@ export const GDSExpertDashboard = () => {
 
   const handleTakeRequest = async (requestId: string) => {
     try {
+      setActionLoading(requestId);
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) throw new Error('User not authenticated');
+
       const { error } = await supabase
         .from('requests')
         .update({ 
           assignment_status: 'assigned',
-          assigned_to: (await supabase.auth.getUser()).data.user?.id
+          assigned_to: user.id,
+          status: 'researching'
         })
         .eq('id', requestId);
 
@@ -110,8 +120,23 @@ export const GDSExpertDashboard = () => {
 
       // Remove from available requests
       setAvailableRequests(prev => prev.filter(req => req.id !== requestId));
+      
+      toast({
+        title: "Request Assigned",
+        description: "Request has been assigned to you successfully.",
+      });
+
+      // Navigate to request details
+      navigate(`/requests/${requestId}`);
     } catch (error) {
       console.error('Error taking request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign request. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -151,7 +176,7 @@ export const GDSExpertDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{availableRequests.length}</div>
             <p className="text-xs text-muted-foreground">in queue</p>
-            <Button size="sm" className="mt-2 w-full">
+            <Button size="sm" className="mt-2 w-full" onClick={() => navigate('/requests')}>
               View All
             </Button>
           </CardContent>
@@ -224,8 +249,9 @@ export const GDSExpertDashboard = () => {
                   <Button 
                     size="sm" 
                     onClick={() => handleTakeRequest(request.id)}
+                    disabled={actionLoading === request.id}
                   >
-                    Take Request
+                    {actionLoading === request.id ? "Assigning..." : "Take Request"}
                   </Button>
                 </div>
               </div>
@@ -252,7 +278,7 @@ export const GDSExpertDashboard = () => {
                   <Badge variant={request.priority === 'high' ? 'destructive' : 'secondary'}>
                     {request.priority}
                   </Badge>
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/requests/${request.id}`)}>
                     Update
                   </Button>
                 </div>
