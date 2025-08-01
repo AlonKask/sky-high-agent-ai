@@ -17,6 +17,9 @@ interface InlineEditFieldProps {
   placeholder?: string;
   className?: string;
   displayValue?: string;
+  minDate?: Date;
+  maxDate?: Date;
+  validate?: (value: string | number) => string | null;
 }
 
 export const InlineEditField: React.FC<InlineEditFieldProps> = ({
@@ -26,28 +29,47 @@ export const InlineEditField: React.FC<InlineEditFieldProps> = ({
   options = [],
   placeholder,
   className = '',
-  displayValue
+  displayValue,
+  minDate,
+  maxDate,
+  validate
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value?.toString() || '');
   const [dateValue, setDateValue] = useState<Date | undefined>(
     value ? new Date(value.toString()) : undefined
   );
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = () => {
+    let valueToSave: string | number;
+    
     if (type === 'date' && dateValue) {
-      onSave(dateValue.toISOString().split('T')[0]);
+      valueToSave = dateValue.toISOString().split('T')[0];
     } else if (type === 'number') {
-      onSave(Number(editValue) || 0);
+      valueToSave = Number(editValue) || 0;
     } else {
-      onSave(editValue);
+      valueToSave = editValue;
     }
+
+    // Run validation if provided
+    if (validate) {
+      const validationError = validate(valueToSave);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+    }
+
+    setError(null);
+    onSave(valueToSave);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
     setEditValue(value?.toString() || '');
     setDateValue(value ? new Date(value.toString()) : undefined);
+    setError(null);
     setIsEditing(false);
   };
 
@@ -98,6 +120,11 @@ export const InlineEditField: React.FC<InlineEditFieldProps> = ({
                 mode="single"
                 selected={dateValue}
                 onSelect={setDateValue}
+                disabled={(date) => {
+                  if (minDate && date < minDate) return true;
+                  if (maxDate && date > maxDate) return true;
+                  return false;
+                }}
                 initialFocus
                 className="p-3 pointer-events-auto"
               />
@@ -130,18 +157,25 @@ export const InlineEditField: React.FC<InlineEditFieldProps> = ({
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-2 w-full">
-        <div className="flex-1">
-          {renderEditField()}
+      <div className="space-y-2 w-full">
+        <div className="flex items-center gap-2 w-full">
+          <div className="flex-1">
+            {renderEditField()}
+          </div>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost" onClick={handleSave} className="h-7 w-7 p-0">
+              <Check className="h-3 w-3 text-green-600" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleCancel} className="h-7 w-7 p-0">
+              <X className="h-3 w-3 text-red-600" />
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-1">
-          <Button size="sm" variant="ghost" onClick={handleSave} className="h-7 w-7 p-0">
-            <Check className="h-3 w-3 text-green-600" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancel} className="h-7 w-7 p-0">
-            <X className="h-3 w-3 text-red-600" />
-          </Button>
-        </div>
+        {error && (
+          <div className="text-xs text-destructive px-2">
+            {error}
+          </div>
+        )}
       </div>
     );
   }

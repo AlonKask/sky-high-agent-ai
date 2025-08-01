@@ -369,6 +369,13 @@ const RequestDetail = () => {
                           displayValue={request.return_date ? new Date(request.return_date).toLocaleDateString() : ''}
                           placeholder="Select return date"
                           className="font-semibold"
+                          minDate={request.departure_date ? new Date(request.departure_date) : undefined}
+                          validate={(value) => {
+                            if (request.departure_date && new Date(String(value)) <= new Date(request.departure_date)) {
+                              return "Return date must be after departure date";
+                            }
+                            return null;
+                          }}
                         />
                       </div>
                     </div>
@@ -384,7 +391,15 @@ const RequestDetail = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              setSegments([...segments, { origin: '', destination: '', departure_date: '' }]);
+                              // Add new segment with date constraint
+                              const lastSegmentDate = segments.length > 0 
+                                ? segments[segments.length - 1]?.departure_date 
+                                : request.departure_date;
+                              setSegments([...segments, { 
+                                origin: '', 
+                                destination: '', 
+                                departure_date: lastSegmentDate || '' 
+                              }]);
                             }}
                           >
                             <Plus className="h-4 w-4 mr-2" />
@@ -415,16 +430,24 @@ const RequestDetail = () => {
                               }}
                               className="flex-1"
                             />
-                            <Input
-                              type="date"
-                              value={segment.departure_date || ''}
-                              onChange={(e) => {
-                                const newSegments = [...segments];
-                                newSegments[index] = { ...newSegments[index], departure_date: e.target.value };
-                                setSegments(newSegments);
-                              }}
-                              className="flex-1"
-                            />
+                             <Input
+                               type="date"
+                               value={segment.departure_date || ''}
+                               min={index === 0 ? request.departure_date : (segments[index - 1]?.departure_date || '')}
+                               onChange={(e) => {
+                                 const newValue = e.target.value;
+                                 const newSegments = [...segments];
+                                 newSegments[index] = { ...newSegments[index], departure_date: newValue };
+                                 
+                                 // Sort segments by date and update
+                                 const sortedSegments = newSegments.sort((a, b) => 
+                                   new Date(a.departure_date || '9999-12-31').getTime() - 
+                                   new Date(b.departure_date || '9999-12-31').getTime()
+                                 );
+                                 setSegments(sortedSegments);
+                               }}
+                               className="flex-1"
+                             />
                             {segments.length > 1 && (
                               <Button
                                 variant="ghost"
@@ -439,25 +462,33 @@ const RequestDetail = () => {
                             )}
                           </div>
                         ))}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            const { error } = await supabase
-                              .from('requests')
-                              .update({ segments: segments })
-                              .eq('id', id);
-                            if (!error) {
-                              setRequest(prev => ({ ...prev, segments: segments }));
-                              toast({ title: "Success", description: "Segments updated" });
-                            } else {
-                              toast({ title: "Error", description: "Failed to update segments", variant: "destructive" });
-                            }
-                          }}
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          Save Segments
-                        </Button>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={async () => {
+                             // Sort segments by date before saving
+                             const sortedSegments = segments
+                               .filter(s => s.origin && s.destination && s.departure_date)
+                               .sort((a, b) => 
+                                 new Date(a.departure_date).getTime() - new Date(b.departure_date).getTime()
+                               );
+                             
+                             const { error } = await supabase
+                               .from('requests')
+                               .update({ segments: sortedSegments })
+                               .eq('id', id);
+                             if (!error) {
+                               setSegments(sortedSegments);
+                               setRequest(prev => ({ ...prev, segments: sortedSegments }));
+                               toast({ title: "Success", description: "Segments updated and sorted by date" });
+                             } else {
+                               toast({ title: "Error", description: "Failed to update segments", variant: "destructive" });
+                             }
+                           }}
+                         >
+                           <Save className="h-4 w-4 mr-2" />
+                           Save Segments
+                         </Button>
                       </div>
                     </div>
                   )}
