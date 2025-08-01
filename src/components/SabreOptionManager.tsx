@@ -61,6 +61,8 @@ interface SabreOptionManagerProps {
   quotes: Quote[];
   requestId: string;
   clientId: string;
+  isOpen?: boolean;
+  onClose?: () => void;
   onQuoteAdded: () => void;
   onQuoteUpdated: () => void;
   onQuoteDeleted: () => void;
@@ -70,12 +72,15 @@ const SabreOptionManager = ({
   quotes,
   requestId,
   clientId,
+  isOpen,
+  onClose,
   onQuoteAdded,
   onQuoteUpdated,
   onQuoteDeleted
 }: SabreOptionManagerProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const dialogOpen = isOpen !== undefined ? isOpen : isDialogOpen;
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -117,7 +122,11 @@ const SabreOptionManager = ({
   const handleDialogClose = () => {
     console.log("Closing dialog and resetting form");
     resetQuoteForm();
-    setIsDialogOpen(false);
+    if (onClose) {
+      onClose();
+    } else {
+      setIsDialogOpen(false);
+    }
   };
 
   const hasValidPricing = () => {
@@ -454,10 +463,15 @@ Your Travel Agent`;
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Quote Options</CardTitle>
-          {!isDialogOpen && (
+          {!dialogOpen && (
             <Button onClick={() => {
               resetQuoteForm();
-              setIsDialogOpen(true);
+              if (isOpen !== undefined) {
+                // External control - do nothing, parent will handle opening
+                return;
+              } else {
+                setIsDialogOpen(true);
+              }
             }}>
               <Plus className="w-4 h-4 mr-2" />
               Add Quote
@@ -468,22 +482,12 @@ Your Travel Agent`;
 
       <CardContent>
         {/* Proper Dialog Component */}
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
+        <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <div className="flex justify-between items-center">
-                <DialogTitle>
-                  {editingId ? "Edit Quote" : "Create New Quote"}
-                </DialogTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleDialogClose}
-                  className="h-6 w-6"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              <DialogTitle>
+                {editingId ? "Edit Quote" : "Create New Quote"}
+              </DialogTitle>
             </DialogHeader>
             
             <div className="space-y-6">

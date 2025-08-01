@@ -654,30 +654,25 @@ const RequestDetail = () => {
         </div>
       </div>
 
-      {/* Quote Dialog - Now handled internally by SabreOptionManager */}
-      {showQuoteDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
-            <SabreOptionManager 
-              quotes={quotes}
-              requestId={id}
-              clientId={request.client_id}
-              onQuoteAdded={() => {
-                fetchRequestDetails();
-                setShowQuoteDialog(false);
-              }}
-              onQuoteUpdated={() => {
-                fetchRequestDetails();
-                setShowQuoteDialog(false);
-              }}
-              onQuoteDeleted={() => {
-                fetchRequestDetails();
-                setShowQuoteDialog(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <SabreOptionManager 
+        quotes={quotes}
+        requestId={id}
+        clientId={request.client_id}
+        isOpen={showQuoteDialog}
+        onClose={() => setShowQuoteDialog(false)}
+        onQuoteAdded={() => {
+          fetchRequestDetails();
+          setShowQuoteDialog(false);
+        }}
+        onQuoteUpdated={() => {
+          fetchRequestDetails();
+          setShowQuoteDialog(false);
+        }}
+        onQuoteDeleted={() => {
+          fetchRequestDetails();
+          setShowQuoteDialog(false);
+        }}
+      />
 
       {/* Email Dialog */}
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
