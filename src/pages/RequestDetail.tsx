@@ -203,13 +203,6 @@ const RequestDetail = () => {
                     </CardTitle>
                     <CardDescription>Click on any field to edit directly</CardDescription>
                   </div>
-                  <Button 
-                    onClick={() => setShowQuoteDialog(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Quote
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -573,6 +566,7 @@ const RequestDetail = () => {
         clientId={request.client_id}
         isOpen={showQuoteDialog}
         onClose={() => setShowQuoteDialog(false)}
+        onOpen={() => setShowQuoteDialog(true)}
         onQuoteAdded={() => {
           fetchRequestDetails();
           setShowQuoteDialog(false);

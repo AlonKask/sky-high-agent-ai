@@ -63,6 +63,7 @@ interface SabreOptionManagerProps {
   clientId: string;
   isOpen?: boolean;
   onClose?: () => void;
+  onOpen?: () => void;
   onQuoteAdded: () => void;
   onQuoteUpdated: () => void;
   onQuoteDeleted: () => void;
@@ -74,6 +75,7 @@ const SabreOptionManager = ({
   clientId,
   isOpen,
   onClose,
+  onOpen,
   onQuoteAdded,
   onQuoteUpdated,
   onQuoteDeleted
@@ -466,7 +468,11 @@ Your Travel Agent`;
           {!dialogOpen && (
             <Button onClick={() => {
               resetQuoteForm();
-              setIsDialogOpen(true);
+              if (isOpen !== undefined && onOpen) {
+                onOpen();
+              } else {
+                setIsDialogOpen(true);
+              }
             }}>
               <Plus className="w-4 h-4 mr-2" />
               Add Quote
