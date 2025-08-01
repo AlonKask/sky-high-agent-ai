@@ -81,11 +81,7 @@ export const RoleSelector = ({ currentRole, selectedViewRole, onRoleChange, clas
     <div className={className}>
       <Card className={`${selectedConfig.bgColor} border transition-all duration-200 hover:shadow-md`}>
         <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <Eye className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Viewing as:</span>
-            </div>
+          <div className="flex justify-end mb-3">
             <Badge variant="outline" className="text-xs">
               {selectedConfig.badge}
             </Badge>
