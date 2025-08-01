@@ -46,7 +46,7 @@ const Users = () => {
   });
 
   useEffect(() => {
-    if (user && role === 'dev') {
+    if (user && ['dev', 'admin', 'manager', 'supervisor'].includes(role || '')) {
       fetchUsers();
     }
   }, [user, role]);
@@ -97,11 +97,48 @@ const Users = () => {
 
   const createUser = async () => {
     try {
-      // Create user via Supabase Admin API (this would need to be done via Edge Function)
-      toast.error('User creation requires admin API access - implement via Edge Function');
-    } catch (error) {
+      if (!newUserData.email || !newUserData.password || !newUserData.firstName || !newUserData.lastName || !newUserData.role) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: newUserData.email,
+          password: newUserData.password,
+          firstName: newUserData.firstName,
+          lastName: newUserData.lastName,
+          role: newUserData.role,
+          phone: newUserData.company || undefined,
+          company: newUserData.company || undefined
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create user');
+      }
+
+      toast.success(`Successfully created user ${newUserData.firstName} ${newUserData.lastName}`);
+      
+      // Reset form
+      setNewUserData({
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        company: '',
+        role: 'user' as UserRole
+      });
+      
+      setShowAddUserDialog(false);
+      fetchUsers();
+    } catch (error: any) {
       console.error('Error creating user:', error);
-      toast.error('Failed to create user');
+      toast.error(error.message || 'Failed to create user');
     }
   };
 
@@ -150,7 +187,7 @@ const Users = () => {
     );
   }
 
-  if (!user || role !== 'dev') {
+  if (!user || !['dev', 'admin', 'manager', 'supervisor'].includes(role || '')) {
     return <Navigate to="/" replace />;
   }
 
@@ -250,13 +287,25 @@ const Users = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="cs_agent">CS Agent</SelectItem>
-                    <SelectItem value="sales_agent">Sales Agent</SelectItem>
-                    <SelectItem value="gds_expert">GDS Expert</SelectItem>
-                    <SelectItem value="supervisor">Supervisor</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="moderator">Moderator</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    {(role === 'dev' || role === 'admin' || role === 'manager' || role === 'supervisor') && (
+                      <>
+                        <SelectItem value="cs_agent">CS Agent</SelectItem>
+                        <SelectItem value="sales_agent">Sales Agent</SelectItem>
+                        <SelectItem value="gds_expert">GDS Expert</SelectItem>
+                      </>
+                    )}
+                    {(role === 'dev' || role === 'admin' || role === 'manager') && (
+                      <SelectItem value="supervisor">Supervisor</SelectItem>
+                    )}
+                    {(role === 'dev' || role === 'admin') && (
+                      <>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="moderator">Moderator</SelectItem>
+                      </>
+                    )}
+                    {role === 'dev' && (
+                      <SelectItem value="admin">Admin</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

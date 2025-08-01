@@ -193,11 +193,11 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Dev-only User Management */}
-        {role === 'dev' && (
+        {/* Management Tools for Supervisors, Managers, and Developers */}
+        {(role === 'supervisor' || role === 'manager' || role === 'dev') && (
           <SidebarGroup>
             <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
-              Development
+              {role === 'dev' ? 'Development' : 'Management'}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
@@ -212,7 +212,7 @@ export function AppSidebar() {
                       {!isCollapsed && (
                         <div className="flex flex-col">
                           <span>Users</span>
-                          <span className="text-xs text-muted-foreground">Staff management</span>
+                          <span className="text-xs text-muted-foreground">User management</span>
                         </div>
                       )}
                     </NavLink>

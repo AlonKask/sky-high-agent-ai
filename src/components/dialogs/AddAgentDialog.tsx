@@ -31,7 +31,7 @@ export const AddAgentDialog = ({ onAgentAdded }: AddAgentDialogProps) => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-agent-user', {
+      const { data, error } = await supabase.functions.invoke('create-user', {
         body: {
           email: formData.email,
           password: formData.password,
@@ -146,9 +146,11 @@ export const AddAgentDialog = ({ onAgentAdded }: AddAgentDialogProps) => {
                 <SelectValue placeholder="Select agent role" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="user">User</SelectItem>
                 <SelectItem value="cs_agent">Customer Service Agent</SelectItem>
                 <SelectItem value="sales_agent">Sales Agent</SelectItem>
                 <SelectItem value="gds_expert">GDS Expert</SelectItem>
+                <SelectItem value="supervisor">Supervisor</SelectItem>
               </SelectContent>
             </Select>
           </div>
