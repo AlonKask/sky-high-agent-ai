@@ -466,12 +466,7 @@ Your Travel Agent`;
           {!dialogOpen && (
             <Button onClick={() => {
               resetQuoteForm();
-              if (isOpen !== undefined) {
-                // External control - do nothing, parent will handle opening
-                return;
-              } else {
-                setIsDialogOpen(true);
-              }
+              setIsDialogOpen(true);
             }}>
               <Plus className="w-4 h-4 mr-2" />
               Add Quote
