@@ -42,7 +42,7 @@ export const SupervisorDashboard = () => {
         const { data: userRoles } = await supabase
           .from('user_roles')
           .select('user_id, role')
-          .in('role', ['sales_agent', 'cs_agent', 'gds_expert']);
+          .in('role', ['agent', 'gds_expert']);
 
         const { data: profiles } = await supabase
           .from('profiles')
@@ -116,7 +116,7 @@ export const SupervisorDashboard = () => {
             agent_id: agent.user_id,
             agent_name: agentName,
             profit: profit,
-            target: agent.role === 'sales_agent' ? 20000 : 15000,
+            target: agent.role === 'agent' ? 20000 : 15000,
             requests_handled: requestsHandled,
             conversion_rate: Math.round(conversionRate),
             reply_rate: Math.round(replyRate),

@@ -88,7 +88,7 @@ const EnhancedAnalytics = () => {
         .select('id, status, created_at');
 
       // Apply user filtering for regular users
-      if (role === 'user' || role === 'cs_agent' || role === 'sales_agent') {
+      if (role === 'user' || role === 'agent') {
         bookingsQuery = bookingsQuery.eq('user_id', user.id);
         clientsQuery = clientsQuery.eq('user_id', user.id);
         requestsQuery = requestsQuery.eq('user_id', user.id);

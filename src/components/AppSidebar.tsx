@@ -194,10 +194,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Management Tools for Supervisors, Managers, and Developers */}
-        {(role === 'supervisor' || role === 'manager' || role === 'dev') && (
+        {(role === 'supervisor' || role === 'manager' || role === 'admin') && (
           <SidebarGroup>
             <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
-              {role === 'dev' ? 'Development' : 'Management'}
+              {role === 'admin' ? 'Administration' : 'Management'}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>

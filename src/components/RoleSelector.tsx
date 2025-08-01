@@ -21,30 +21,6 @@ const roleConfig = {
     description: "Full system access with all privileges",
     badge: "All Access"
   },
-  moderator: {
-    label: "Moderator", 
-    icon: Shield,
-    color: "text-orange-600",
-    bgColor: "bg-orange-50 border-orange-200",
-    description: "Manage bookings and client relationships",
-    badge: "Limited Admin"
-  },
-  user: {
-    label: "Agent",
-    icon: Users,
-    color: "text-blue-600", 
-    bgColor: "bg-blue-50 border-blue-200",
-    description: "Handle daily operations and client requests",
-    badge: "Standard"
-  },
-  dev: {
-    label: "Developer",
-    icon: Code,
-    color: "text-purple-600",
-    bgColor: "bg-purple-50 border-purple-200",
-    description: "System development and debugging access",
-    badge: "Dev Access"
-  },
   manager: {
     label: "Manager",
     icon: Briefcase,
@@ -69,21 +45,21 @@ const roleConfig = {
     description: "Global Distribution System specialist",
     badge: "GDS Expert"
   },
-  cs_agent: {
-    label: "Customer Service",
-    icon: Headphones,
-    color: "text-teal-600",
-    bgColor: "bg-teal-50 border-teal-200",
-    description: "Customer service and support",
-    badge: "CS Agent"
+  agent: {
+    label: "Agent",
+    icon: Users,
+    color: "text-blue-600",
+    bgColor: "bg-blue-50 border-blue-200",
+    description: "Handle daily operations and client requests",
+    badge: "Agent"
   },
-  sales_agent: {
-    label: "Sales Agent",
-    icon: DollarSign,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50 border-emerald-200",
-    description: "Sales and business development",
-    badge: "Sales"
+  user: {
+    label: "User",
+    icon: Users,
+    color: "text-gray-600", 
+    bgColor: "bg-gray-50 border-gray-200",
+    description: "Basic user access",
+    badge: "Standard"
   }
 };
 
@@ -92,11 +68,9 @@ export const RoleSelector = ({ currentRole, selectedViewRole, onRoleChange, clas
 
   // Only show roles that the current user has access to
   const availableRoles: UserRole[] = 
-    currentRole === 'admin' ? ['admin', 'moderator', 'user', 'manager', 'supervisor', 'gds_expert', 'cs_agent', 'sales_agent'] :
-    currentRole === 'dev' ? ['dev', 'admin', 'moderator', 'user', 'manager', 'supervisor', 'gds_expert', 'cs_agent', 'sales_agent'] :
-    currentRole === 'manager' ? ['manager', 'supervisor', 'gds_expert', 'cs_agent', 'sales_agent', 'user'] :
-    currentRole === 'supervisor' ? ['supervisor', 'gds_expert', 'cs_agent', 'sales_agent', 'user'] :
-    currentRole === 'moderator' ? ['moderator', 'user'] :
+    currentRole === 'admin' ? ['admin', 'manager', 'supervisor', 'gds_expert', 'agent', 'user'] :
+    currentRole === 'manager' ? ['manager', 'supervisor', 'gds_expert', 'agent', 'user'] :
+    currentRole === 'supervisor' ? ['supervisor', 'gds_expert', 'agent', 'user'] :
     ['user'];
 
   // Fallback to default config if role not found

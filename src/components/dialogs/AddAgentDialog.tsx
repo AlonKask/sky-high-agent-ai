@@ -147,8 +147,7 @@ export const AddAgentDialog = ({ onAgentAdded }: AddAgentDialogProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="user">User</SelectItem>
-                <SelectItem value="cs_agent">Customer Service Agent</SelectItem>
-                <SelectItem value="sales_agent">Sales Agent</SelectItem>
+                <SelectItem value="agent">Agent</SelectItem>
                 <SelectItem value="gds_expert">GDS Expert</SelectItem>
                 <SelectItem value="supervisor">Supervisor</SelectItem>
               </SelectContent>

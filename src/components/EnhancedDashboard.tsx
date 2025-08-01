@@ -146,7 +146,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
 
     // Render different stats based on role
     switch (selectedViewRole) {
-      case 'dev':
+      case 'admin':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="card-elevated border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
@@ -252,7 +252,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
           </div>
         );
 
-      case 'moderator':
+      case 'manager':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">

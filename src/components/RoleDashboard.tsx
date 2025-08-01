@@ -35,7 +35,7 @@ export const RoleDashboard = () => {
 
   // Fallback to role-specific dashboards for users without role switching
   switch (role) {
-    case 'dev':
+    case 'admin':
       return <DeveloperDashboard />;
     case 'manager':
       return <ManagerDashboard />;
@@ -43,12 +43,8 @@ export const RoleDashboard = () => {
       return <SupervisorDashboard />;
     case 'gds_expert':
       return <GDSExpertDashboard />;
-    case 'cs_agent':
+    case 'agent':
       return <CSAgentDashboard />;
-    case 'sales_agent':
-      return <SalesAgentDashboard />;
-    case 'admin':
-      return <EnhancedDashboard />;
     default:
       return (
         <div className="flex items-center justify-center h-64">

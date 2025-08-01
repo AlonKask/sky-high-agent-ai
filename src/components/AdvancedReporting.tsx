@@ -87,7 +87,7 @@ const AdvancedReporting = () => {
           user_id,
           profiles!inner(first_name, last_name, email)
         `)
-        .in('role', ['sales_agent', 'cs_agent', 'user']);
+        .in('role', ['agent', 'user']);
 
       if (error) {
         console.error('Error fetching agents:', error);
@@ -129,7 +129,7 @@ const AdvancedReporting = () => {
         .lte('created_at', dateRange.to.toISOString());
 
       // Apply user/agent filtering
-      if (role === 'user' || role === 'cs_agent' || role === 'sales_agent') {
+      if (role === 'user' || role === 'agent') {
         bookingsQuery = bookingsQuery.eq('user_id', user.id);
         clientsQuery = clientsQuery.eq('user_id', user.id);
         requestsQuery = requestsQuery.eq('user_id', user.id);

@@ -90,7 +90,7 @@ const PublicRequestForm = () => {
         const { data: agents } = await supabase
           .from('user_roles')
           .select('user_id')
-          .in('role', ['sales_agent', 'cs_agent', 'admin'])
+          .in('role', ['agent', 'admin'])
           .limit(1);
 
         if (agents && agents.length > 0) {

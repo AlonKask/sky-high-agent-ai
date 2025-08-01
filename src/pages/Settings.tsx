@@ -290,7 +290,7 @@ const Settings = () => {
           </>
         );
 
-      case 'dev':
+      case 'admin':
         return (
           <>
             <Card>
@@ -466,7 +466,7 @@ const Settings = () => {
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground">
             Manage your account settings and preferences
-            {role === 'dev' && selectedViewRole !== role && (
+            {role === 'admin' && selectedViewRole !== role && (
               <span className="ml-2 text-primary font-medium">
                 • Viewing as {selectedViewRole}
               </span>

@@ -30,15 +30,11 @@ export const RoleViewProvider = ({ children }: RoleViewProviderProps) => {
   const getAvailableRoles = (currentRole: UserRole): UserRole[] => {
     switch (currentRole) {
       case 'admin':
-        return ['admin' as UserRole, 'moderator' as UserRole, 'user' as UserRole, 'manager' as UserRole, 'supervisor' as UserRole, 'gds_expert' as UserRole, 'cs_agent' as UserRole, 'sales_agent' as UserRole, 'dev' as UserRole];
-      case 'dev':
-        return ['dev' as UserRole, 'admin' as UserRole, 'moderator' as UserRole, 'user' as UserRole, 'manager' as UserRole, 'supervisor' as UserRole, 'gds_expert' as UserRole, 'cs_agent' as UserRole, 'sales_agent' as UserRole];
+        return ['admin' as UserRole, 'manager' as UserRole, 'supervisor' as UserRole, 'gds_expert' as UserRole, 'agent' as UserRole, 'user' as UserRole];
       case 'manager':
-        return ['manager' as UserRole, 'supervisor' as UserRole, 'gds_expert' as UserRole, 'cs_agent' as UserRole, 'sales_agent' as UserRole, 'user' as UserRole];
+        return ['manager' as UserRole, 'supervisor' as UserRole, 'gds_expert' as UserRole, 'agent' as UserRole, 'user' as UserRole];
       case 'supervisor':
-        return ['supervisor' as UserRole, 'gds_expert' as UserRole, 'cs_agent' as UserRole, 'sales_agent' as UserRole, 'user' as UserRole];
-      case 'moderator':
-        return ['moderator' as UserRole, 'user' as UserRole];
+        return ['supervisor' as UserRole, 'gds_expert' as UserRole, 'agent' as UserRole, 'user' as UserRole];
       default:
         return ['user' as UserRole];
     }

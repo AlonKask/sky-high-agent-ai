@@ -67,9 +67,8 @@ export const ManagerDashboard = () => {
         // Calculate team profits based on user roles
         const teamProfits = [];
         const roleGroups = {
-          sales_agent: { name: "Sales Team", target: 50000 },
-          gds_expert: { name: "GDS Experts", target: 30000 },
-          cs_agent: { name: "CS Team", target: 20000 }
+          agent: { name: "Agent Team", target: 50000 },
+          gds_expert: { name: "GDS Experts", target: 30000 }
         };
 
         for (const [role, config] of Object.entries(roleGroups)) {

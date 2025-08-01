@@ -73,7 +73,7 @@ const EnhancedBookingManager = () => {
         .order('created_at', { ascending: false });
 
       // Apply user filtering only for regular users
-      if (role === 'user' || role === 'cs_agent' || role === 'sales_agent') {
+      if (role === 'user' || role === 'agent') {
         query = query.eq('user_id', user.id);
       }
 

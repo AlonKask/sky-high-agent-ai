@@ -63,7 +63,7 @@ const EnhancedRequestManager = () => {
         .order('created_at', { ascending: false });
 
       // For regular agents, only show available or assigned to them
-      if (role === 'user' || role === 'cs_agent' || role === 'sales_agent' || role === 'gds_expert') {
+      if (role === 'user' || role === 'agent' || role === 'gds_expert') {
         query = query.or(`assignment_status.eq.available,assigned_to.eq.${user.id}`);
       }
 

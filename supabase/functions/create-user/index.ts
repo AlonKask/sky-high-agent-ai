@@ -12,17 +12,16 @@ interface CreateUserRequest {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'admin' | 'manager' | 'supervisor' | 'gds_expert' | 'cs_agent' | 'sales_agent' | 'moderator' | 'user';
+  role: 'admin' | 'manager' | 'supervisor' | 'gds_expert' | 'agent' | 'user';
   phone?: string;
   company?: string;
 }
 
 // Define permission hierarchy
 const roleHierarchy = {
-  'dev': ['admin', 'manager', 'supervisor', 'gds_expert', 'cs_agent', 'sales_agent', 'moderator', 'user'],
-  'admin': ['manager', 'supervisor', 'gds_expert', 'cs_agent', 'sales_agent', 'moderator', 'user'],
-  'manager': ['supervisor', 'gds_expert', 'cs_agent', 'sales_agent', 'user'],
-  'supervisor': ['gds_expert', 'cs_agent', 'sales_agent', 'user']
+  'admin': ['manager', 'supervisor', 'gds_expert', 'agent', 'user'],
+  'manager': ['supervisor', 'gds_expert', 'agent', 'user'],
+  'supervisor': ['gds_expert', 'agent', 'user']
 };
 
 serve(async (req) => {
@@ -83,7 +82,7 @@ serve(async (req) => {
     const callerRole = userRole.role;
     
     // Check if caller has permission to create users
-    if (!['dev', 'admin', 'manager', 'supervisor'].includes(callerRole)) {
+    if (!['admin', 'manager', 'supervisor'].includes(callerRole)) {
       return new Response(
         JSON.stringify({ error: 'Insufficient permissions to create users' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

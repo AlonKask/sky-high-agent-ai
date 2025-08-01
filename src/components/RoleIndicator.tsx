@@ -5,14 +5,11 @@ import { useUserRole } from "@/hooks/useUserRole";
 
 const roleConfig = {
   admin: { label: "Administrator", color: "bg-red-100 text-red-800 border-red-300" },
-  moderator: { label: "Moderator", color: "bg-orange-100 text-orange-800 border-orange-300" },
-  user: { label: "Agent", color: "bg-blue-100 text-blue-800 border-blue-300" },
-  dev: { label: "Developer", color: "bg-purple-100 text-purple-800 border-purple-300" },
   manager: { label: "Manager", color: "bg-green-100 text-green-800 border-green-300" },
   supervisor: { label: "Supervisor", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
   gds_expert: { label: "GDS Expert", color: "bg-indigo-100 text-indigo-800 border-indigo-300" },
-  cs_agent: { label: "Customer Service", color: "bg-teal-100 text-teal-800 border-teal-300" },
-  sales_agent: { label: "Sales Agent", color: "bg-emerald-100 text-emerald-800 border-emerald-300" }
+  agent: { label: "Agent", color: "bg-blue-100 text-blue-800 border-blue-300" },
+  user: { label: "User", color: "bg-gray-100 text-gray-800 border-gray-300" }
 };
 
 export const RoleIndicator = () => {

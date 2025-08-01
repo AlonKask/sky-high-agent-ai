@@ -46,7 +46,7 @@ const Users = () => {
   });
 
   useEffect(() => {
-    if (user && ['supervisor', 'manager', 'dev'].includes(role || '')) {
+    if (user && ['supervisor', 'manager', 'admin'].includes(role || '')) {
       fetchUsers();
     }
   }, [user, role]);
@@ -165,14 +165,12 @@ const Users = () => {
 
   const getRoleBadgeColor = (role?: UserRole) => {
     switch (role) {
-      case 'dev': return 'bg-purple-100 text-purple-800';
       case 'admin': return 'bg-red-100 text-red-800';
-      case 'manager': return 'bg-blue-100 text-blue-800';
-      case 'supervisor': return 'bg-green-100 text-green-800';
-      case 'gds_expert': return 'bg-yellow-100 text-yellow-800';
-      case 'cs_agent': return 'bg-teal-100 text-teal-800';
-      case 'sales_agent': return 'bg-orange-100 text-orange-800';
-      case 'moderator': return 'bg-indigo-100 text-indigo-800';
+      case 'manager': return 'bg-green-100 text-green-800';
+      case 'supervisor': return 'bg-yellow-100 text-yellow-800';
+      case 'gds_expert': return 'bg-indigo-100 text-indigo-800';
+      case 'agent': return 'bg-blue-100 text-blue-800';
+      case 'user': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -187,8 +185,8 @@ const Users = () => {
     );
   }
 
-  if (!user || !['supervisor', 'manager', 'dev'].includes(role || '')) {
-    console.log('User role access denied:', { user: !!user, role, allowedRoles: ['supervisor', 'manager', 'dev'] });
+  if (!user || !['supervisor', 'manager', 'admin'].includes(role || '')) {
+    console.log('User role access denied:', { user: !!user, role, allowedRoles: ['supervisor', 'manager', 'admin'] });
     return <Navigate to="/" replace />;
   }
 
@@ -288,24 +286,17 @@ const Users = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">User</SelectItem>
-                    {(role === 'dev' || role === 'admin' || role === 'manager' || role === 'supervisor') && (
+                    {(role === 'admin' || role === 'manager' || role === 'supervisor') && (
                       <>
-                        <SelectItem value="cs_agent">CS Agent</SelectItem>
-                        <SelectItem value="sales_agent">Sales Agent</SelectItem>
+                        <SelectItem value="agent">Agent</SelectItem>
                         <SelectItem value="gds_expert">GDS Expert</SelectItem>
                       </>
                     )}
-                    {(role === 'dev' || role === 'admin' || role === 'manager') && (
+                    {(role === 'admin' || role === 'manager') && (
                       <SelectItem value="supervisor">Supervisor</SelectItem>
                     )}
-                    {(role === 'dev' || role === 'admin') && (
-                      <>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="moderator">Moderator</SelectItem>
-                      </>
-                    )}
-                    {role === 'dev' && (
-                      <SelectItem value="admin">Admin</SelectItem>
+                    {role === 'admin' && (
+                      <SelectItem value="manager">Manager</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -387,14 +378,11 @@ const Users = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="cs_agent">CS Agent</SelectItem>
-                          <SelectItem value="sales_agent">Sales Agent</SelectItem>
+                          <SelectItem value="agent">Agent</SelectItem>
                           <SelectItem value="gds_expert">GDS Expert</SelectItem>
                           <SelectItem value="supervisor">Supervisor</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="moderator">Moderator</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="dev">Developer</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
