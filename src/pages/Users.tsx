@@ -56,7 +56,10 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      console.log('Fetching users...');
+      
+      // Fetch all profiles first
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(`
           id,
@@ -67,27 +70,39 @@ const Users = () => {
           created_at
         `);
 
-      if (error) throw error;
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
 
-      // Fetch user roles
+      console.log('Raw profiles data:', profilesData);
+
+      // Fetch user roles separately
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('user_id, role');
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error('Error fetching roles:', roleError);
+        throw roleError;
+      }
 
-      const usersWithRoles = data.map(user => ({
+      console.log('Raw role data:', roleData);
+
+      // Combine the data
+      const usersWithRoles = profilesData?.map(user => ({
         id: user.id,
-        email: user.email,
+        email: user.email || 'No email',
         created_at: user.created_at,
         profiles: {
-          first_name: user.first_name,
-          last_name: user.last_name,
-          company: user.company
+          first_name: user.first_name || '',
+          last_name: user.last_name || '',
+          company: user.company || ''
         },
-        user_roles: roleData?.filter(r => r.user_id === user.id).map(r => ({ role: r.role })) || []
-      }));
+        user_roles: roleData?.filter(r => r.user_id === user.id).map(r => ({ role: r.role as UserRole })) || []
+      })) || [];
 
+      console.log('Processed user data:', usersWithRoles);
       setUsers(usersWithRoles);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -352,11 +367,14 @@ const Users = () => {
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                         <User className="w-4 h-4" />
                       </div>
-                      <div>
-                        <p className="font-medium">
-                          {userData.profiles?.first_name} {userData.profiles?.last_name}
-                        </p>
-                      </div>
+                       <div>
+                         <p className="font-medium">
+                           {userData.profiles?.first_name || userData.profiles?.last_name 
+                             ? `${userData.profiles?.first_name || ''} ${userData.profiles?.last_name || ''}`.trim()
+                             : userData.email.split('@')[0]
+                           }
+                         </p>
+                       </div>
                     </div>
                   </TableCell>
                   <TableCell>{userData.email}</TableCell>
