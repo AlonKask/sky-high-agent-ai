@@ -276,17 +276,54 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full p-6">
-          {/* Left Panel - Options Selection */}
+          {/* Left Panel - Email Composition */}
           <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Email Composition</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Subject Line</label>
+                  <Input
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    placeholder="Enter email subject"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Personal Message (Optional)</label>
+                  <Textarea
+                    value={personalMessage}
+                    onChange={(e) => setPersonalMessage(e.target.value)}
+                    placeholder="Add a personal touch to your email..."
+                    rows={3}
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between text-sm">
+                  <div>
+                    <div className="font-medium">Recipient: {client.email}</div>
+                    <div className="text-muted-foreground">
+                      {selectedQuotes.length} option(s) selected
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Plane className="h-5 w-5" />
-                  Select Travel Options
+                  Flight Options
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px] pr-4">
+                <ScrollArea className="h-[300px] pr-4">
                   <div className="space-y-4">
                     {quotes.map((quote, index) => (
                       <Card 
@@ -336,52 +373,14 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
             </Card>
           </div>
 
-          {/* Right Panel - Email Composition & Preview */}
+          {/* Right Panel - Email Preview */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Composition</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Subject Line</label>
-                  <Input
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    placeholder="Enter email subject"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Personal Message (Optional)</label>
-                  <Textarea
-                    value={personalMessage}
-                    onChange={(e) => setPersonalMessage(e.target.value)}
-                    placeholder="Add a personal touch to your email..."
-                    rows={3}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between text-sm">
-                  <div>
-                    <div className="font-medium">Recipient: {client.email}</div>
-                    <div className="text-muted-foreground">
-                      {selectedQuotes.length} option(s) selected
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Email Preview */}
             <Card>
               <CardHeader>
                 <CardTitle>Email Preview</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-muted/30 rounded-lg p-4 h-[300px] overflow-auto">
+                <div className="bg-muted/30 rounded-lg p-4 h-[600px] overflow-auto">
                   <SafeHtmlRenderer 
                     html={generateEmailHTML().replace('{REVIEW_URL}', '#review-portal')}
                     className="bg-white rounded border min-h-full"

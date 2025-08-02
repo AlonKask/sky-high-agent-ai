@@ -21,10 +21,10 @@ export class EmailTemplateGenerator {
       return "Unable to generate email template - flight information not available.";
     }
 
-    const { segments, totalDuration, layoverInfo, route } = option.parsedInfo;
+    const { segments, totalDuration, layoverInfo, route, totalSegments } = option.parsedInfo;
     
-    // Generate modern HTML email template
-    return this.generateHtmlEmail(option, clientName, segments, totalDuration, layoverInfo, route);
+    // Generate modern HTML email template with rich flight display
+    return this.generateHtmlEmail(option, clientName, segments, totalDuration, layoverInfo, route, totalSegments);
   }
 
   private static generateHtmlEmail(
@@ -33,7 +33,8 @@ export class EmailTemplateGenerator {
     segments: any[], 
     totalDuration?: string, 
     layoverInfo?: any[], 
-    route?: string
+    route?: string,
+    totalSegments?: number
   ): string {
     const segmentCards = segments.map((segment, index) => {
       const segmentDate = new Date(segment.flightDate);
@@ -54,8 +55,9 @@ export class EmailTemplateGenerator {
     }).join('');
 
     const pricingSection = this.generatePricingSection(option);
-    const journeyOverview = this.generateJourneyOverview(route, totalDuration, segments.length);
+    const journeyOverview = this.generateJourneyOverview(route, totalDuration, totalSegments || segments.length);
     const bookingButton = this.generateBookingButton(option.id);
+    const flightPath = this.generateFlightPath(segments);
 
     return `
 <!DOCTYPE html>
@@ -78,8 +80,10 @@ export class EmailTemplateGenerator {
 
         ${journeyOverview}
         
+        ${flightPath}
+        
         <div class="segments-container">
-            <h2>Flight Details</h2>
+            <h2>✈️ Complete Flight Itinerary</h2>
             ${segmentCards}
         </div>
 
@@ -182,18 +186,58 @@ export class EmailTemplateGenerator {
     return `
     <div class="journey-overview">
         <div class="overview-item">
-            <div class="overview-label">Route</div>
+            <div class="overview-label">🛫 Route</div>
             <div class="overview-value">${route || 'Multi-city journey'}</div>
         </div>
         ${totalDuration ? `
         <div class="overview-item">
-            <div class="overview-label">Total Duration</div>
+            <div class="overview-label">⏱️ Total Duration</div>
             <div class="overview-value">${totalDuration}</div>
         </div>
         ` : ''}
         <div class="overview-item">
-            <div class="overview-label">Segments</div>
+            <div class="overview-label">✈️ Segments</div>
             <div class="overview-value">${totalSegments} flight${totalSegments !== 1 ? 's' : ''}</div>
+        </div>
+    </div>
+    `;
+  }
+
+  private static generateFlightPath(segments: any[]): string {
+    if (!segments || segments.length === 0) return '';
+    
+    const pathItems = segments.map((segment, index) => {
+      const isLastSegment = index === segments.length - 1;
+      return `
+        <div class="path-item">
+          <div class="airport-info">
+            <div class="airport-code">${segment.departureAirport}</div>
+            <div class="airport-name">${this.getAirportName(segment.departureAirport)}</div>
+            <div class="flight-time">${segment.departureTime}</div>
+          </div>
+          ${!isLastSegment ? `
+            <div class="flight-arrow">
+              <div class="flight-line"></div>
+              <div class="plane-icon">✈️</div>
+              <div class="flight-number">${segment.flightNumber}</div>
+            </div>
+          ` : ''}
+          ${isLastSegment ? `
+            <div class="airport-info final">
+              <div class="airport-code">${segment.arrivalAirport}</div>
+              <div class="airport-name">${this.getAirportName(segment.arrivalAirport)}</div>
+              <div class="flight-time">${segment.arrivalTime}</div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+
+    return `
+    <div class="flight-path-container">
+        <h3>🛫 Your Journey</h3>
+        <div class="flight-path">
+            ${pathItems}
         </div>
     </div>
     `;
@@ -416,6 +460,106 @@ export class EmailTemplateGenerator {
             border-radius: 6px;
             font-size: 12px;
             color: #495057;
+        }
+
+        /* Flight Path Styles */
+        .flight-path-container {
+            background-color: #f8fafc;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .flight-path-container h3 {
+            color: #1e293b;
+            margin-bottom: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .flight-path {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .path-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .airport-info {
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .airport-code {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 5px;
+        }
+
+        .airport-name {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 5px;
+            line-height: 1.2;
+        }
+
+        .flight-time {
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .flight-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            min-width: 100px;
+        }
+
+        .flight-line {
+            width: 80px;
+            height: 2px;
+            background: linear-gradient(to right, #3b82f6, #1d4ed8);
+            position: relative;
+        }
+
+        .flight-line::after {
+            content: '';
+            position: absolute;
+            right: -5px;
+            top: -3px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid #1d4ed8;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+
+        .plane-icon {
+            font-size: 16px;
+            margin: 5px 0;
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 2px;
+        }
+
+        .flight-number {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 500;
+            margin-top: 8px;
         }
         
         .time-info {

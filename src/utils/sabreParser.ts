@@ -71,9 +71,9 @@ export class SabreParser {
         console.log(`Processing line ${i + 1}: "${line}"`);
         
         const segmentData = this.parseFlightLine(line);
-        if (segmentData) {
-          segments.push(segmentData);
-          console.log(`✓ Parsed segment:`, segmentData);
+        if (segmentData.length > 0) {
+          segments.push(...segmentData);
+          console.log(`✓ Parsed ${segmentData.length} segment(s):`, segmentData);
         } else {
           console.log(`✗ Could not parse line: "${line}"`);
         }
@@ -119,48 +119,32 @@ export class SabreParser {
       return `${first.departureAirport}-${first.arrivalAirport}`;
     }
     
-    // For multi-segment journeys, show all connections
-    const routeParts = [];
+    // For multi-segment journeys, show the connection path properly
+    const airports = [first.departureAirport];
+    segments.forEach(seg => {
+      airports.push(seg.arrivalAirport);
+    });
     
-    // Check if round trip
-    if (first.departureAirport === last.arrivalAirport) {
-      // Round trip - group outbound and return segments
-      const midIndex = Math.floor(segments.length / 2);
+    // Remove duplicates while preserving order
+    const uniqueAirports = airports.filter((airport, index) => 
+      airports.indexOf(airport) === index
+    );
+    
+    // Check if round trip (first and last airport are the same)
+    if (first.departureAirport === last.arrivalAirport && segments.length > 2) {
+      // For round trips, group outbound and return
+      const midPoint = Math.ceil(segments.length / 2);
+      const outboundAirports = segments.slice(0, midPoint).map(seg => seg.departureAirport);
+      outboundAirports.push(segments[midPoint - 1].arrivalAirport);
       
-      // Outbound journey
-      const outbound = segments.slice(0, midIndex);
-      if (outbound.length === 1) {
-        routeParts.push(`${outbound[0].departureAirport}-${outbound[0].arrivalAirport}`);
-      } else {
-        const outboundRoute = outbound.map((seg, idx) => 
-          idx === 0 ? seg.departureAirport : ''
-        ).filter(Boolean).join('') + 
-        outbound.map(seg => `-${seg.arrivalAirport}`).join('').replace(/-/g, '/').substring(1);
-        routeParts.push(outboundRoute);
-      }
+      const returnStart = segments[midPoint] ? segments[midPoint].departureAirport : segments[midPoint - 1].arrivalAirport;
+      const returnAirports = segments.slice(midPoint).map(seg => seg.arrivalAirport);
+      returnAirports.unshift(returnStart);
       
-      // Return journey
-      const returnSegments = segments.slice(midIndex);
-      if (returnSegments.length === 1) {
-        routeParts.push(`${returnSegments[0].departureAirport}-${returnSegments[0].arrivalAirport}`);
-      } else {
-        const returnRoute = returnSegments.map((seg, idx) => 
-          idx === 0 ? seg.departureAirport : ''
-        ).filter(Boolean).join('') + 
-        returnSegments.map(seg => `-${seg.arrivalAirport}`).join('').replace(/-/g, '/').substring(1);
-        routeParts.push(returnRoute);
-      }
-      
-      return routeParts.join(' / ');
+      return `${outboundAirports.join('-')} / ${returnAirports.join('-')}`;
     } else {
-      // One-way with connections - show all airports in sequence
-      const airports = [first.departureAirport];
-      segments.forEach(seg => {
-        if (!airports.includes(seg.arrivalAirport)) {
-          airports.push(seg.arrivalAirport);
-        }
-      });
-      return airports.join('/');
+      // One-way multi-segment: show all connections
+      return uniqueAirports.join('-');
     }
   }
   
@@ -169,39 +153,83 @@ export class SabreParser {
     return segments[0].departureAirport === segments[segments.length - 1].arrivalAirport;
   }
   
-  private static parseFlightLine(line: string): FlightSegment | null {
+  private static parseFlightLine(line: string): FlightSegment[] {
     console.log(`Parsing line: "${line}"`);
     
     // Skip non-flight lines
     if (line.includes('OPERATED BY') || line.length < 10) {
-      return null;
+      return [];
+    }
+
+    const segments: FlightSegment[] = [];
+    
+    // Check for multi-segment routing like "EWRBOS/FRAFRA/LGSLGS"
+    const multiSegmentPattern = /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]+)(?:\/([A-Z]+))*\s*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?\s*.*$/;
+    const multiMatch = line.match(multiSegmentPattern);
+    
+    if (multiMatch) {
+      console.log('✓ Multi-segment routing detected');
+      const segmentNumber = parseInt(multiMatch[1]);
+      const airlineCode = multiMatch[2];
+      const flightNumber = multiMatch[3];
+      const bookingClass = multiMatch[4];
+      const dateStr = multiMatch[5];
+      const dayOfWeek = multiMatch[6];
+      const routingString = multiMatch[7]; // "EWRBOS/FRAFRA/LGSLGS"
+      const statusCode = multiMatch[9];
+      const departureTime = multiMatch[10];
+      const arrivalTime = multiMatch[11];
+      
+      // Parse multi-segment routing
+      const airportSegments = this.parseMultiSegmentRouting(routingString);
+      
+      if (airportSegments.length > 0) {
+        airportSegments.forEach((airportPair, idx) => {
+          const segment: FlightSegment = {
+            segmentNumber: segmentNumber + idx,
+            flightNumber: `${airlineCode}${flightNumber}`,
+            airlineCode,
+            bookingClass,
+            flightDate: this.parseDateFromString(dateStr),
+            dayOfWeek,
+            departureAirport: airportPair.departure,
+            arrivalAirport: airportPair.arrival,
+            statusCode,
+            departureTime: idx === 0 ? this.convert12hTo24h(departureTime) : 'TBD',
+            arrivalTime: idx === airportSegments.length - 1 ? this.convert12hTo24h(arrivalTime) : 'TBD',
+            arrivalDayOffset: 0,
+            cabinClass: this.mapBookingClass(bookingClass, airlineCode),
+            duration: this.estimateFlightDuration(airportPair.departure, airportPair.arrival)
+          };
+          segments.push(segment);
+        });
+        return segments;
+      }
     }
     
-    // Enhanced patterns to handle more Sabre *I format variations
+    // Standard single-segment parsing patterns
     const patterns = [
       // Pattern 1: Full format with equipment and operated by
-      // 1 LH 7608P 15APR W EWRMUC SS1 500P 710A+1/DCLH /E333 OPERATED BY LUFTHANSA
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(\+\d+)?\s*(?:\/[A-Z]*)*\s*(?:\/([A-Z0-9]+))?\s*(?:OPERATED BY (.+))?.*$/,
       
       // Pattern 2: Standard format with equipment code
-      // 1 LH 7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E333
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?\s*(?:\/[A-Z]*)*\s*(?:\/([A-Z0-9]+))?.*$/,
       
       // Pattern 3: Format without space in flight number
-      // 1 LH7608P 15APR W EWRMUC SS1 500P 710A
       /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?.*$/,
       
       // Pattern 4: Simplified fallback for basic entries
-      // 1 LH 7608 P 15APR W EWRMUC SS1 500P 710A
       /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)\s+([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s*([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/
     ];
     
     for (let i = 0; i < patterns.length; i++) {
       const match = line.match(patterns[i]);
       if (match) {
-        console.log(`✓ Pattern ${i + 1} matched`);
+        console.log(`✓ Single segment pattern ${i + 1} matched`);
         try {
-          return this.extractSegmentData(match);
+          const segment = this.extractSegmentData(match);
+          segments.push(segment);
+          return segments;
         } catch (error) {
           console.log(`✗ Error extracting data from pattern ${i + 1}:`, error);
           continue;
@@ -210,7 +238,59 @@ export class SabreParser {
     }
     
     console.log('✗ No patterns matched');
-    return null;
+    return segments;
+  }
+
+  private static parseMultiSegmentRouting(routingString: string): Array<{departure: string, arrival: string}> {
+    const segments = [];
+    
+    // Handle formats like "EWRBOS/FRAFRA/LGSLGS" or "EWRBOS/FRALGS"
+    console.log(`Parsing routing string: "${routingString}"`);
+    
+    // First try to split by '/' for clear segments
+    if (routingString.includes('/')) {
+      const parts = routingString.split('/');
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (part.length === 6) {
+          // Format: EWRBOS (departure+arrival)
+          segments.push({
+            departure: part.substring(0, 3),
+            arrival: part.substring(3, 6)
+          });
+        } else if (part.length === 3 && i > 0) {
+          // Continuation segment where arrival becomes next departure
+          const prevSegment = segments[segments.length - 1];
+          if (prevSegment) {
+            segments.push({
+              departure: prevSegment.arrival,
+              arrival: part
+            });
+          }
+        }
+      }
+    } else if (routingString.length >= 6) {
+      // Handle continuous string like "EWRBOSFRAMUC"
+      // Extract airport codes in groups of 3
+      const airports = [];
+      for (let i = 0; i < routingString.length; i += 3) {
+        const airport = routingString.substring(i, i + 3);
+        if (airport.length === 3) {
+          airports.push(airport);
+        }
+      }
+      
+      // Create segments from consecutive airports
+      for (let i = 0; i < airports.length - 1; i++) {
+        segments.push({
+          departure: airports[i],
+          arrival: airports[i + 1]
+        });
+      }
+    }
+    
+    console.log(`✓ Parsed ${segments.length} segments:`, segments);
+    return segments;
   }
   
   private static extractSegmentData(match: RegExpMatchArray): FlightSegment {
