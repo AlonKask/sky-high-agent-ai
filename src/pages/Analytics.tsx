@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import EnhancedAnalytics from "@/components/EnhancedAnalytics";
+import { ComprehensiveAnalytics } from "@/components/analytics/ComprehensiveAnalytics";
 
 const Analytics = () => {
   const { user, loading } = useAuth();
@@ -30,7 +30,7 @@ const Analytics = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <EnhancedAnalytics />
+      <ComprehensiveAnalytics />
     </div>
   );
 };
