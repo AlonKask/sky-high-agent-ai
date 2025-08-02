@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,13 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Mail, Share2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { SabreParser } from "@/utils/sabreParser";
-import { EmailTemplateGenerator } from "@/utils/emailTemplateGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { QuoteCard } from "@/components/QuoteCard";
 import UnifiedEmailBuilder from "@/components/UnifiedEmailBuilder";
 
 // Interface that matches the database quotes table structure
@@ -87,7 +84,6 @@ const SabreOptionManager = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
-  const [expandedQuotes, setExpandedQuotes] = useState<string[]>([]);
   const [showEmailBuilder, setShowEmailBuilder] = useState(false);
   const [currentClient, setCurrentClient] = useState<any>(null);
   const dialogOpen = isOpen !== undefined ? isOpen : isDialogOpen;
@@ -330,37 +326,6 @@ const SabreOptionManager = ({
     }
   };
 
-  const handleEdit = (quote: Quote) => {
-    setNewQuote({
-      format: quote.format || "I",
-      content: quote.content || "",
-      status: quote.status,
-      quote_type: quote.quote_type || "revenue",
-      ck_fee_enabled: quote.ck_fee_enabled,
-      route: quote.route,
-      fare_type: quote.fare_type,
-      net_price: quote.net_price || null,
-      markup: quote.markup || null,
-      ck_fee_amount: quote.ck_fee_amount || null,
-      total_price: quote.total_price || null,
-      adults_count: quote.adults_count || null,
-      children_count: quote.children_count || null,
-      infants_count: quote.infants_count || null,
-      adult_price: quote.adult_price || null,
-      child_price: quote.child_price || null,
-      infant_price: quote.infant_price || null,
-      segments: quote.segments || [],
-      total_segments: quote.total_segments,
-      taxes: quote.taxes || null,
-      issuing_fee: quote.issuing_fee || null,
-      award_program: quote.award_program || "",
-      number_of_points: quote.number_of_points || null,
-      notes: quote.notes || ""
-    });
-    setEditingId(quote.id);
-    setIsDialogOpen(true);
-  };
-
   const handleSaveEdit = async () => {
     if (!editingId || !user?.id) return;
 
@@ -416,51 +381,6 @@ const SabreOptionManager = ({
     }
   };
 
-  const handleDelete = async (quoteId: string) => {
-    try {
-      const { error } = await supabase
-        .from('quotes')
-        .delete()
-        .eq('id', quoteId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Quote deleted successfully."
-      });
-
-      onQuoteDeleted();
-    } catch (error) {
-      console.error('Error deleting quote:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete quote. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "draft":
-        return "bg-gray-100 text-gray-800";
-      case "quoted":
-        return "bg-blue-100 text-blue-800";
-      case "selected":
-        return "bg-green-100 text-green-800";
-      case "expired":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const handleGenerateEmail = (quote: Quote) => {
-    setSelectedQuotes([quote.id]);
-    openEmailBuilder();
-  };
-
   const openEmailBuilder = async () => {
     try {
       const { data: clientData, error } = await supabase
@@ -482,116 +402,58 @@ const SabreOptionManager = ({
     }
   };
 
-  const handleToggleQuoteSelection = (quoteId: string, selected: boolean) => {
-    if (selected) {
-      setSelectedQuotes(prev => [...prev, quoteId]);
-    } else {
-      setSelectedQuotes(prev => prev.filter(id => id !== quoteId));
-    }
-  };
-
-  const handleToggleQuoteExpansion = (quoteId: string) => {
-    setExpandedQuotes(prev => 
-      prev.includes(quoteId) 
-        ? prev.filter(id => id !== quoteId)
-        : [...prev, quoteId]
-    );
-  };
-
-  const handleToggleVisibility = async (quote: Quote) => {
-    try {
-      const { error } = await supabase
-        .from("quotes")
-        .update({ is_hidden: !quote.is_hidden })
-        .eq("id", quote.id);
-
-      if (error) throw error;
-
-      toast({
-        title: quote.is_hidden ? "Quote shown" : "Quote hidden",
-        description: `Quote has been ${quote.is_hidden ? "shown" : "hidden"}.`,
-      });
-
-      onQuoteUpdated();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const generateIFormatDisplay = (quote: Quote) => {
-    return quote.content || "No Sabre content available";
-  };
-
-  const handleShareWithClient = async (quote: Quote) => {
-    try {
-      const clientLink = `${window.location.origin}/option/${quote.id}?token=${quote.client_token}`;
-      navigator.clipboard.writeText(clientLink);
-      toast({
-        title: "Client Link Copied",
-        description: "The unique client link has been copied to your clipboard."
-      });
-    } catch (error) {
-      console.error('Error creating client link:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create client link. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Quote Options</CardTitle>
-          {!dialogOpen && (
-            <div className="flex items-center gap-2">
-              {selectedQuotes.length > 0 && (
-                <Button variant="outline" onClick={openEmailBuilder}>
-                  <Mail className="w-4 h-4 mr-2" />
-                  Send Selected ({selectedQuotes.length})
-                </Button>
-              )}
-              <Button onClick={() => {
-                resetQuoteForm();
-                if (isOpen !== undefined && onOpen) {
-                  onOpen();
-                } else {
-                  setIsDialogOpen(true);
-                }
-              }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Quote
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardHeader>
+    <div className="space-y-6">
+      {/* Add/Edit Quote Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingId ? 'Edit Quote' : 'Add New Quote'}
+            </DialogTitle>
+          </DialogHeader>
 
-      <CardContent>
-        {/* Proper Dialog Component */}
-        <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingId ? "Edit Quote" : "Create New Quote"}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-6">
-              {/* Quote Type Selection */}
+          <div className="space-y-6">
+            {/* Content Input */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="content">Sabre Content</Label>
+                {newQuote.content && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearContent}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <Textarea
+                id="content"
+                placeholder="Paste Sabre I command output or VI* format here..."
+                value={newQuote.content}
+                onChange={(e) => handleContentChange(e.target.value)}
+                className="min-h-[120px] font-mono text-sm"
+              />
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Badge variant="outline" className="text-xs">
+                  Format: {newQuote.format}
+                </Badge>
+                <span>•</span>
+                <span>Paste your Sabre command output above</span>
+              </div>
+            </div>
+
+            {/* Quote Type Selection */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Quote Type</Label>
-                <Select
-                  value={newQuote.quote_type}
-                  onValueChange={(value: "award" | "revenue") =>
-                    setNewQuote(prev => ({ ...prev, quote_type: value }))
-                  }
+                <Select 
+                  value={newQuote.quote_type} 
+                  onValueChange={(value) => setNewQuote(prev => ({ ...prev, quote_type: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -603,415 +465,319 @@ const SabreOptionManager = ({
                 </Select>
               </div>
 
-              {/* Sabre Content */}
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>Sabre Command/Itinerary Content *</Label>
-                  {newQuote.content && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearContent}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Clear
-                    </Button>
-                  )}
-                </div>
-                <Textarea
-                  value={newQuote.content}
-                  onChange={(e) => handleContentChange(e.target.value)}
-                  placeholder="Enter Sabre I-format or VI command...
-Example:
-1 LH 7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E"
-                  className="min-h-[120px] font-mono text-sm resize-none"
-                />
-                {newQuote.format && (
-                  <Badge variant="outline">Format: {newQuote.format}</Badge>
-                )}
+                <Label>Status</Label>
+                <Select 
+                  value={newQuote.status} 
+                  onValueChange={(value) => setNewQuote(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="quoted">Quoted</SelectItem>
+                    <SelectItem value="selected">Selected</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
-              {/* Passenger Counts */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Adults</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={newQuote.adults_count || ""}
-                    onChange={(e) =>
-                      setNewQuote(prev => ({
-                        ...prev,
-                        adults_count: e.target.value ? parseInt(e.target.value) : null
-                      }))
-                    }
-                    placeholder="Enter number of adults"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Children</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={newQuote.children_count || ""}
-                    onChange={(e) =>
-                      setNewQuote(prev => ({
-                        ...prev,
-                        children_count: e.target.value ? parseInt(e.target.value) : null
-                      }))
-                    }
-                    placeholder="Enter number of children"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Infants</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={newQuote.infants_count || ""}
-                    onChange={(e) =>
-                      setNewQuote(prev => ({
-                        ...prev,
-                        infants_count: e.target.value ? parseInt(e.target.value) : null
-                      }))
-                    }
-                    placeholder="Enter number of infants"
-                  />
-                </div>
-              </div>
-
-              {/* Revenue Quote Fields */}
-              {newQuote.quote_type === "revenue" && (
+            {/* Revenue Quote Fields */}
+            {newQuote.quote_type === "revenue" && (
+              <>
                 <div className="space-y-4">
-                  <h4 className="font-semibold">Revenue Quote Details</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Pricing Information</h4>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={calculateSellingPrice}
+                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                    >
+                      Calculate Price
+                    </Button>
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Net Price *</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={newQuote.net_price || ""}
-                        onChange={(e) =>
-                          setNewQuote(prev => ({
-                            ...prev,
-                            net_price: e.target.value ? parseFloat(e.target.value) : null
-                          }))
-                        }
-                        placeholder="Enter net price"
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label>Fare Type</Label>
-                      <Select
-                        value={newQuote.fare_type}
-                        onValueChange={(value) =>
-                          setNewQuote(prev => ({ ...prev, fare_type: value }))
-                        }
+                      <Select 
+                        value={newQuote.fare_type} 
+                        onValueChange={(value) => setNewQuote(prev => ({ ...prev, fare_type: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="tour_fare">Tour Fare</SelectItem>
-                          <SelectItem value="private">Private</SelectItem>
-                          <SelectItem value="published">Published</SelectItem>
+                          <SelectItem value="published_fare">Published Fare</SelectItem>
+                          <SelectItem value="private_fare">Private Fare</SelectItem>
+                          <SelectItem value="consolidated_fare">Consolidated Fare</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+
+                    <div className="space-y-2">
+                      <Label>Net Price</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newQuote.net_price || ""}
+                        onChange={(e) => setNewQuote(prev => ({ ...prev, net_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Markup</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newQuote.markup || ""}
+                        onChange={(e) => setNewQuote(prev => ({ ...prev, markup: e.target.value ? parseFloat(e.target.value) : null }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Issuing Fee</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newQuote.issuing_fee || ""}
+                        onChange={(e) => setNewQuote(prev => ({ ...prev, issuing_fee: e.target.value ? parseFloat(e.target.value) : null }))}
+                      />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Adult Price</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={newQuote.adult_price || ""}
-                        onChange={(e) =>
-                          setNewQuote(prev => ({
-                            ...prev,
-                            adult_price: e.target.value ? parseFloat(e.target.value) : null
-                          }))
-                        }
-                        placeholder="Enter adult price"
-                      />
+                  {/* Credit Card Fee */}
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <Checkbox
+                      id="ck_fee"
+                      checked={newQuote.ck_fee_enabled}
+                      onCheckedChange={(checked) => 
+                        setNewQuote(prev => ({ ...prev, ck_fee_enabled: !!checked }))
+                      }
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="ck_fee" className="font-medium">
+                        Add Credit Card Processing Fee (3.5%)
+                      </Label>
+                      <p className="text-sm text-gray-600">
+                        Automatically adds 3.5% to cover credit card processing costs
+                      </p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Child Price</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={newQuote.child_price || ""}
-                        onChange={(e) =>
-                          setNewQuote(prev => ({
-                            ...prev,
-                            child_price: e.target.value ? parseFloat(e.target.value) : null
-                          }))
-                        }
-                        placeholder="Enter child price"
-                      />
+                  </div>
+
+                  {/* Passenger Pricing */}
+                  <div className="space-y-3">
+                    <Label className="font-medium">Passenger Breakdown (Optional)</Label>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Adults</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="Count"
+                          value={newQuote.adults_count || ""}
+                          onChange={(e) => setNewQuote(prev => ({ ...prev, adults_count: e.target.value ? parseInt(e.target.value) : null }))}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Price per adult"
+                          value={newQuote.adult_price || ""}
+                          onChange={(e) => setNewQuote(prev => ({ ...prev, adult_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Children</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="Count"
+                          value={newQuote.children_count || ""}
+                          onChange={(e) => setNewQuote(prev => ({ ...prev, children_count: e.target.value ? parseInt(e.target.value) : null }))}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Price per child"
+                          value={newQuote.child_price || ""}
+                          onChange={(e) => setNewQuote(prev => ({ ...prev, child_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Infants</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="Count"
+                          value={newQuote.infants_count || ""}
+                          onChange={(e) => setNewQuote(prev => ({ ...prev, infants_count: e.target.value ? parseInt(e.target.value) : null }))}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Price per infant"
+                          value={newQuote.infant_price || ""}
+                          onChange={(e) => setNewQuote(prev => ({ ...prev, infant_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Infant Price</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={newQuote.infant_price || ""}
-                        onChange={(e) =>
-                          setNewQuote(prev => ({
-                            ...prev,
-                            infant_price: e.target.value ? parseFloat(e.target.value) : null
-                          }))
-                        }
-                        placeholder="Enter infant price"
-                      />
+                  </div>
+
+                  {/* Total Price Display */}
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-blue-800">Total Selling Price:</span>
+                      <span className="text-2xl font-bold text-blue-800">
+                        ${newQuote.total_price ? Number(newQuote.total_price).toFixed(2) : "0.00"}
+                      </span>
                     </div>
                   </div>
                 </div>
-              )}
+              </>
+            )}
 
-              {/* Award Quote Fields */}
-              {newQuote.quote_type === "award" && (
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Award Quote Details</h4>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Award Program *</Label>
-                      <Input
-                        value={newQuote.award_program}
-                        onChange={(e) =>
-                          setNewQuote(prev => ({ ...prev, award_program: e.target.value }))
-                        }
-                        placeholder="e.g., AA, DL, UA"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Number of Points *</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={newQuote.number_of_points || ""}
-                        onChange={(e) =>
-                          setNewQuote(prev => ({
-                            ...prev,
-                            number_of_points: e.target.value ? parseInt(e.target.value) : null
-                          }))
-                        }
-                        placeholder="Enter number of points"
-                      />
-                    </div>
+            {/* Award Quote Fields */}
+            {newQuote.quote_type === "award" && (
+              <div className="space-y-4">
+                <h4 className="font-medium">Award Information</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Award Program</Label>
+                    <Select 
+                      value={newQuote.award_program} 
+                      onValueChange={(value) => setNewQuote(prev => ({ ...prev, award_program: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select program" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aa_aadvantage">AA AAdvantage</SelectItem>
+                        <SelectItem value="ua_mileageplus">UA MileagePlus</SelectItem>
+                        <SelectItem value="dl_skymiles">DL SkyMiles</SelectItem>
+                        <SelectItem value="as_mileageplan">AS Mileage Plan</SelectItem>
+                        <SelectItem value="vy_elevate">Virgin Elevate</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Points Required</Label>
+                    <Input
+                      type="number"
+                      placeholder="Points/Miles"
+                      value={newQuote.number_of_points || ""}
+                      onChange={(e) => setNewQuote(prev => ({ ...prev, number_of_points: e.target.value ? parseInt(e.target.value) : null }))}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Taxes & Fees</Label>
                     <Input
                       type="number"
-                      min="0"
                       step="0.01"
+                      placeholder="0.00"
                       value={newQuote.taxes || ""}
-                      onChange={(e) =>
-                        setNewQuote(prev => ({
-                          ...prev,
-                          taxes: e.target.value ? parseFloat(e.target.value) : null
-                        }))
-                      }
-                      placeholder="Enter taxes and fees"
+                      onChange={(e) => setNewQuote(prev => ({ ...prev, taxes: e.target.value ? parseFloat(e.target.value) : null }))}
                     />
                   </div>
-                </div>
-              )}
 
-              {/* Common Pricing Fields */}
-              <div className="space-y-4">
-                <h4 className="font-semibold">Pricing & Fees</h4>
-                
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Markup</Label>
+                    <Label>Service Fee</Label>
                     <Input
                       type="number"
-                      min="0"
                       step="0.01"
+                      placeholder="0.00"
                       value={newQuote.markup || ""}
-                      onChange={(e) =>
-                        setNewQuote(prev => ({
-                          ...prev,
-                          markup: e.target.value ? parseFloat(e.target.value) : null
-                        }))
-                      }
-                      placeholder="Enter markup amount"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Issuing Fee</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newQuote.issuing_fee || ""}
-                      onChange={(e) =>
-                        setNewQuote(prev => ({
-                          ...prev,
-                          issuing_fee: e.target.value ? parseFloat(e.target.value) : null
-                        }))
-                      }
-                      placeholder="Enter issuing fee"
+                      onChange={(e) => setNewQuote(prev => ({ ...prev, markup: e.target.value ? parseFloat(e.target.value) : null }))}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="ckFees"
-                    checked={newQuote.ck_fee_enabled}
-                    onCheckedChange={(checked) =>
-                      setNewQuote(prev => ({ ...prev, ck_fee_enabled: !!checked }))
-                    }
-                  />
-                  <Label htmlFor="ckFees">Include CK Fees (3.5%)</Label>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={calculateSellingPrice}
-                  className="w-full"
-                >
-                  Calculate Selling Price
-                </Button>
-
-                {newQuote.total_price && newQuote.total_price > 0 && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <Label className="text-lg font-semibold">
-                      Calculated Selling Price: ${newQuote.total_price}
-                    </Label>
-                  </div>
-                )}
-              </div>
-
-              {/* Additional Details */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={newQuote.status}
-                    onValueChange={(value) =>
-                      setNewQuote(prev => ({ ...prev, status: value }))
-                    }
+                <div className="flex items-center justify-between">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={calculateSellingPrice}
+                    className="text-blue-600 border-blue-600 hover:bg-blue-50"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="quoted">Quoted</SelectItem>
-                      <SelectItem value="selected">Selected</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    Calculate Total
+                  </Button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={newQuote.notes}
-                    onChange={(e) =>
-                      setNewQuote(prev => ({ ...prev, notes: e.target.value }))
-                    }
-                    placeholder="Additional notes about this quote..."
-                  />
+                {/* Total Price Display for Award */}
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-medium text-purple-800">Points Required:</span>
+                    <span className="text-xl font-bold text-purple-800">
+                      {newQuote.number_of_points ? Number(newQuote.number_of_points).toLocaleString() : "0"} points
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-purple-800">Total Cash:</span>
+                    <span className="text-xl font-bold text-purple-800">
+                      ${newQuote.total_price ? Number(newQuote.total_price).toFixed(2) : "0.00"}
+                    </span>
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Form Actions */}
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleDialogClose}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={editingQuote ? handleSaveEdit : handleSubmit}
-                >
-                  {editingQuote ? "Update Quote" : "Create Quote"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Quotes List */}
-        {quotes.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No quotes created yet. Click "Add Quote" to create your first quote option.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {quotes.map((quote) => (
-              <QuoteCard
-                key={quote.id}
-                quote={quote}
-                isSelected={selectedQuotes.includes(quote.id)}
-                isExpanded={expandedQuotes.includes(quote.id)}
-                onToggleExpanded={() => handleToggleQuoteExpansion(quote.id)}
-                onToggleSelected={(selected) => handleToggleQuoteSelection(quote.id, selected)}
-                onEdit={() => handleEdit(quote)}
-                onToggleVisibility={() => handleToggleVisibility(quote)}
-                onDelete={() => handleDelete(quote.id)}
-                onSendToEmail={() => handleGenerateEmail(quote)}
-                generateIFormatDisplay={generateIFormatDisplay}
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Textarea
+                placeholder="Additional notes about this quote..."
+                value={newQuote.notes}
+                onChange={(e) => setNewQuote(prev => ({ ...prev, notes: e.target.value }))}
+                className="min-h-[80px]"
               />
-            ))}
+            </div>
           </div>
-        )}
-      </CardContent>
+
+          <DialogFooter className="flex gap-2 pt-6">
+            <Button variant="outline" onClick={handleDialogClose}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={editingId ? handleSaveEdit : handleSubmit}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!newQuote.content.trim() || !hasValidPricing()}
+            >
+              {editingId ? 'Save Changes' : 'Create Quote'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Email Builder Modal */}
       {showEmailBuilder && currentClient && (
-        <Dialog open={showEmailBuilder} onOpenChange={setShowEmailBuilder}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-            <UnifiedEmailBuilder
-              clientId={clientId}
-              requestId={requestId}
-              quotes={quotes.filter(q => selectedQuotes.includes(q.id)).map(q => ({
-                id: q.id,
-                route: q.route,
-                total_price: parseFloat(q.total_price),
-                fare_type: q.fare_type,
-                segments: q.segments || [],
-                valid_until: q.valid_until || '',
-                notes: q.notes,
-                net_price: parseFloat(q.net_price),
-                markup: parseFloat(q.markup),
-                ck_fee_amount: parseFloat(q.ck_fee_amount),
-                ck_fee_enabled: q.ck_fee_enabled
-              }))}
-              client={currentClient}
-              onSendEmail={() => {
-                setShowEmailBuilder(false);
-                setSelectedQuotes([]);
-                toast({
-                  title: "Email sent successfully",
-                  description: "Your quote email has been sent to the client.",
-                });
-              }}
-              onCancel={() => setShowEmailBuilder(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <UnifiedEmailBuilder
+          clientId={clientId}
+          requestId={requestId}
+          quotes={quotes.filter(q => selectedQuotes.includes(q.id)).map(q => ({
+            ...q,
+            total_price: Number(q.total_price),
+            net_price: Number(q.net_price),
+            markup: Number(q.markup),
+            ck_fee_amount: Number(q.ck_fee_amount),
+            valid_until: q.valid_until || ""
+          }))}
+          client={currentClient}
+          onCancel={() => setShowEmailBuilder(false)}
+        />
       )}
-    </Card>
+    </div>
   );
 };
 
