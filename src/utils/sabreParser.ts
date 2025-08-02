@@ -269,164 +269,62 @@ export class SabreParser {
   }
 
   private static parseComplexRouting(routingString: string): Array<{departure: string, arrival: string}> {
+    console.log(`🔍 SIMPLIFIED PARSER: Processing "${routingString}"`);
+    
     const segments = [];
     
-    console.log(`🔍 CRITICAL FIX: Enhanced Multi-Segment Parser for "${routingString}"`);
+    // Clean up routing string
+    const cleaned = routingString.replace(/\*.*$/, '').trim();
     
-    // CRITICAL: Handle "EWRBOS/FRAFRA/LGSLGS" format correctly
-    // Expected result: EWR→BOS, BOS→FRA, FRA→IAD, IAD→LGA (4 segments)
-    
-    if (routingString.includes('/')) {
-      const parts = routingString.split('/');
-      console.log('📍 Split parts:', parts);
+    if (cleaned.includes('/')) {
+      // Split by forward slashes
+      const parts = cleaned.split('/').filter(part => part.length > 0);
+      console.log('📍 Parts to process:', parts);
       
-      let previousArrival = null;
-      
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i].replace(/\*.*$/, '').trim();
-        console.log(`🔍 Processing part ${i + 1}: "${part}"`);
-        
+      for (const part of parts) {
         if (part.length === 6) {
-          // Standard concatenated format: EWRBOS
+          // Standard XXXYYY format
           const departure = part.substring(0, 3);
           const arrival = part.substring(3, 6);
-          
-          // Add connection if needed
-          if (previousArrival && previousArrival !== departure) {
-            segments.push({ departure: previousArrival, arrival: departure });
-            console.log(`🔗 Connection: ${previousArrival} → ${departure}`);
-          }
-          
           segments.push({ departure, arrival });
-          console.log(`✈️ Flight: ${departure} → ${arrival}`);
-          previousArrival = arrival;
-          
-        } else if (part.length === 9) {
-          // Triple format like FRAFRA - handle as intermediate connection
-          const firstAirport = part.substring(0, 3);
-          const lastAirport = part.substring(6, 9);
-          
-          // Add connection if needed
-          if (previousArrival && previousArrival !== firstAirport) {
-            segments.push({ departure: previousArrival, arrival: firstAirport });
-            console.log(`🔗 Connection: ${previousArrival} → ${firstAirport}`);
-          }
-          
-          // If same airport repeated, it suggests an intermediate stop
-          if (firstAirport === lastAirport) {
-            // This might be a hub connection - we need to infer intermediate
-            console.log(`🔄 Hub pattern detected: ${firstAirport}`);
-            previousArrival = firstAirport;
-          } else {
-            segments.push({ departure: firstAirport, arrival: lastAirport });
-            console.log(`✈️ Extended: ${firstAirport} → ${lastAirport}`);
-            previousArrival = lastAirport;
-          }
-          
-        } else if (part.length === 12) {
-          // Handle LGSLGS case - this suggests return to similar airport
-          const airports = this.extractAirportsFromString(part);
-          console.log(`🏢 Extracted from "${part}":`, airports);
-          
-          if (airports.length >= 2) {
-            // Take first and last unique airports
-            const uniqueAirports = [...new Set(airports)];
-            const startAirport = uniqueAirports[0];
-            const endAirport = uniqueAirports[uniqueAirports.length - 1];
-            
-            // Connect from previous if needed
-            if (previousArrival && previousArrival !== startAirport) {
-              segments.push({ departure: previousArrival, arrival: startAirport });
-              console.log(`🔗 Connection: ${previousArrival} → ${startAirport}`);
-            }
-            
-            // Add main segment
-            if (startAirport !== endAirport) {
-              segments.push({ departure: startAirport, arrival: endAirport });
-              console.log(`✈️ Complex: ${startAirport} → ${endAirport}`);
-            }
-            
-            previousArrival = endAirport;
-          }
+          console.log(`✈️ Added segment: ${departure} → ${arrival}`);
+        } else if (part.length >= 6) {
+          // Extract first and last 3 characters for complex strings
+          const departure = part.substring(0, 3);
+          const arrival = part.substring(part.length - 3);
+          segments.push({ departure, arrival });
+          console.log(`✈️ Added segment: ${departure} → ${arrival}`);
         }
       }
       
-      // SPECIAL HANDLING for common patterns
-      // If we have exactly 3 parts like EWRBOS/FRAFRA/LGSLGS
-      if (parts.length === 3 && segments.length < 4) {
-        console.log('🔧 Applying special pattern logic for 3-part routing...');
+      // Connect segments if they don't naturally connect
+      for (let i = 0; i < segments.length - 1; i++) {
+        const current = segments[i];
+        const next = segments[i + 1];
         
-        // Clear and rebuild with proper inference
-        segments.length = 0;
+        if (current.arrival !== next.departure) {
+          // Insert connection segment
+          const connection = { departure: current.arrival, arrival: next.departure };
+          segments.splice(i + 1, 0, connection);
+          console.log(`🔗 Added connection: ${connection.departure} → ${connection.arrival}`);
+          i++; // Skip the inserted segment
+        }
+      }
+    } else {
+      // Handle single concatenated string
+      if (cleaned.length >= 6 && cleaned.length % 3 === 0) {
+        const airports = [];
+        for (let i = 0; i < cleaned.length; i += 3) {
+          airports.push(cleaned.substring(i, i + 3));
+        }
         
-        // Part 1: EWRBOS → EWR to BOS
-        const part1 = parts[0].replace(/\*.*$/, '');
-        if (part1.length === 6) {
+        // Create segments between consecutive airports
+        for (let i = 0; i < airports.length - 1; i++) {
           segments.push({
-            departure: part1.substring(0, 3),
-            arrival: part1.substring(3, 6)
+            departure: airports[i],
+            arrival: airports[i + 1]
           });
         }
-        
-        // Part 2: FRAFRA → BOS to FRA (inferred connection)
-        const part2 = parts[1].replace(/\*.*$/, '');
-        if (part2.length === 6 || part2.length === 9) {
-          const airport = part2.substring(0, 3);
-          if (segments.length > 0 && segments[segments.length - 1].arrival !== airport) {
-            segments.push({
-              departure: segments[segments.length - 1].arrival,
-              arrival: airport
-            });
-          }
-        }
-        
-        // Part 3: LGSLGS → FRA to LGA (with intermediate connection)
-        const part3 = parts[2].replace(/\*.*$/, '');
-        if (part3.length >= 6) {
-          const finalAirport = part3.substring(0, 3); // LGA from LGSLGS
-          
-          // Add FRA to intermediate airport connection
-          if (segments.length > 0) {
-            const lastArrival = segments[segments.length - 1].arrival;
-            
-            // Infer intermediate airport (commonly IAD for transatlantic to NYC)
-            const intermediateAirport = this.inferIntermediateAirport(lastArrival, finalAirport);
-            
-            if (intermediateAirport && intermediateAirport !== lastArrival) {
-              segments.push({
-                departure: lastArrival,
-                arrival: intermediateAirport
-              });
-              
-              segments.push({
-                departure: intermediateAirport,
-                arrival: finalAirport
-              });
-            } else {
-              segments.push({
-                departure: lastArrival,
-                arrival: finalAirport
-              });
-            }
-          }
-        }
-        
-        console.log('🎯 Special pattern result:');
-        segments.forEach((seg, idx) => {
-          console.log(`  [${idx + 1}] ${seg.departure} → ${seg.arrival}`);
-        });
-      }
-      
-    } else {
-      // Handle single string without slashes
-      const airports = this.extractAirportsFromString(routingString);
-      console.log('🏢 Sequential airports:', airports);
-      
-      for (let i = 0; i < airports.length - 1; i++) {
-        segments.push({
-          departure: airports[i],
-          arrival: airports[i + 1]
-        });
       }
     }
     
@@ -1073,53 +971,92 @@ export class SabreParser {
     return result;
   }
 
-  // Enhanced utility methods
+  // Enhanced utility methods with realistic time distribution
   private static distributeFlightTimes(startTime: string, endTime: string, segmentCount: number): Array<{departure: string, arrival: string}> {
-    console.log(`⏰ Distributing flight times: ${startTime} → ${endTime} across ${segmentCount} segments`);
+    console.log(`🕒 Enhanced time distribution: ${startTime} to ${endTime} across ${segmentCount} segments`);
     
-    const intervals = [];
+    if (segmentCount <= 0) return [];
+    if (segmentCount === 1) {
+      return [{ departure: startTime, arrival: endTime }];
+    }
+    
     const startMinutes = this.timeToMinutes(startTime);
     let endMinutes = this.timeToMinutes(endTime);
     
-    // Handle next-day arrivals
+    // Handle day rollover
     if (endMinutes < startMinutes) {
       endMinutes += 24 * 60; // Add 24 hours for next day
     }
     
-    const totalJourneyMinutes = endMinutes - startMinutes;
-    console.log(`📊 Total journey: ${totalJourneyMinutes} minutes`);
+    const totalMinutes = endMinutes - startMinutes;
+    console.log(`Total journey: ${totalMinutes} minutes`);
     
-    // Smart distribution based on realistic flight patterns
-    const layoverTime = segmentCount > 1 ? Math.max(60, Math.floor(totalJourneyMinutes * 0.1)) : 0; // 10% for layovers, min 1h
-    const totalFlightTime = totalJourneyMinutes - (layoverTime * (segmentCount - 1));
-    const avgSegmentTime = Math.floor(totalFlightTime / segmentCount);
+    // Realistic layover times: 60-120 minutes depending on segment
+    const layoverTimes = [];
+    for (let i = 0; i < segmentCount - 1; i++) {
+      // Progressive layover times: 90min base + 15min per segment
+      layoverTimes.push(90 + (i * 15));
+    }
     
-    console.log(`✈️ Average segment time: ${avgSegmentTime} minutes, Layover: ${layoverTime} minutes`);
+    const totalLayoverTime = layoverTimes.reduce((sum, time) => sum + time, 0);
+    const totalFlightTime = totalMinutes - totalLayoverTime;
     
+    if (totalFlightTime <= 0) {
+      // Fallback: equal distribution
+      const avgSegmentTime = Math.floor(totalMinutes / segmentCount);
+      const results = [];
+      let currentTime = startMinutes;
+      
+      for (let i = 0; i < segmentCount; i++) {
+        const departure = this.minutesToTime(currentTime % (24 * 60));
+        currentTime += avgSegmentTime;
+        const arrival = this.minutesToTime(currentTime % (24 * 60));
+        results.push({ departure, arrival });
+      }
+      return results;
+    }
+    
+    // Distribute flight time based on realistic segment durations
+    const segmentDurations = [];
+    const baseFlightTime = Math.floor(totalFlightTime / segmentCount);
+    
+    for (let i = 0; i < segmentCount; i++) {
+      // Vary flight times: shorter domestic, longer international
+      let variation = 1.0;
+      if (i === 0) variation = 0.8; // First segment often shorter
+      if (i === Math.floor(segmentCount / 2)) variation = 1.4; // Middle segment often longer (transatlantic)
+      if (i === segmentCount - 1) variation = 0.9; // Last segment medium
+      
+      segmentDurations.push(Math.floor(baseFlightTime * variation));
+    }
+    
+    // Adjust to match total flight time
+    const currentTotal = segmentDurations.reduce((sum, time) => sum + time, 0);
+    const adjustment = totalFlightTime - currentTotal;
+    if (adjustment !== 0) {
+      segmentDurations[segmentDurations.length - 1] += adjustment;
+    }
+    
+    // Generate time intervals
+    const results = [];
     let currentTime = startMinutes;
     
     for (let i = 0; i < segmentCount; i++) {
-      const segmentDuration = i === segmentCount - 1 ? 
-        (endMinutes - currentTime) : // Last segment gets remaining time
-        avgSegmentTime;
+      const departure = this.minutesToTime(currentTime % (24 * 60));
+      currentTime += segmentDurations[i];
+      const arrival = this.minutesToTime(currentTime % (24 * 60));
       
-      const depTime = this.minutesToTime(currentTime);
-      const arrTime = this.minutesToTime(currentTime + segmentDuration);
+      results.push({ departure, arrival });
       
-      intervals.push({
-        departure: depTime,
-        arrival: arrTime
-      });
-      
-      console.log(`⏱️ Segment ${i + 1}: ${depTime} → ${arrTime} (${segmentDuration}min)`);
-      
-      // Add layover time for next segment
+      // Add layover for next segment
       if (i < segmentCount - 1) {
-        currentTime += segmentDuration + layoverTime;
+        currentTime += layoverTimes[i];
       }
+      
+      console.log(`Segment ${i + 1}: ${departure} → ${arrival} (${segmentDurations[i]}min flight + ${layoverTimes[i] || 0}min layover)`);
     }
     
-    return intervals;
+    return results;
   }
 
   private static timeToMinutes(timeStr: string): number {

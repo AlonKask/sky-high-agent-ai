@@ -124,7 +124,7 @@ export class EmailTemplateGenerator {
         ${flightPath}
         
         <div class="segments-container">
-            <h2>✈️ Complete Flight Itinerary</h2>
+            <h2>✈️ Flight Options</h2>
             ${segmentCards}
         </div>
 
