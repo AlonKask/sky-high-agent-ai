@@ -174,7 +174,22 @@ export const Teams = () => {
   };
 
   const createTeam = async () => {
+    if (!newTeam.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Team name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
+      console.log('Creating team with data:', {
+        name: newTeam.name,
+        description: newTeam.description || null,
+        manager_id: newTeam.manager_id || null
+      });
+
       const { data, error } = await supabase
         .from('teams')
         .insert([{
@@ -185,7 +200,12 @@ export const Teams = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Team created successfully:', data);
 
       toast({
         title: "Success",
@@ -195,11 +215,12 @@ export const Teams = () => {
       setIsCreateDialogOpen(false);
       setNewTeam({ name: '', description: '', manager_id: '' });
       fetchTeams();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating team:', error);
+      const errorMessage = error?.message || 'Failed to create team';
       toast({
         title: "Error",
-        description: "Failed to create team",
+        description: `Failed to create team: ${errorMessage}`,
         variant: "destructive"
       });
     }
