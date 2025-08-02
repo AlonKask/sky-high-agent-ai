@@ -29,6 +29,10 @@ interface Quote {
   ck_fee_enabled: boolean;
   sabre_data?: string;
   parsedItinerary?: ParsedItinerary;
+  quote_type?: "award" | "revenue";
+  taxes?: number;
+  number_of_points?: number;
+  award_program?: string;
 }
 
 interface Client {
@@ -157,37 +161,89 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
     return <IconComponent className="h-4 w-4" />;
   };
 
-  const generateEmailHTML = () => {
+  const generateEmailHTML = async (): Promise<string> => {
+    console.log("🔄 Generating email HTML with selected quotes");
     const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
     
-    console.log("📧 Generating email HTML for quotes:", selectedQuoteData.length);
-    
-    // If we have parsed flight data, use the enhanced email template
-    if (selectedQuoteData.some(q => q.parsedItinerary)) {
-      console.log("🚀 Using enhanced email template with parsed flight data");
-      
-      return selectedQuoteData.map(quote => {
-        const sabreOption: SabreOption = {
-          id: quote.id,
-          parsedInfo: quote.parsedItinerary,
-          quoteType: "revenue",
-          sellingPrice: quote.total_price,
-          netPrice: quote.net_price,
-          markup: quote.markup,
-          fareType: quote.fare_type,
-          notes: quote.notes
-        };
-        
-        return EmailTemplateGenerator.generateItineraryEmail(sabreOption, `${client.first_name} ${client.last_name}`);
-      }).join('<div style="page-break-after: always; margin: 40px 0;"></div>');
+    if (selectedQuoteData.length === 0) {
+      return '<p>No options selected.</p>';
     }
-    
-    // Fallback to basic template
-    console.log("📋 Using basic email template");
-    return generateBasicEmailHTML(selectedQuoteData);
+
+    try {
+      // First, check if we have saved flight options in database
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (userId) {
+        const savedOptions = await DatabaseUtils.getFlightOptionsByQuoteIds(
+          userId, 
+          selectedQuoteData.map(q => q.id)
+        );
+        
+        console.log(`📊 Found ${savedOptions.length} saved flight options in database`);
+        
+        // Merge saved database options with quotes
+        const mergedOptions = selectedQuoteData.map(quote => {
+          const savedOption = savedOptions.find(saved => saved.quote_id === quote.id);
+          if (savedOption) {
+            return {
+              ...quote,
+                parsedItinerary: {
+                segments: savedOption.parsed_segments,
+                route: savedOption.route_label,
+                totalSegments: savedOption.parsed_segments.length,
+                totalDuration: `${Math.floor(savedOption.total_duration / 60)}h ${savedOption.total_duration % 60}m`,
+                isRoundTrip: false
+              }
+            };
+          }
+          return quote;
+        });
+        
+        // Check if we have enhanced parsed data
+        const hasEnhancedData = mergedOptions.some(option => 
+          option.parsedItinerary && option.parsedItinerary.segments && option.parsedItinerary.segments.length > 0
+        );
+
+        if (hasEnhancedData) {
+          console.log("✅ Using enhanced template with database-enriched flight data");
+          
+          // Generate enhanced email template with database lookups
+          const emailPromises = mergedOptions.map(async (option) => {
+            const sabreOption: SabreOption = {
+              id: option.id,
+              parsedInfo: option.parsedItinerary || {
+                segments: [],
+                route: option.route,
+                totalSegments: 0,
+                isRoundTrip: false
+              },
+              quoteType: (option.quote_type as "award" | "revenue") || "revenue",
+              sellingPrice: option.total_price,
+              netPrice: option.net_price,
+              markup: option.markup,
+              taxes: option.taxes,
+              numberOfPoints: option.number_of_points,
+              awardProgram: option.award_program,
+              fareType: option.fare_type,
+              notes: option.notes
+            };
+            
+            return EmailTemplateGenerator.generateItineraryEmail(sabreOption, client?.first_name || "Valued Client");
+          });
+          
+          const emailContents = await Promise.all(emailPromises);
+          return emailContents.join('<div style="page-break-after: always;"></div>');
+        }
+      }
+      
+      console.log("⚠️ Using basic template - no enhanced data available");
+      return generateBasicEmailHTML(selectedQuoteData);
+    } catch (error) {
+      console.error("❌ Error generating enhanced email:", error);
+      return generateBasicEmailHTML(selectedQuoteData);
+    }
   };
 
-  const generateBasicEmailHTML = (selectedQuoteData: Quote[]) => {
+  const generateBasicEmailHTML = (selectedQuoteData: Quote[]): string => {
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -314,14 +370,15 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
 
       // Generate email with review URL
       const reviewUrl = `${window.location.origin}/review-options/${reviewData.client_token}`;
-      const emailHTML = generateEmailHTML().replace('{REVIEW_URL}', reviewUrl);
+      const emailHTML = await generateEmailHTML();
+      const finalEmailHTML = emailHTML.replace('{REVIEW_URL}', reviewUrl);
 
       // Send email via edge function
       const { error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
           to: [client.email],
           subject: emailSubject,
-          body: emailHTML,
+          body: finalEmailHTML,
           clientId,
           requestId,
           emailType: 'quote'
@@ -498,13 +555,13 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
                 <CardTitle>Email Preview</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-muted/30 rounded-lg p-4 h-[600px] overflow-auto">
-                  <SafeHtmlRenderer 
-                    html={generateEmailHTML().replace('{REVIEW_URL}', '#review-portal')}
-                    className="bg-white rounded border min-h-full"
-                    type="email"
-                  />
-                </div>
+                 <div className="bg-muted/30 rounded-lg p-4 h-[600px] overflow-auto">
+                   <SafeHtmlRenderer 
+                     html={generateBasicEmailHTML(processedQuotes.filter(q => selectedQuotes.includes(q.id))).replace('{REVIEW_URL}', '#review-portal')}
+                     className="bg-white rounded border min-h-full"
+                     type="email"
+                   />
+                 </div>
               </CardContent>
             </Card>
           </div>

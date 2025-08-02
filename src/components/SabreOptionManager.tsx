@@ -967,7 +967,8 @@ const SabreOptionManager = ({
             net_price: Number(q.net_price),
             markup: Number(q.markup),
             ck_fee_amount: Number(q.ck_fee_amount),
-            valid_until: q.valid_until || ""
+            valid_until: q.valid_until || "",
+            quote_type: (q.quote_type as "award" | "revenue") || "revenue"
           }))}
           client={currentClient}
           onCancel={() => setShowEmailBuilder(false)}

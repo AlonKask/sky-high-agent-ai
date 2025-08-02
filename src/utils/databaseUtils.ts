@@ -119,6 +119,100 @@ export class DatabaseUtils {
     }
   }
 
+  static async getFlightOptionsByQuoteIds(userId: string, quoteIds: string[]): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('flight_options')
+        .select('*')
+        .eq('user_id', userId)
+        .in('quote_id', quoteIds)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching flight options by quote IDs:', error);
+        return [];
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching flight options by quote IDs:', error);
+      return [];
+    }
+  }
+
+  static async enrichAirportInfo(airportCode: string): Promise<{
+    code: string;
+    name: string;
+    city: string;
+    country: string;
+    fullDisplay: string;
+  }> {
+    const airportInfo = await this.getAirportInfo(airportCode);
+    
+    if (airportInfo) {
+      return {
+        code: airportCode,
+        name: airportInfo.name,
+        city: airportInfo.city,
+        country: airportInfo.country,
+        fullDisplay: `${airportInfo.name} (${airportCode}) - ${airportInfo.city}, ${airportInfo.country}`
+      };
+    }
+    
+    // Fallback for unknown airports
+    return {
+      code: airportCode,
+      name: airportCode,
+      city: 'Unknown',
+      country: 'Unknown',
+      fullDisplay: `${airportCode} Airport`
+    };
+  }
+
+  static async enrichAirlineInfo(airlineCode: string): Promise<{
+    code: string;
+    name: string;
+    logo_url?: string;
+    alliance?: string;
+    fullDisplay: string;
+  }> {
+    const airlineInfo = await this.getAirlineInfo(airlineCode);
+    
+    if (airlineInfo) {
+      return {
+        code: airlineCode,
+        name: airlineInfo.name,
+        logo_url: airlineInfo.logo_url,
+        alliance: airlineInfo.alliance,
+        fullDisplay: `${airlineInfo.name} (${airlineCode})`
+      };
+    }
+    
+    // Fallback for unknown airlines
+    return {
+      code: airlineCode,
+      name: this.getAirlineFallback(airlineCode),
+      fullDisplay: `${this.getAirlineFallback(airlineCode)} (${airlineCode})`
+    };
+  }
+
+  private static getAirlineFallback(code: string): string {
+    const fallbacks: { [key: string]: string } = {
+      'AA': 'American Airlines',
+      'UA': 'United Airlines',
+      'DL': 'Delta Air Lines',
+      'LH': 'Lufthansa',
+      'BA': 'British Airways',
+      'AF': 'Air France',
+      'KL': 'KLM',
+      'VS': 'Virgin Atlantic',
+      'LX': 'Swiss International',
+      'OS': 'Austrian Airlines'
+    };
+    
+    return fallbacks[code] || `${code} Airlines`;
+  }
+
   static calculateDistance(airport1: AirportInfo, airport2: AirportInfo): number {
     if (!airport1.latitude || !airport1.longitude || !airport2.latitude || !airport2.longitude) {
       return 0;

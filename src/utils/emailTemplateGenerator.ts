@@ -1,5 +1,6 @@
 
 import { ParsedItinerary } from './sabreParser';
+import { DatabaseUtils } from './databaseUtils';
 
 export interface SabreOption {
   id: string;
@@ -16,7 +17,7 @@ export interface SabreOption {
 }
 
 export class EmailTemplateGenerator {
-  static generateItineraryEmail(option: SabreOption, clientName: string = "Valued Client"): string {
+  static async generateItineraryEmail(option: SabreOption, clientName: string = "Valued Client"): Promise<string> {
     console.log("📧 Generating email for option:", option.id);
     console.log("📋 Parsed info available:", !!option.parsedInfo);
     
@@ -28,8 +29,37 @@ export class EmailTemplateGenerator {
     const { segments, totalDuration, layoverInfo, route, totalSegments } = option.parsedInfo;
     console.log(`✅ Generating rich email with ${segments.length} segments`);
     
+    // Enrich segments with database information
+    const enrichedSegments = await this.enrichSegmentsWithDatabase(segments);
+    
     // Generate modern HTML email template with rich flight display
-    return this.generateHtmlEmail(option, clientName, segments, totalDuration, layoverInfo, route, totalSegments);
+    return this.generateHtmlEmail(option, clientName, enrichedSegments, totalDuration, layoverInfo, route, totalSegments);
+  }
+
+  static async enrichSegmentsWithDatabase(segments: any[]): Promise<any[]> {
+    console.log(`🔍 Enriching ${segments.length} segments with database lookups...`);
+    
+    const enrichedSegments = await Promise.all(segments.map(async (segment) => {
+      try {
+        // Enrich departure airport
+        const depAirportInfo = await DatabaseUtils.enrichAirportInfo(segment.departureAirport);
+        const arrAirportInfo = await DatabaseUtils.enrichAirportInfo(segment.arrivalAirport);
+        const airlineInfo = await DatabaseUtils.enrichAirlineInfo(segment.airlineCode);
+        
+        return {
+          ...segment,
+          enrichedDepartureAirport: depAirportInfo,
+          enrichedArrivalAirport: arrAirportInfo,
+          enrichedAirline: airlineInfo
+        };
+      } catch (error) {
+        console.warn(`Failed to enrich segment ${segment.flightNumber}:`, error);
+        return segment;
+      }
+    }));
+    
+    console.log(`✅ Successfully enriched ${enrichedSegments.length} segments`);
+    return enrichedSegments;
   }
 
   private static generateNoFlightInfoEmail(clientName: string): string {
@@ -167,6 +197,12 @@ export class EmailTemplateGenerator {
     const operatingAirline = segment.operatingAirline ? `<br><small>Operated by ${segment.operatingAirline}</small>` : '';
     const duration = segment.duration ? `<span class="duration">⏱️ ${segment.duration}</span>` : '';
 
+    // Use enriched data if available, fallback to original
+    const departureAirportDisplay = segment.enrichedDepartureAirport?.fullDisplay || this.getAirportName(segment.departureAirport);
+    const arrivalAirportDisplay = segment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(segment.arrivalAirport);
+    const airlineDisplay = segment.enrichedAirline?.fullDisplay || this.getAirlineName(segment.airlineCode);
+    const airlineLogo = segment.enrichedAirline?.logo_url ? `<img src="${segment.enrichedAirline.logo_url}" alt="${segment.enrichedAirline.name}" class="airline-logo">` : '';
+
     return `
     <div class="segment-card">
         <div class="segment-header">
@@ -176,8 +212,11 @@ export class EmailTemplateGenerator {
         
         <div class="flight-info">
             <div class="airline-flight">
-                <strong>${segment.flightNumber}</strong> - ${this.getAirlineName(segment.airlineCode)}
-                ${operatingAirline}
+                ${airlineLogo}
+                <div class="flight-details-text">
+                    <strong>${segment.flightNumber}</strong> - ${airlineDisplay}
+                    ${operatingAirline}
+                </div>
             </div>
             <div class="flight-details">
                 ${aircraftInfo}
@@ -189,7 +228,7 @@ export class EmailTemplateGenerator {
         <div class="time-info">
             <div class="departure">
                 <div class="time">${segment.departureTime}</div>
-                <div class="airport">${this.getAirportName(segment.departureAirport)}</div>
+                <div class="airport">${departureAirportDisplay}</div>
                 <div class="date">${formattedDate}</div>
             </div>
             <div class="flight-path">
@@ -197,7 +236,7 @@ export class EmailTemplateGenerator {
             </div>
             <div class="arrival">
                 <div class="time">${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''}</div>
-                <div class="airport">${this.getAirportName(segment.arrivalAirport)}</div>
+                <div class="airport">${arrivalAirportDisplay}</div>
                 <div class="status">${this.getStatusDescription(segment.statusCode)}</div>
             </div>
         </div>
@@ -205,17 +244,20 @@ export class EmailTemplateGenerator {
     `;
   }
 
-  private static generateLayoverCard(airport: string, layoverTime: number): string {
+  private static async generateLayoverCard(airport: string, layoverTime: number): Promise<string> {
     const hours = Math.floor(layoverTime / 60);
     const minutes = layoverTime % 60;
     const layoverDisplay = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+    // Get enriched airport information
+    const airportInfo = await DatabaseUtils.enrichAirportInfo(airport);
 
     return `
     <div class="layover-card">
         <div class="layover-info">
             <span class="layover-icon">🕐</span>
             <span class="layover-text">
-                <strong>Layover in ${this.getAirportName(airport)}</strong><br>
+                <strong>Layover in ${airportInfo.fullDisplay}</strong><br>
                 Connection time: ${layoverDisplay}
             </span>
         </div>
@@ -254,11 +296,13 @@ export class EmailTemplateGenerator {
     
     // Add departure airport
     const firstSegment = segments[0];
+    const departureDisplay = firstSegment.enrichedDepartureAirport?.fullDisplay || this.getAirportName(firstSegment.departureAirport);
+    
     pathContent += `
       <div class="path-item">
         <div class="airport-info start">
           <div class="airport-code">${firstSegment.departureAirport}</div>
-          <div class="airport-name">${this.getAirportName(firstSegment.departureAirport)}</div>
+          <div class="airport-name">${departureDisplay}</div>
           <div class="flight-time">Depart: ${firstSegment.departureTime}</div>
         </div>
       </div>
@@ -266,12 +310,16 @@ export class EmailTemplateGenerator {
     
     // Add each flight segment with connection
     segments.forEach((segment, index) => {
+      const arrivalDisplay = segment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(segment.arrivalAirport);
+      const airlineDisplay = segment.enrichedAirline?.name || this.getAirlineName(segment.airlineCode);
+      
       pathContent += `
         <div class="flight-connection">
           <div class="flight-line">
             <div class="plane-icon">✈️</div>
             <div class="flight-details">
               <div class="flight-number">${segment.flightNumber}</div>
+              <div class="airline-name">${airlineDisplay}</div>
               <div class="flight-duration">${segment.duration || 'TBD'}</div>
             </div>
           </div>
@@ -280,7 +328,7 @@ export class EmailTemplateGenerator {
         <div class="path-item">
           <div class="airport-info ${index === segments.length - 1 ? 'final' : 'transit'}">
             <div class="airport-code">${segment.arrivalAirport}</div>
-            <div class="airport-name">${this.getAirportName(segment.arrivalAirport)}</div>
+            <div class="airport-name">${arrivalDisplay}</div>
             <div class="flight-time">
               ${index === segments.length - 1 ? 'Arrive:' : 'Transit:'} 
               ${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''}
@@ -295,7 +343,7 @@ export class EmailTemplateGenerator {
       `;
     });
 
-    // Generate clean route string
+    // Generate clean route string with enriched airport codes
     const routeString = [firstSegment.departureAirport]
       .concat(segments.map(s => s.arrivalAirport))
       .join(' → ');
@@ -523,6 +571,20 @@ export class EmailTemplateGenerator {
         .airline-flight {
             font-size: 16px;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .airline-logo {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+        
+        .flight-details-text {
+            flex: 1;
         }
         
         .flight-details {
