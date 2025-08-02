@@ -7,13 +7,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import LoadingProgress from './LoadingProgress';
+import ErrorDisplay from './ErrorDisplay';
+import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { SabreParser, type ParsedItinerary } from '@/utils/sabreParser';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { DatabaseUtils } from '@/utils/databaseUtils';
 import { EmailTemplateGenerator, type SabreOption } from '@/utils/emailTemplateGenerator';
+import { PerformanceMonitor } from '@/utils/performanceMonitor';
+import { ErrorHandler, ErrorType } from '@/utils/errorHandler';
+import { ValidationUtils } from '@/utils/validationUtils';
+import { logger } from '@/utils/logger';
 
 interface Quote {
   id: string;
@@ -66,73 +74,141 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
   const [personalMessage, setPersonalMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [processedQuotes, setProcessedQuotes] = useState<Quote[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStatus, setProcessingStatus] = useState('');
+  const [errors, setErrors] = useState<string[]>([]);
 
-  // Process quotes with enhanced Sabre parser on mount
+  // Process quotes with enhanced Sabre parser and comprehensive error handling
   useEffect(() => {
     const processQuotes = async () => {
-      console.log("🔄 Processing quotes with enhanced Sabre parser...");
-      const enhanced = await Promise.all(quotes.map(async (quote) => {
-        const enhanced = { ...quote };
-        
-        if (quote.sabre_data) {
-          console.log(`📋 Processing Sabre data for quote ${quote.id}:`);
-          console.log(quote.sabre_data);
-          
-          try {
-            // Try enhanced parser first
-            const parsed = await EnhancedSabreParser.parseIFormatWithDatabase(quote.sabre_data);
-            if (parsed) {
-              enhanced.parsedItinerary = parsed;
-              console.log(`✅ Enhanced parser: ${parsed.segments.length} segments for quote ${quote.id}`);
-              console.log(`🛫 Route: ${parsed.route}`);
-              
-              // Save to database
-              try {
-                const userId = (await supabase.auth.getUser()).data.user?.id;
-                if (userId && parsed.segments.length > 0) {
-                  await DatabaseUtils.saveFlightOption({
-                    user_id: userId,
-                    quote_id: quote.id,
-                    parsed_segments: parsed.segments,
-                    route_label: parsed.route,
-                    total_duration: parsed.totalSegments,
-                    raw_pnr_text: quote.sabre_data,
-                    currency: 'USD'
-                  });
-                  console.log(`💾 Saved flight option to database for quote ${quote.id}`);
-                }
-              } catch (dbError) {
-                console.warn(`⚠️ Could not save to database for quote ${quote.id}:`, dbError);
-              }
-            } else {
-              throw new Error("Enhanced parser returned null");
-            }
-          } catch (enhancedError) {
-            console.log(`⚠️ Enhanced parser failed for quote ${quote.id}, falling back...`);
-            
-            // Fallback to original parser
-            const parsed = SabreParser.parseIFormat(quote.sabre_data);
-            if (parsed) {
-              enhanced.parsedItinerary = parsed;
-              console.log(`✅ Fallback parser: ${parsed.segments.length} segments for quote ${quote.id}`);
-              console.log(`🛫 Route: ${parsed.route}`);
-            } else {
-              console.log(`❌ Both parsers failed for quote ${quote.id}`);
-            }
-          }
-        } else {
-          console.log(`⚠️ No Sabre data available for quote ${quote.id}`);
-        }
-        
-        return enhanced;
-      }));
+      if (quotes.length === 0) return;
       
-      setProcessedQuotes(enhanced);
-      setSelectedQuotes(enhanced.map(q => q.id));
+      setIsProcessing(true);
+      setProcessingProgress(0);
+      setProcessingStatus('Initializing quote processing...');
+      setErrors([]);
+      
+      logger.info("Starting quote processing with enhanced Sabre parser", { quoteCount: quotes.length });
+      
+      try {
+        const enhanced = await Promise.all(quotes.map(async (quote, index) => {
+          const enhanced = { ...quote };
+          
+          setProcessingProgress((index / quotes.length) * 50); // First 50% for parsing
+          setProcessingStatus(`Processing quote ${index + 1} of ${quotes.length}...`);
+          
+          if (quote.sabre_data) {
+            logger.info(`Processing Sabre data for quote ${quote.id}`);
+            
+            try {
+              // Validate quote data first
+              const quoteValidation = ValidationUtils.validateQuoteData(quote);
+              if (!quoteValidation.isValid) {
+                throw ErrorHandler.createError(
+                  ErrorType.VALIDATION_ERROR,
+                  `Invalid quote data: ${quoteValidation.errors.join(', ')}`,
+                  { quoteId: quote.id, errors: quoteValidation.errors }
+                );
+              }
+              
+              // Try enhanced parser with performance monitoring
+              const parsed = await PerformanceMonitor.measureAsync(
+                `parse-quote-${quote.id}`,
+                () => EnhancedSabreParser.parseIFormatWithDatabase(quote.sabre_data!)
+              );
+              
+              if (parsed) {
+                enhanced.parsedItinerary = parsed;
+                logger.info(`Enhanced parser success for quote ${quote.id}`, {
+                  segments: parsed.segments.length,
+                  route: parsed.route
+                });
+                
+                // Save to database with enhanced error handling
+                setProcessingProgress((index / quotes.length) * 50 + 25); // 75% total
+                setProcessingStatus(`Saving flight data for quote ${index + 1}...`);
+                
+                try {
+                  const userId = (await supabase.auth.getUser()).data.user?.id;
+                  if (userId && parsed.segments.length > 0) {
+                    await DatabaseUtils.saveFlightOption({
+                      user_id: userId,
+                      quote_id: quote.id,
+                      parsed_segments: parsed.segments,
+                      route_label: parsed.route,
+                      total_duration: parsed.totalSegments,
+                      raw_pnr_text: quote.sabre_data,
+                      currency: 'USD'
+                    });
+                    logger.info(`Saved flight option to database for quote ${quote.id}`);
+                  }
+                } catch (dbError) {
+                  logger.warn(`Could not save to database for quote ${quote.id}`, { error: dbError.message });
+                }
+              } else {
+                throw ErrorHandler.createError(
+                  ErrorType.PARSING_ERROR,
+                  'Enhanced parser returned null',
+                  { quoteId: quote.id }
+                );
+              }
+            } catch (enhancedError) {
+              logger.warn(`Enhanced parser failed for quote ${quote.id}, falling back`, { error: enhancedError.message });
+              setErrors(prev => [...prev, `Failed to process quote ${quote.id}: ${ErrorHandler.getUserMessage(enhancedError)}`]);
+              
+              // Fallback to original parser
+              try {
+                const parsed = SabreParser.parseIFormat(quote.sabre_data!);
+                if (parsed) {
+                  enhanced.parsedItinerary = parsed;
+                  logger.info(`Fallback parser success for quote ${quote.id}`, {
+                    segments: parsed.segments.length,
+                    route: parsed.route
+                  });
+                } else {
+                  logger.error(`Both parsers failed for quote ${quote.id}`);
+                }
+              } catch (fallbackError) {
+                logger.error(`Fallback parser also failed for quote ${quote.id}`, { error: fallbackError.message });
+              }
+            }
+          } else {
+            logger.warn(`No Sabre data available for quote ${quote.id}`);
+          }
+          
+          return enhanced;
+        }));
+        
+        setProcessedQuotes(enhanced);
+        setSelectedQuotes(enhanced.map(q => q.id));
+        setProcessingProgress(100);
+        setProcessingStatus('Quote processing completed');
+        
+        logger.info("Completed quote processing", { 
+          totalQuotes: enhanced.length,
+          enhancedQuotes: enhanced.filter(q => q.parsedItinerary).length
+        });
+        
+      } catch (error) {
+        logger.error("Quote processing failed", { error: error.message });
+        setErrors(prev => [...prev, 'Failed to process quotes. Please try again.']);
+        await ErrorHandler.handleError(error, 'quote-processing');
+      } finally {
+        setIsProcessing(false);
+      }
     };
     
     processQuotes();
   }, [quotes]);
+
+  const retryProcessing = () => {
+    setErrors([]);
+    setIsProcessing(false);
+    setProcessingProgress(0);
+    // This will trigger the useEffect to run again
+    setProcessedQuotes([]);
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -441,6 +517,25 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full p-6">
           {/* Left Panel - Email Composition */}
           <div className="space-y-6">
+            {/* Loading Progress */}
+            {isProcessing && (
+              <LoadingProgress 
+                progress={processingProgress}
+                status={processingStatus}
+                showSteps={true}
+              />
+            )}
+            
+            {/* Error Display */}
+            {errors.length > 0 && (
+              <ErrorDisplay 
+                errors={errors}
+                onRetry={retryProcessing}
+                onDismiss={() => setErrors([])}
+                showDetails={true}
+              />
+            )}
+            
             <Card>
               <CardHeader>
                 <CardTitle>Email Composition</CardTitle>

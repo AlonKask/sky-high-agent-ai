@@ -1,93 +1,140 @@
 import { FlightSegment, ParsedItinerary } from './sabreParser';
 import { DatabaseUtils, AirlineInfo, AirportInfo } from './databaseUtils';
+import { PerformanceMonitor } from './performanceMonitor';
+import { ErrorHandler, ErrorType } from './errorHandler';
+import { ValidationUtils } from './validationUtils';
+import { logger } from './logger';
 
 export class EnhancedSabreParser {
   
   static async parseIFormatWithDatabase(rawItinerary: string): Promise<ParsedItinerary | null> {
-    console.log("=== ENHANCED SABRE PARSER WITH DATABASE v3.0 ===");
-    console.log("Raw input:", rawItinerary);
+    const operationId = `sabre-parse-${Date.now()}`;
+    logger.info("Starting enhanced Sabre parser with database integration", { operationId });
     
-    if (!rawItinerary || !rawItinerary.trim()) {
-      console.log("Empty input provided");
-      return null;
-    }
-    
-    try {
-      // Enhanced input cleaning
-      let cleaned = rawItinerary
-        .replace(/^\*IA[«»]?\s*/, '')
-        .replace(/^\s*I\s*/, '')
-        .replace(/^\s*IA\s*/, '')
-        .replace(/^\s*\*[A-Z]+\s*/, '')
-        .trim();
-      
-      if (!cleaned) {
-        console.log("No content after cleaning");
-        return null;
-      }
-      
-      // Split and filter lines
-      const lines = cleaned
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => {
-          return line.length > 10 && 
-                 !line.startsWith('OPERATED BY') &&
-                 !line.startsWith('SEAT MAP') &&
-                 !line.startsWith('MEAL') &&
-                 /\d+[A-Z]{2}\s*\d+/.test(line);
-        });
-      
-      console.log(`Processing ${lines.length} lines:`, lines);
-      
-      const segments: FlightSegment[] = [];
-      
-      // Parse each line
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        console.log(`\n=== Processing line ${i + 1}: "${line}" ===`);
-        
-        const segmentData = await this.parseFlightLineWithDatabase(line);
-        if (segmentData.length > 0) {
-          segments.push(...segmentData);
-          console.log(`✓ Parsed ${segmentData.length} segment(s):`);
-        } else {
-          console.log(`✗ Could not parse line: "${line}"`);
+    return await PerformanceMonitor.measureAsync('sabre-parsing', async () => {
+      try {
+        // Input validation
+        const validation = ValidationUtils.validateSabreInput(rawItinerary);
+        if (!validation.isValid) {
+          throw ErrorHandler.createError(
+            ErrorType.VALIDATION_ERROR,
+            `Invalid Sabre input: ${validation.errors.join(', ')}`,
+            { input: rawItinerary.substring(0, 100), errors: validation.errors },
+            'The flight data format is invalid. Please check and try again.'
+          );
         }
-      }
-      
-      if (segments.length === 0) {
-        console.log("No valid segments found");
+
+        const sanitizedInput = ValidationUtils.sanitizeInput(rawItinerary);
+        if (!sanitizedInput) {
+          throw ErrorHandler.createError(
+            ErrorType.VALIDATION_ERROR,
+            'Empty or invalid input after sanitization',
+            { originalInput: rawItinerary }
+          );
+        }
+    
+        // Enhanced input cleaning with error handling
+        let cleaned = sanitizedInput
+          .replace(/^\*IA[«»]?\s*/, '')
+          .replace(/^\s*I\s*/, '')
+          .replace(/^\s*IA\s*/, '')
+          .replace(/^\s*\*[A-Z]+\s*/, '')
+          .trim();
+        
+        if (!cleaned) {
+          throw ErrorHandler.createError(
+            ErrorType.PARSING_ERROR,
+            'No valid content found after cleaning input',
+            { originalInput: rawItinerary, cleanedInput: cleaned }
+          );
+        }
+        
+        // Split and filter lines with enhanced validation
+        const lines = cleaned
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => {
+            return line.length > 10 && 
+                   !line.startsWith('OPERATED BY') &&
+                   !line.startsWith('SEAT MAP') &&
+                   !line.startsWith('MEAL') &&
+                   /\d+[A-Z]{2}\s*\d+/.test(line);
+          });
+        
+        logger.info(`Processing ${lines.length} flight lines`, { lines: lines.length, operationId });
+        
+        const segments: FlightSegment[] = [];
+        
+        // Parse each line with error handling
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          logger.debug(`Processing flight line ${i + 1}`, { line, operationId });
+          
+          try {
+            const segmentData = await this.parseFlightLineWithDatabase(line);
+            if (segmentData.length > 0) {
+              segments.push(...segmentData);
+              logger.info(`Successfully parsed ${segmentData.length} segments from line ${i + 1}`, { operationId });
+            } else {
+              logger.warn(`Could not parse flight line ${i + 1}`, { line, operationId });
+            }
+          } catch (error) {
+            logger.error(`Error parsing flight line ${i + 1}`, { line, error: error.message, operationId });
+            // Continue processing other lines instead of failing completely
+            continue;
+          }
+        }
+        
+        if (segments.length === 0) {
+          throw ErrorHandler.createError(
+            ErrorType.PARSING_ERROR,
+            'No valid flight segments could be parsed',
+            { lines, operationId },
+            'Unable to extract flight information from the provided data.'
+          );
+        }
+        
+        // Enhanced post-processing with database data and error handling
+        try {
+          await PerformanceMonitor.measureAsync('database-enhancement', () =>
+            this.enhanceSegmentsWithDatabaseData(segments)
+          );
+        } catch (error) {
+          logger.warn('Database enhancement failed, continuing with basic data', { error: error.message, operationId });
+        }
+        
+        try {
+          this.calculateLayoverTimes(segments);
+        } catch (error) {
+          logger.warn('Layover calculation failed', { error: error.message, operationId });
+        }
+        
+        const route = this.generateEnhancedRoute(segments);
+        const isRoundTrip = this.isRoundTrip(segments);
+        const totalDuration = this.calculateTotalDuration(segments);
+        const layoverInfo = this.getLayoverInfo(segments);
+        
+        logger.info('Successfully completed Sabre parsing', {
+          segments: segments.length,
+          route,
+          isRoundTrip,
+          totalDuration,
+          operationId
+        });
+        
+        return {
+          segments,
+          totalSegments: segments.length,
+          route,
+          isRoundTrip,
+          totalDuration,
+          layoverInfo
+        };
+      } catch (error) {
+        await ErrorHandler.handleError(error, 'enhanced-sabre-parsing');
         return null;
       }
-      
-      // Enhanced post-processing with database data
-      await this.enhanceSegmentsWithDatabaseData(segments);
-      this.calculateLayoverTimes(segments);
-      
-      const route = this.generateEnhancedRoute(segments);
-      const isRoundTrip = this.isRoundTrip(segments);
-      const totalDuration = this.calculateTotalDuration(segments);
-      const layoverInfo = this.getLayoverInfo(segments);
-      
-      console.log(`\n=== FINAL RESULT ===`);
-      console.log(`✓ Successfully parsed ${segments.length} segments`);
-      console.log(`✓ Route: ${route}`);
-      console.log(`✓ Round trip: ${isRoundTrip}`);
-      console.log(`✓ Total duration: ${totalDuration}`);
-      
-      return {
-        segments,
-        totalSegments: segments.length,
-        route,
-        isRoundTrip,
-        totalDuration,
-        layoverInfo
-      };
-    } catch (error) {
-      console.error("Enhanced parser error:", error);
-      return null;
-    }
+    });
   }
 
   private static async parseFlightLineWithDatabase(line: string): Promise<FlightSegment[]> {
@@ -325,28 +372,58 @@ export class EnhancedSabreParser {
   }
 
   private static async enhanceSegmentsWithDatabaseData(segments: FlightSegment[]): Promise<void> {
-    console.log("🔄 Enhancing segments with database data...");
+    logger.info("Enhancing segments with database data", { segmentCount: segments.length });
     
-    for (const segment of segments) {
-      // Get airline information
-      const airlineInfo = await DatabaseUtils.getAirlineInfo(segment.airlineCode);
-      if (airlineInfo) {
-        segment.operatingAirline = airlineInfo.name;
-        console.log(`✓ Enhanced airline: ${segment.airlineCode} → ${airlineInfo.name}`);
-      }
-      
-      // Get airport information and calculate distance/duration
-      const depAirport = await DatabaseUtils.getAirportInfo(segment.departureAirport);
-      const arrAirport = await DatabaseUtils.getAirportInfo(segment.arrivalAirport);
-      
-      if (depAirport && arrAirport) {
-        const distance = DatabaseUtils.calculateDistance(depAirport, arrAirport);
-        segment.duration = DatabaseUtils.estimateFlightDuration(distance);
-        segment.aircraftType = this.estimateAircraftType(distance);
+    const enhancementPromises = segments.map(async (segment, index) => {
+      try {
+        // Get airline information with timeout
+        const airlinePromise = DatabaseUtils.getAirlineInfo(segment.airlineCode);
+        const airlineInfo = await Promise.race([
+          airlinePromise,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+        ]);
         
-        console.log(`✓ Enhanced route: ${segment.departureAirport}-${segment.arrivalAirport}, ${distance}km, ${segment.duration}`);
+        if (airlineInfo) {
+          segment.operatingAirline = airlineInfo.name;
+          logger.debug(`Enhanced airline for segment ${index + 1}`, { 
+            code: segment.airlineCode, 
+            name: airlineInfo.name 
+          });
+        }
+        
+        // Get airport information with timeout
+        const [depAirportPromise, arrAirportPromise] = [
+          DatabaseUtils.getAirportInfo(segment.departureAirport),
+          DatabaseUtils.getAirportInfo(segment.arrivalAirport)
+        ];
+        
+        const [depAirport, arrAirport] = await Promise.race([
+          Promise.all([depAirportPromise, arrAirportPromise]),
+          new Promise<[null, null]>((resolve) => setTimeout(() => resolve([null, null]), 3000))
+        ]);
+        
+        if (depAirport && arrAirport) {
+          const distance = DatabaseUtils.calculateDistance(depAirport, arrAirport);
+          segment.duration = DatabaseUtils.estimateFlightDuration(distance);
+          segment.aircraftType = this.estimateAircraftType(distance);
+          
+          logger.debug(`Enhanced route for segment ${index + 1}`, { 
+            route: `${segment.departureAirport}-${segment.arrivalAirport}`,
+            distance: `${distance}km`,
+            duration: segment.duration
+          });
+        }
+      } catch (error) {
+        logger.warn(`Failed to enhance segment ${index + 1}`, { 
+          segment: `${segment.departureAirport}-${segment.arrivalAirport}`,
+          error: error.message 
+        });
+        // Continue with next segment
       }
-    }
+    });
+    
+    await Promise.allSettled(enhancementPromises);
+    logger.info("Completed segment enhancement");
   }
 
   private static async extractSegmentDataWithDatabase(match: RegExpMatchArray): Promise<FlightSegment> {
