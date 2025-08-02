@@ -247,38 +247,64 @@ export class EmailTemplateGenerator {
   private static generateFlightPath(segments: any[]): string {
     if (!segments || segments.length === 0) return '';
     
-    const pathItems = segments.map((segment, index) => {
-      const isLastSegment = index === segments.length - 1;
-      return `
-        <div class="path-item">
-          <div class="airport-info">
-            <div class="airport-code">${segment.departureAirport}</div>
-            <div class="airport-name">${this.getAirportName(segment.departureAirport)}</div>
-            <div class="flight-time">${segment.departureTime}</div>
-          </div>
-          ${!isLastSegment ? `
-            <div class="flight-arrow">
-              <div class="flight-line"></div>
-              <div class="plane-icon">✈️</div>
+    // Enhanced flight path with all airports in sequence
+    let pathContent = '';
+    
+    // Add first airport
+    const firstSegment = segments[0];
+    pathContent += `
+      <div class="path-item">
+        <div class="airport-info start">
+          <div class="airport-code">${firstSegment.departureAirport}</div>
+          <div class="airport-name">${this.getAirportName(firstSegment.departureAirport)}</div>
+          <div class="flight-time">${firstSegment.departureTime}</div>
+        </div>
+      </div>
+    `;
+    
+    // Add flight segments and intermediate airports
+    segments.forEach((segment, index) => {
+      pathContent += `
+        <div class="flight-connection">
+          <div class="flight-line">
+            <div class="plane-icon">✈️</div>
+            <div class="flight-details">
               <div class="flight-number">${segment.flightNumber}</div>
+              <div class="flight-duration">${segment.duration || 'Flight time'}</div>
             </div>
-          ` : ''}
-          ${isLastSegment ? `
-            <div class="airport-info final">
-              <div class="airport-code">${segment.arrivalAirport}</div>
-              <div class="airport-name">${this.getAirportName(segment.arrivalAirport)}</div>
-              <div class="flight-time">${segment.arrivalTime}</div>
-            </div>
-          ` : ''}
+          </div>
+        </div>
+        
+        <div class="path-item">
+          <div class="airport-info ${index === segments.length - 1 ? 'final' : 'transit'}">
+            <div class="airport-code">${segment.arrivalAirport}</div>
+            <div class="airport-name">${this.getAirportName(segment.arrivalAirport)}</div>
+            <div class="flight-time">${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''}</div>
+            ${index < segments.length - 1 && segment.layoverTime ? `
+              <div class="layover-time">
+                Layover: ${Math.floor(segment.layoverTime / 60)}h ${segment.layoverTime % 60}m
+              </div>
+            ` : ''}
+          </div>
         </div>
       `;
-    }).join('');
+    });
 
     return `
     <div class="flight-path-container">
-        <h3>🛫 Your Journey</h3>
-        <div class="flight-path">
-            ${pathItems}
+        <h3>🛫 Your Complete Journey</h3>
+        <div class="flight-path-visual">
+            ${pathContent}
+        </div>
+        <div class="journey-summary">
+          <div class="summary-item">
+            <span class="label">Total Segments:</span>
+            <span class="value">${segments.length} flights</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Route:</span>
+            <span class="value">${segments.map(s => s.departureAirport).concat(segments[segments.length - 1].arrivalAirport).join(' → ')}</span>
+          </div>
         </div>
     </div>
     `;
@@ -809,6 +835,125 @@ export class EmailTemplateGenerator {
             .flight-details {
                 justify-content: center;
             }
+            
+            .flight-path-visual {
+                padding: 15px;
+            }
+            
+            .airport-info {
+                min-width: 100px;
+                padding: 10px;
+            }
+        }
+        
+        .flight-path-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+        
+        .flight-connection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .flight-line {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            border-left: 3px dashed #6c757d;
+            margin: 5px 0;
+        }
+        
+        .flight-details {
+            text-align: center;
+            margin-top: 5px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .flight-number {
+            font-weight: bold;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .flight-duration {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .airport-info {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 120px;
+            margin: 5px 0;
+        }
+        
+        .airport-info.start {
+            background: #e7f5e7;
+            border: 2px solid #28a745;
+        }
+        
+        .airport-info.transit {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+        }
+        
+        .airport-info.final {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+        
+        .layover-time {
+            font-size: 11px;
+            color: #e67e22;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+        
+        .journey-summary {
+            display: flex;
+            justify-content: space-around;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .summary-item {
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .summary-item .label {
+            display: block;
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .summary-item .value {
+            font-weight: bold;
+            color: #495057;
+            font-size: 14px;
         }
     `;
   }

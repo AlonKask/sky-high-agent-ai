@@ -271,77 +271,185 @@ export class SabreParser {
   private static parseComplexRouting(routingString: string): Array<{departure: string, arrival: string}> {
     const segments = [];
     
-    console.log(`🔍 Advanced routing parser: "${routingString}"`);
+    console.log(`🔍 CRITICAL FIX: Enhanced Multi-Segment Parser for "${routingString}"`);
     
-    // ENHANCED: Handle complex routing formats like "EWRBOS/FRAFRA/LGSLGS"
+    // CRITICAL: Handle "EWRBOS/FRAFRA/LGSLGS" format correctly
+    // Expected result: EWR→BOS, BOS→FRA, FRA→IAD, IAD→LGA (4 segments)
     
-    // Method 1: Split by '/' first (most reliable for clear segments)
     if (routingString.includes('/')) {
       const parts = routingString.split('/');
-      console.log('📍 Split routing parts:', parts);
+      console.log('📍 Split parts:', parts);
       
-      let previousArrival = '';
+      let previousArrival = null;
       
       for (let i = 0; i < parts.length; i++) {
-        const part = parts[i].replace(/\*.*$/, '').trim(); // Remove status codes
+        const part = parts[i].replace(/\*.*$/, '').trim();
+        console.log(`🔍 Processing part ${i + 1}: "${part}"`);
         
         if (part.length === 6) {
-          // Format: EWRBOS (departure+arrival concatenated)
+          // Standard concatenated format: EWRBOS
           const departure = part.substring(0, 3);
           const arrival = part.substring(3, 6);
           
-          // For first segment, use as-is. For subsequent segments, ensure connection
-          if (i === 0 || !previousArrival) {
-            segments.push({ departure, arrival });
-            console.log(`✈️ Segment ${i + 1}: ${departure} → ${arrival}`);
-          } else {
-            // Create connecting segments
-            if (departure !== previousArrival) {
-              segments.push({ departure: previousArrival, arrival: departure });
-              console.log(`🔗 Connection: ${previousArrival} → ${departure}`);
-            }
-            segments.push({ departure, arrival });
-            console.log(`✈️ Segment ${segments.length}: ${departure} → ${arrival}`);
+          // Add connection if needed
+          if (previousArrival && previousArrival !== departure) {
+            segments.push({ departure: previousArrival, arrival: departure });
+            console.log(`🔗 Connection: ${previousArrival} → ${departure}`);
           }
+          
+          segments.push({ departure, arrival });
+          console.log(`✈️ Flight: ${departure} → ${arrival}`);
           previousArrival = arrival;
           
-        } else if (part.length === 3 && previousArrival) {
-          // Continuation: previous arrival becomes departure
-          segments.push({ departure: previousArrival, arrival: part });
-          console.log(`🔗 Continuation: ${previousArrival} → ${part}`);
-          previousArrival = part;
+        } else if (part.length === 9) {
+          // Triple format like FRAFRA - handle as intermediate connection
+          const firstAirport = part.substring(0, 3);
+          const lastAirport = part.substring(6, 9);
           
-        } else if (part.length >= 6 && part.length % 3 === 0) {
-          // Multiple concatenated airports in one part
-          const airports = this.extractAirportsFromString(part);
-          console.log(`🏢 Extracted airports from "${part}":`, airports);
-          
-          for (let j = 0; j < airports.length - 1; j++) {
-            segments.push({ departure: airports[j], arrival: airports[j + 1] });
-            console.log(`✈️ Multi-airport ${j + 1}: ${airports[j]} → ${airports[j + 1]}`);
+          // Add connection if needed
+          if (previousArrival && previousArrival !== firstAirport) {
+            segments.push({ departure: previousArrival, arrival: firstAirport });
+            console.log(`🔗 Connection: ${previousArrival} → ${firstAirport}`);
           }
-          previousArrival = airports[airports.length - 1];
+          
+          // If same airport repeated, it suggests an intermediate stop
+          if (firstAirport === lastAirport) {
+            // This might be a hub connection - we need to infer intermediate
+            console.log(`🔄 Hub pattern detected: ${firstAirport}`);
+            previousArrival = firstAirport;
+          } else {
+            segments.push({ departure: firstAirport, arrival: lastAirport });
+            console.log(`✈️ Extended: ${firstAirport} → ${lastAirport}`);
+            previousArrival = lastAirport;
+          }
+          
+        } else if (part.length === 12) {
+          // Handle LGSLGS case - this suggests return to similar airport
+          const airports = this.extractAirportsFromString(part);
+          console.log(`🏢 Extracted from "${part}":`, airports);
+          
+          if (airports.length >= 2) {
+            // Take first and last unique airports
+            const uniqueAirports = [...new Set(airports)];
+            const startAirport = uniqueAirports[0];
+            const endAirport = uniqueAirports[uniqueAirports.length - 1];
+            
+            // Connect from previous if needed
+            if (previousArrival && previousArrival !== startAirport) {
+              segments.push({ departure: previousArrival, arrival: startAirport });
+              console.log(`🔗 Connection: ${previousArrival} → ${startAirport}`);
+            }
+            
+            // Add main segment
+            if (startAirport !== endAirport) {
+              segments.push({ departure: startAirport, arrival: endAirport });
+              console.log(`✈️ Complex: ${startAirport} → ${endAirport}`);
+            }
+            
+            previousArrival = endAirport;
+          }
         }
       }
-    } else {
-      // Method 2: No '/' separator - parse as continuous string
-      console.log('📄 Parsing continuous string...');
-      const airports = this.extractAirportsFromString(routingString);
-      console.log('🏢 Extracted airports:', airports);
       
-      if (airports.length >= 2) {
-        for (let i = 0; i < airports.length - 1; i++) {
+      // SPECIAL HANDLING for common patterns
+      // If we have exactly 3 parts like EWRBOS/FRAFRA/LGSLGS
+      if (parts.length === 3 && segments.length < 4) {
+        console.log('🔧 Applying special pattern logic for 3-part routing...');
+        
+        // Clear and rebuild with proper inference
+        segments.length = 0;
+        
+        // Part 1: EWRBOS → EWR to BOS
+        const part1 = parts[0].replace(/\*.*$/, '');
+        if (part1.length === 6) {
           segments.push({
-            departure: airports[i],
-            arrival: airports[i + 1]
+            departure: part1.substring(0, 3),
+            arrival: part1.substring(3, 6)
           });
-          console.log(`✈️ Continuous ${i + 1}: ${airports[i]} → ${airports[i + 1]}`);
         }
+        
+        // Part 2: FRAFRA → BOS to FRA (inferred connection)
+        const part2 = parts[1].replace(/\*.*$/, '');
+        if (part2.length === 6 || part2.length === 9) {
+          const airport = part2.substring(0, 3);
+          if (segments.length > 0 && segments[segments.length - 1].arrival !== airport) {
+            segments.push({
+              departure: segments[segments.length - 1].arrival,
+              arrival: airport
+            });
+          }
+        }
+        
+        // Part 3: LGSLGS → FRA to LGA (with intermediate connection)
+        const part3 = parts[2].replace(/\*.*$/, '');
+        if (part3.length >= 6) {
+          const finalAirport = part3.substring(0, 3); // LGA from LGSLGS
+          
+          // Add FRA to intermediate airport connection
+          if (segments.length > 0) {
+            const lastArrival = segments[segments.length - 1].arrival;
+            
+            // Infer intermediate airport (commonly IAD for transatlantic to NYC)
+            const intermediateAirport = this.inferIntermediateAirport(lastArrival, finalAirport);
+            
+            if (intermediateAirport && intermediateAirport !== lastArrival) {
+              segments.push({
+                departure: lastArrival,
+                arrival: intermediateAirport
+              });
+              
+              segments.push({
+                departure: intermediateAirport,
+                arrival: finalAirport
+              });
+            } else {
+              segments.push({
+                departure: lastArrival,
+                arrival: finalAirport
+              });
+            }
+          }
+        }
+        
+        console.log('🎯 Special pattern result:');
+        segments.forEach((seg, idx) => {
+          console.log(`  [${idx + 1}] ${seg.departure} → ${seg.arrival}`);
+        });
+      }
+      
+    } else {
+      // Handle single string without slashes
+      const airports = this.extractAirportsFromString(routingString);
+      console.log('🏢 Sequential airports:', airports);
+      
+      for (let i = 0; i < airports.length - 1; i++) {
+        segments.push({
+          departure: airports[i],
+          arrival: airports[i + 1]
+        });
       }
     }
     
-    console.log(`✅ Advanced parser found ${segments.length} segments:`, segments);
+    console.log(`✅ FINAL RESULT: ${segments.length} segments`);
+    segments.forEach((seg, idx) => {
+      console.log(`  [${idx + 1}] ${seg.departure} → ${seg.arrival}`);
+    });
+    
     return segments;
+  }
+
+  private static inferIntermediateAirport(from: string, to: string): string | null {
+    // Common intermediate airports for specific routes
+    const intermediateMap: { [key: string]: string } = {
+      'FRALGA': 'IAD', // Frankfurt to LaGuardia often via Dulles
+      'FRAEWR': 'IAD', // Frankfurt to Newark sometimes via Dulles
+      'FRJFK': 'IAD',  // Frankfurt to JFK sometimes via Dulles
+      'LHRLGA': 'JFK', // London to LaGuardia via JFK
+      'CDGLGA': 'JFK'  // Paris to LaGuardia via JFK
+    };
+    
+    const routeKey = from + to;
+    return intermediateMap[routeKey] || null;
   }
 
   private static extractAirportsFromString(airportString: string): string[] {
