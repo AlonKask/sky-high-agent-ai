@@ -47,6 +47,9 @@ interface Quote {
   adult_price?: number;
   child_price?: number;
   infant_price?: number;
+  adult_net_price?: number;
+  child_net_price?: number;
+  infant_net_price?: number;
   number_of_bags?: number;
   weight_of_bags?: number;
   award_program?: string;
@@ -124,39 +127,59 @@ const SabreOptionManager = ({
 
   const [newQuote, setNewQuote] = useState(initialQuoteState);
 
-  // Auto-calculate total net price and markup when per-passenger pricing changes
+  // Calculate total net price when per-passenger net pricing is used
   useEffect(() => {
     const hasPerPassengerNetPricing = newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price;
-    const hasPerPassengerSellingPricing = newQuote.adult_price || newQuote.child_price || newQuote.infant_price;
     
-    if (hasPerPassengerNetPricing && hasPerPassengerSellingPricing) {
-      // Calculate total net price
+    if (hasPerPassengerNetPricing) {
       const totalNetPrice = 
-        (newQuote.adult_net_price || 0) * (newQuote.adults_count || 0) +
-        (newQuote.child_net_price || 0) * (newQuote.children_count || 0) +
-        (newQuote.infant_net_price || 0) * (newQuote.infants_count || 0);
-
-      // Calculate total selling price
-      const totalSellingPrice = 
-        (newQuote.adult_price || 0) * (newQuote.adults_count || 0) +
-        (newQuote.child_price || 0) * (newQuote.children_count || 0) +
-        (newQuote.infant_price || 0) * (newQuote.infants_count || 0);
-
-      // Calculate total markup
-      const totalMarkup = totalSellingPrice - totalNetPrice;
+        (Number(newQuote.adult_net_price) || 0) * (Number(newQuote.adults_count) || 0) +
+        (Number(newQuote.child_net_price) || 0) * (Number(newQuote.children_count) || 0) +
+        (Number(newQuote.infant_net_price) || 0) * (Number(newQuote.infants_count) || 0);
 
       setNewQuote(prev => ({
         ...prev,
-        net_price: Math.round(totalNetPrice * 100) / 100,
-        markup: Math.round(totalMarkup * 100) / 100,
-        total_price: Math.round(totalSellingPrice * 100) / 100
+        net_price: Number(totalNetPrice.toFixed(2))
       }));
     }
   }, [
     newQuote.adult_net_price, newQuote.child_net_price, newQuote.infant_net_price,
+    newQuote.adults_count, newQuote.children_count, newQuote.infants_count
+  ]);
+
+  // Calculate total selling price when per-passenger selling pricing is used
+  useEffect(() => {
+    const hasPerPassengerSellingPricing = newQuote.adult_price || newQuote.child_price || newQuote.infant_price;
+    
+    if (hasPerPassengerSellingPricing) {
+      const totalSellingPrice = 
+        (Number(newQuote.adult_price) || 0) * (Number(newQuote.adults_count) || 0) +
+        (Number(newQuote.child_price) || 0) * (Number(newQuote.children_count) || 0) +
+        (Number(newQuote.infant_price) || 0) * (Number(newQuote.infants_count) || 0);
+
+      setNewQuote(prev => ({
+        ...prev,
+        total_price: Number(totalSellingPrice.toFixed(2))
+      }));
+    }
+  }, [
     newQuote.adult_price, newQuote.child_price, newQuote.infant_price,
     newQuote.adults_count, newQuote.children_count, newQuote.infants_count
   ]);
+
+  // Calculate markup when both net and selling prices are available
+  useEffect(() => {
+    const totalPrice = Number(newQuote.total_price) || 0;
+    const netPrice = Number(newQuote.net_price) || 0;
+    
+    if (totalPrice && netPrice) {
+      const markup = totalPrice - netPrice;
+      setNewQuote(prev => ({
+        ...prev,
+        markup: Number(markup.toFixed(2))
+      }));
+    }
+  }, [newQuote.total_price, newQuote.net_price]);
 
   // Effect to handle editing quote when passed from parent
   useEffect(() => {
@@ -623,9 +646,11 @@ const SabreOptionManager = ({
                       />
                       {(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
                         <p className="text-xs text-muted-foreground">
-                          {newQuote.adults_count && newQuote.adult_net_price ? `${newQuote.adults_count} Adults × $${newQuote.adult_net_price}` : ''}
-                          {newQuote.children_count && newQuote.child_net_price ? ` + ${newQuote.children_count} Children × $${newQuote.child_net_price}` : ''}
-                          {newQuote.infants_count && newQuote.infant_net_price ? ` + ${newQuote.infants_count} Infants × $${newQuote.infant_net_price}` : ''}
+                          {[
+                            newQuote.adults_count && newQuote.adult_net_price ? `${newQuote.adults_count} Adults × $${Number(newQuote.adult_net_price).toFixed(2)}` : null,
+                            newQuote.children_count && newQuote.child_net_price ? `${newQuote.children_count} Children × $${Number(newQuote.child_net_price).toFixed(2)}` : null,
+                            newQuote.infants_count && newQuote.infant_net_price ? `${newQuote.infants_count} Infants × $${Number(newQuote.infant_net_price).toFixed(2)}` : null
+                          ].filter(Boolean).join(' + ')} = ${Number(newQuote.net_price || 0).toFixed(2)}
                         </p>
                       )}
                     </div>
