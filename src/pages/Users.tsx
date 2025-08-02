@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole, UserRole } from '@/hooks/useUserRole';
 import { useRoleView } from '@/contexts/RoleViewContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ interface UserData {
 }
 
 const Users = () => {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { role } = useUserRole();
   const { selectedViewRole } = useRoleView();
@@ -374,7 +375,11 @@ const Users = () => {
             </TableHeader>
             <TableBody>
               {filteredUsers.map((userData) => (
-                <TableRow key={userData.id}>
+                <TableRow 
+                  key={userData.id}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate(`/users/${userData.id}`)}
+                >
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -400,12 +405,12 @@ const Users = () => {
                   <TableCell>
                     {new Date(userData.created_at).toLocaleDateString()}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Select
-                        value={userData.user_roles?.[0]?.role || 'user'}
-                        onValueChange={(value: UserRole) => updateUserRole(userData.id, value)}
-                      >
+                   <TableCell>
+                     <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                       <Select
+                         value={userData.user_roles?.[0]?.role || 'user'}
+                         onValueChange={(value: UserRole) => updateUserRole(userData.id, value)}
+                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
                         </SelectTrigger>
