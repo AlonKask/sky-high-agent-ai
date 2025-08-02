@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -127,59 +127,59 @@ const SabreOptionManager = ({
 
   const [newQuote, setNewQuote] = useState(initialQuoteState);
 
-  // Calculate total net price when per-passenger net pricing is used
-  useEffect(() => {
+  // Calculate derived values using useMemo to avoid infinite loops
+  const calculatedTotalNetPrice = useMemo(() => {
     const hasPerPassengerNetPricing = newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price;
     
     if (hasPerPassengerNetPricing) {
-      const totalNetPrice = 
-        (Number(newQuote.adult_net_price) || 0) * (Number(newQuote.adults_count) || 0) +
-        (Number(newQuote.child_net_price) || 0) * (Number(newQuote.children_count) || 0) +
-        (Number(newQuote.infant_net_price) || 0) * (Number(newQuote.infants_count) || 0);
-
-      setNewQuote(prev => ({
-        ...prev,
-        net_price: Number(totalNetPrice.toFixed(2))
-      }));
+      return (Number(newQuote.adult_net_price) || 0) * (Number(newQuote.adults_count) || 0) +
+             (Number(newQuote.child_net_price) || 0) * (Number(newQuote.children_count) || 0) +
+             (Number(newQuote.infant_net_price) || 0) * (Number(newQuote.infants_count) || 0);
     }
+    return Number(newQuote.net_price) || 0;
   }, [
     newQuote.adult_net_price, newQuote.child_net_price, newQuote.infant_net_price,
-    newQuote.adults_count, newQuote.children_count, newQuote.infants_count
+    newQuote.adults_count, newQuote.children_count, newQuote.infants_count,
+    newQuote.net_price
   ]);
 
-  // Calculate total selling price when per-passenger selling pricing is used
-  useEffect(() => {
+  const calculatedTotalSellingPrice = useMemo(() => {
     const hasPerPassengerSellingPricing = newQuote.adult_price || newQuote.child_price || newQuote.infant_price;
     
     if (hasPerPassengerSellingPricing) {
-      const totalSellingPrice = 
-        (Number(newQuote.adult_price) || 0) * (Number(newQuote.adults_count) || 0) +
-        (Number(newQuote.child_price) || 0) * (Number(newQuote.children_count) || 0) +
-        (Number(newQuote.infant_price) || 0) * (Number(newQuote.infants_count) || 0);
-
-      setNewQuote(prev => ({
-        ...prev,
-        total_price: Number(totalSellingPrice.toFixed(2))
-      }));
+      return (Number(newQuote.adult_price) || 0) * (Number(newQuote.adults_count) || 0) +
+             (Number(newQuote.child_price) || 0) * (Number(newQuote.children_count) || 0) +
+             (Number(newQuote.infant_price) || 0) * (Number(newQuote.infants_count) || 0);
     }
+    return Number(newQuote.total_price) || 0;
   }, [
     newQuote.adult_price, newQuote.child_price, newQuote.infant_price,
-    newQuote.adults_count, newQuote.children_count, newQuote.infants_count
+    newQuote.adults_count, newQuote.children_count, newQuote.infants_count,
+    newQuote.total_price
   ]);
 
-  // Calculate markup when both net and selling prices are available
-  useEffect(() => {
-    const totalPrice = Number(newQuote.total_price) || 0;
-    const netPrice = Number(newQuote.net_price) || 0;
+  const calculatedMarkup = useMemo(() => {
+    const totalPrice = calculatedTotalSellingPrice;
+    const netPrice = calculatedTotalNetPrice;
     
     if (totalPrice && netPrice) {
-      const markup = totalPrice - netPrice;
-      setNewQuote(prev => ({
-        ...prev,
-        markup: Number(markup.toFixed(2))
-      }));
+      return totalPrice - netPrice;
     }
-  }, [newQuote.total_price, newQuote.net_price]);
+    return Number(newQuote.markup) || 0;
+  }, [calculatedTotalSellingPrice, calculatedTotalNetPrice, newQuote.markup]);
+
+  // Helper functions to determine if values are auto-calculated
+  const isNetPriceAutoCalculated = useMemo(() => {
+    return !!(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price);
+  }, [newQuote.adult_net_price, newQuote.child_net_price, newQuote.infant_net_price]);
+
+  const isTotalPriceAutoCalculated = useMemo(() => {
+    return !!(newQuote.adult_price || newQuote.child_price || newQuote.infant_price);
+  }, [newQuote.adult_price, newQuote.child_price, newQuote.infant_price]);
+
+  const isMarkupAutoCalculated = useMemo(() => {
+    return calculatedTotalSellingPrice > 0 && calculatedTotalNetPrice > 0;
+  }, [calculatedTotalSellingPrice, calculatedTotalNetPrice]);
 
   // Effect to handle editing quote when passed from parent
   useEffect(() => {
@@ -371,11 +371,11 @@ const SabreOptionManager = ({
         format: newQuote.format,
         quote_type: newQuote.quote_type,
         fare_type: newQuote.fare_type,
-        net_price: newQuote.net_price || 0,
-        markup: newQuote.markup || 0,
+        net_price: isNetPriceAutoCalculated ? calculatedTotalNetPrice : (newQuote.net_price || 0),
+        markup: isMarkupAutoCalculated ? calculatedMarkup : (newQuote.markup || 0),
         ck_fee_enabled: newQuote.ck_fee_enabled,
         ck_fee_amount: newQuote.ck_fee_amount || 0,
-        total_price: newQuote.total_price || 0,
+        total_price: isTotalPriceAutoCalculated ? calculatedTotalSellingPrice : (newQuote.total_price || 0),
         status: newQuote.status,
         adults_count: newQuote.adults_count,
         children_count: newQuote.children_count,
@@ -428,11 +428,11 @@ const SabreOptionManager = ({
         format: newQuote.format,
         quote_type: newQuote.quote_type,
         fare_type: newQuote.fare_type,
-        net_price: newQuote.net_price || 0,
-        markup: newQuote.markup || 0,
+        net_price: isNetPriceAutoCalculated ? calculatedTotalNetPrice : (newQuote.net_price || 0),
+        markup: isMarkupAutoCalculated ? calculatedMarkup : (newQuote.markup || 0),
         ck_fee_enabled: newQuote.ck_fee_enabled,
         ck_fee_amount: newQuote.ck_fee_amount || 0,
-        total_price: newQuote.total_price || 0,
+        total_price: isTotalPriceAutoCalculated ? calculatedTotalSellingPrice : (newQuote.total_price || 0),
         status: newQuote.status,
         adults_count: newQuote.adults_count,
         children_count: newQuote.children_count,
@@ -631,7 +631,7 @@ const SabreOptionManager = ({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Label>Total Net Price</Label>
-                        {(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                        {isNetPriceAutoCalculated && (
                           <Badge variant="secondary" className="text-xs">Auto-calculated</Badge>
                         )}
                       </div>
@@ -639,18 +639,18 @@ const SabreOptionManager = ({
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        value={newQuote.net_price || ""}
+                        value={isNetPriceAutoCalculated ? calculatedTotalNetPrice.toFixed(2) : (newQuote.net_price || "")}
                         onChange={(e) => setNewQuote(prev => ({ ...prev, net_price: e.target.value ? parseFloat(e.target.value) : null }))}
-                        readOnly={!!(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price)}
-                        className={`${(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) ? 'bg-muted cursor-not-allowed' : ''}`}
+                        readOnly={isNetPriceAutoCalculated}
+                        className={`${isNetPriceAutoCalculated ? 'bg-muted cursor-not-allowed' : ''}`}
                       />
-                      {(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                      {isNetPriceAutoCalculated && (
                         <p className="text-xs text-muted-foreground">
                           {[
                             newQuote.adults_count && newQuote.adult_net_price ? `${newQuote.adults_count} Adults × $${Number(newQuote.adult_net_price).toFixed(2)}` : null,
                             newQuote.children_count && newQuote.child_net_price ? `${newQuote.children_count} Children × $${Number(newQuote.child_net_price).toFixed(2)}` : null,
                             newQuote.infants_count && newQuote.infant_net_price ? `${newQuote.infants_count} Infants × $${Number(newQuote.infant_net_price).toFixed(2)}` : null
-                          ].filter(Boolean).join(' + ')} = ${Number(newQuote.net_price || 0).toFixed(2)}
+                          ].filter(Boolean).join(' + ')} = ${calculatedTotalNetPrice.toFixed(2)}
                         </p>
                       )}
                     </div>
@@ -658,7 +658,7 @@ const SabreOptionManager = ({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Label>Total Markup</Label>
-                        {(newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                        {isMarkupAutoCalculated && (
                           <Badge variant="secondary" className="text-xs">Auto-calculated</Badge>
                         )}
                       </div>
@@ -666,14 +666,14 @@ const SabreOptionManager = ({
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        value={newQuote.markup || ""}
+                        value={isMarkupAutoCalculated ? calculatedMarkup.toFixed(2) : (newQuote.markup || "")}
                         onChange={(e) => setNewQuote(prev => ({ ...prev, markup: e.target.value ? parseFloat(e.target.value) : null }))}
-                        readOnly={!!((newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price))}
-                        className={`${((newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price)) ? 'bg-muted cursor-not-allowed' : ''}`}
+                        readOnly={isMarkupAutoCalculated}
+                        className={`${isMarkupAutoCalculated ? 'bg-muted cursor-not-allowed' : ''}`}
                       />
-                      {(newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                      {isMarkupAutoCalculated && (
                         <p className="text-xs text-muted-foreground">
-                          Total Selling - Total Net = ${newQuote.markup ? Number(newQuote.markup).toFixed(2) : '0.00'}
+                          Total Selling (${calculatedTotalSellingPrice.toFixed(2)}) - Total Net (${calculatedTotalNetPrice.toFixed(2)}) = ${calculatedMarkup.toFixed(2)}
                         </p>
                       )}
                     </div>
@@ -812,7 +812,7 @@ const SabreOptionManager = ({
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-blue-800">Total Selling Price:</span>
                       <span className="text-2xl font-bold text-blue-800">
-                        ${newQuote.total_price ? Number(newQuote.total_price).toFixed(2) : "0.00"}
+                        ${isTotalPriceAutoCalculated ? calculatedTotalSellingPrice.toFixed(2) : (newQuote.total_price ? Number(newQuote.total_price).toFixed(2) : "0.00")}
                       </span>
                     </div>
                   </div>
