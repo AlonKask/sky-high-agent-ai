@@ -614,15 +614,6 @@ const SabreOptionManager = ({
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Pricing & Passenger Details</h4>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={calculateSellingPrice}
-                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                    >
-                      Calculate Price
-                    </Button>
                   </div>
                   
                   {/* Basic Pricing */}
@@ -919,17 +910,6 @@ const SabreOptionManager = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={calculateSellingPrice}
-                    className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                  >
-                    Calculate Total
-                  </Button>
-                </div>
 
                 {/* Total Price Display for Award */}
                 <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">

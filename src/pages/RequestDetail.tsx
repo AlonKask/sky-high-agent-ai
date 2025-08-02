@@ -35,6 +35,7 @@ import { QuoteCard } from '@/components/QuoteCard';
 
 import { SabreParser } from '@/utils/sabreParser';
 import SabreOptionManager from '@/components/SabreOptionManager';
+import UnifiedEmailBuilder from '@/components/UnifiedEmailBuilder';
 
 const RequestDetail = () => {
   const { id } = useParams();
@@ -52,6 +53,7 @@ const RequestDetail = () => {
   const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
+  const [showEmailBuilder, setShowEmailBuilder] = useState(false);
   const [newQuote, setNewQuote] = useState({
     route: '',
     fare_type: 'revenue',
@@ -659,13 +661,26 @@ const RequestDetail = () => {
                       }
                     </CardDescription>
                   </div>
-                  <Button 
-                    onClick={() => setShowQuoteDialog(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Option
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {selectedQuotes.size > 0 && (
+                      <Button 
+                        onClick={() => {
+                          setShowEmailBuilder(true);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={() => setShowQuoteDialog(true)}
+                      className="flex items-center"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -884,6 +899,24 @@ const RequestDetail = () => {
           setEditingQuote(null);
         }}
       />
+
+      {/* Email Builder Modal */}
+      {showEmailBuilder && (
+        <UnifiedEmailBuilder
+          clientId={request.client_id}
+          requestId={id}
+          quotes={quotes.filter(quote => selectedQuotes.has(quote.id)).map(q => ({
+            ...q,
+            total_price: Number(q.total_price),
+            net_price: Number(q.net_price),
+            markup: Number(q.markup),
+            ck_fee_amount: Number(q.ck_fee_amount),
+            valid_until: q.valid_until || ""
+          }))}
+          client={client}
+          onCancel={() => setShowEmailBuilder(false)}
+        />
+      )}
 
     </div>
   );
