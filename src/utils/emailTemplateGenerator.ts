@@ -124,7 +124,7 @@ export class EmailTemplateGenerator {
         ${flightPath}
         
         <div class="segments-container">
-            <h2>✈️ Flight Options</h2>
+            <h2>✈️ Flight Details</h2>
             ${segmentCards}
         </div>
 
@@ -247,22 +247,24 @@ export class EmailTemplateGenerator {
   private static generateFlightPath(segments: any[]): string {
     if (!segments || segments.length === 0) return '';
     
-    // Enhanced flight path with all airports in sequence
+    console.log(`🗺️ Generating flight path for ${segments.length} segments`);
+    
+    // Build horizontal flight path with all stops
     let pathContent = '';
     
-    // Add first airport
+    // Add departure airport
     const firstSegment = segments[0];
     pathContent += `
       <div class="path-item">
         <div class="airport-info start">
           <div class="airport-code">${firstSegment.departureAirport}</div>
           <div class="airport-name">${this.getAirportName(firstSegment.departureAirport)}</div>
-          <div class="flight-time">${firstSegment.departureTime}</div>
+          <div class="flight-time">Depart: ${firstSegment.departureTime}</div>
         </div>
       </div>
     `;
     
-    // Add flight segments and intermediate airports
+    // Add each flight segment with connection
     segments.forEach((segment, index) => {
       pathContent += `
         <div class="flight-connection">
@@ -270,7 +272,7 @@ export class EmailTemplateGenerator {
             <div class="plane-icon">✈️</div>
             <div class="flight-details">
               <div class="flight-number">${segment.flightNumber}</div>
-              <div class="flight-duration">${segment.duration || 'Flight time'}</div>
+              <div class="flight-duration">${segment.duration || 'TBD'}</div>
             </div>
           </div>
         </div>
@@ -279,16 +281,24 @@ export class EmailTemplateGenerator {
           <div class="airport-info ${index === segments.length - 1 ? 'final' : 'transit'}">
             <div class="airport-code">${segment.arrivalAirport}</div>
             <div class="airport-name">${this.getAirportName(segment.arrivalAirport)}</div>
-            <div class="flight-time">${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''}</div>
+            <div class="flight-time">
+              ${index === segments.length - 1 ? 'Arrive:' : 'Transit:'} 
+              ${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''}
+            </div>
             ${index < segments.length - 1 && segment.layoverTime ? `
               <div class="layover-time">
-                Layover: ${Math.floor(segment.layoverTime / 60)}h ${segment.layoverTime % 60}m
+                Connection: ${Math.floor(segment.layoverTime / 60)}h ${segment.layoverTime % 60}m
               </div>
             ` : ''}
           </div>
         </div>
       `;
     });
+
+    // Generate clean route string
+    const routeString = [firstSegment.departureAirport]
+      .concat(segments.map(s => s.arrivalAirport))
+      .join(' → ');
 
     return `
     <div class="flight-path-container">
@@ -298,12 +308,12 @@ export class EmailTemplateGenerator {
         </div>
         <div class="journey-summary">
           <div class="summary-item">
-            <span class="label">Total Segments:</span>
-            <span class="value">${segments.length} flights</span>
+            <span class="label">Total Flights:</span>
+            <span class="value">${segments.length} segment${segments.length > 1 ? 's' : ''}</span>
           </div>
           <div class="summary-item">
-            <span class="label">Route:</span>
-            <span class="value">${segments.map(s => s.departureAirport).concat(segments[segments.length - 1].arrivalAirport).join(' → ')}</span>
+            <span class="label">Complete Route:</span>
+            <span class="value">${routeString}</span>
           </div>
         </div>
     </div>

@@ -269,54 +269,46 @@ export class SabreParser {
   }
 
   private static parseComplexRouting(routingString: string): Array<{departure: string, arrival: string}> {
-    console.log(`🔍 SIMPLIFIED PARSER: Processing "${routingString}"`);
+    console.log(`🔍 ENHANCED PARSER: Processing "${routingString}"`);
     
     const segments = [];
     
-    // Clean up routing string
+    // Clean up routing string - remove status codes and asterisks
     const cleaned = routingString.replace(/\*.*$/, '').trim();
+    console.log(`📋 Cleaned string: "${cleaned}"`);
     
     if (cleaned.includes('/')) {
-      // Split by forward slashes
+      // Handle slash-separated routing like "EWRBOS/FRAFRA/LGSLGS"
       const parts = cleaned.split('/').filter(part => part.length > 0);
-      console.log('📍 Parts to process:', parts);
+      console.log('📍 Slash-separated parts:', parts);
       
       for (const part of parts) {
         if (part.length === 6) {
-          // Standard XXXYYY format
+          // Standard DEPAAR format (EWR+BOS, FRA+FRA, LGS+LGS)
           const departure = part.substring(0, 3);
           const arrival = part.substring(3, 6);
           segments.push({ departure, arrival });
           console.log(`✈️ Added segment: ${departure} → ${arrival}`);
-        } else if (part.length >= 6) {
-          // Extract first and last 3 characters for complex strings
-          const departure = part.substring(0, 3);
-          const arrival = part.substring(part.length - 3);
-          segments.push({ departure, arrival });
-          console.log(`✈️ Added segment: ${departure} → ${arrival}`);
-        }
-      }
-      
-      // Connect segments if they don't naturally connect
-      for (let i = 0; i < segments.length - 1; i++) {
-        const current = segments[i];
-        const next = segments[i + 1];
-        
-        if (current.arrival !== next.departure) {
-          // Insert connection segment
-          const connection = { departure: current.arrival, arrival: next.departure };
-          segments.splice(i + 1, 0, connection);
-          console.log(`🔗 Added connection: ${connection.departure} → ${connection.arrival}`);
-          i++; // Skip the inserted segment
+        } else if (part.length > 6 && part.length % 3 === 0) {
+          // Multiple airports concatenated
+          const airportCount = part.length / 3;
+          for (let i = 0; i < airportCount - 1; i++) {
+            const departure = part.substring(i * 3, (i + 1) * 3);
+            const arrival = part.substring((i + 1) * 3, (i + 2) * 3);
+            segments.push({ departure, arrival });
+            console.log(`✈️ Added multi-segment: ${departure} → ${arrival}`);
+          }
         }
       }
     } else {
-      // Handle single concatenated string
+      // Handle concatenated string without slashes
       if (cleaned.length >= 6 && cleaned.length % 3 === 0) {
         const airports = [];
         for (let i = 0; i < cleaned.length; i += 3) {
           airports.push(cleaned.substring(i, i + 3));
         }
+        
+        console.log('📍 Extracted airports:', airports);
         
         // Create segments between consecutive airports
         for (let i = 0; i < airports.length - 1; i++) {
@@ -324,11 +316,12 @@ export class SabreParser {
             departure: airports[i],
             arrival: airports[i + 1]
           });
+          console.log(`✈️ Sequential segment: ${airports[i]} → ${airports[i + 1]}`);
         }
       }
     }
     
-    console.log(`✅ FINAL RESULT: ${segments.length} segments`);
+    console.log(`✅ PARSER RESULT: ${segments.length} segments created`);
     segments.forEach((seg, idx) => {
       console.log(`  [${idx + 1}] ${seg.departure} → ${seg.arrival}`);
     });
@@ -983,80 +976,48 @@ export class SabreParser {
     const startMinutes = this.timeToMinutes(startTime);
     let endMinutes = this.timeToMinutes(endTime);
     
-    // Handle day rollover
+    // Handle next-day arrival
     if (endMinutes < startMinutes) {
       endMinutes += 24 * 60; // Add 24 hours for next day
     }
     
-    const totalMinutes = endMinutes - startMinutes;
-    console.log(`Total journey: ${totalMinutes} minutes`);
+    const journeyTotalMinutes = endMinutes - startMinutes;
+    console.log(`📊 Total journey time: ${journeyTotalMinutes} minutes`);
     
-    // Realistic layover times: 60-120 minutes depending on segment
-    const layoverTimes = [];
-    for (let i = 0; i < segmentCount - 1; i++) {
-      // Progressive layover times: 90min base + 15min per segment
-      layoverTimes.push(90 + (i * 15));
-    }
+    // Realistic layover and flight time distribution
+    const minLayover = 60; // 1 hour minimum
+    const avgLayover = 90; // 1.5 hours average
+    const totalLayovers = (segmentCount - 1) * avgLayover;
+    const availableFlightTime = Math.max(segmentCount * 60, journeyTotalMinutes - totalLayovers);
     
-    const totalLayoverTime = layoverTimes.reduce((sum, time) => sum + time, 0);
-    const totalFlightTime = totalMinutes - totalLayoverTime;
+    const avgFlightTime = Math.floor(availableFlightTime / segmentCount);
     
-    if (totalFlightTime <= 0) {
-      // Fallback: equal distribution
-      const avgSegmentTime = Math.floor(totalMinutes / segmentCount);
-      const results = [];
-      let currentTime = startMinutes;
-      
-      for (let i = 0; i < segmentCount; i++) {
-        const departure = this.minutesToTime(currentTime % (24 * 60));
-        currentTime += avgSegmentTime;
-        const arrival = this.minutesToTime(currentTime % (24 * 60));
-        results.push({ departure, arrival });
-      }
-      return results;
-    }
+    console.log(`⏱️ Average flight time per segment: ${avgFlightTime} minutes`);
     
-    // Distribute flight time based on realistic segment durations
-    const segmentDurations = [];
-    const baseFlightTime = Math.floor(totalFlightTime / segmentCount);
+    const timeIntervals = [];
+    let activeTime = startMinutes;
     
     for (let i = 0; i < segmentCount; i++) {
-      // Vary flight times: shorter domestic, longer international
-      let variation = 1.0;
-      if (i === 0) variation = 0.8; // First segment often shorter
-      if (i === Math.floor(segmentCount / 2)) variation = 1.4; // Middle segment often longer (transatlantic)
-      if (i === segmentCount - 1) variation = 0.9; // Last segment medium
+      const departure = this.minutesToTime(activeTime);
       
-      segmentDurations.push(Math.floor(baseFlightTime * variation));
-    }
-    
-    // Adjust to match total flight time
-    const currentTotal = segmentDurations.reduce((sum, time) => sum + time, 0);
-    const adjustment = totalFlightTime - currentTotal;
-    if (adjustment !== 0) {
-      segmentDurations[segmentDurations.length - 1] += adjustment;
-    }
-    
-    // Generate time intervals
-    const results = [];
-    let currentTime = startMinutes;
-    
-    for (let i = 0; i < segmentCount; i++) {
-      const departure = this.minutesToTime(currentTime % (24 * 60));
-      currentTime += segmentDurations[i];
-      const arrival = this.minutesToTime(currentTime % (24 * 60));
+      // Vary flight times slightly for realism
+      const flightDuration = Math.max(60, avgFlightTime + (i % 2 === 0 ? 15 : -15));
+      activeTime += flightDuration;
       
-      results.push({ departure, arrival });
+      const arrival = this.minutesToTime(activeTime);
       
-      // Add layover for next segment
+      timeIntervals.push({ departure, arrival });
+      console.log(`🛫 Segment ${i + 1}: ${departure} → ${arrival} (${flightDuration}min)`);
+      
+      // Add layover for next segment (except last)
       if (i < segmentCount - 1) {
-        currentTime += layoverTimes[i];
+        const layoverTime = i === 0 ? avgLayover : minLayover;
+        activeTime += layoverTime;
+        console.log(`⏳ Layover: ${layoverTime} minutes`);
       }
-      
-      console.log(`Segment ${i + 1}: ${departure} → ${arrival} (${segmentDurations[i]}min flight + ${layoverTimes[i] || 0}min layover)`);
     }
     
-    return results;
+    return timeIntervals;
   }
 
   private static timeToMinutes(timeStr: string): number {
