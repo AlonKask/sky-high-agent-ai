@@ -11,6 +11,8 @@ import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X }
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { SabreParser, type ParsedItinerary } from '@/utils/sabreParser';
+import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
+import { DatabaseUtils } from '@/utils/databaseUtils';
 import { EmailTemplateGenerator, type SabreOption } from '@/utils/emailTemplateGenerator';
 
 interface Quote {
@@ -61,33 +63,71 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [processedQuotes, setProcessedQuotes] = useState<Quote[]>([]);
 
-  // Process quotes with Sabre parser on mount
+  // Process quotes with enhanced Sabre parser on mount
   useEffect(() => {
-    console.log("🔄 Processing quotes with Sabre parser...");
-    const enhanced = quotes.map(quote => {
-      const enhanced = { ...quote };
-      
-      if (quote.sabre_data) {
-        console.log(`📋 Processing Sabre data for quote ${quote.id}:`);
-        console.log(quote.sabre_data);
+    const processQuotes = async () => {
+      console.log("🔄 Processing quotes with enhanced Sabre parser...");
+      const enhanced = await Promise.all(quotes.map(async (quote) => {
+        const enhanced = { ...quote };
         
-        const parsed = SabreParser.parseIFormat(quote.sabre_data);
-        if (parsed) {
-          enhanced.parsedItinerary = parsed;
-          console.log(`✅ Successfully parsed ${parsed.segments.length} segments for quote ${quote.id}`);
-          console.log(`🛫 Route: ${parsed.route}`);
+        if (quote.sabre_data) {
+          console.log(`📋 Processing Sabre data for quote ${quote.id}:`);
+          console.log(quote.sabre_data);
+          
+          try {
+            // Try enhanced parser first
+            const parsed = await EnhancedSabreParser.parseIFormatWithDatabase(quote.sabre_data);
+            if (parsed) {
+              enhanced.parsedItinerary = parsed;
+              console.log(`✅ Enhanced parser: ${parsed.segments.length} segments for quote ${quote.id}`);
+              console.log(`🛫 Route: ${parsed.route}`);
+              
+              // Save to database
+              try {
+                const userId = (await supabase.auth.getUser()).data.user?.id;
+                if (userId && parsed.segments.length > 0) {
+                  await DatabaseUtils.saveFlightOption({
+                    user_id: userId,
+                    quote_id: quote.id,
+                    parsed_segments: parsed.segments,
+                    route_label: parsed.route,
+                    total_duration: parsed.totalSegments,
+                    raw_pnr_text: quote.sabre_data,
+                    currency: 'USD'
+                  });
+                  console.log(`💾 Saved flight option to database for quote ${quote.id}`);
+                }
+              } catch (dbError) {
+                console.warn(`⚠️ Could not save to database for quote ${quote.id}:`, dbError);
+              }
+            } else {
+              throw new Error("Enhanced parser returned null");
+            }
+          } catch (enhancedError) {
+            console.log(`⚠️ Enhanced parser failed for quote ${quote.id}, falling back...`);
+            
+            // Fallback to original parser
+            const parsed = SabreParser.parseIFormat(quote.sabre_data);
+            if (parsed) {
+              enhanced.parsedItinerary = parsed;
+              console.log(`✅ Fallback parser: ${parsed.segments.length} segments for quote ${quote.id}`);
+              console.log(`🛫 Route: ${parsed.route}`);
+            } else {
+              console.log(`❌ Both parsers failed for quote ${quote.id}`);
+            }
+          }
         } else {
-          console.log(`❌ Failed to parse Sabre data for quote ${quote.id}`);
+          console.log(`⚠️ No Sabre data available for quote ${quote.id}`);
         }
-      } else {
-        console.log(`⚠️ No Sabre data available for quote ${quote.id}`);
-      }
+        
+        return enhanced;
+      }));
       
-      return enhanced;
-    });
+      setProcessedQuotes(enhanced);
+      setSelectedQuotes(enhanced.map(q => q.id));
+    };
     
-    setProcessedQuotes(enhanced);
-    setSelectedQuotes(enhanced.map(q => q.id));
+    processQuotes();
   }, [quotes]);
 
   const formatPrice = (price: number) => {
