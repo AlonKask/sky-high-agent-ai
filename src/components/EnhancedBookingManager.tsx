@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +40,7 @@ interface Booking {
 }
 
 const EnhancedBookingManager = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { role } = useUserRole();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -125,7 +127,10 @@ const EnhancedBookingManager = () => {
   };
 
   const BookingCard = ({ booking }: { booking: Booking }) => (
-    <Card className="card-elevated hover:shadow-large transition-all duration-200 cursor-pointer">
+    <Card 
+      className="card-elevated hover:shadow-large transition-all duration-200 cursor-pointer"
+      onClick={() => navigate(`/bookings/${booking.id}`)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -191,10 +196,23 @@ const EnhancedBookingManager = () => {
         )}
 
         <div className="pt-2 border-t flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/bookings/${booking.id}`);
+            }}
+          >
             View Details
           </Button>
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={(e) => e.stopPropagation()}
+          >
             Contact Client
           </Button>
         </div>
