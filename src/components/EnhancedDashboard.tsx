@@ -531,7 +531,11 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               ) : activeRequests.length > 0 ? (
                 <div className="grid gap-4">
                   {activeRequests.slice(0, 3).map((request) => (
-                    <div key={request.id} className="p-6 border-2 rounded-xl hover:border-accent hover:shadow-md transition-all duration-200 cursor-pointer bg-gradient-to-r hover:from-accent/5 hover:to-primary/5">
+                    <div 
+                      key={request.id} 
+                      className="p-6 border-2 rounded-xl hover:border-accent hover:shadow-md transition-all duration-200 cursor-pointer bg-gradient-to-r hover:from-accent/5 hover:to-primary/5"
+                      onClick={() => navigate(`/request/${request.id}`)}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10">
