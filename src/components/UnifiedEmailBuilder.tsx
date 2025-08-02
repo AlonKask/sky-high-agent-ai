@@ -10,6 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SabreParser, type ParsedItinerary } from '@/utils/sabreParser';
+import { EmailTemplateGenerator, type SabreOption } from '@/utils/emailTemplateGenerator';
 
 interface Quote {
   id: string;
@@ -23,6 +25,8 @@ interface Quote {
   markup: number;
   ck_fee_amount: number;
   ck_fee_enabled: boolean;
+  sabre_data?: string;
+  parsedItinerary?: ParsedItinerary;
 }
 
 interface Client {
@@ -55,10 +59,35 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
   const [emailSubject, setEmailSubject] = useState('Your Travel Options - Select Business Class');
   const [personalMessage, setPersonalMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [processedQuotes, setProcessedQuotes] = useState<Quote[]>([]);
 
-  // Auto-select all quotes initially
+  // Process quotes with Sabre parser on mount
   useEffect(() => {
-    setSelectedQuotes(quotes.map(q => q.id));
+    console.log("🔄 Processing quotes with Sabre parser...");
+    const enhanced = quotes.map(quote => {
+      const enhanced = { ...quote };
+      
+      if (quote.sabre_data) {
+        console.log(`📋 Processing Sabre data for quote ${quote.id}:`);
+        console.log(quote.sabre_data);
+        
+        const parsed = SabreParser.parseIFormat(quote.sabre_data);
+        if (parsed) {
+          enhanced.parsedItinerary = parsed;
+          console.log(`✅ Successfully parsed ${parsed.segments.length} segments for quote ${quote.id}`);
+          console.log(`🛫 Route: ${parsed.route}`);
+        } else {
+          console.log(`❌ Failed to parse Sabre data for quote ${quote.id}`);
+        }
+      } else {
+        console.log(`⚠️ No Sabre data available for quote ${quote.id}`);
+      }
+      
+      return enhanced;
+    });
+    
+    setProcessedQuotes(enhanced);
+    setSelectedQuotes(enhanced.map(q => q.id));
   }, [quotes]);
 
   const formatPrice = (price: number) => {
@@ -89,8 +118,36 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
   };
 
   const generateEmailHTML = () => {
-    const selectedQuoteData = quotes.filter(q => selectedQuotes.includes(q.id));
+    const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
     
+    console.log("📧 Generating email HTML for quotes:", selectedQuoteData.length);
+    
+    // If we have parsed flight data, use the enhanced email template
+    if (selectedQuoteData.some(q => q.parsedItinerary)) {
+      console.log("🚀 Using enhanced email template with parsed flight data");
+      
+      return selectedQuoteData.map(quote => {
+        const sabreOption: SabreOption = {
+          id: quote.id,
+          parsedInfo: quote.parsedItinerary,
+          quoteType: "revenue",
+          sellingPrice: quote.total_price,
+          netPrice: quote.net_price,
+          markup: quote.markup,
+          fareType: quote.fare_type,
+          notes: quote.notes
+        };
+        
+        return EmailTemplateGenerator.generateItineraryEmail(sabreOption, `${client.first_name} ${client.last_name}`);
+      }).join('<div style="page-break-after: always; margin: 40px 0;"></div>');
+    }
+    
+    // Fallback to basic template
+    console.log("📋 Using basic email template");
+    return generateBasicEmailHTML(selectedQuoteData);
+  };
+
+  const generateBasicEmailHTML = (selectedQuoteData: Quote[]) => {
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -133,7 +190,16 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
                     <div class="option-content">
                         <div style="color: #6b7280; margin-bottom: 15px;">${quote.route}</div>
                         
-                        ${(quote.segments && quote.segments.length > 0) ? quote.segments.map(segment => `
+                        ${quote.parsedItinerary ? `
+                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                                <h4 style="color: #166534; margin: 0 0 10px 0;">✈️ Flight Details</h4>
+                                <div style="color: #15803d;">
+                                    <strong>Route:</strong> ${quote.parsedItinerary.route}<br>
+                                    <strong>Segments:</strong> ${quote.parsedItinerary.totalSegments} flights<br>
+                                    ${quote.parsedItinerary.totalDuration ? `<strong>Duration:</strong> ${quote.parsedItinerary.totalDuration}` : ''}
+                                </div>
+                            </div>
+                        ` : (quote.segments && quote.segments.length > 0) ? quote.segments.map(segment => `
                             <div class="flight-row">
                                 <div>
                                     <div style="font-weight: 600; color: #1f2937;">${segment.departureAirport || 'TBD'} → ${segment.arrivalAirport || 'TBD'}</div>
@@ -325,7 +391,7 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
               <CardContent>
                 <ScrollArea className="h-[300px] pr-4">
                   <div className="space-y-4">
-                    {quotes.map((quote, index) => (
+                    {processedQuotes.map((quote, index) => (
                       <Card 
                         key={quote.id} 
                         className={`cursor-pointer transition-all ${
@@ -353,15 +419,27 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
                             )}
                           </div>
                           
-                          <div className="text-sm text-muted-foreground mb-2">{quote.route}</div>
+                          <div className="text-sm text-muted-foreground mb-2">
+                            {quote.parsedItinerary ? quote.parsedItinerary.route : quote.route}
+                          </div>
+                          
+                          {quote.parsedItinerary && (
+                            <div className="text-xs text-green-600 mb-2 bg-green-50 px-2 py-1 rounded">
+                              ✅ {quote.parsedItinerary.totalSegments} segments parsed
+                            </div>
+                          )}
                           
                           <div className="flex items-center justify-between">
                             <div className="text-2xl font-bold text-primary">
                               {formatPrice(quote.total_price)}
                             </div>
                             <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Duration</div>
-                              <div className="text-sm font-medium">{formatDuration(quote.segments)}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {quote.parsedItinerary ? 'Total Duration' : 'Duration'}
+                              </div>
+                              <div className="text-sm font-medium">
+                                {quote.parsedItinerary?.totalDuration || formatDuration(quote.segments)}
+                              </div>
                             </div>
                           </div>
                         </CardContent>

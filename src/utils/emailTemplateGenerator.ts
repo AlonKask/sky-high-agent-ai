@@ -17,35 +17,55 @@ export interface SabreOption {
 
 export class EmailTemplateGenerator {
   static generateItineraryEmail(option: SabreOption, clientName: string = "Valued Client"): string {
+    console.log("📧 Generating email for option:", option.id);
+    console.log("📋 Parsed info available:", !!option.parsedInfo);
+    
     if (!option.parsedInfo || !option.parsedInfo.segments || option.parsedInfo.segments.length === 0) {
-      return `
+      console.log("⚠️ No parsed flight information available");
+      return this.generateNoFlightInfoEmail(clientName);
+    }
+
+    const { segments, totalDuration, layoverInfo, route, totalSegments } = option.parsedInfo;
+    console.log(`✅ Generating rich email with ${segments.length} segments`);
+    
+    // Generate modern HTML email template with rich flight display
+    return this.generateHtmlEmail(option, clientName, segments, totalDuration, layoverInfo, route, totalSegments);
+  }
+
+  private static generateNoFlightInfoEmail(clientName: string): string {
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flight Information Unavailable</title>
+    <title>Flight Information Processing</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-        .error-container { background: #f8f8f8; padding: 30px; border-radius: 8px; text-align: center; }
-        .error-icon { font-size: 48px; margin-bottom: 15px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f8fafc; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; }
+        .content { padding: 40px; text-align: center; }
+        .icon { font-size: 64px; margin-bottom: 20px; }
+        .message { color: #374151; line-height: 1.6; font-size: 16px; }
     </style>
 </head>
 <body>
-    <div class="error-container">
-        <div class="error-icon">✈️</div>
-        <h2>Flight Information Processing</h2>
-        <p>We're currently processing your flight details and will have your complete itinerary ready shortly.</p>
-        <p>Thank you for your patience, ${clientName}!</p>
+    <div class="container">
+        <div class="header">
+            <h1>Flight Information Processing</h1>
+        </div>
+        <div class="content">
+            <div class="icon">🛫</div>
+            <div class="message">
+                <h2>Dear ${clientName},</h2>
+                <p>We're currently processing your flight details and will have your complete itinerary with all flight information ready shortly.</p>
+                <p>You'll receive a detailed email with your flight options, including departure/arrival times, aircraft types, and layover information.</p>
+                <p><strong>Thank you for your patience!</strong></p>
+            </div>
+        </div>
     </div>
 </body>
 </html>`;
-    }
-
-    const { segments, totalDuration, layoverInfo, route, totalSegments } = option.parsedInfo;
-    
-    // Generate modern HTML email template with rich flight display
-    return this.generateHtmlEmail(option, clientName, segments, totalDuration, layoverInfo, route, totalSegments);
   }
 
   private static generateHtmlEmail(
