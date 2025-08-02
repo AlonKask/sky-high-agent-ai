@@ -124,6 +124,40 @@ const SabreOptionManager = ({
 
   const [newQuote, setNewQuote] = useState(initialQuoteState);
 
+  // Auto-calculate total net price and markup when per-passenger pricing changes
+  useEffect(() => {
+    const hasPerPassengerNetPricing = newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price;
+    const hasPerPassengerSellingPricing = newQuote.adult_price || newQuote.child_price || newQuote.infant_price;
+    
+    if (hasPerPassengerNetPricing && hasPerPassengerSellingPricing) {
+      // Calculate total net price
+      const totalNetPrice = 
+        (newQuote.adult_net_price || 0) * (newQuote.adults_count || 0) +
+        (newQuote.child_net_price || 0) * (newQuote.children_count || 0) +
+        (newQuote.infant_net_price || 0) * (newQuote.infants_count || 0);
+
+      // Calculate total selling price
+      const totalSellingPrice = 
+        (newQuote.adult_price || 0) * (newQuote.adults_count || 0) +
+        (newQuote.child_price || 0) * (newQuote.children_count || 0) +
+        (newQuote.infant_price || 0) * (newQuote.infants_count || 0);
+
+      // Calculate total markup
+      const totalMarkup = totalSellingPrice - totalNetPrice;
+
+      setNewQuote(prev => ({
+        ...prev,
+        net_price: Math.round(totalNetPrice * 100) / 100,
+        markup: Math.round(totalMarkup * 100) / 100,
+        total_price: Math.round(totalSellingPrice * 100) / 100
+      }));
+    }
+  }, [
+    newQuote.adult_net_price, newQuote.child_net_price, newQuote.infant_net_price,
+    newQuote.adult_price, newQuote.child_price, newQuote.infant_price,
+    newQuote.adults_count, newQuote.children_count, newQuote.infants_count
+  ]);
+
   // Effect to handle editing quote when passed from parent
   useEffect(() => {
     if (editingQuote && dialogOpen) {
@@ -572,25 +606,51 @@ const SabreOptionManager = ({
                   {/* Traditional Pricing (when no per-passenger pricing) */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Total Net Price</Label>
+                      <div className="flex items-center gap-2">
+                        <Label>Total Net Price</Label>
+                        {(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                          <Badge variant="secondary" className="text-xs">Auto-calculated</Badge>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         step="0.01"
                         placeholder="0.00"
                         value={newQuote.net_price || ""}
                         onChange={(e) => setNewQuote(prev => ({ ...prev, net_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                        readOnly={!!(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price)}
+                        className={`${(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) ? 'bg-muted cursor-not-allowed' : ''}`}
                       />
+                      {(newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                        <p className="text-xs text-muted-foreground">
+                          {newQuote.adults_count && newQuote.adult_net_price ? `${newQuote.adults_count} Adults × $${newQuote.adult_net_price}` : ''}
+                          {newQuote.children_count && newQuote.child_net_price ? ` + ${newQuote.children_count} Children × $${newQuote.child_net_price}` : ''}
+                          {newQuote.infants_count && newQuote.infant_net_price ? ` + ${newQuote.infants_count} Infants × $${newQuote.infant_net_price}` : ''}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Total Markup</Label>
+                      <div className="flex items-center gap-2">
+                        <Label>Total Markup</Label>
+                        {(newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                          <Badge variant="secondary" className="text-xs">Auto-calculated</Badge>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         step="0.01"
                         placeholder="0.00"
                         value={newQuote.markup || ""}
                         onChange={(e) => setNewQuote(prev => ({ ...prev, markup: e.target.value ? parseFloat(e.target.value) : null }))}
+                        readOnly={!!((newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price))}
+                        className={`${((newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price)) ? 'bg-muted cursor-not-allowed' : ''}`}
                       />
+                      {(newQuote.adult_price || newQuote.child_price || newQuote.infant_price) && (newQuote.adult_net_price || newQuote.child_net_price || newQuote.infant_net_price) && (
+                        <p className="text-xs text-muted-foreground">
+                          Total Selling - Total Net = ${newQuote.markup ? Number(newQuote.markup).toFixed(2) : '0.00'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
