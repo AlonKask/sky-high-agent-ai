@@ -95,7 +95,7 @@ const SabreOptionManager = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const initialQuoteState = {
+  const getInitialQuoteState = () => ({
     format: "I",
     content: "",
     status: "draft",
@@ -107,9 +107,9 @@ const SabreOptionManager = ({
     markup: null,
     ck_fee_amount: null,
     total_price: null,
-    adults_count: null,
-    children_count: null,
-    infants_count: null,
+    adults_count: requestData?.adults_count || 1,
+    children_count: requestData?.children_count || 0,
+    infants_count: requestData?.infants_count || 0,
     adult_price: null,
     child_price: null,
     infant_price: null,
@@ -123,9 +123,9 @@ const SabreOptionManager = ({
     award_program: "",
     number_of_points: null,
     notes: ""
-  };
+  });
 
-  const [newQuote, setNewQuote] = useState(initialQuoteState);
+  const [newQuote, setNewQuote] = useState(getInitialQuoteState);
 
   // Calculate derived values using useMemo to avoid infinite loops
   const calculatedTotalNetPrice = useMemo(() => {
@@ -196,9 +196,9 @@ const SabreOptionManager = ({
         markup: editingQuote.markup || null,
         ck_fee_amount: editingQuote.ck_fee_amount || null,
         total_price: editingQuote.total_price || null,
-        adults_count: editingQuote.adults_count || null,
-        children_count: editingQuote.children_count || null,
-        infants_count: editingQuote.infants_count || null,
+        adults_count: editingQuote.adults_count || requestData?.adults_count || 1,
+        children_count: editingQuote.children_count || requestData?.children_count || 0,
+        infants_count: editingQuote.infants_count || requestData?.infants_count || 0,
         adult_price: editingQuote.adult_price || null,
         child_price: editingQuote.child_price || null,
         infant_price: editingQuote.infant_price || null,
@@ -219,12 +219,7 @@ const SabreOptionManager = ({
 
   const resetQuoteForm = () => {
     console.log("Resetting quote form");
-    setNewQuote({
-      ...initialQuoteState,
-      adults_count: requestData?.adults_count || 1,
-      children_count: requestData?.children_count || 0,
-      infants_count: requestData?.infants_count || 0,
-    });
+    setNewQuote(getInitialQuoteState());
     setEditingId(null);
   };
 
