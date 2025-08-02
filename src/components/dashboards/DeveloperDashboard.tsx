@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Activity, Database, Users, AlertTriangle, Server, Clock, TrendingUp, Code, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRoleView } from "@/contexts/RoleViewContext";
+import { IATAManagementDialog } from "@/components/IATAManagementDialog";
 
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -32,6 +33,7 @@ export const DeveloperDashboard = () => {
     request_rate: 0
   });
   const [loading, setLoading] = useState(true);
+  const [iataDialogOpen, setIataDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -239,6 +241,25 @@ export const DeveloperDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {userRole === 'admin' && (
+        <div className="flex justify-center pt-6">
+          <Button 
+            onClick={() => setIataDialogOpen(true)}
+            variant="outline"
+            size="lg"
+            className="flex items-center gap-2"
+          >
+            <Database className="h-4 w-4" />
+            IATA
+          </Button>
+        </div>
+      )}
+
+      <IATAManagementDialog 
+        open={iataDialogOpen} 
+        onOpenChange={setIataDialogOpen} 
+      />
     </div>
   );
 };
