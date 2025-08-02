@@ -60,6 +60,7 @@ interface SabreOptionManagerProps {
   quotes: Quote[];
   requestId: string;
   clientId: string;
+  requestData?: any;
   isOpen?: boolean;
   editingQuote?: Quote | null;
   onClose?: () => void;
@@ -73,6 +74,7 @@ const SabreOptionManager = ({
   quotes,
   requestId,
   clientId,
+  requestData,
   isOpen,
   editingQuote,
   onClose,
@@ -160,7 +162,12 @@ const SabreOptionManager = ({
 
   const resetQuoteForm = () => {
     console.log("Resetting quote form");
-    setNewQuote({ ...initialQuoteState });
+    setNewQuote({
+      ...initialQuoteState,
+      adults_count: requestData?.adults_count || 1,
+      children_count: requestData?.children_count || 0,
+      infants_count: requestData?.infants_count || 0,
+    });
     setEditingId(null);
   };
 
@@ -214,17 +221,34 @@ const SabreOptionManager = ({
 
   const calculateSellingPrice = () => {
     if (newQuote.quote_type === "revenue") {
-      const netPrice = newQuote.net_price || 0;
-      const markup = newQuote.markup || 0;
-      const issuingFee = newQuote.issuing_fee || 0;
-      let sellingPrice = netPrice + markup + issuingFee;
-      if (newQuote.ck_fee_enabled) {
-        sellingPrice = sellingPrice / (1 - 0.035);
+      // Check if we have per-passenger pricing
+      const hasPassengerPricing = newQuote.adult_price || newQuote.child_price || newQuote.infant_price;
+      
+      if (hasPassengerPricing) {
+        // Calculate based on per-passenger pricing
+        const adultTotal = (newQuote.adult_price || 0) * (newQuote.adults_count || 0);
+        const childTotal = (newQuote.child_price || 0) * (newQuote.children_count || 0);
+        const infantTotal = (newQuote.infant_price || 0) * (newQuote.infants_count || 0);
+        const sellingPrice = adultTotal + childTotal + infantTotal;
+        
+        setNewQuote(prev => ({
+          ...prev,
+          total_price: Math.round(sellingPrice * 100) / 100
+        }));
+      } else {
+        // Use traditional calculation
+        const netPrice = newQuote.net_price || 0;
+        const markup = newQuote.markup || 0;
+        const issuingFee = newQuote.issuing_fee || 0;
+        let sellingPrice = netPrice + markup + issuingFee;
+        if (newQuote.ck_fee_enabled) {
+          sellingPrice = sellingPrice / (1 - 0.035);
+        }
+        setNewQuote(prev => ({
+          ...prev,
+          total_price: Math.round(sellingPrice * 100) / 100
+        }));
       }
-      setNewQuote(prev => ({
-        ...prev,
-        total_price: Math.round(sellingPrice * 100) / 100
-      }));
     } else if (newQuote.quote_type === "award") {
       const taxes = newQuote.taxes || 0;
       const markup = newQuote.markup || 0;
@@ -499,9 +523,9 @@ const SabreOptionManager = ({
             {/* Revenue Quote Fields */}
             {newQuote.quote_type === "revenue" && (
               <>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Pricing Information</h4>
+                    <h4 className="font-medium">Pricing & Passenger Details</h4>
                     <Button 
                       type="button" 
                       variant="outline" 
@@ -513,6 +537,7 @@ const SabreOptionManager = ({
                     </Button>
                   </div>
                   
+                  {/* Basic Pricing */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Fare Type</Label>
@@ -533,7 +558,21 @@ const SabreOptionManager = ({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Net Price</Label>
+                      <Label>Issuing Fee</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newQuote.issuing_fee || ""}
+                        onChange={(e) => setNewQuote(prev => ({ ...prev, issuing_fee: e.target.value ? parseFloat(e.target.value) : null }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Traditional Pricing (when no per-passenger pricing) */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Total Net Price</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -544,24 +583,13 @@ const SabreOptionManager = ({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Markup</Label>
+                      <Label>Total Markup</Label>
                       <Input
                         type="number"
                         step="0.01"
                         placeholder="0.00"
                         value={newQuote.markup || ""}
                         onChange={(e) => setNewQuote(prev => ({ ...prev, markup: e.target.value ? parseFloat(e.target.value) : null }))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Issuing Fee</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={newQuote.issuing_fee || ""}
-                        onChange={(e) => setNewQuote(prev => ({ ...prev, issuing_fee: e.target.value ? parseFloat(e.target.value) : null }))}
                       />
                     </div>
                   </div>
@@ -585,21 +613,27 @@ const SabreOptionManager = ({
                     </div>
                   </div>
 
-                  {/* Passenger Pricing */}
+                  {/* Passenger-Specific Pricing */}
                   <div className="space-y-4">
-                    <Label className="font-medium">Passenger Breakdown (Optional)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="font-medium">Per-Passenger Pricing</Label>
+                      <p className="text-sm text-muted-foreground">Optional - Leave blank to use total pricing above</p>
+                    </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Adults</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          placeholder="Count"
-                          value={newQuote.adults_count || ""}
-                          onChange={(e) => setNewQuote(prev => ({ ...prev, adults_count: e.target.value ? parseInt(e.target.value) : null }))}
-                        />
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Net Price</Label>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium text-center block">Adults</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Count</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="1"
+                            value={newQuote.adults_count || ""}
+                            onChange={(e) => setNewQuote(prev => ({ ...prev, adults_count: e.target.value ? parseInt(e.target.value) : null }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Net Price Each</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -608,8 +642,8 @@ const SabreOptionManager = ({
                             onChange={(e) => setNewQuote(prev => ({ ...prev, adult_net_price: e.target.value ? parseFloat(e.target.value) : null }))}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Selling Price</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Selling Price Each</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -619,17 +653,20 @@ const SabreOptionManager = ({
                           />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Children</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          placeholder="Count"
-                          value={newQuote.children_count || ""}
-                          onChange={(e) => setNewQuote(prev => ({ ...prev, children_count: e.target.value ? parseInt(e.target.value) : null }))}
-                        />
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Net Price</Label>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium text-center block">Children</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Count</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={newQuote.children_count || ""}
+                            onChange={(e) => setNewQuote(prev => ({ ...prev, children_count: e.target.value ? parseInt(e.target.value) : null }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Net Price Each</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -638,8 +675,8 @@ const SabreOptionManager = ({
                             onChange={(e) => setNewQuote(prev => ({ ...prev, child_net_price: e.target.value ? parseFloat(e.target.value) : null }))}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Selling Price</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Selling Price Each</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -649,17 +686,20 @@ const SabreOptionManager = ({
                           />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Infants</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          placeholder="Count"
-                          value={newQuote.infants_count || ""}
-                          onChange={(e) => setNewQuote(prev => ({ ...prev, infants_count: e.target.value ? parseInt(e.target.value) : null }))}
-                        />
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Net Price</Label>
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium text-center block">Infants</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Count</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={newQuote.infants_count || ""}
+                            onChange={(e) => setNewQuote(prev => ({ ...prev, infants_count: e.target.value ? parseInt(e.target.value) : null }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Net Price Each</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -668,8 +708,8 @@ const SabreOptionManager = ({
                             onChange={(e) => setNewQuote(prev => ({ ...prev, infant_net_price: e.target.value ? parseFloat(e.target.value) : null }))}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Selling Price</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Selling Price Each</Label>
                           <Input
                             type="number"
                             step="0.01"

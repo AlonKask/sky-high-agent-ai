@@ -860,6 +860,7 @@ const RequestDetail = () => {
         quotes={quotes}
         requestId={id}
         clientId={request.client_id}
+        requestData={request}
         isOpen={showQuoteDialog}
         editingQuote={editingQuote}
         onClose={() => {
