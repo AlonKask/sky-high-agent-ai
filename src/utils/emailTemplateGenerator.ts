@@ -17,8 +17,29 @@ export interface SabreOption {
 
 export class EmailTemplateGenerator {
   static generateItineraryEmail(option: SabreOption, clientName: string = "Valued Client"): string {
-    if (!option.parsedInfo) {
-      return "Unable to generate email template - flight information not available.";
+    if (!option.parsedInfo || !option.parsedInfo.segments || option.parsedInfo.segments.length === 0) {
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Information Unavailable</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+        .error-container { background: #f8f8f8; padding: 30px; border-radius: 8px; text-align: center; }
+        .error-icon { font-size: 48px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">✈️</div>
+        <h2>Flight Information Processing</h2>
+        <p>We're currently processing your flight details and will have your complete itinerary ready shortly.</p>
+        <p>Thank you for your patience, ${clientName}!</p>
+    </div>
+</body>
+</html>`;
     }
 
     const { segments, totalDuration, layoverInfo, route, totalSegments } = option.parsedInfo;

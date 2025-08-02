@@ -133,18 +133,18 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
                     <div class="option-content">
                         <div style="color: #6b7280; margin-bottom: 15px;">${quote.route}</div>
                         
-                        ${quote.segments.map(segment => `
+                        ${(quote.segments && quote.segments.length > 0) ? quote.segments.map(segment => `
                             <div class="flight-row">
                                 <div>
-                                    <div style="font-weight: 600; color: #1f2937;">${segment.departureAirport} → ${segment.arrivalAirport}</div>
-                                    <div style="color: #6b7280; font-size: 14px;">${segment.flightNumber} • ${segment.aircraft || 'Various Aircraft'}</div>
+                                    <div style="font-weight: 600; color: #1f2937;">${segment.departureAirport || 'TBD'} → ${segment.arrivalAirport || 'TBD'}</div>
+                                    <div style="color: #6b7280; font-size: 14px;">${segment.flightNumber || 'TBD'} • ${segment.aircraftType || segment.aircraft || 'Aircraft TBD'}</div>
                                 </div>
                                 <div style="text-align: right;">
-                                    <div style="font-weight: 500;">${segment.departureTime} - ${segment.arrivalTime}</div>
-                                    <div style="color: #6b7280; font-size: 14px;">${formatDuration([segment])}</div>
+                                    <div style="font-weight: 500;">${segment.departureTime || 'TBD'} - ${segment.arrivalTime || 'TBD'}</div>
+                                    <div style="color: #6b7280; font-size: 14px;">${segment.duration || formatDuration([segment])}</div>
                                 </div>
                             </div>
-                        `).join('')}
+                        `).join('') : '<div style="color: #6b7280; font-style: italic;">Flight details being processed...</div>'}
                         
                         <div class="price-section">
                             <div style="font-size: 24px; font-weight: bold; color: #1e40af; margin-bottom: 8px;">

@@ -36,7 +36,7 @@ export interface ParsedItinerary {
 
 export class SabreParser {
   static parseIFormat(rawItinerary: string): ParsedItinerary | null {
-    console.log("=== SIMPLIFIED SABRE PARSER ===");
+    console.log("=== ENHANCED SABRE PARSER v2.0 ===");
     console.log("Raw input:", rawItinerary);
     
     if (!rawItinerary || !rawItinerary.trim()) {
@@ -45,10 +45,12 @@ export class SabreParser {
     }
     
     try {
-      // Clean up the input - remove common prefixes and extra whitespace
+      // Enhanced input cleaning to handle all Sabre formats
       let cleaned = rawItinerary
         .replace(/^\*IA[«»]?\s*/, '')
         .replace(/^\s*I\s*/, '')
+        .replace(/^\s*IA\s*/, '')
+        .replace(/^\s*\*[A-Z]+\s*/, '')
         .trim();
       
       if (!cleaned) {
@@ -56,24 +58,35 @@ export class SabreParser {
         return null;
       }
       
-      // Split into lines and filter out empty/invalid lines
+      // Split into lines and enhanced filtering
       const lines = cleaned
         .split('\n')
         .map(line => line.trim())
-        .filter(line => line.length > 5 && !line.startsWith('OPERATED BY'));
+        .filter(line => {
+          // Keep lines that look like flight entries
+          return line.length > 10 && 
+                 !line.startsWith('OPERATED BY') &&
+                 !line.startsWith('SEAT MAP') &&
+                 !line.startsWith('MEAL') &&
+                 /\d+[A-Z]{2}\s*\d+/.test(line); // Basic flight pattern
+        });
       
       console.log(`Processing ${lines.length} lines:`, lines);
       
       const segments: FlightSegment[] = [];
       
+      // Enhanced parsing with multiple passes for complex entries
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        console.log(`Processing line ${i + 1}: "${line}"`);
+        console.log(`\n=== Processing line ${i + 1}: "${line}" ===`);
         
-        const segmentData = this.parseFlightLine(line);
+        const segmentData = this.parseFlightLineEnhanced(line);
         if (segmentData.length > 0) {
           segments.push(...segmentData);
-          console.log(`✓ Parsed ${segmentData.length} segment(s):`, segmentData);
+          console.log(`✓ Parsed ${segmentData.length} segment(s):`);
+          segmentData.forEach((seg, idx) => {
+            console.log(`  [${idx + 1}] ${seg.departureAirport}-${seg.arrivalAirport} ${seg.flightNumber} ${seg.departureTime}-${seg.arrivalTime}`);
+          });
         } else {
           console.log(`✗ Could not parse line: "${line}"`);
         }
@@ -84,16 +97,20 @@ export class SabreParser {
         return null;
       }
       
-      // Calculate layover times and durations
+      // Enhanced post-processing
       this.calculateLayoverTimes(segments);
       
-      // Generate route string
-      const route = this.generateRoute(segments);
+      // Generate route string with improved logic
+      const route = this.generateRouteEnhanced(segments);
       const isRoundTrip = this.isRoundTrip(segments);
       const totalDuration = this.calculateTotalDuration(segments);
       const layoverInfo = this.getLayoverInfo(segments);
       
-      console.log(`✓ Successfully parsed ${segments.length} segments. Route: ${route}`);
+      console.log(`\n=== FINAL RESULT ===`);
+      console.log(`✓ Successfully parsed ${segments.length} segments`);
+      console.log(`✓ Route: ${route}`);
+      console.log(`✓ Round trip: ${isRoundTrip}`);
+      console.log(`✓ Total duration: ${totalDuration}`);
       
       return {
         segments,
@@ -109,7 +126,7 @@ export class SabreParser {
     }
   }
   
-  private static generateRoute(segments: FlightSegment[]): string {
+  private static generateRouteEnhanced(segments: FlightSegment[]): string {
     if (segments.length === 0) return "Unknown Route";
     
     const first = segments[0];
@@ -119,32 +136,28 @@ export class SabreParser {
       return `${first.departureAirport}-${first.arrivalAirport}`;
     }
     
-    // For multi-segment journeys, show the connection path properly
-    const airports = [first.departureAirport];
-    segments.forEach(seg => {
-      airports.push(seg.arrivalAirport);
-    });
+    // Build route by following actual flight path
+    const routeParts: string[] = [];
     
-    // Remove duplicates while preserving order
-    const uniqueAirports = airports.filter((airport, index) => 
-      airports.indexOf(airport) === index
-    );
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      if (i === 0) {
+        routeParts.push(segment.departureAirport);
+      }
+      routeParts.push(segment.arrivalAirport);
+    }
     
-    // Check if round trip (first and last airport are the same)
+    // For round trips, detect the turnaround point
     if (first.departureAirport === last.arrivalAirport && segments.length > 2) {
-      // For round trips, group outbound and return
-      const midPoint = Math.ceil(segments.length / 2);
-      const outboundAirports = segments.slice(0, midPoint).map(seg => seg.departureAirport);
-      outboundAirports.push(segments[midPoint - 1].arrivalAirport);
+      // Find the furthest airport from origin
+      const halfwayPoint = Math.floor(segments.length / 2);
+      const outbound = routeParts.slice(0, halfwayPoint + 1);
+      const returnPart = routeParts.slice(halfwayPoint);
       
-      const returnStart = segments[midPoint] ? segments[midPoint].departureAirport : segments[midPoint - 1].arrivalAirport;
-      const returnAirports = segments.slice(midPoint).map(seg => seg.arrivalAirport);
-      returnAirports.unshift(returnStart);
-      
-      return `${outboundAirports.join('-')} / ${returnAirports.join('-')}`;
+      return `${outbound.join('-')} / ${returnPart.join('-')}`;
     } else {
-      // One-way multi-segment: show all connections
-      return uniqueAirports.join('-');
+      // One-way journey: show all stops
+      return routeParts.join('-');
     }
   }
   
@@ -153,37 +166,50 @@ export class SabreParser {
     return segments[0].departureAirport === segments[segments.length - 1].arrivalAirport;
   }
   
-  private static parseFlightLine(line: string): FlightSegment[] {
-    console.log(`Parsing line: "${line}"`);
+  private static parseFlightLineEnhanced(line: string): FlightSegment[] {
+    console.log(`Enhanced parsing: "${line}"`);
     
-    // Skip non-flight lines
-    if (line.includes('OPERATED BY') || line.length < 10) {
+    // Skip non-flight lines with enhanced detection
+    if (line.includes('OPERATED BY') || 
+        line.includes('SEAT MAP') || 
+        line.includes('MEAL') ||
+        line.length < 10 || 
+        !line.match(/\d+[A-Z]{2}/)) {
+      console.log('Skipping non-flight line');
       return [];
     }
 
     const segments: FlightSegment[] = [];
     
-    // Check for multi-segment routing like "EWRBOS/FRAFRA/LGSLGS"
-    const multiSegmentPattern = /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]+)(?:\/([A-Z]+))*\s*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?\s*.*$/;
-    const multiMatch = line.match(multiSegmentPattern);
+    // ENHANCED PATTERN 1: Complex multi-segment with concatenated airports like "EWRBOS/FRAFRA/LGSLGS"
+    const complexMultiPattern = /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6,}(?:\/[A-Z]{3,6})*)\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*.*$/;
+    const complexMatch = line.match(complexMultiPattern);
     
-    if (multiMatch) {
-      console.log('✓ Multi-segment routing detected');
-      const segmentNumber = parseInt(multiMatch[1]);
-      const airlineCode = multiMatch[2];
-      const flightNumber = multiMatch[3];
-      const bookingClass = multiMatch[4];
-      const dateStr = multiMatch[5];
-      const dayOfWeek = multiMatch[6];
-      const routingString = multiMatch[7]; // "EWRBOS/FRAFRA/LGSLGS"
-      const statusCode = multiMatch[9];
-      const departureTime = multiMatch[10];
-      const arrivalTime = multiMatch[11];
+    if (complexMatch) {
+      console.log('✓ Complex multi-segment routing detected');
+      const segmentNumber = parseInt(complexMatch[1]);
+      const airlineCode = complexMatch[2];
+      const flightNumber = complexMatch[3];
+      const bookingClass = complexMatch[4];
+      const dateStr = complexMatch[5];
+      const dayOfWeek = complexMatch[6];
+      const routingString = complexMatch[7]; // "EWRBOS/FRAFRA/LGSLGS"
+      const statusCode = complexMatch[8] || 'GK1';
+      const departureTime = complexMatch[9];
+      const arrivalTime = complexMatch[10];
+      const dayOffset = complexMatch[11] ? parseInt(complexMatch[11]) : 0;
       
-      // Parse multi-segment routing
-      const airportSegments = this.parseMultiSegmentRouting(routingString);
+      console.log(`Parsing complex routing: "${routingString}"`);
+      
+      // Enhanced multi-segment routing parser
+      const airportSegments = this.parseComplexRouting(routingString);
       
       if (airportSegments.length > 0) {
+        console.log(`Found ${airportSegments.length} airport pairs:`, airportSegments);
+        
+        // Calculate time intervals for multi-segment journey
+        const timeIntervals = this.distributeFlightTimes(departureTime, arrivalTime, airportSegments.length);
+        
         airportSegments.forEach((airportPair, idx) => {
           const segment: FlightSegment = {
             segmentNumber: segmentNumber + idx,
@@ -195,11 +221,12 @@ export class SabreParser {
             departureAirport: airportPair.departure,
             arrivalAirport: airportPair.arrival,
             statusCode,
-            departureTime: idx === 0 ? this.convert12hTo24h(departureTime) : 'TBD',
-            arrivalTime: idx === airportSegments.length - 1 ? this.convert12hTo24h(arrivalTime) : 'TBD',
-            arrivalDayOffset: 0,
+            departureTime: timeIntervals[idx].departure,
+            arrivalTime: timeIntervals[idx].arrival,
+            arrivalDayOffset: idx === airportSegments.length - 1 ? dayOffset : 0,
             cabinClass: this.mapBookingClass(bookingClass, airlineCode),
-            duration: this.estimateFlightDuration(airportPair.departure, airportPair.arrival)
+            duration: this.estimateFlightDuration(airportPair.departure, airportPair.arrival),
+            aircraftType: this.estimateAircraftType(airportPair.departure, airportPair.arrival)
           };
           segments.push(segment);
         });
@@ -207,90 +234,110 @@ export class SabreParser {
       }
     }
     
-    // Standard single-segment parsing patterns
-    const patterns = [
-      // Pattern 1: Full format with equipment and operated by
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(\+\d+)?\s*(?:\/[A-Z]*)*\s*(?:\/([A-Z0-9]+))?\s*(?:OPERATED BY (.+))?.*$/,
+    // ENHANCED PATTERN 2: Standard single segment with all details
+    const enhancedPatterns = [
+      // Full detailed pattern with equipment and status
+      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*(?:\/([A-Z0-9]+))?\s*(?:OPERATED BY (.+))?.*$/,
       
-      // Pattern 2: Standard format with equipment code
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?\s*(?:\/[A-Z]*)*\s*(?:\/([A-Z0-9]+))?.*$/,
+      // Standard pattern without equipment
+      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*.*$/,
       
-      // Pattern 3: Format without space in flight number
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?.*$/,
+      // Compact format pattern
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*.*$/,
       
-      // Pattern 4: Simplified fallback for basic entries
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)\s+([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s*([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/
+      // Fallback pattern with minimal fields
+      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)\s+([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+(\d+[AP])\s+(\d+[AP])\s*.*$/
     ];
     
-    for (let i = 0; i < patterns.length; i++) {
-      const match = line.match(patterns[i]);
+    for (let i = 0; i < enhancedPatterns.length; i++) {
+      const match = line.match(enhancedPatterns[i]);
       if (match) {
-        console.log(`✓ Single segment pattern ${i + 1} matched`);
+        console.log(`✓ Enhanced pattern ${i + 1} matched`);
         try {
           const segment = this.extractSegmentData(match);
           segments.push(segment);
           return segments;
         } catch (error) {
-          console.log(`✗ Error extracting data from pattern ${i + 1}:`, error);
+          console.log(`✗ Error with enhanced pattern ${i + 1}:`, error);
           continue;
         }
       }
     }
     
-    console.log('✗ No patterns matched');
+    console.log('✗ No enhanced patterns matched');
     return segments;
   }
 
-  private static parseMultiSegmentRouting(routingString: string): Array<{departure: string, arrival: string}> {
+  private static parseComplexRouting(routingString: string): Array<{departure: string, arrival: string}> {
     const segments = [];
     
-    // Handle formats like "EWRBOS/FRAFRA/LGSLGS" or "EWRBOS/FRALGS"
-    console.log(`Parsing routing string: "${routingString}"`);
+    console.log(`Advanced routing parser: "${routingString}"`);
     
-    // First try to split by '/' for clear segments
+    // ENHANCED: Handle various complex routing formats
+    
+    // Method 1: Split by '/' first (most reliable for clear segments)
     if (routingString.includes('/')) {
       const parts = routingString.split('/');
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (part.length === 6) {
-          // Format: EWRBOS (departure+arrival)
-          segments.push({
-            departure: part.substring(0, 3),
-            arrival: part.substring(3, 6)
-          });
-        } else if (part.length === 3 && i > 0) {
-          // Continuation segment where arrival becomes next departure
-          const prevSegment = segments[segments.length - 1];
-          if (prevSegment) {
-            segments.push({
-              departure: prevSegment.arrival,
-              arrival: part
-            });
-          }
-        }
-      }
-    } else if (routingString.length >= 6) {
-      // Handle continuous string like "EWRBOSFRAMUC"
-      // Extract airport codes in groups of 3
-      const airports = [];
-      for (let i = 0; i < routingString.length; i += 3) {
-        const airport = routingString.substring(i, i + 3);
-        if (airport.length === 3) {
-          airports.push(airport);
-        }
-      }
+      console.log('Split routing parts:', parts);
       
-      // Create segments from consecutive airports
+      let lastArrival = '';
+      
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i].replace(/\*.*$/, ''); // Remove status codes
+        
+        if (part.length === 6) {
+          // Format: EWRBOS (departure+arrival concatenated)
+          const departure = part.substring(0, 3);
+          const arrival = part.substring(3, 6);
+          segments.push({ departure, arrival });
+          lastArrival = arrival;
+          console.log(`Segment: ${departure}-${arrival}`);
+        } else if (part.length === 3 && lastArrival) {
+          // Continuation: previous arrival becomes departure
+          segments.push({ departure: lastArrival, arrival: part });
+          lastArrival = part;
+          console.log(`Continuation: ${lastArrival}-${part}`);
+        } else if (part.length >= 6 && part.length % 3 === 0) {
+          // Multiple concatenated airports in one part
+          const airports = this.extractAirportsFromString(part);
+          for (let j = 0; j < airports.length - 1; j++) {
+            segments.push({ departure: airports[j], arrival: airports[j + 1] });
+            console.log(`Multi-airport: ${airports[j]}-${airports[j + 1]}`);
+          }
+          lastArrival = airports[airports.length - 1];
+        }
+      }
+    } else {
+      // Method 2: No '/' separator - parse as continuous string
+      console.log('Parsing continuous string...');
+      const airports = this.extractAirportsFromString(routingString);
+      
       for (let i = 0; i < airports.length - 1; i++) {
         segments.push({
           departure: airports[i],
           arrival: airports[i + 1]
         });
+        console.log(`Continuous: ${airports[i]}-${airports[i + 1]}`);
       }
     }
     
-    console.log(`✓ Parsed ${segments.length} segments:`, segments);
+    console.log(`✓ Advanced parser found ${segments.length} segments:`, segments);
     return segments;
+  }
+
+  private static extractAirportsFromString(airportString: string): string[] {
+    const airports = [];
+    const cleaned = airportString.replace(/\*.*$/, ''); // Remove status codes
+    
+    // Extract 3-letter airport codes
+    for (let i = 0; i < cleaned.length; i += 3) {
+      const airport = cleaned.substring(i, i + 3);
+      if (airport.length === 3 && /^[A-Z]{3}$/.test(airport)) {
+        airports.push(airport);
+      }
+    }
+    
+    return airports;
   }
   
   private static extractSegmentData(match: RegExpMatchArray): FlightSegment {
@@ -897,5 +944,101 @@ export class SabreParser {
     const result = genericClassMap[bookingClass] || 'Economy';
     console.log(`Generic booking class "${bookingClass}" mapped to: "${result}"`);
     return result;
+  }
+
+  // Enhanced utility methods
+  private static distributeFlightTimes(startTime: string, endTime: string, segmentCount: number): Array<{departure: string, arrival: string}> {
+    const intervals = [];
+    const startMinutes = this.timeToMinutes(startTime);
+    const endMinutes = this.timeToMinutes(endTime);
+    const totalMinutes = endMinutes - startMinutes;
+    const avgSegmentTime = Math.floor(totalMinutes / segmentCount);
+    const layoverTime = 60; // 1 hour layover assumption
+    
+    for (let i = 0; i < segmentCount; i++) {
+      const depMinutes = startMinutes + (i * (avgSegmentTime + layoverTime));
+      const arrMinutes = depMinutes + avgSegmentTime;
+      
+      intervals.push({
+        departure: this.minutesToTime(depMinutes),
+        arrival: this.minutesToTime(arrMinutes)
+      });
+    }
+    
+    return intervals;
+  }
+
+  private static timeToMinutes(timeStr: string): number {
+    const match = timeStr.match(/(\d+)(A|P)/);
+    if (!match) return 0;
+    
+    const timeDigits = match[1];
+    const period = match[2];
+    
+    let hour: number;
+    let minute: number = 0;
+    
+    if (timeDigits.length === 3) {
+      hour = parseInt(timeDigits[0]);
+      minute = parseInt(timeDigits.substring(1));
+    } else if (timeDigits.length === 4) {
+      hour = parseInt(timeDigits.substring(0, 2));
+      minute = parseInt(timeDigits.substring(2));
+    } else {
+      hour = parseInt(timeDigits);
+    }
+    
+    if (period === 'A' && hour === 12) {
+      hour = 0;
+    } else if (period === 'P' && hour !== 12) {
+      hour += 12;
+    }
+    
+    return hour * 60 + minute;
+  }
+
+  private static minutesToTime(minutes: number): string {
+    const hour = Math.floor(minutes / 60) % 24;
+    const min = minutes % 60;
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const period = hour < 12 ? 'AM' : 'PM';
+    
+    return `${displayHour}:${min.toString().padStart(2, '0')} ${period}`;
+  }
+
+  private static estimateAircraftType(origin: string, destination: string): string {
+    const distance = this.estimateDistance(origin, destination);
+    
+    if (distance < 800) return 'Boeing 737-800';
+    if (distance < 2000) return 'Airbus A320';
+    if (distance < 4000) return 'Boeing 767-300';
+    if (distance < 7000) return 'Boeing 777-200ER';
+    return 'Airbus A350-900';
+  }
+
+  private static estimateDistance(origin: string, destination: string): number {
+    const coordinates = {
+      'EWR': [40.6925, -74.1686], 'LGA': [40.7769, -73.8740], 'JFK': [40.6413, -73.7781],
+      'FRA': [50.0379, 8.5622], 'LHR': [51.4700, -0.4543], 'CDG': [49.0097, 2.5479],
+      'MUC': [48.3537, 11.7750], 'IAD': [38.9531, -77.4565], 'BOS': [42.3656, -71.0096],
+      'ORD': [41.9742, -87.9073], 'LAX': [34.0522, -118.2437], 'NRT': [35.7719, 140.3928],
+      'DXB': [25.2532, 55.3657], 'GRU': [-23.4356, -46.4731], 'MIA': [25.7959, -80.2870]
+    };
+    
+    const orig = coordinates[origin as keyof typeof coordinates];
+    const dest = coordinates[destination as keyof typeof coordinates];
+    
+    if (!orig || !dest) return 3000; // Default medium distance
+    
+    // Haversine formula approximation
+    const dLat = (dest[0] - orig[0]) * Math.PI / 180;
+    const dLon = (dest[1] - orig[1]) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(orig[0] * Math.PI / 180) * Math.cos(dest[0] * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = 6371 * c; // Earth radius in km
+    
+    return distance;
   }
 }
