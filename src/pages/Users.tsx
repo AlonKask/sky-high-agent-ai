@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Shield, Plus, Search, Edit, Trash2, User } from 'lucide-react';
+import { Shield, Plus, Search, Edit, Trash2, User, Users as UsersIcon } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -257,13 +257,22 @@ const Users = () => {
           </p>
         </div>
 
-        <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add User
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => navigate('/teams')}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <UsersIcon className="h-4 w-4" />
+            Teams
+          </Button>
+          <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
@@ -350,6 +359,7 @@ const Users = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Search */}

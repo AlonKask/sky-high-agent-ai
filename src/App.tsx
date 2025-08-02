@@ -27,6 +27,7 @@ import PublicRequest from "./pages/PublicRequest";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
+import { Teams } from "./pages/Teams";
 import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 
@@ -70,8 +71,9 @@ function App() {
                   <Route path="/agent-statistics" element={<Layout><AgentStatistics /></Layout>} />
                   <Route path="/reports" element={<Layout><Reports /></Layout>} />
                   <Route path="/settings" element={<Layout><Settings /></Layout>} />
-                  <Route path="/users" element={<Layout><Users /></Layout>} />
-                  <Route path="/users/:id" element={<Layout><UserProfile /></Layout>} />
+          <Route path="/users" element={<Layout><Users /></Layout>} />
+          <Route path="/teams" element={<Layout><Teams /></Layout>} />
+          <Route path="/users/:id" element={<Layout><UserProfile /></Layout>} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>

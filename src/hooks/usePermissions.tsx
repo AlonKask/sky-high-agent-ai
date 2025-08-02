@@ -16,6 +16,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     messages: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     analytics: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    teams: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     reports: { canView: true, canCreate: true, canEdit: true, canDelete: true },
   },
   manager: {
@@ -26,6 +27,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     messages: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     analytics: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     users: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+    teams: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     reports: { canView: true, canCreate: true, canEdit: true, canDelete: true },
   },
   supervisor: {
@@ -36,6 +38,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     messages: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     analytics: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     users: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    teams: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     reports: { canView: true, canCreate: true, canEdit: false, canDelete: false },
   },
   gds_expert: {
@@ -46,6 +49,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     messages: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     analytics: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     users: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    teams: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     reports: { canView: true, canCreate: false, canEdit: false, canDelete: false },
   },
   agent: {
@@ -56,6 +60,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     messages: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     analytics: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     users: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    teams: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     reports: { canView: true, canCreate: false, canEdit: false, canDelete: false },
   },
   user: {
@@ -66,6 +71,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     messages: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     analytics: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     users: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    teams: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     reports: { canView: true, canCreate: false, canEdit: false, canDelete: false },
   },
 };

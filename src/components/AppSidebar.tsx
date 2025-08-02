@@ -220,6 +220,23 @@ export function AppSidebar() {
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                     <NavLink 
+                       to="/teams" 
+                       className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/teams")}`}
+                       title={isCollapsed ? "Teams" : ""}
+                     >
+                       <Users className="h-5 w-5" />
+                      {!isCollapsed && (
+                        <div className="flex flex-col">
+                          <span>Teams</span>
+                          <span className="text-xs text-muted-foreground">Team management</span>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
