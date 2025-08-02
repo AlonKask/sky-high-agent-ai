@@ -28,7 +28,15 @@ export const RoleDashboard = () => {
     );
   }
 
-  // Always use enhanced dashboard for all authenticated users
-  // All buttons will be clickable, with role-based data filtering handled by RLS
+  // Use role-specific dashboards when appropriate, otherwise enhanced dashboard
+  if (selectedViewRole === 'supervisor' || role === 'supervisor') {
+    return <SupervisorDashboard />;
+  }
+  
+  if (selectedViewRole === 'manager' || role === 'manager') {
+    return <ManagerDashboard />;
+  }
+
+  // Default to enhanced dashboard for all authenticated users
   return <EnhancedDashboard />;
 };

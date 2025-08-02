@@ -1,21 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAnalyticsData } from "./useAnalyticsData";
 import { AnalyticsKPICards } from "./AnalyticsKPICards";
 import { AnalyticsCharts } from "./AnalyticsCharts";
-import { Download, RefreshCw, TrendingUp, Users, Clock, Award } from "lucide-react";
+import { Download, RefreshCw, TrendingUp, Users, Clock, Award, Info } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
 export const ComprehensiveAnalytics = () => {
   const { role } = useUserRole();
+  const [searchParams] = useSearchParams();
   const [selectedPeriod, setSelectedPeriod] = useState("month");
+  const [activeTab, setActiveTab] = useState("overview");
   const { data, loading, error, refetch } = useAnalyticsData(selectedPeriod);
+
+  // Handle URL parameters for filtering and navigation
+  useEffect(() => {
+    const view = searchParams.get('view');
+    const roleParam = searchParams.get('role');
+    const metric = searchParams.get('metric');
+    
+    if (view && metric) {
+      console.log(`Analytics filtering: view=${view}, role=${roleParam}, metric=${metric}`);
+      
+      // Set active tab based on the view parameter
+      if (view === 'team-revenue' || view === 'team-bookings' || view === 'team-performance') {
+        setActiveTab('performance');
+      } else if (view === 'response-time') {
+        setActiveTab('performance');
+      }
+    }
+  }, [searchParams]);
 
   const handleExport = () => {
     if (!data) return;
@@ -60,6 +82,10 @@ export const ComprehensiveAnalytics = () => {
     bookings: { label: "Bookings", color: "hsl(var(--secondary))" },
   };
 
+  const view = searchParams.get('view');
+  const roleParam = searchParams.get('role');
+  const metric = searchParams.get('metric');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -67,8 +93,16 @@ export const ComprehensiveAnalytics = () => {
         <div>
           <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground">
-            Comprehensive insights for {role === 'admin' || role === 'manager' ? 'all operations' : 'your performance'}
+            Comprehensive insights for {role === 'admin' || role === 'manager' || role === 'supervisor' ? 'team operations' : 'your performance'}
           </p>
+          {view && (
+            <Alert className="mt-4">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Viewing {view.replace('-', ' ')} analytics {roleParam && `for ${roleParam} role`} {metric && `focused on ${metric}`}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -112,7 +146,7 @@ export const ComprehensiveAnalytics = () => {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>

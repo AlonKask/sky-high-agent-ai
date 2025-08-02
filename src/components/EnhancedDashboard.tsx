@@ -11,6 +11,7 @@ import { UserRole, useUserRole } from "@/hooks/useUserRole";
 import { useRoleView } from "@/contexts/RoleViewContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTeamAnalytics } from "@/hooks/useTeamAnalytics";
 import { 
   Users, Plane, Calendar, TrendingUp, Clock, MapPin, Search, Plus, 
   ExternalLink, ArrowRight, Filter, Globe, Star, Award, Zap,
@@ -27,6 +28,7 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
   const { user } = useAuth();
   const { role: userRole, loading: roleLoading } = useUserRole();
   const { selectedViewRole, setSelectedViewRole, isRoleSwitchingEnabled } = useRoleView();
+  const { data: teamData, loading: teamLoading } = useTeamAnalytics('month');
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -48,13 +50,29 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
     if (user) {
       fetchDashboardData();
     }
-  }, [user, selectedViewRole]);
+  }, [user, selectedViewRole, teamData]);
 
   const fetchDashboardData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
+
+      // For managers and supervisors, use team data if available
+      if (['manager', 'supervisor'].includes(selectedViewRole) && teamData) {
+        setStats({
+          totalClients: teamData.totalClients,
+          activeRequests: teamData.activeRequests,
+          thisMonthBookings: teamData.totalBookings,
+          revenue: teamData.totalRevenue,
+          followUpsToday: 0,
+          upcomingTrips: 0,
+          conversionRate: teamData.conversionRate,
+          averageTicketPrice: teamData.avgTicketPrice
+        });
+        setLoading(false);
+        return;
+      }
 
       // Build queries based on user role
       let clientsQuery = supabase.from('clients').select('id', { count: 'exact' });
@@ -255,7 +273,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
       case 'manager':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/analytics?view=team-revenue&role=manager&metric=revenue')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Team Revenue</CardTitle>
                 <DollarSign className="h-4 w-4 text-primary" />
@@ -266,7 +285,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/analytics?view=team-bookings&role=manager&metric=bookings')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Team Bookings</CardTitle>
                 <Plane className="h-4 w-4 text-green-600" />
@@ -277,7 +297,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-accent/10 to-accent/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-accent/10 to-accent/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/requests?status=pending&view=team')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Requests</CardTitle>
                 <Clock className="h-4 w-4 text-accent" />
@@ -288,7 +309,8 @@ const EnhancedDashboard = ({ setCurrentView }: EnhancedDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="card-elevated border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale">
+            <Card className="card-elevated border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
+                  onClick={() => navigate('/analytics?view=team-performance&role=manager&metric=avg-ticket')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Avg. Ticket</CardTitle>
                 <Award className="h-4 w-4 text-purple-600" />
