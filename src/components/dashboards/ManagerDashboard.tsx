@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign, TrendingUp, MapPin, Package, AlertCircle, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, TrendingUp, MapPin, Package, AlertCircle, Users, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { IATAManagementDialog } from "@/components/IATAManagementDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface ManagerMetrics {
   total_profit: number;
@@ -33,6 +36,7 @@ interface ManagerMetrics {
 
 export const ManagerDashboard = () => {
   const navigate = useNavigate();
+  const { role: userRole } = useUserRole();
   const [metrics, setMetrics] = useState<ManagerMetrics>({
     total_profit: 0,
     profit_change: 0,
@@ -42,6 +46,7 @@ export const ManagerDashboard = () => {
     low_profit_teams: []
   });
   const [loading, setLoading] = useState(true);
+  const [iataDialogOpen, setIataDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -308,6 +313,25 @@ export const ManagerDashboard = () => {
           </CardContent>
         </Card>
       )}
+
+      {(userRole === 'admin' || userRole === 'manager') && (
+        <div className="flex justify-center pt-6">
+          <Button 
+            onClick={() => setIataDialogOpen(true)}
+            variant="outline"
+            size="lg"
+            className="flex items-center gap-2"
+          >
+            <Database className="h-4 w-4" />
+            IATA Codes Management
+          </Button>
+        </div>
+      )}
+
+      <IATAManagementDialog 
+        open={iataDialogOpen} 
+        onOpenChange={setIataDialogOpen} 
+      />
     </div>
   );
 };
