@@ -168,7 +168,10 @@ export const GDSExpertDashboard = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/requests?assignment_status=available')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available Requests</CardTitle>
             <Plane className="h-4 w-4 text-muted-foreground" />
@@ -176,13 +179,19 @@ export const GDSExpertDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{availableRequests.length}</div>
             <p className="text-xs text-muted-foreground">in queue</p>
-            <Button size="sm" className="mt-2 w-full" onClick={() => navigate('/requests')}>
+            <Button size="sm" className="mt-2 w-full" onClick={(e) => {
+              e.stopPropagation();
+              navigate('/requests');
+            }}>
               View All
             </Button>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/requests?status=price_expired')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Updates Needed</CardTitle>
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
@@ -196,7 +205,10 @@ export const GDSExpertDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/analytics?view=response-time&role=gds_expert')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -211,7 +223,10 @@ export const GDSExpertDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/analytics?view=quotes&period=today&agent=self')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Quotes</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />

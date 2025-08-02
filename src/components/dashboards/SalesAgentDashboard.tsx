@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface Inquiry {
 }
 
 export const SalesAgentDashboard = () => {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState({
     personal_profit: 0,
     commission: 0,
@@ -184,7 +186,10 @@ export const SalesAgentDashboard = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/reports?view=personal-profit&period=month')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Profit</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -196,7 +201,10 @@ export const SalesAgentDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/analytics?view=commission&agent=self')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Commission</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
@@ -211,7 +219,10 @@ export const SalesAgentDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/requests?status=pending&assigned_to=self')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">New Inquiries</CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
@@ -225,7 +236,10 @@ export const SalesAgentDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/clients?status=follow-up')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Follow-ups</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />

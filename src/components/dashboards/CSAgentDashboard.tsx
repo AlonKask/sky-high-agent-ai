@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ interface CustomerTicket {
 }
 
 export const CSAgentDashboard = () => {
+  const navigate = useNavigate();
   const [openTickets, setOpenTickets] = useState<CustomerTicket[]>([]);
   const [metrics, setMetrics] = useState({
     satisfaction_score: 4.7,
@@ -134,7 +136,10 @@ export const CSAgentDashboard = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/analytics?view=satisfaction&agent=self')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Satisfaction Score</CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
@@ -146,7 +151,10 @@ export const CSAgentDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/analytics?view=response-time&agent=self')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -160,7 +168,10 @@ export const CSAgentDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/emails?status=resolved&period=today')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Resolved Today</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -172,7 +183,10 @@ export const CSAgentDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/users?filter=escalations&agent=self')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Escalations</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />

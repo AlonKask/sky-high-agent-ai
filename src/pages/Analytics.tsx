@@ -1,17 +1,30 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ComprehensiveAnalytics } from "@/components/analytics/ComprehensiveAnalytics";
 
 const Analytics = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  // Handle URL parameters for filtering
+  useEffect(() => {
+    const view = searchParams.get('view');
+    const role = searchParams.get('role');
+    const metric = searchParams.get('metric');
+    
+    if (view && role) {
+      console.log(`Analytics filtering: view=${view}, role=${role}, metric=${metric}`);
+      // This would be passed to the ComprehensiveAnalytics component for filtering
+    }
+  }, [searchParams]);
 
   if (loading) {
     return (

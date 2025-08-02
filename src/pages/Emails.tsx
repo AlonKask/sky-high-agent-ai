@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import SafeEmailRenderer from '@/components/SafeEmailRenderer';
 import { useAuth } from '@/hooks/useAuth';
@@ -71,6 +72,7 @@ interface EmailExchange {
 const Emails = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const { authStatus, connectGmail, disconnectGmail } = useGmailIntegration();
   const emailSyncManager = EmailSyncManager.getInstance();
   
@@ -384,6 +386,20 @@ const Emails = () => {
       const comparison = aValue.localeCompare(bValue);
       return sortOrder === 'asc' ? comparison : -comparison;
     });
+
+  // Handle URL parameters for filtering
+  useEffect(() => {
+    const view = searchParams.get('view');
+    const metric = searchParams.get('metric');
+    const status = searchParams.get('status');
+    const period = searchParams.get('period');
+    
+    if (view === 'team-analytics' && metric === 'reply-rate') {
+      console.log('Filtering emails for team reply rate analytics');
+    } else if (status === 'resolved' && period === 'today') {
+      console.log('Filtering resolved emails for today');
+    }
+  }, [searchParams]);
 
   // Load emails on component mount and dependencies change
   useEffect(() => {

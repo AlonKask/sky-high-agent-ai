@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole, UserRole } from '@/hooks/useUserRole';
 import { useRoleView } from '@/contexts/RoleViewContext';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ interface UserData {
 
 const Users = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { role } = useUserRole();
   const { selectedViewRole } = useRoleView();
@@ -53,6 +54,17 @@ const Users = () => {
       fetchUsers();
     }
   }, [user, selectedViewRole]);
+
+  // Handle URL parameters for filtering
+  useEffect(() => {
+    const filter = searchParams.get('filter');
+    const status = searchParams.get('status');
+    
+    if (filter === 'agents' && status === 'online') {
+      // This would be implemented with real-time status from Supabase
+      console.log('Filtering for online agents');
+    }
+  }, [searchParams]);
 
   const fetchUsers = async () => {
     try {

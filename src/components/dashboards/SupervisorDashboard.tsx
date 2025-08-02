@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ interface RequestData {
 }
 
 export const SupervisorDashboard = () => {
+  const navigate = useNavigate();
   const [agents, setAgents] = useState<AgentPerformance[]>([]);
   const [followUpRequests, setFollowUpRequests] = useState<RequestData[]>([]);
   const [availableRequests, setAvailableRequests] = useState<RequestData[]>([]);
@@ -235,7 +237,10 @@ export const SupervisorDashboard = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/reports?view=team-profit&period=month')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Team Profit</CardTitle>
             <User className="h-4 w-4 text-muted-foreground" />
@@ -247,7 +252,10 @@ export const SupervisorDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/users?filter=agents&status=online')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Agents</CardTitle>
             <User className="h-4 w-4 text-muted-foreground" />
@@ -261,7 +269,10 @@ export const SupervisorDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/requests?status=follow-up-needed')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Follow-ups Needed</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -275,7 +286,10 @@ export const SupervisorDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/emails?view=team-analytics&metric=reply-rate')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Team Reply Rate</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -287,7 +301,10 @@ export const SupervisorDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/analytics?view=response-time&role=team')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
