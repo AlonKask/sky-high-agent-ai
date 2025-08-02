@@ -643,6 +643,137 @@ const RequestDetail = () => {
               </CardContent>
             </Card>
 
+            {/* Flight Options Section */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                      <Plane className="h-5 w-5 text-primary" />
+                      Flight Options
+                    </CardTitle>
+                    <CardDescription>
+                      {quotes.length > 0 
+                        ? `${quotes.length} option${quotes.length !== 1 ? 's' : ''} available`
+                        : 'No options created yet'
+                      }
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    onClick={() => setShowQuoteDialog(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Option
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {quotes.length > 0 ? (
+                  <div className="space-y-4">
+                    {quotes.map((quote) => (
+                      <QuoteCard
+                        key={quote.id}
+                        quote={quote}
+                        onEdit={() => {
+                          setEditingQuote(quote);
+                          setShowQuoteDialog(true);
+                        }}
+                        onDelete={async () => {
+                          try {
+                            const { error } = await supabase
+                              .from('quotes')
+                              .delete()
+                              .eq('id', quote.id);
+                            
+                            if (error) throw error;
+                            
+                            toast({
+                              title: "Success",
+                              description: "Quote deleted successfully"
+                            });
+                            
+                            fetchRequestDetails();
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to delete quote",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        onToggleVisibility={async () => {
+                          try {
+                            const { error } = await supabase
+                              .from('quotes')
+                              .update({ is_hidden: !quote.is_hidden })
+                              .eq('id', quote.id);
+                            
+                            if (error) throw error;
+                            
+                            toast({
+                              title: quote.is_hidden ? "Quote shown" : "Quote hidden",
+                              description: `Quote has been ${quote.is_hidden ? "shown" : "hidden"}`
+                            });
+                            
+                            fetchRequestDetails();
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to update quote visibility",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        onSendToEmail={() => {
+                          // Handle email sending here if needed
+                          console.log('Send email for quote:', quote.id);
+                        }}
+                        isSelected={selectedQuotes.has(quote.id)}
+                        isExpanded={expandedQuotes.has(quote.id)}
+                        onToggleSelected={(selected) => {
+                          if (selected) {
+                            setSelectedQuotes(prev => new Set([...prev, quote.id]));
+                          } else {
+                            setSelectedQuotes(prev => {
+                              const newSet = new Set(prev);
+                              newSet.delete(quote.id);
+                              return newSet;
+                            });
+                          }
+                        }}
+                        onToggleExpanded={() => {
+                          setExpandedQuotes(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(quote.id)) {
+                              newSet.delete(quote.id);
+                            } else {
+                              newSet.add(quote.id);
+                            }
+                            return newSet;
+                          });
+                        }}
+                        generateIFormatDisplay={(quote) => (quote as any).content || "No Sabre content available"}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Plane className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">No flight options yet</p>
+                    <p className="text-sm mb-4">Create your first quote to get started</p>
+                    <Button 
+                      onClick={() => setShowQuoteDialog(true)}
+                      variant="outline"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Option
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
           </div>
 
           {/* Right Column - Client Information */}
@@ -730,19 +861,26 @@ const RequestDetail = () => {
         requestId={id}
         clientId={request.client_id}
         isOpen={showQuoteDialog}
-        onClose={() => setShowQuoteDialog(false)}
+        editingQuote={editingQuote}
+        onClose={() => {
+          setShowQuoteDialog(false);
+          setEditingQuote(null);
+        }}
         onOpen={() => setShowQuoteDialog(true)}
         onQuoteAdded={() => {
           fetchRequestDetails();
           setShowQuoteDialog(false);
+          setEditingQuote(null);
         }}
         onQuoteUpdated={() => {
           fetchRequestDetails();
           setShowQuoteDialog(false);
+          setEditingQuote(null);
         }}
         onQuoteDeleted={() => {
           fetchRequestDetails();
           setShowQuoteDialog(false);
+          setEditingQuote(null);
         }}
       />
 

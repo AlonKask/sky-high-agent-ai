@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,7 @@ interface SabreOptionManagerProps {
   requestId: string;
   clientId: string;
   isOpen?: boolean;
+  editingQuote?: Quote | null;
   onClose?: () => void;
   onOpen?: () => void;
   onQuoteAdded: () => void;
@@ -76,6 +77,7 @@ const SabreOptionManager = ({
   requestId,
   clientId,
   isOpen,
+  editingQuote,
   onClose,
   onOpen,
   onQuoteAdded,
@@ -120,6 +122,39 @@ const SabreOptionManager = ({
   };
 
   const [newQuote, setNewQuote] = useState(initialQuoteState);
+
+  // Effect to handle editing quote when passed from parent
+  useEffect(() => {
+    if (editingQuote && dialogOpen) {
+      setNewQuote({
+        format: editingQuote.format || "I",
+        content: editingQuote.content || "",
+        status: editingQuote.status,
+        quote_type: editingQuote.quote_type || "revenue",
+        ck_fee_enabled: editingQuote.ck_fee_enabled,
+        route: editingQuote.route,
+        fare_type: editingQuote.fare_type,
+        net_price: editingQuote.net_price || null,
+        markup: editingQuote.markup || null,
+        ck_fee_amount: editingQuote.ck_fee_amount || null,
+        total_price: editingQuote.total_price || null,
+        adults_count: editingQuote.adults_count || null,
+        children_count: editingQuote.children_count || null,
+        infants_count: editingQuote.infants_count || null,
+        adult_price: editingQuote.adult_price || null,
+        child_price: editingQuote.child_price || null,
+        infant_price: editingQuote.infant_price || null,
+        segments: editingQuote.segments || [],
+        total_segments: editingQuote.total_segments,
+        taxes: editingQuote.taxes || null,
+        issuing_fee: editingQuote.issuing_fee || null,
+        award_program: editingQuote.award_program || "",
+        number_of_points: editingQuote.number_of_points || null,
+        notes: editingQuote.notes || ""
+      });
+      setEditingId(editingQuote.id);
+    }
+  }, [editingQuote, dialogOpen]);
 
   const resetQuoteForm = () => {
     console.log("Resetting quote form");
@@ -901,18 +936,15 @@ Example:
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    resetQuoteForm();
-                    setIsDialogOpen(false);
-                  }}
+                  onClick={handleDialogClose}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="button"
-                  onClick={editingId ? handleSaveEdit : handleSubmit}
+                  onClick={editingQuote ? handleSaveEdit : handleSubmit}
                 >
-                  {editingId ? "Update Quote" : "Create Quote"}
+                  {editingQuote ? "Update Quote" : "Create Quote"}
                 </Button>
               </div>
             </div>
