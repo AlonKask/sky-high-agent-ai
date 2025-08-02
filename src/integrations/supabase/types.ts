@@ -2044,6 +2044,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      can_manage_teams: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_modify_data: {
         Args: { _user_id: string; _resource_user_id: string }
         Returns: boolean
@@ -2079,6 +2083,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_user_teams: {
+        Args: { _user_id: string }
+        Returns: {
+          team_id: string
+        }[]
+      }
       handle_email_sync_status: {
         Args: {
           p_user_id: string
@@ -2098,6 +2108,10 @@ export type Database = {
       health_check: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      is_team_manager: {
+        Args: { _user_id: string; _team_id: string }
+        Returns: boolean
       }
       log_security_event: {
         Args: {
