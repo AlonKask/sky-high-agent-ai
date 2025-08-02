@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
+import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 
 interface FlightSearchForm {
   origin: string;
@@ -119,20 +120,18 @@ const FlightPriceComparison = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="origin">Origin *</Label>
-              <Input
-                id="origin"
-                placeholder="e.g., JFK, New York"
+              <AirportAutocomplete
                 value={searchForm.origin}
-                onChange={(e) => setSearchForm({...searchForm, origin: e.target.value})}
+                onChange={(value) => setSearchForm({...searchForm, origin: value})}
+                placeholder="Select departure airport"
               />
             </div>
             <div>
               <Label htmlFor="destination">Destination *</Label>
-              <Input
-                id="destination"
-                placeholder="e.g., LAX, Los Angeles"
+              <AirportAutocomplete
                 value={searchForm.destination}
-                onChange={(e) => setSearchForm({...searchForm, destination: e.target.value})}
+                onChange={(value) => setSearchForm({...searchForm, destination: value})}
+                placeholder="Select destination airport"
               />
             </div>
             <div>

@@ -12,6 +12,7 @@ import { Calendar, Users, Plane, MapPin, ArrowRight, ExternalLink, Edit, Save, X
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import SegmentCard from "./SegmentCard";
+import { AirportAutocomplete } from "./AirportAutocomplete";
 
 interface Segment {
   from: string;
@@ -346,20 +347,18 @@ const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProp
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>From</Label>
-                      <Input
+                      <AirportAutocomplete
                         value={newSegment.from}
-                        onChange={(e) => setNewSegment({...newSegment, from: e.target.value.toUpperCase()})}
-                        placeholder="JFK"
-                        maxLength={3}
+                        onChange={(value) => setNewSegment({...newSegment, from: value})}
+                        placeholder="Select departure airport"
                       />
                     </div>
                     <div>
                       <Label>To</Label>
-                      <Input
+                      <AirportAutocomplete
                         value={newSegment.to}
-                        onChange={(e) => setNewSegment({...newSegment, to: e.target.value.toUpperCase()})}
-                        placeholder="LAX"
-                        maxLength={3}
+                        onChange={(value) => setNewSegment({...newSegment, to: value})}
+                        placeholder="Select destination airport"
                       />
                     </div>
                   </div>
