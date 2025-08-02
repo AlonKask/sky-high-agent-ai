@@ -21,18 +21,21 @@ export class EmailTemplateGenerator {
       return "Unable to generate email template - flight information not available.";
     }
 
-    const { segments } = option.parsedInfo;
+    const { segments, totalDuration, layoverInfo, route } = option.parsedInfo;
     
-    let emailContent = `Dear ${clientName},
+    // Generate modern HTML email template
+    return this.generateHtmlEmail(option, clientName, segments, totalDuration, layoverInfo, route);
+  }
 
-Thank you for choosing our travel services. Please find below your flight itinerary details:
-
-FLIGHT ITINERARY
-═══════════════════════════════════════════════════════════════
-
-`;
-
-    segments.forEach((segment, index) => {
+  private static generateHtmlEmail(
+    option: SabreOption, 
+    clientName: string, 
+    segments: any[], 
+    totalDuration?: string, 
+    layoverInfo?: any[], 
+    route?: string
+  ): string {
+    const segmentCards = segments.map((segment, index) => {
       const segmentDate = new Date(segment.flightDate);
       const formattedDate = segmentDate.toLocaleDateString('en-US', { 
         weekday: 'long', 
@@ -41,93 +44,588 @@ FLIGHT ITINERARY
         day: 'numeric' 
       });
 
-      emailContent += `SEGMENT ${segment.segmentNumber}: ${this.getAirportName(segment.departureAirport)} → ${this.getAirportName(segment.arrivalAirport)}
-───────────────────────────────────────────────────────────────
-Flight:          ${segment.flightNumber} (${this.getAirlineName(segment.airlineCode)})
-Date:            ${formattedDate}
-Departure:       ${segment.departureTime} from ${segment.departureAirport}
-Arrival:         ${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''} at ${segment.arrivalAirport}
-Class:           ${segment.cabinClass}
-Booking Class:   ${segment.bookingClass}
-Status:          ${this.getStatusDescription(segment.statusCode)}
+      const layoverCard = (index < segments.length - 1 && segment.layoverTime) ? 
+        this.generateLayoverCard(segment.arrivalAirport, segment.layoverTime) : '';
 
-`;
-    });
+      return `
+        ${this.generateSegmentCard(segment, formattedDate, index + 1)}
+        ${layoverCard}
+      `;
+    }).join('');
 
-    // Add pricing information
-    emailContent += `PRICING DETAILS
-═══════════════════════════════════════════════════════════════
+    const pricingSection = this.generatePricingSection(option);
+    const journeyOverview = this.generateJourneyOverview(route, totalDuration, segments.length);
+    const bookingButton = this.generateBookingButton(option.id);
 
-`;
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Flight Itinerary</title>
+    <style>
+        ${this.getEmailStyles()}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>🛫 Your Flight Itinerary</h1>
+            <p class="greeting">Dear ${clientName},</p>
+            <p>Thank you for choosing our travel services. Here are your flight options:</p>
+        </div>
+
+        ${journeyOverview}
+        
+        <div class="segments-container">
+            <h2>Flight Details</h2>
+            ${segmentCards}
+        </div>
+
+        ${pricingSection}
+
+        <div class="booking-section">
+            ${bookingButton}
+        </div>
+
+        <div class="important-info">
+            <h3>✈️ Important Travel Information</h3>
+            <ul>
+                <li><strong>Check-in:</strong> Arrive at airport 2-3 hours before international flights</li>
+                <li><strong>Documents:</strong> Ensure passport is valid for at least 6 months</li>
+                <li><strong>Visa:</strong> Check visa requirements for your destination</li>
+                <li><strong>Baggage:</strong> Review airline baggage policies and restrictions</li>
+            </ul>
+        </div>
+
+        ${option.notes ? `
+        <div class="notes-section">
+            <h3>📝 Additional Notes</h3>
+            <p>${option.notes}</p>
+        </div>
+        ` : ''}
+
+        <div class="footer">
+            <p>If you have any questions or need to make changes, please contact us immediately.</p>
+            <p><strong>Thank you for your business!</strong></p>
+            <p class="signature">Best regards,<br>Your Travel Team</p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+  }
+
+  private static generateSegmentCard(segment: any, formattedDate: string, segmentNumber: number): string {
+    const aircraftInfo = segment.aircraftType ? `<span class="aircraft">✈️ ${segment.aircraftType}</span>` : '';
+    const operatingAirline = segment.operatingAirline ? `<br><small>Operated by ${segment.operatingAirline}</small>` : '';
+    const duration = segment.duration ? `<span class="duration">⏱️ ${segment.duration}</span>` : '';
+
+    return `
+    <div class="segment-card">
+        <div class="segment-header">
+            <span class="segment-number">Segment ${segmentNumber}</span>
+            <span class="route">${segment.departureAirport} → ${segment.arrivalAirport}</span>
+        </div>
+        
+        <div class="flight-info">
+            <div class="airline-flight">
+                <strong>${segment.flightNumber}</strong> - ${this.getAirlineName(segment.airlineCode)}
+                ${operatingAirline}
+            </div>
+            <div class="flight-details">
+                ${aircraftInfo}
+                ${duration}
+                <span class="class">${segment.cabinClass}</span>
+            </div>
+        </div>
+
+        <div class="time-info">
+            <div class="departure">
+                <div class="time">${segment.departureTime}</div>
+                <div class="airport">${this.getAirportName(segment.departureAirport)}</div>
+                <div class="date">${formattedDate}</div>
+            </div>
+            <div class="flight-path">
+                <div class="plane-icon">✈️</div>
+            </div>
+            <div class="arrival">
+                <div class="time">${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''}</div>
+                <div class="airport">${this.getAirportName(segment.arrivalAirport)}</div>
+                <div class="status">${this.getStatusDescription(segment.statusCode)}</div>
+            </div>
+        </div>
+    </div>
+    `;
+  }
+
+  private static generateLayoverCard(airport: string, layoverTime: number): string {
+    const hours = Math.floor(layoverTime / 60);
+    const minutes = layoverTime % 60;
+    const layoverDisplay = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+    return `
+    <div class="layover-card">
+        <div class="layover-info">
+            <span class="layover-icon">🕐</span>
+            <span class="layover-text">
+                <strong>Layover in ${this.getAirportName(airport)}</strong><br>
+                Connection time: ${layoverDisplay}
+            </span>
+        </div>
+    </div>
+    `;
+  }
+
+  private static generateJourneyOverview(route?: string, totalDuration?: string, totalSegments?: number): string {
+    return `
+    <div class="journey-overview">
+        <div class="overview-item">
+            <div class="overview-label">Route</div>
+            <div class="overview-value">${route || 'Multi-city journey'}</div>
+        </div>
+        ${totalDuration ? `
+        <div class="overview-item">
+            <div class="overview-label">Total Duration</div>
+            <div class="overview-value">${totalDuration}</div>
+        </div>
+        ` : ''}
+        <div class="overview-item">
+            <div class="overview-label">Segments</div>
+            <div class="overview-value">${totalSegments} flight${totalSegments !== 1 ? 's' : ''}</div>
+        </div>
+    </div>
+    `;
+  }
+
+  private static generatePricingSection(option: SabreOption): string {
+
+    let pricingContent = '';
 
     if (option.quoteType === "revenue") {
-      emailContent += `Quote Type:      Revenue Ticket
-`;
-      if (option.fareType) {
-        emailContent += `Fare Type:       ${this.formatFareType(option.fareType)}
-`;
-      }
-      if (option.netPrice) {
-        emailContent += `Base Fare:       $${option.netPrice.toFixed(2)}
-`;
-      }
-      if (option.markup) {
-        emailContent += `Service Fee:     $${option.markup.toFixed(2)}
-`;
-      }
+      pricingContent = `
+        <div class="pricing-row">
+            <span>Quote Type:</span>
+            <span>Revenue Ticket</span>
+        </div>
+        ${option.fareType ? `
+        <div class="pricing-row">
+            <span>Fare Type:</span>
+            <span>${this.formatFareType(option.fareType)}</span>
+        </div>
+        ` : ''}
+        ${option.netPrice ? `
+        <div class="pricing-row">
+            <span>Base Fare:</span>
+            <span>$${option.netPrice.toFixed(2)}</span>
+        </div>
+        ` : ''}
+        ${option.markup ? `
+        <div class="pricing-row">
+            <span>Service Fee:</span>
+            <span>$${option.markup.toFixed(2)}</span>
+        </div>
+        ` : ''}
+      `;
     } else if (option.quoteType === "award") {
-      emailContent += `Quote Type:      Award Ticket
-`;
-      if (option.awardProgram) {
-        emailContent += `Program:         ${option.awardProgram}
-`;
-      }
-      if (option.numberOfPoints) {
-        emailContent += `Points Required: ${option.numberOfPoints.toLocaleString()}
-`;
-      }
-      if (option.taxes) {
-        emailContent += `Taxes & Fees:    $${option.taxes.toFixed(2)}
-`;
-      }
-      if (option.markup) {
-        emailContent += `Service Fee:     $${option.markup.toFixed(2)}
-`;
-      }
+      pricingContent = `
+        <div class="pricing-row">
+            <span>Quote Type:</span>
+            <span>Award Ticket</span>
+        </div>
+        ${option.awardProgram ? `
+        <div class="pricing-row">
+            <span>Program:</span>
+            <span>${option.awardProgram}</span>
+        </div>
+        ` : ''}
+        ${option.numberOfPoints ? `
+        <div class="pricing-row">
+            <span>Points Required:</span>
+            <span>${option.numberOfPoints.toLocaleString()} points</span>
+        </div>
+        ` : ''}
+        ${option.taxes ? `
+        <div class="pricing-row">
+            <span>Taxes & Fees:</span>
+            <span>$${option.taxes.toFixed(2)}</span>
+        </div>
+        ` : ''}
+        ${option.markup ? `
+        <div class="pricing-row">
+            <span>Service Fee:</span>
+            <span>$${option.markup.toFixed(2)}</span>
+        </div>
+        ` : ''}
+      `;
     }
 
-    if (option.sellingPrice) {
-      emailContent += `
-TOTAL PRICE:     $${option.sellingPrice.toFixed(2)}
-`;
-    }
+    return `
+    <div class="pricing-section">
+        <h2>💰 Pricing Details</h2>
+        <div class="pricing-table">
+            ${pricingContent}
+            ${option.sellingPrice ? `
+            <div class="pricing-row total">
+                <span><strong>Total Price:</strong></span>
+                <span><strong>$${option.sellingPrice.toFixed(2)}</strong></span>
+            </div>
+            ` : ''}
+        </div>
+    </div>
+    `;
+  }
 
-    emailContent += `
-═══════════════════════════════════════════════════════════════
+  private static generateBookingButton(optionId: string): string {
+    return `
+    <div class="booking-button-container">
+        <a href="#book-${optionId}" class="booking-button">
+            🎯 Book This Option
+        </a>
+        <p class="booking-subtitle">Secure your booking with one click</p>
+    </div>
+    `;
+  }
 
-IMPORTANT REMINDERS:
-• Please arrive at the airport at least 2-3 hours before international flights
-• Ensure your passport is valid for at least 6 months from travel date
-• Check visa requirements for your destination
-• Review airline baggage policies and restrictions
-
-`;
-
-    if (option.notes) {
-      emailContent += `ADDITIONAL NOTES:
-${option.notes}
-
-`;
-    }
-
-    emailContent += `If you have any questions or need to make changes, please contact us immediately.
-
-Thank you for your business!
-
-Best regards,
-Your Travel Team`;
-
-    return emailContent;
+  private static getEmailStyles(): string {
+    return `
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .email-container {
+            max-width: 700px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .journey-overview {
+            background-color: #f8f9fa;
+            padding: 20px;
+            display: flex;
+            justify-content: space-around;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .overview-item {
+            text-align: center;
+        }
+        
+        .overview-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .overview-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .segments-container {
+            padding: 30px;
+        }
+        
+        .segments-container h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        .segment-card {
+            background-color: #ffffff;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .segment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .segment-number {
+            background-color: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .route {
+            font-size: 18px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .flight-info {
+            margin-bottom: 15px;
+        }
+        
+        .airline-flight {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .flight-details {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .aircraft, .duration, .class {
+            background-color: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #495057;
+        }
+        
+        .time-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .departure, .arrival {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .flight-path {
+            flex: 0 0 60px;
+            text-align: center;
+        }
+        
+        .plane-icon {
+            font-size: 24px;
+            color: #667eea;
+        }
+        
+        .time {
+            font-size: 20px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .airport {
+            font-size: 14px;
+            color: #6c757d;
+            margin: 5px 0;
+        }
+        
+        .date, .status {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .layover-card {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .layover-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .layover-icon {
+            font-size: 18px;
+        }
+        
+        .pricing-section {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .pricing-section h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+        
+        .pricing-table {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .pricing-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .pricing-row:last-child {
+            border-bottom: none;
+        }
+        
+        .pricing-row.total {
+            background-color: #f8f9fa;
+            margin: 10px -20px -20px -20px;
+            padding: 15px 20px;
+            border-bottom: none;
+            font-size: 18px;
+        }
+        
+        .booking-section {
+            padding: 30px;
+            text-align: center;
+            background-color: #ffffff;
+        }
+        
+        .booking-button-container {
+            margin: 20px 0;
+        }
+        
+        .booking-button {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            transition: transform 0.2s;
+        }
+        
+        .booking-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+        
+        .booking-subtitle {
+            color: #6c757d;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .important-info {
+            background-color: #e3f2fd;
+            padding: 25px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .important-info h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+        
+        .important-info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .important-info li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .important-info li::before {
+            content: "•";
+            color: #2196f3;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        .notes-section {
+            background-color: #fff3e0;
+            padding: 25px;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .notes-section h3 {
+            color: #f57c00;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .signature {
+            margin-top: 20px;
+            font-style: italic;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                box-shadow: none;
+            }
+            
+            .journey-overview {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .time-info {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .flight-path {
+                order: -1;
+            }
+            
+            .flight-details {
+                justify-content: center;
+            }
+        }
+    `;
   }
 
   private static getAirportName(code: string): string {

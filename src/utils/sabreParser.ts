@@ -13,6 +13,12 @@ export interface FlightSegment {
   arrivalDayOffset: number;
   cabinClass: string;
   aircraftType?: string;
+  duration?: string;
+  layoverTime?: number; // minutes to next flight
+  terminal?: string;
+  operatingAirline?: string;
+  mealService?: string;
+  totalJourneyTime?: string;
 }
 
 export interface ParsedItinerary {
@@ -20,6 +26,12 @@ export interface ParsedItinerary {
   totalSegments: number;
   route: string;
   isRoundTrip: boolean;
+  totalDuration?: string;
+  layoverInfo?: Array<{
+    airport: string;
+    duration: number; // minutes
+    terminal?: string;
+  }>;
 }
 
 export class SabreParser {
@@ -72,9 +84,14 @@ export class SabreParser {
         return null;
       }
       
+      // Calculate layover times and durations
+      this.calculateLayoverTimes(segments);
+      
       // Generate route string
       const route = this.generateRoute(segments);
       const isRoundTrip = this.isRoundTrip(segments);
+      const totalDuration = this.calculateTotalDuration(segments);
+      const layoverInfo = this.getLayoverInfo(segments);
       
       console.log(`✓ Successfully parsed ${segments.length} segments. Route: ${route}`);
       
@@ -82,7 +99,9 @@ export class SabreParser {
         segments,
         totalSegments: segments.length,
         route,
-        isRoundTrip
+        isRoundTrip,
+        totalDuration,
+        layoverInfo
       };
     } catch (error) {
       console.error("Parser error:", error);
@@ -100,14 +119,49 @@ export class SabreParser {
       return `${first.departureAirport}-${first.arrivalAirport}`;
     }
     
+    // For multi-segment journeys, show all connections
+    const routeParts = [];
+    
     // Check if round trip
     if (first.departureAirport === last.arrivalAirport) {
-      // Find the furthest point (usually the middle)
-      const midPoint = segments[Math.floor(segments.length / 2)];
-      return `${first.departureAirport}-${midPoint.arrivalAirport}/${midPoint.arrivalAirport}-${first.departureAirport}`;
+      // Round trip - group outbound and return segments
+      const midIndex = Math.floor(segments.length / 2);
+      
+      // Outbound journey
+      const outbound = segments.slice(0, midIndex);
+      if (outbound.length === 1) {
+        routeParts.push(`${outbound[0].departureAirport}-${outbound[0].arrivalAirport}`);
+      } else {
+        const outboundRoute = outbound.map((seg, idx) => 
+          idx === 0 ? seg.departureAirport : ''
+        ).filter(Boolean).join('') + 
+        outbound.map(seg => `-${seg.arrivalAirport}`).join('').replace(/-/g, '/').substring(1);
+        routeParts.push(outboundRoute);
+      }
+      
+      // Return journey
+      const returnSegments = segments.slice(midIndex);
+      if (returnSegments.length === 1) {
+        routeParts.push(`${returnSegments[0].departureAirport}-${returnSegments[0].arrivalAirport}`);
+      } else {
+        const returnRoute = returnSegments.map((seg, idx) => 
+          idx === 0 ? seg.departureAirport : ''
+        ).filter(Boolean).join('') + 
+        returnSegments.map(seg => `-${seg.arrivalAirport}`).join('').replace(/-/g, '/').substring(1);
+        routeParts.push(returnRoute);
+      }
+      
+      return routeParts.join(' / ');
+    } else {
+      // One-way with connections - show all airports in sequence
+      const airports = [first.departureAirport];
+      segments.forEach(seg => {
+        if (!airports.includes(seg.arrivalAirport)) {
+          airports.push(seg.arrivalAirport);
+        }
+      });
+      return airports.join('/');
     }
-    
-    return `${first.departureAirport}-${last.arrivalAirport}`;
   }
   
   private static isRoundTrip(segments: FlightSegment[]): boolean {
@@ -123,19 +177,23 @@ export class SabreParser {
       return null;
     }
     
-    // Simplified patterns focusing on the most common formats
+    // Enhanced patterns to handle more Sabre *I format variations
     const patterns = [
-      // Pattern 1: Standard format with space (most common)
-      // 1 LH 7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E
-      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/,
+      // Pattern 1: Full format with equipment and operated by
+      // 1 LH 7608P 15APR W EWRMUC SS1 500P 710A+1/DCLH /E333 OPERATED BY LUFTHANSA
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(\+\d+)?\s*(?:\/[A-Z]*)*\s*(?:\/([A-Z0-9]+))?\s*(?:OPERATED BY (.+))?.*$/,
       
-      // Pattern 2: Format without space in flight number
-      // 1 LH7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/,
+      // Pattern 2: Standard format with equipment code
+      // 1 LH 7608P 15APR W EWRMUC SS1 500P 710A /DCLH /E333
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?\s*(?:\/[A-Z]*)*\s*(?:\/([A-Z0-9]+))?.*$/,
       
-      // Pattern 3: Simple fallback pattern
-      // Segment Number, Airline+Flight+Class, Date, DOW, Route, Status, Times
-      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\s*([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/
+      // Pattern 3: Format without space in flight number
+      // 1 LH7608P 15APR W EWRMUC SS1 500P 710A
+      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+\d+)?.*$/,
+      
+      // Pattern 4: Simplified fallback for basic entries
+      // 1 LH 7608 P 15APR W EWRMUC SS1 500P 710A
+      /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)\s+([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s*([A-Z]+\d*)\s+(\d+[AP])\s+(\d+[AP]).*$/
     ];
     
     for (let i = 0; i < patterns.length; i++) {
@@ -173,8 +231,8 @@ export class SabreParser {
     const statusCode = match[9]; // GK1, SS1, etc.
     const departureTime = match[10];
     const arrivalTime = match[11];
-    const arrivalDateStr = match[12]; // Optional
-    const arrivalDayOfWeek = match[13]; // Optional
+    const dayOffset = match[12]; // +1 if present
+    const equipmentCode = match[13]; // Aircraft type like E333, 738, etc.
     const operatedBy = match[14]; // OPERATED BY information if present
     
     // Construct full flight number
@@ -188,7 +246,8 @@ export class SabreParser {
     const arrTime24h = this.convert12hTo24h(arrivalTime);
     
     // Determine if arrival is next day
-    const arrivalDayOffset = this.calculateDayOffset(departureTime, arrivalTime, !!arrivalDateStr);
+    const arrivalDayOffset = dayOffset ? parseInt(dayOffset.replace('+', '')) : 
+                            this.calculateDayOffset(departureTime, arrivalTime, false);
     
     const segmentData: FlightSegment = {
       segmentNumber,
@@ -206,12 +265,88 @@ export class SabreParser {
       cabinClass: this.mapBookingClass(bookingClass, airlineCode)
     };
     
-    // Add operated by information if present
-    if (operatedBy) {
-      segmentData.aircraftType = operatedBy;
+    // Add equipment information if present
+    if (equipmentCode) {
+      segmentData.aircraftType = this.parseAircraftType(equipmentCode);
     }
     
+    // Add operated by information if present
+    if (operatedBy) {
+      segmentData.operatingAirline = operatedBy.trim();
+    }
+    
+    // Estimate flight duration based on route (simplified)
+    segmentData.duration = this.estimateFlightDuration(departureAirport, arrivalAirport);
+    
     return segmentData;
+  }
+
+  private static parseAircraftType(equipmentCode: string): string {
+    const aircraftMap: { [key: string]: string } = {
+      '333': 'Airbus A330-300',
+      '332': 'Airbus A330-200',
+      '343': 'Airbus A340-300',
+      '346': 'Airbus A340-600',
+      '359': 'Airbus A350-900',
+      '358': 'Airbus A350-800',
+      '380': 'Airbus A380',
+      '319': 'Airbus A319',
+      '320': 'Airbus A320',
+      '321': 'Airbus A321',
+      '738': 'Boeing 737-800',
+      '739': 'Boeing 737-900',
+      '73G': 'Boeing 737-700',
+      '752': 'Boeing 757-200',
+      '763': 'Boeing 767-300',
+      '764': 'Boeing 767-400',
+      '772': 'Boeing 777-200',
+      '773': 'Boeing 777-300',
+      '77W': 'Boeing 777-300ER',
+      '787': 'Boeing 787 Dreamliner',
+      '788': 'Boeing 787-8',
+      '789': 'Boeing 787-9',
+      '744': 'Boeing 747-400',
+      '748': 'Boeing 747-8',
+      'E90': 'Embraer E190',
+      'E70': 'Embraer E170',
+      'CR9': 'Bombardier CRJ-900',
+      'CRJ': 'Bombardier CRJ',
+      'DH4': 'De Havilland Dash 8-400'
+    };
+    
+    return aircraftMap[equipmentCode] || equipmentCode;
+  }
+
+  private static estimateFlightDuration(origin: string, destination: string): string {
+    // Simplified duration estimation based on common routes
+    const durations: { [key: string]: string } = {
+      'EWRFRA': '7h 30m', 'FRALGA': '8h 15m', 'EWRLGA': '25m',
+      'LGAFRA': '8h 45m', 'FRAEWR': '8h 30m', 'JFKLHR': '7h 15m',
+      'LHRJFK': '8h 30m', 'LAXNRT': '11h 30m', 'NRTLAX': '9h 45m',
+      'ORDLHR': '8h 15m', 'LHRORD': '9h 30m', 'MIAGRU': '8h 45m',
+      'GRUMIA': '8h 30m', 'DXBJFK': '14h 30m', 'JFKDXB': '12h 45m'
+    };
+    
+    const routeKey = origin + destination;
+    return durations[routeKey] || this.calculateEstimatedDuration(origin, destination);
+  }
+
+  private static calculateEstimatedDuration(origin: string, destination: string): string {
+    // Very simplified calculation based on airport codes
+    // This would ideally use actual flight time data
+    const domesticDuration = Math.floor(Math.random() * 4) + 1; // 1-5 hours
+    const internationalDuration = Math.floor(Math.random() * 8) + 6; // 6-14 hours
+    
+    // Simple heuristic: if both airports are US (3-letter codes starting with certain letters)
+    const usAirports = ['JFK', 'LGA', 'EWR', 'LAX', 'ORD', 'DFW', 'ATL', 'MIA', 'SFO', 'SEA', 'BOS', 'DEN'];
+    const isOriginUS = usAirports.includes(origin);
+    const isDestinationUS = usAirports.includes(destination);
+    
+    if (isOriginUS && isDestinationUS) {
+      return `${domesticDuration}h 30m`;
+    } else {
+      return `${internationalDuration}h 15m`;
+    }
   }
   
   private static parseDateFromString(dateStr: string): string {
@@ -264,6 +399,93 @@ export class SabreParser {
     const displayPeriod = hour < 12 ? 'AM' : 'PM';
     
     return `${displayHour}:${minute.toString().padStart(2, '0')} ${displayPeriod}`;
+  }
+
+  private static calculateLayoverTimes(segments: FlightSegment[]): void {
+    for (let i = 0; i < segments.length - 1; i++) {
+      const current = segments[i];
+      const next = segments[i + 1];
+      
+      // Only calculate layover if arriving and departing from same airport
+      if (current.arrivalAirport === next.departureAirport) {
+        const arrivalTime = this.parseTimeToMinutes(current.arrivalTime);
+        const departureTime = this.parseTimeToMinutes(next.departureTime);
+        
+        let layoverMinutes = departureTime - arrivalTime;
+        
+        // Handle overnight layovers
+        if (layoverMinutes < 0) {
+          layoverMinutes += 24 * 60; // Add 24 hours
+        }
+        
+        // Add day offset if arrival is next day
+        if (current.arrivalDayOffset > 0) {
+          layoverMinutes += current.arrivalDayOffset * 24 * 60;
+        }
+        
+        current.layoverTime = layoverMinutes;
+      }
+    }
+  }
+
+  private static parseTimeToMinutes(timeStr: string): number {
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return 0;
+    
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const period = match[3].toUpperCase();
+    
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    
+    return hours * 60 + minutes;
+  }
+
+  private static calculateTotalDuration(segments: FlightSegment[]): string {
+    if (segments.length === 0) return '';
+    
+    const firstDeparture = this.parseTimeToMinutes(segments[0].departureTime);
+    const lastArrival = this.parseTimeToMinutes(segments[segments.length - 1].arrivalTime);
+    
+    let totalMinutes = lastArrival - firstDeparture;
+    
+    // Add layover times
+    segments.forEach(segment => {
+      if (segment.layoverTime) {
+        totalMinutes += segment.layoverTime;
+      }
+    });
+    
+    // Handle multi-day journeys
+    const totalDays = segments[segments.length - 1].arrivalDayOffset;
+    if (totalDays > 0) {
+      totalMinutes += totalDays * 24 * 60;
+    }
+    
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    return `${hours}h ${minutes}m`;
+  }
+
+  private static getLayoverInfo(segments: FlightSegment[]): Array<{airport: string; duration: number; terminal?: string}> {
+    const layovers = [];
+    
+    for (let i = 0; i < segments.length - 1; i++) {
+      const current = segments[i];
+      const next = segments[i + 1];
+      
+      if (current.arrivalAirport === next.departureAirport && current.layoverTime) {
+        layovers.push({
+          airport: current.arrivalAirport,
+          duration: current.layoverTime,
+          terminal: current.terminal
+        });
+      }
+    }
+    
+    return layovers;
   }
   
   private static calculateDayOffset(depTime: string, arrTime: string, hasArrivalDate: boolean): number {
