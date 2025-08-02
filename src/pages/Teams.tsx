@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -55,6 +56,7 @@ export const Teams = () => {
   const { user } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,6 +141,10 @@ export const Teams = () => {
     } catch (error) {
       console.error('Error fetching users:', error);
     }
+  };
+
+  const handleViewTeam = (team: Team) => {
+    navigate(`/teams/${team.id}`);
   };
 
   const fetchTeamMembers = async (teamId: string) => {
@@ -458,8 +464,8 @@ export const Teams = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTeams.map((team) => (
-          <Card key={team.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openTeamDetail(team)}>
+         {filteredTeams.map((team) => (
+           <Card key={team.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleViewTeam(team)}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
