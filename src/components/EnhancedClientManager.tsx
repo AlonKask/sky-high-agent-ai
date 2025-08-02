@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +64,9 @@ interface CommunicationHistory {
 const EnhancedClientManager = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
+  const filterUserId = searchParams.get('user');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState<Date>();
@@ -101,7 +103,7 @@ const EnhancedClientManager = () => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('clients')
         .select(`
           id,
@@ -118,8 +120,16 @@ const EnhancedClientManager = () => {
           notes,
           preferred_class
         `)
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+
+      // Apply user filtering
+      if (filterUserId) {
+        query = query.eq('user_id', filterUserId);
+      } else {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching clients:', error);

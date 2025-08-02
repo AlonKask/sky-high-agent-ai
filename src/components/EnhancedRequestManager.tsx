@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,11 +36,13 @@ const EnhancedRequestManager = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [takingRequest, setTakingRequest] = useState<string | null>(null);
   const [showTakeRequestDropdown, setShowTakeRequestDropdown] = useState(false);
+  const filterUserId = searchParams.get('user');
 
   useEffect(() => {
     if (user) {
@@ -62,8 +64,11 @@ const EnhancedRequestManager = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // For regular agents, only show available or assigned to them
-      if (role === 'user' || role === 'agent' || role === 'gds_expert') {
+      // Apply user filtering
+      if (filterUserId) {
+        query = query.eq('user_id', filterUserId);
+      } else if (role === 'user' || role === 'agent' || role === 'gds_expert') {
+        // For regular agents, only show available or assigned to them
         query = query.or(`assignment_status.eq.available,assigned_to.eq.${user.id}`);
       }
 

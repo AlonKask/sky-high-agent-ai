@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,10 +43,12 @@ const EnhancedBookingManager = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { role } = useUserRole();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const filterUserId = searchParams.get('user');
 
   useEffect(() => {
     if (user) {
@@ -74,8 +76,10 @@ const EnhancedBookingManager = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // Apply user filtering only for regular users
-      if (role === 'user' || role === 'agent') {
+      // Apply user filtering for regular users or when user filter is specified
+      if (filterUserId) {
+        query = query.eq('user_id', filterUserId);
+      } else if (role === 'user' || role === 'agent') {
         query = query.eq('user_id', user.id);
       }
 

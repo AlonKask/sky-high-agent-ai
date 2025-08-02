@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +20,12 @@ import {
   Users,
   Star,
   Clock,
-  Award
+  Award,
+  Copy,
+  ExternalLink,
+  FileText,
+  MessageSquare,
+  Eye
 } from 'lucide-react';
 
 interface UserProfileData {
@@ -48,6 +53,13 @@ interface PerformanceData {
   avg_response_time?: string;
 }
 
+interface QuickStatsData {
+  total_clients: number;
+  total_requests: number;
+  email_exchanges: number;
+  messages: number;
+}
+
 const UserProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -55,12 +67,14 @@ const UserProfile = () => {
   const { role } = useUserRole();
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [performanceData, setPerformanceData] = useState<PerformanceData | null>(null);
+  const [quickStats, setQuickStats] = useState<QuickStatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
       fetchUserProfile();
       fetchPerformanceData();
+      fetchQuickStats();
     }
   }, [id]);
 
@@ -162,6 +176,33 @@ const UserProfile = () => {
     }
   };
 
+  const fetchQuickStats = async () => {
+    try {
+      // Fetch additional statistics
+      const [clientsData, requestsData, emailsData, messagesData] = await Promise.all([
+        supabase.from('clients').select('id').eq('user_id', id),
+        supabase.from('requests').select('id').eq('user_id', id),
+        supabase.from('email_exchanges').select('id').eq('user_id', id),
+        supabase.from('messages').select('id').eq('user_id', id)
+      ]);
+
+      setQuickStats({
+        total_clients: clientsData.data?.length || 0,
+        total_requests: requestsData.data?.length || 0,
+        email_exchanges: emailsData.data?.length || 0,
+        messages: messagesData.data?.length || 0
+      });
+    } catch (error) {
+      console.error('Error fetching quick stats:', error);
+      setQuickStats({
+        total_clients: 0,
+        total_requests: 0,
+        email_exchanges: 0,
+        messages: 0
+      });
+    }
+  };
+
   const getDisplayName = () => {
     if (profileData?.profiles?.first_name || profileData?.profiles?.last_name) {
       return `${profileData.profiles.first_name || ''} ${profileData.profiles.last_name || ''}`.trim();
@@ -196,6 +237,60 @@ const UserProfile = () => {
   const canViewProfile = () => {
     // Users can view their own profile, or if they have supervisor+ role
     return user?.id === id || ['admin', 'manager', 'supervisor'].includes(role || '');
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard`);
+  };
+
+  const handleCardClick = (type: string) => {
+    const queryParams = new URLSearchParams();
+    queryParams.set('user', id || '');
+    
+    switch (type) {
+      case 'revenue':
+        queryParams.set('view', 'revenue');
+        navigate(`/bookings?${queryParams.toString()}`);
+        break;
+      case 'bookings':
+        navigate(`/bookings?${queryParams.toString()}`);
+        break;
+      case 'clients':
+        navigate(`/clients?${queryParams.toString()}`);
+        break;
+      case 'requests':
+        navigate(`/requests?${queryParams.toString()}`);
+        break;
+      case 'emails':
+        navigate(`/emails?${queryParams.toString()}`);
+        break;
+      case 'messages':
+        navigate(`/messages?${queryParams.toString()}`);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleContactClick = (type: string, value: string) => {
+    switch (type) {
+      case 'email':
+        window.open(`mailto:${value}`);
+        break;
+      case 'phone':
+        if (value) {
+          // Could integrate with call system or show call history
+          toast.info('Call feature coming soon');
+        }
+        break;
+      case 'company':
+        // Navigate to users filtered by same company
+        navigate(`/users?company=${encodeURIComponent(value)}`);
+        break;
+      default:
+        break;
+    }
   };
 
   if (!canViewProfile()) {
@@ -279,23 +374,32 @@ const UserProfile = () => {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <button 
+                  onClick={() => handleContactClick('email', profileData.email)}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-left"
+                >
                   <Mail className="w-4 h-4" />
-                  <span className="text-sm">{profileData.email}</span>
-                </div>
+                  <span className="text-sm underline">{profileData.email}</span>
+                </button>
                 
                 {profileData.profiles?.phone && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <button 
+                    onClick={() => handleContactClick('phone', profileData.profiles.phone || '')}
+                    className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-left"
+                  >
                     <Phone className="w-4 h-4" />
-                    <span className="text-sm">{profileData.profiles.phone}</span>
-                  </div>
+                    <span className="text-sm underline">{profileData.profiles.phone}</span>
+                  </button>
                 )}
                 
                 {profileData.profiles?.company && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <button 
+                    onClick={() => handleContactClick('company', profileData.profiles.company || '')}
+                    className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-left"
+                  >
                     <Building className="w-4 h-4" />
-                    <span className="text-sm">{profileData.profiles.company}</span>
-                  </div>
+                    <span className="text-sm underline">{profileData.profiles.company}</span>
+                  </button>
                 )}
                 
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -310,59 +414,152 @@ const UserProfile = () => {
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => handleCardClick('revenue')}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
               Total Revenue
+              <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               ${performanceData?.total_revenue?.toLocaleString() || '0'}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Click to view bookings</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => handleCardClick('bookings')}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Users className="w-4 h-4" />
               Total Bookings
+              <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {performanceData?.total_bookings || 0}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Click to view details</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               Total Commission
+              <Eye className="w-3 h-3 ml-auto opacity-50" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               ${performanceData?.total_commission?.toLocaleString() || '0'}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Commission breakdown</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Star className="w-4 h-4" />
               Satisfaction Score
+              <MessageSquare className="w-3 h-3 ml-auto opacity-50" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {performanceData?.client_satisfaction_score?.toFixed(1) || '0.0'}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Client feedback</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Access Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => handleCardClick('clients')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <User className="w-4 h-4" />
+              My Clients
+              <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {quickStats?.total_clients || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">View all clients</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => handleCardClick('requests')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              My Requests
+              <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {quickStats?.total_requests || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">View all requests</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => handleCardClick('emails')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              Email Activity
+              <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {quickStats?.email_exchanges || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">View email history</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => handleCardClick('messages')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Messages
+              <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {quickStats?.messages || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">View message history</p>
           </CardContent>
         </Card>
       </div>
@@ -411,7 +608,17 @@ const UserProfile = () => {
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">User ID</span>
-              <span className="font-mono text-xs">{profileData.id}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs">{profileData.id}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => copyToClipboard(profileData.id, 'User ID')}
+                  className="h-6 w-6 p-0"
+                >
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
             
             <div className="flex justify-between items-center">
