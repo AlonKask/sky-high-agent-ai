@@ -266,6 +266,78 @@ export type Database = {
           },
         ]
       }
+      airline_codes: {
+        Row: {
+          alliance: string | null
+          country: string | null
+          created_at: string | null
+          iata_code: string
+          icao_code: string | null
+          id: string
+          logo_url: string | null
+          name: string
+        }
+        Insert: {
+          alliance?: string | null
+          country?: string | null
+          created_at?: string | null
+          iata_code: string
+          icao_code?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+        }
+        Update: {
+          alliance?: string | null
+          country?: string | null
+          created_at?: string | null
+          iata_code?: string
+          icao_code?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
+      airport_codes: {
+        Row: {
+          city: string
+          country: string
+          created_at: string | null
+          iata_code: string
+          icao_code: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          timezone: string | null
+        }
+        Insert: {
+          city: string
+          country: string
+          created_at?: string | null
+          iata_code: string
+          icao_code?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          timezone?: string | null
+        }
+        Update: {
+          city?: string
+          country?: string
+          created_at?: string | null
+          iata_code?: string
+          icao_code?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          timezone?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           id: string
@@ -959,6 +1031,79 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      flight_options: {
+        Row: {
+          best_value: boolean | null
+          client_id: string | null
+          created_at: string | null
+          currency: string | null
+          id: string
+          parsed_segments: Json | null
+          price_usd: number | null
+          quote_id: string | null
+          raw_pnr_text: string | null
+          request_id: string | null
+          route_label: string | null
+          total_duration: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          best_value?: boolean | null
+          client_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          parsed_segments?: Json | null
+          price_usd?: number | null
+          quote_id?: string | null
+          raw_pnr_text?: string | null
+          request_id?: string | null
+          route_label?: string | null
+          total_duration?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          best_value?: boolean | null
+          client_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          parsed_segments?: Json | null
+          price_usd?: number | null
+          quote_id?: string | null
+          raw_pnr_text?: string | null
+          request_id?: string | null
+          route_label?: string | null
+          total_duration?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flight_options_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flight_options_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flight_options_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       flight_price_tracking: {
         Row: {
