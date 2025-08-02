@@ -260,25 +260,58 @@ export function QuoteCard({
                   <DollarSign className="h-4 w-4" />
                   Pricing Details
                 </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/30 rounded-lg">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Net Price</div>
-                    <div className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Markup</div>
-                    <div className="font-medium">${parseFloat(quote.markup).toFixed(2)}</div>
-                  </div>
-                  {quote.ck_fee_enabled && (
+                <div className="space-y-3">
+                  {/* Overall Pricing */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/30 rounded-lg">
                     <div>
-                      <div className="text-xs text-muted-foreground">CK Fee (3.5%)</div>
-                      <div className="font-medium">${parseFloat(quote.ck_fee_amount || '0').toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">Net Price</div>
+                      <div className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Markup</div>
+                      <div className="font-medium">${parseFloat(quote.markup).toFixed(2)}</div>
+                    </div>
+                    {quote.ck_fee_enabled && (
+                      <div>
+                        <div className="text-xs text-muted-foreground">CK Fee (3.5%)</div>
+                        <div className="font-medium">${parseFloat(quote.ck_fee_amount || '0').toFixed(2)}</div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs text-muted-foreground">Total</div>
+                      <div className="font-bold text-primary">${totalPrice.toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  {/* Passenger-specific Pricing */}
+                  {((quote as any).adult_net_price || (quote as any).child_net_price || (quote as any).infant_net_price) && (
+                    <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-200">
+                      <h5 className="text-sm font-medium text-blue-800 mb-2">Per Passenger Breakdown</h5>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        {(quote as any).adult_net_price && (
+                          <div>
+                            <div className="text-xs text-blue-600 font-medium">Adults</div>
+                            <div className="text-xs text-muted-foreground">Net: ${parseFloat((quote as any).adult_net_price).toFixed(2)}</div>
+                            <div className="text-xs text-muted-foreground">Sell: ${parseFloat((quote as any).adult_price || '0').toFixed(2)}</div>
+                          </div>
+                        )}
+                        {(quote as any).child_net_price && (
+                          <div>
+                            <div className="text-xs text-blue-600 font-medium">Children</div>
+                            <div className="text-xs text-muted-foreground">Net: ${parseFloat((quote as any).child_net_price).toFixed(2)}</div>
+                            <div className="text-xs text-muted-foreground">Sell: ${parseFloat((quote as any).child_price || '0').toFixed(2)}</div>
+                          </div>
+                        )}
+                        {(quote as any).infant_net_price && (
+                          <div>
+                            <div className="text-xs text-blue-600 font-medium">Infants</div>
+                            <div className="text-xs text-muted-foreground">Net: ${parseFloat((quote as any).infant_net_price).toFixed(2)}</div>
+                            <div className="text-xs text-muted-foreground">Sell: ${parseFloat((quote as any).infant_price || '0').toFixed(2)}</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
-                  <div>
-                    <div className="text-xs text-muted-foreground">Total</div>
-                    <div className="font-bold text-primary">${totalPrice.toFixed(2)}</div>
-                  </div>
                 </div>
               </div>
 

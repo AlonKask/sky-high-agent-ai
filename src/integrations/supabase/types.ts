@@ -1328,9 +1328,11 @@ export type Database = {
       }
       quotes: {
         Row: {
+          adult_net_price: number | null
           adult_price: number | null
           adults_count: number | null
           award_program: string | null
+          child_net_price: number | null
           child_price: number | null
           children_count: number | null
           ck_fee_amount: number
@@ -1342,6 +1344,7 @@ export type Database = {
           fare_type: string
           format: string | null
           id: string
+          infant_net_price: number | null
           infant_price: number | null
           infants_count: number | null
           is_hidden: boolean
@@ -1368,9 +1371,11 @@ export type Database = {
           weight_of_bags: number | null
         }
         Insert: {
+          adult_net_price?: number | null
           adult_price?: number | null
           adults_count?: number | null
           award_program?: string | null
+          child_net_price?: number | null
           child_price?: number | null
           children_count?: number | null
           ck_fee_amount?: number
@@ -1382,6 +1387,7 @@ export type Database = {
           fare_type: string
           format?: string | null
           id?: string
+          infant_net_price?: number | null
           infant_price?: number | null
           infants_count?: number | null
           is_hidden?: boolean
@@ -1408,9 +1414,11 @@ export type Database = {
           weight_of_bags?: number | null
         }
         Update: {
+          adult_net_price?: number | null
           adult_price?: number | null
           adults_count?: number | null
           award_program?: string | null
+          child_net_price?: number | null
           child_price?: number | null
           children_count?: number | null
           ck_fee_amount?: number
@@ -1422,6 +1430,7 @@ export type Database = {
           fare_type?: string
           format?: string | null
           id?: string
+          infant_net_price?: number | null
           infant_price?: number | null
           infants_count?: number | null
           is_hidden?: boolean
