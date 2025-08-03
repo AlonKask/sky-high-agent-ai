@@ -44,7 +44,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const now = new Date().getTime() / 1000;
       if (data.session.expires_at && data.session.expires_at < now) {
         setIsSecure(false);
-        toast.error('Session expired. Please sign in again.');
+        toastHelpers.error('Session expired. Please sign in again.');
         return false;
       }
 
@@ -53,7 +53,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       if (userError || !userdata.user) {
         setIsSecure(false);
-        toast.error('Session expired. Please sign in again.');
+        toastHelpers.error('Session expired. Please sign in again.');
         return false;
       }
 

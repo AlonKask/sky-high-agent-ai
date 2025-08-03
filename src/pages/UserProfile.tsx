@@ -122,7 +122,7 @@ const UserProfile = () => {
 
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      toast.error('Failed to load user profile');
+      toastHelpers.error('Failed to load user profile', error);
     }
   };
 
@@ -241,7 +241,7 @@ const UserProfile = () => {
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(`${label} copied to clipboard`);
+    toastHelpers.success(`${label} copied to clipboard`);
   };
 
   const handleCardClick = (type: string) => {
@@ -281,7 +281,7 @@ const UserProfile = () => {
       case 'phone':
         if (value) {
           // Could integrate with call system or show call history
-          toast.info('Call feature coming soon');
+          toastHelpers.info('Call feature coming soon');
         }
         break;
       case 'company':

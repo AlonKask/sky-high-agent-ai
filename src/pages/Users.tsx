@@ -119,7 +119,7 @@ const Users = () => {
       setUsers(usersWithRoles);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast.error('Failed to load users');
+      toastHelpers.error('Failed to load users', error);
     } finally {
       setLoading(false);
     }
@@ -128,7 +128,7 @@ const Users = () => {
   const createUser = async () => {
     try {
       if (!newUserData.email || !newUserData.password || !newUserData.firstName || !newUserData.lastName || !newUserData.role) {
-        toast.error('Please fill in all required fields');
+        toastHelpers.error('Please fill in all required fields');
         return;
       }
 
@@ -152,7 +152,7 @@ const Users = () => {
         throw new Error(data.error || 'Failed to create user');
       }
 
-      toast.success(`Successfully created user ${newUserData.firstName} ${newUserData.lastName}`);
+      toastHelpers.success(`Successfully created user ${newUserData.firstName} ${newUserData.lastName}`);
       
       // Reset form
       setNewUserData({
@@ -168,7 +168,7 @@ const Users = () => {
       fetchUsers();
     } catch (error: any) {
       console.error('Error creating user:', error);
-      toast.error(error.message || 'Failed to create user');
+      toastHelpers.error('Failed to create user', error);
     }
   };
 
@@ -188,16 +188,16 @@ const Users = () => {
 
       if (error) {
         console.error('Supabase error updating user role:', error);
-        toast.error(`Failed to update user role: ${error.message}`);
+        toastHelpers.error('Failed to update user role', error);
         return;
       }
 
       console.log('Role update successful:', data);
-      toast.success('User role updated successfully');
+      toastHelpers.success('User role updated successfully');
       fetchUsers(); // Refresh the list
     } catch (error) {
       console.error('Unexpected error updating user role:', error);
-      toast.error('An unexpected error occurred while updating the user role');
+      toastHelpers.error('An unexpected error occurred while updating the user role', error);
     }
   };
 

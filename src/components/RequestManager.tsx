@@ -119,14 +119,14 @@ const RequestManager = () => {
 
       if (error) {
         console.error('Error fetching requests:', error);
-        toast.error('Failed to load requests');
+        toastHelpers.error('Failed to load requests', error);
         return;
       }
 
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
-      toast.error('Failed to load requests');
+      toastHelpers.error('Failed to load requests', error);
     } finally {
       setLoading(false);
     }
@@ -177,7 +177,7 @@ const RequestManager = () => {
     // If creating a new client, create the client first
     if (isNewClient) {
       if (!newClientData.firstName || !newClientData.email) {
-        toast.error('Please fill in all required client fields (first name, email)');
+        toastHelpers.error('Please fill in all required client fields (first name, email)');
         return;
       }
       
@@ -200,44 +200,44 @@ const RequestManager = () => {
 
         if (clientError) {
           console.error('Error creating client:', clientError);
-          toast.error('Failed to create client');
+          toastHelpers.error('Failed to create client', clientError);
           return;
         }
 
         clientId = clientResult.id;
-        toast.success('Client created successfully');
+        toastHelpers.success('Client created successfully');
       } catch (error) {
         console.error('Error creating client:', error);
-        toast.error('Failed to create client');
+        toastHelpers.error('Failed to create client', error);
         return;
       }
     }
     
     // Validate required fields
     if (!clientId || !formData.tripType) {
-      toast.error('Please fill in all required fields');
+      toastHelpers.error('Please fill in all required fields');
       return;
     }
 
     // Validate based on trip type
     if (formData.tripType === 'multi_city') {
       if (formData.segments.length < 2) {
-        toast.error('Multi-city trips require at least 2 segments');
+        toastHelpers.error('Multi-city trips require at least 2 segments');
         return;
       }
       for (const segment of formData.segments) {
         if (!segment.from || !segment.to || !segment.date) {
-          toast.error('All segments must have origin, destination, and date');
+          toastHelpers.error('All segments must have origin, destination, and date');
           return;
         }
       }
     } else {
       if (!formData.origin || !formData.destination || !formData.departureDate) {
-        toast.error('Please fill in origin, destination, and departure date');
+        toastHelpers.error('Please fill in origin, destination, and departure date');
         return;
       }
       if (formData.tripType === 'round_trip' && !formData.returnDate) {
-        toast.error('Return date is required for round trips');
+        toastHelpers.error('Return date is required for round trips');
         return;
       }
     }
@@ -298,11 +298,11 @@ const RequestManager = () => {
 
       if (error) {
         console.error('Error creating request:', error);
-        toast.error('Failed to create request');
+        toastHelpers.error('Failed to create request', error);
         return;
       }
 
-      toast.success('Request created successfully');
+      toastHelpers.success('Request created successfully');
       
       // Reset form and close dialog
       resetForm();
@@ -316,7 +316,7 @@ const RequestManager = () => {
       
     } catch (error) {
       console.error('Error creating request:', error);
-      toast.error('Failed to create request');
+      toastHelpers.error('Failed to create request', error);
     } finally {
       setCreating(false);
     }

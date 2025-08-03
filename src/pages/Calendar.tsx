@@ -85,7 +85,7 @@ const Calendar = () => {
 
       if (bookingsError) {
         console.error('Error fetching bookings:', bookingsError);
-        toast.error('Failed to load planned bookings');
+        toastHelpers.error('Failed to load planned bookings', bookingsError);
         return;
       }
 
@@ -205,7 +205,7 @@ const Calendar = () => {
       setEvents(calendarEvents);
     } catch (error) {
       console.error('Error fetching calendar events:', error);
-      toast.error('Failed to load planned activities');
+      toastHelpers.error('Failed to load planned activities', error);
     } finally {
       setLoadingEvents(false);
     }

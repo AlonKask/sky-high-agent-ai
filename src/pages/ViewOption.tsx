@@ -80,7 +80,7 @@ const ViewOption = () => {
 
     } catch (error) {
       console.error('Error fetching option data:', error);
-      toast.error('Failed to load option data');
+      toastHelpers.error('Failed to load option data', error);
     } finally {
       setLoading(false);
     }

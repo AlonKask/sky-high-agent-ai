@@ -68,7 +68,7 @@ const PublicRequestForm = () => {
   const handleSubmitRequest = async () => {
     // Validate required fields
     if (!formData.clientName || !formData.clientEmail || !formData.origin || !formData.destination || !formData.departureDate) {
-      toast.error('Please fill in all required fields');
+      toastHelpers.error('Please fill in all required fields');
       return;
     }
 
@@ -114,7 +114,7 @@ const PublicRequestForm = () => {
 
           if (clientError) {
             console.error('Error creating client:', clientError);
-            toast.error('Failed to create client record');
+            toastHelpers.error('Failed to create client record', clientError);
             return;
           }
 
@@ -123,7 +123,7 @@ const PublicRequestForm = () => {
       }
 
       if (!clientId || !assignedAgent) {
-        toast.error('No available agents to assign request');
+        toastHelpers.error('No available agents to assign request');
         return;
       }
 
@@ -155,7 +155,7 @@ const PublicRequestForm = () => {
 
       if (requestError) {
         console.error('Error creating request:', requestError);
-        toast.error('Failed to submit request');
+        toastHelpers.error('Failed to submit request', requestError);
         return;
       }
 
@@ -176,11 +176,11 @@ const PublicRequestForm = () => {
       }
 
       setIsSubmitted(true);
-      toast.success('Request submitted successfully! We will contact you shortly.');
+      toastHelpers.success('Request submitted successfully! We will contact you shortly.');
 
     } catch (error) {
       console.error('Error submitting request:', error);
-      toast.error('Failed to submit request');
+      toastHelpers.error('Failed to submit request', error);
     } finally {
       setIsSubmitting(false);
     }
