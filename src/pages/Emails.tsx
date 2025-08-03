@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { toastHelpers } from '@/utils/toastHelpers';
+import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { format } from 'date-fns';
 import { ManualGmailFix } from '@/components/ManualGmailFix';
 import { Switch } from '@/components/ui/switch';

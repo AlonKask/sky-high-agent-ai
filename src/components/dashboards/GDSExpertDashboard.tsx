@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plane, Clock, RefreshCw, TrendingUp, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toastHelpers } from '@/utils/toastHelpers';
+import { toastHelpers, toast } from '@/utils/toastHelpers';
 
 interface RequestData {
   id: string;

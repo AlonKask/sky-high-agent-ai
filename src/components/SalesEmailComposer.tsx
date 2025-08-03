@@ -23,7 +23,7 @@ import {
   Clock,
   Mail
 } from 'lucide-react';
-import { toastHelpers } from '@/utils/toastHelpers';
+import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SalesEmailComposerProps {

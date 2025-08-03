@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Star, Clock, DollarSign, Plane, MapPin, MessageSquare, Send, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toastHelpers } from '@/utils/toastHelpers';
+import { toastHelpers, toast } from '@/utils/toastHelpers';
 
 interface Quote {
   id: string;

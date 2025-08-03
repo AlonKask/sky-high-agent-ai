@@ -13,7 +13,7 @@ import LoadingProgress from './LoadingProgress';
 import ErrorDisplay from './ErrorDisplay';
 import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toastHelpers } from '@/utils/toastHelpers';
+import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { SabreParser, type ParsedItinerary } from '@/utils/sabreParser';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { DatabaseUtils } from '@/utils/databaseUtils';

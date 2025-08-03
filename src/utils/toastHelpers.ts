@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { toast as sonnerToast } from 'sonner';
 
 interface ToastOptions {
   description?: string;
@@ -16,7 +16,7 @@ interface ErrorToastOptions extends ToastOptions {
 // Centralized toast utilities to reduce duplicated code
 export const toastHelpers = {
   success: (message: string, options?: ToastOptions) => {
-    toast.success(message, {
+    sonnerToast.success(message, {
       duration: options?.duration || 4000,
       description: options?.description,
       action: options?.action,
@@ -39,7 +39,7 @@ export const toastHelpers = {
       }
     }
 
-    toast.error(message, {
+    sonnerToast.error(message, {
       duration: options?.duration || 6000,
       description,
       action: options?.action,
@@ -50,7 +50,7 @@ export const toastHelpers = {
     success?: string;
     error?: string;
   }) => {
-    return toast.promise(promise, {
+    return sonnerToast.promise(promise, {
       loading: message,
       success: options?.success || 'Operation completed successfully',
       error: options?.error || 'Operation failed',
@@ -58,7 +58,7 @@ export const toastHelpers = {
   },
 
   info: (message: string, options?: ToastOptions) => {
-    toast.info(message, {
+    sonnerToast.info(message, {
       duration: options?.duration || 4000,
       description: options?.description,
       action: options?.action,
@@ -66,12 +66,34 @@ export const toastHelpers = {
   },
 
   warning: (message: string, options?: ToastOptions) => {
-    toast.warning(message, {
+    sonnerToast.warning(message, {
       duration: options?.duration || 5000,
       description: options?.description,
       action: options?.action,
     });
   },
+};
+
+// Compatibility layer for old toast calls
+export const toast = (options: {
+  title?: string;
+  description?: string;
+  variant?: 'default' | 'destructive';
+  action?: any;
+  duration?: number;
+}) => {
+  if (options.variant === 'destructive') {
+    toastHelpers.error(options.title || 'Error', options.description, { 
+      duration: options.duration,
+      action: options.action 
+    });
+  } else {
+    toastHelpers.success(options.title || 'Success', { 
+      description: options.description,
+      duration: options.duration,
+      action: options.action 
+    });
+  }
 };
 
 // Specific helpers for common patterns
