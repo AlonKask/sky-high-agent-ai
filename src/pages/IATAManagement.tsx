@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Download, Upload } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AirlineManagement } from "@/components/AirlineManagement";
-import { AirportManagement } from "@/components/AirportManagement";
+import OptimizedAirportManagement from "@/components/OptimizedAirportManagement";
 import { BookingClassManagement } from "@/components/BookingClassManagement";
 
 export default function IATAManagement() {
@@ -86,7 +86,7 @@ export default function IATAManagement() {
         </TabsContent>
 
         <TabsContent value="airports" className="space-y-6">
-          <AirportManagement searchTerm={searchTerm} />
+          <OptimizedAirportManagement searchTerm={searchTerm} />
         </TabsContent>
 
         <TabsContent value="booking-classes" className="space-y-6">
