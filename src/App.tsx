@@ -49,7 +49,6 @@ function App() {
         <AuthProvider>
           <RoleViewProvider>
             <SecurityProvider>
-              <BrowserRouter>
               <ErrorBoundary>
                 <Routes>
                   {/* Public routes */}
@@ -83,7 +82,6 @@ function App() {
                 </Routes>
                 <Toaster />
               </ErrorBoundary>
-            </BrowserRouter>
           </SecurityProvider>
         </RoleViewProvider>
       </AuthProvider>
