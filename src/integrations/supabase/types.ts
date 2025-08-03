@@ -2383,6 +2383,54 @@ export type Database = {
         }
         Returns: string
       }
+      search_airlines: {
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Returns: {
+          id: string
+          iata_code: string
+          icao_code: string
+          name: string
+          country: string
+          alliance: string
+          logo_url: string
+          created_at: string
+          rbd_count: number
+          total_count: number
+        }[]
+      }
+      search_airports: {
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Returns: {
+          id: string
+          iata_code: string
+          icao_code: string
+          name: string
+          city: string
+          country: string
+          latitude: number
+          longitude: number
+          timezone: string
+          created_at: string
+          total_count: number
+        }[]
+      }
+      search_booking_classes: {
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Returns: {
+          id: string
+          booking_class_code: string
+          service_class: string
+          class_description: string
+          booking_priority: number
+          active: boolean
+          airline_id: string
+          airline_name: string
+          airline_iata: string
+          created_at: string
+          updated_at: string
+          total_count: number
+        }[]
+      }
       update_client_memory: {
         Args: {
           p_user_id: string
