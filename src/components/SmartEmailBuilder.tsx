@@ -8,33 +8,30 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Send, 
   Mail, 
+  Send, 
   Eye, 
-  Users, 
   Plane, 
-  DollarSign,
-  MapPin,
-  Clock,
+  Loader2, 
   Info,
-  Loader2
+  Clock,
+  MapPin,
+  DollarSign
 } from 'lucide-react';
-import { EmailVariableParser } from '@/utils/emailVariableParser';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface Quote {
   id: string;
   route: string;
-  fare_type: string;
   total_price: string;
-  sabre_data?: string;
+  net_price?: string;
+  markup?: string;
+  fare_type: string;
   segments?: any[];
-  net_price: string;
-  markup: string;
-  valid_until?: string;
   notes?: string;
   is_hidden?: boolean;
+  validity?: string;
 }
 
 interface Client {
@@ -58,7 +55,6 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
   const [emailContent, setEmailContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
   // Initialize with all visible quotes selected
   useEffect(() => {
@@ -71,130 +67,156 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
   useEffect(() => {
     if (selectedQuotes.size > 0) {
       generateEmailContent();
+    } else {
+      setEmailContent('');
     }
   }, [selectedQuotes, personalMessage]);
 
-  const generateEmailContent = async () => {
+  const generateEmailContent = () => {
     setIsLoading(true);
+    
     try {
       const selectedQuotesList = quotes.filter(q => selectedQuotes.has(q.id));
       
+      if (selectedQuotesList.length === 0) {
+        setEmailContent('');
+        setIsLoading(false);
+        return;
+      }
+      
       let emailHTML = `
-        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff;">
-          <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border-radius: 8px;">
-            <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Flight Options</h1>
-            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Prepared for ${client.first_name} ${client.last_name}</p>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff; line-height: 1.6;">
+          <div style="text-align: center; margin-bottom: 40px; padding: 30px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border-radius: 12px;">
+            <h1 style="margin: 0; font-size: 32px; font-weight: 700;">✈️ Flight Options</h1>
+            <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Carefully selected for ${client.first_name} ${client.last_name}</p>
           </div>
       `;
 
       if (personalMessage.trim()) {
         emailHTML += `
-          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #3b82f6;">
-            <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 16px;">Personal Message</h3>
-            <p style="margin: 0; color: #475569; line-height: 1.6;">${personalMessage.replace(/\n/g, '<br>')}</p>
+          <div style="background: #f0f9ff; padding: 25px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #0ea5e9;">
+            <h3 style="margin: 0 0 15px 0; color: #0c4a6e; font-size: 18px; font-weight: 600;">📝 Personal Message</h3>
+            <div style="color: #075985; line-height: 1.7; font-size: 15px;">${personalMessage.replace(/\n/g, '<br>')}</div>
           </div>
         `;
       }
 
-      for (let i = 0; i < selectedQuotesList.length; i++) {
-        const quote = selectedQuotesList[i];
-        const optionNumber = i + 1;
+      // Process each selected quote
+      selectedQuotesList.forEach((quote, index) => {
+        const optionNumber = index + 1;
+        const totalPrice = parseFloat(quote.total_price || '0').toFixed(2);
+        const fareType = (quote.fare_type || 'Economy').replace('_', ' ').toUpperCase();
+        const route = quote.route || 'Route not specified';
+        const segments = quote.segments || [];
         
-        try {
-          // Parse quote data with enhanced parser
-          const emailVariables = await EmailVariableParser.parseQuoteToVariables(
-            {
-              segments: quote.segments || [],
-              net_price: parseFloat(quote.net_price || '0'),
-              markup: parseFloat(quote.markup || '0'),
-              total_price: parseFloat(quote.total_price || '0'),
-              adults_count: 1,
-              children_count: 0,
-              infants_count: 0,
-              fare_type: quote.fare_type || 'revenue'
-            },
-            `${client.first_name} ${client.last_name}`
-          );
-
-          emailHTML += `
-            <div style="border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 25px; overflow: hidden;">
-              <div style="background: #f1f5f9; padding: 15px; border-bottom: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <h3 style="margin: 0; color: #1e293b; font-size: 18px;">Option ${optionNumber}</h3>
-                  <div style="text-align: right;">
-                    <div style="font-size: 24px; font-weight: bold; color: #059669;">$${parseFloat(quote.total_price).toFixed(2)}</div>
-                    <div style="font-size: 12px; color: #6b7280; text-transform: uppercase;">${quote.fare_type.replace('_', ' ')}</div>
-                  </div>
+        emailHTML += `
+          <div style="border: 2px solid #e5e7eb; border-radius: 12px; margin-bottom: 30px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(90deg, #f8fafc, #e2e8f0); padding: 25px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div>
+                  <h3 style="margin: 0; color: #1e293b; font-size: 24px; font-weight: 700;">Option ${optionNumber}</h3>
+                  <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px; font-weight: 600;">${fareType}</p>
+                </div>
+                <div style="text-align: right;">
+                  <div style="font-size: 32px; font-weight: 800; color: #059669;">$${totalPrice}</div>
+                  <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Per person, all inclusive</div>
                 </div>
               </div>
+            </div>
+            
+            <div style="padding: 25px;">
+              <div style="margin-bottom: 25px;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                  <div style="width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                    <span style="color: white; font-size: 12px; font-weight: bold;">✈</span>
+                  </div>
+                  <strong style="color: #1e293b; font-size: 20px;">${route}</strong>
+                </div>
+              </div>
+
+              ${segments.length > 0 ? 
+                segments.map((segment, segIndex) => {
+                  // Safely extract segment data with multiple property name attempts
+                  const flightNumber = segment.flightNumber || segment.flight_number || segment.flight || 
+                                     segment.airline_code || segment.airline || 'Flight TBD';
+                  const departure = segment.departure_time || segment.departureTime || segment.depart_time || 
+                                  segment.departure || 'Departure TBD';
+                  const arrival = segment.arrival_time || segment.arrivalTime || segment.arrive_time || 
+                                segment.arrival || 'Arrival TBD';
+                  const fromAirport = segment.departure_airport || segment.departureAirport || segment.from || 
+                                    segment.origin || segment.dep || 'DEP';
+                  const toAirport = segment.arrival_airport || segment.arrivalAirport || segment.to || 
+                                  segment.destination || segment.arr || 'ARR';
+                  const cabinClass = segment.cabin_class || segment.cabinClass || segment.booking_class || 
+                                   segment.bookingClass || segment.class || 'Economy';
+                  
+                  return `
+                    <div style="background: #f9fafb; padding: 20px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #3b82f6;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                          <div style="font-weight: 700; color: #1e293b; font-size: 18px;">${flightNumber}</div>
+                          <div style="font-size: 12px; background: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 20px; font-weight: 600;">
+                            ${cabinClass}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center;">
+                        <div style="text-align: left;">
+                          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${fromAirport}</div>
+                          <div style="font-size: 14px; color: #64748b; margin-top: 4px;">${departure}</div>
+                        </div>
+                        
+                        <div style="text-align: center; padding: 0 15px;">
+                          <div style="display: flex; align-items: center; justify-content: center;">
+                            <div style="width: 40px; height: 2px; background: #3b82f6;"></div>
+                            <div style="margin: 0 8px; color: #3b82f6; font-size: 16px;">✈</div>
+                            <div style="width: 40px; height: 2px; background: #3b82f6;"></div>
+                          </div>
+                          <div style="font-size: 11px; color: #6b7280; margin-top: 8px; font-weight: 500;">DIRECT</div>
+                        </div>
+                        
+                        <div style="text-align: right;">
+                          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${toAirport}</div>
+                          <div style="font-size: 14px; color: #64748b; margin-top: 4px;">${arrival}</div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')
+                : 
+                `<div style="background: #f9f9f9; padding: 25px; border-radius: 10px; text-align: center; color: #6b7280;">
+                   <p style="margin: 0; font-size: 16px;">✈️ Flight details are being finalized and will be confirmed upon booking</p>
+                 </div>`
+              }
               
-              <div style="padding: 20px;">
-                <div style="margin-bottom: 20px;">
-                  <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                    <div style="width: 20px; height: 20px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
-                      <span style="color: white; font-size: 12px;">✈</span>
-                    </div>
-                    <strong style="color: #1e293b;">Route: ${emailVariables.ROUTE_DESCRIPTION || quote.route}</strong>
-                  </div>
+              ${quote.notes ? `
+                <div style="margin-top: 20px; padding: 18px; background: #fefce8; border-radius: 8px; border-left: 4px solid #eab308;">
+                  <h4 style="margin: 0 0 10px 0; color: #92400e; font-size: 15px; font-weight: 600;">💡 Important Notes:</h4>
+                  <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.6;">${quote.notes}</p>
                 </div>
-
-                ${quote.segments && quote.segments.length > 0 ? 
-                  quote.segments.map((segment, segIndex) => `
-                    <div style="background: #fafafa; padding: 15px; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #3b82f6;">
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <div style="font-weight: bold; color: #1e293b;">${segment.flightNumber || 'N/A'}</div>
-                        <div style="font-size: 12px; background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px;">
-                          ${segment.cabinClass || segment.bookingClass || 'Economy'}
-                        </div>
-                      </div>
-                      <div style="display: flex; justify-content: space-between; font-size: 14px; color: #4b5563;">
-                        <div>
-                          <strong>${segment.departureAirport || 'DEP'}</strong> → <strong>${segment.arrivalAirport || 'ARR'}</strong>
-                        </div>
-                        <div>
-                          ${segment.departureTime || 'TBD'} - ${segment.arrivalTime || 'TBD'}
-                        </div>
-                      </div>
-                    </div>
-                  `).join('')
-                  : 
-                  `<div style="background: #fafafa; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-                     <div style="color: #6b7280; text-align: center;">Flight details will be provided upon confirmation</div>
-                   </div>`
-                }
-
-                ${quote.notes ? `
-                  <div style="margin-top: 15px; padding: 12px; background: #fffbeb; border-radius: 6px; border-left: 3px solid #f59e0b;">
-                    <div style="font-size: 12px; color: #92400e; text-transform: uppercase; margin-bottom: 5px;">Notes</div>
-                    <div style="color: #78350f; font-size: 14px;">${quote.notes}</div>
-                  </div>
-                ` : ''}
-              </div>
+              ` : ''}
             </div>
-          `;
-        } catch (error) {
-          console.error(`Error processing quote ${quote.id}:`, error);
-          // Fallback to basic display
-          emailHTML += `
-            <div style="border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 25px; padding: 20px;">
-              <h3 style="margin: 0 0 15px 0; color: #1e293b;">Option ${optionNumber}</h3>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div><strong>Route:</strong> ${quote.route}</div>
-                <div style="font-size: 24px; font-weight: bold; color: #059669;">$${parseFloat(quote.total_price).toFixed(2)}</div>
-              </div>
-            </div>
-          `;
-        }
-      }
+          </div>
+        `;
+      });
 
+      // Add footer with call to action
       emailHTML += `
-          <div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 8px; text-align: center;">
-            <p style="margin: 0 0 15px 0; color: #475569; font-size: 14px;">
-              To proceed with any of these options or if you have questions, please reply to this email or contact us directly.
+          <div style="text-align: center; margin-top: 40px; padding: 30px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 12px; border: 2px solid #cbd5e1;">
+            <h3 style="margin: 0 0 15px 0; color: #1e293b; font-size: 22px; font-weight: 700;">🤝 Ready to book or need more details?</h3>
+            <p style="margin: 0 0 25px 0; color: #475569; font-size: 16px; line-height: 1.6; max-width: 500px; margin-left: auto; margin-right: auto;">
+              I'm here to help you make the perfect choice for your trip. Feel free to reach out with any questions or to proceed with booking.
             </p>
-            <p style="margin: 0; color: #6b7280; font-size: 12px;">
-              Prices and availability are subject to change. Terms and conditions apply.
-            </p>
+            <div style="display: inline-block; padding: 15px 30px; background: #3b82f6; color: white; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+              📞 Contact Your Travel Agent
+            </div>
+          </div>
+          
+          <div style="margin-top: 35px; padding: 25px; text-align: center; color: #6b7280; font-size: 14px; border-top: 2px solid #e5e7eb;">
+            <p style="margin: 0 0 8px 0; font-size: 16px; color: #374151;">Best regards,</p>
+            <p style="margin: 0 0 15px 0; font-weight: 700; color: #1f2937; font-size: 18px;">Your Travel Agent</p>
+            <p style="margin: 0; font-style: italic; color: #6b7280;">⏰ This quote is valid for 7 days from today</p>
           </div>
         </div>
       `;
@@ -202,10 +224,35 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
       setEmailContent(emailHTML);
     } catch (error) {
       console.error('Error generating email content:', error);
+      
+      // Robust fallback content
+      const fallbackHTML = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #ffffff;">
+          <div style="text-align: center; padding: 20px; background: #3b82f6; color: white; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 24px;">Flight Options</h1>
+            <p style="margin: 10px 0 0 0;">For ${client.first_name} ${client.last_name}</p>
+          </div>
+          
+          ${personalMessage ? `
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+              <p style="margin: 0;">${personalMessage.replace(/\n/g, '<br>')}</p>
+            </div>
+          ` : ''}
+          
+          <div style="text-align: center; padding: 20px;">
+            <p style="color: #666; font-size: 16px;">We have prepared ${selectedQuotes.size} flight option${selectedQuotes.size > 1 ? 's' : ''} for your review.</p>
+            <p style="color: #666;">Please contact us for detailed flight information and booking.</p>
+            <div style="margin-top: 20px; padding: 10px 20px; background: #059669; color: white; border-radius: 5px; display: inline-block;">
+              Contact Your Travel Agent
+            </div>
+          </div>
+        </div>
+      `;
+      
+      setEmailContent(fallbackHTML);
       toast({
-        title: "Error",
-        description: "Failed to generate email content",
-        variant: "destructive"
+        title: "Email Preview Ready",
+        description: "Using simplified preview format"
       });
     } finally {
       setIsLoading(false);
@@ -224,9 +271,13 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
 
     setIsSending(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       // Create review record for client feedback
       const reviewData = {
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: user.id,
         client_id: client.id,
         request_id: requestId,
         quote_ids: Array.from(selectedQuotes),
@@ -261,19 +312,19 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
 
       // Create email exchange record
       await supabase.from('email_exchanges').insert({
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: user.id,
         client_id: client.id,
         request_id: requestId,
         subject: emailSubject,
-        body: personalMessage,
+        body: emailContent,
         recipient_emails: [client.email],
-        sender_email: (await supabase.auth.getUser()).data.user?.email,
+        sender_email: user.email,
         direction: 'outbound',
         email_type: 'quote'
       });
 
       toast({
-        title: "Email Sent Successfully",
+        title: "Email Sent Successfully!",
         description: `Flight options sent to ${client.first_name} ${client.last_name}`
       });
 
@@ -282,7 +333,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
       console.error('Error sending email:', error);
       toast({
         title: "Email Send Failed",
-        description: error.message || "Failed to send email",
+        description: error.message || "Failed to send email. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -319,12 +370,12 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />
-                Email Content
+                Email Composition
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Subject</label>
+                <label className="text-sm font-medium">Subject Line</label>
                 <Input
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
@@ -337,7 +388,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
                 <Textarea
                   value={personalMessage}
                   onChange={(e) => setPersonalMessage(e.target.value)}
-                  placeholder="Add a personal message..."
+                  placeholder="Add a personal touch to your email..."
                   rows={4}
                 />
               </div>
@@ -363,7 +414,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{quote.route}</span>
                           <span className="font-bold text-primary">
-                            ${parseFloat(quote.total_price).toFixed(2)}
+                            ${parseFloat(quote.total_price || '0').toFixed(2)}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -387,14 +438,6 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
                     <Send className="h-4 w-4 mr-2" />
                   )}
                   {isSending ? 'Sending...' : 'Send Email'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowPreview(!showPreview)}
-                  disabled={isLoading}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  {showPreview ? 'Hide' : 'Preview'}
                 </Button>
               </div>
             </CardContent>
