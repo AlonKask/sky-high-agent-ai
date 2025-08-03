@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
+import { toastHelpers, supabaseErrorToast, supabaseSuccessToast } from '@/utils/toastHelpers';
 import { 
   MessageCircle, 
   Send, 
@@ -42,469 +41,440 @@ interface Conversation {
   message_count?: number;
 }
 
-export const AIEmailAssistant: React.FC = () => {
+interface AIEmailAssistantProps {
+  mode?: 'full' | 'simple';
+  onDraftCreated?: (draft: any) => void;
+}
+
+export const AIEmailAssistant: React.FC<AIEmailAssistantProps> = ({ 
+  mode = 'full',
+  onDraftCreated 
+}) => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedEmails, setSelectedEmails] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Load conversations on mount
-  useEffect(() => {
-    if (user) {
+    if (user && mode === 'full') {
       loadConversations();
     }
-  }, [user]);
+  }, [user, mode]);
 
-  // Load messages when active conversation changes
   useEffect(() => {
     if (activeConversation) {
       loadMessages(activeConversation);
     }
   }, [activeConversation]);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const loadConversations = async () => {
+    if (!user) return;
+    
     try {
+      setConversationsLoading(true);
       const { data, error } = await supabase
         .from('ai_email_conversations')
-        .select(`
-          *,
-          ai_email_messages(count)
-        `)
-        .order('updated_at', { ascending: false })
-        .limit(20);
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
-
       setConversations(data || []);
-      
-      // Auto-select first conversation if none selected
-      if (!activeConversation && data && data.length > 0) {
-        setActiveConversation(data[0].id);
-      }
     } catch (error) {
-      console.error('Error loading conversations:', error);
-      toast.error('Failed to load conversations');
+      supabaseErrorToast('load conversations', error);
+    } finally {
+      setConversationsLoading(false);
     }
   };
 
   const loadMessages = async (conversationId: string) => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
         .from('ai_email_messages')
         .select('*')
         .eq('conversation_id', conversationId)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-
-      // Transform the data to match our Message interface
-      const transformedMessages: Message[] = (data || []).map(msg => ({
+      setMessages((data || []).map(msg => ({
         id: msg.id,
         role: msg.role as 'user' | 'assistant' | 'system',
         content: msg.content,
         created_at: msg.created_at,
         metadata: msg.metadata
-      }));
-
-      setMessages(transformedMessages);
+      })));
     } catch (error) {
-      console.error('Error loading messages:', error);
-      toast.error('Failed to load messages');
+      supabaseErrorToast('load messages', error);
     }
   };
 
   const createNewConversation = async () => {
     if (!user) return;
-
+    
     try {
-      const title = `Conversation ${new Date().toLocaleString()}`;
-      
       const { data, error } = await supabase
         .from('ai_email_conversations')
-        .insert([{ title, user_id: user.id }])
+        .insert({
+          user_id: user.id,
+          title: 'New Email Conversation'
+        })
         .select()
         .single();
 
       if (error) throw error;
-
-      setConversations(prev => [data, ...prev]);
-      setActiveConversation(data.id);
-      setMessages([]);
       
-      toast.success('New conversation created');
+      supabaseSuccessToast('New conversation created');
+      setActiveConversation(data.id);
+      loadConversations();
     } catch (error) {
-      console.error('Error creating conversation:', error);
-      toast.error('Failed to create conversation');
+      supabaseErrorToast('create conversation', error);
     }
   };
 
   const deleteConversation = async (conversationId: string) => {
+    if (!user) return;
+    
     try {
       const { error } = await supabase
         .from('ai_email_conversations')
         .delete()
-        .eq('id', conversationId);
+        .eq('id', conversationId)
+        .eq('user_id', user.id);
 
       if (error) throw error;
-
-      setConversations(prev => prev.filter(c => c.id !== conversationId));
       
+      supabaseSuccessToast('Conversation deleted');
       if (activeConversation === conversationId) {
         setActiveConversation(null);
         setMessages([]);
       }
-
-      toast.success('Conversation deleted');
+      loadConversations();
     } catch (error) {
-      console.error('Error deleting conversation:', error);
-      toast.error('Failed to delete conversation');
+      supabaseErrorToast('delete conversation', error);
     }
   };
 
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading || !user) return;
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || loading || !user) return;
 
-    const userMessage = inputMessage.trim();
-    setInputMessage('');
-    setIsLoading(true);
-
-    try {
-      // Create conversation if none exists
-      let conversationId = activeConversation;
-      if (!conversationId) {
+    // For simple mode, create conversation if needed
+    let currentConversationId = activeConversation;
+    if (!currentConversationId) {
+      try {
         const { data, error } = await supabase
           .from('ai_email_conversations')
-          .insert([{ 
-            title: userMessage.substring(0, 50) + '...',
-            user_id: user.id 
-          }])
+          .insert({
+            user_id: user.id,
+            title: 'Email Assistant Chat'
+          })
           .select()
           .single();
 
         if (error) throw error;
-
-        conversationId = data.id;
-        setActiveConversation(conversationId);
-        setConversations(prev => [data, ...prev]);
+        currentConversationId = data.id;
+        setActiveConversation(currentConversationId);
+      } catch (error) {
+        supabaseErrorToast('create conversation', error);
+        return;
       }
+    }
 
-      // Add user message to UI immediately
-      const userMessageObj: Message = {
-        id: `temp-${Date.now()}`,
-        role: 'user',
-        content: userMessage,
-        created_at: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, userMessageObj]);
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: inputMessage.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setLoading(true);
+
+    try {
+      // Save user message
+      await supabase
+        .from('ai_email_messages')
+        .insert({
+          conversation_id: currentConversationId,
+          user_id: user.id,
+          role: 'user',
+          content: userMessage.content
+        });
 
       // Call AI assistant
-      const { data: authData } = await supabase.auth.getSession();
-      const token = authData.session?.access_token;
-
-      const response = await fetch(`https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/ai-assistant-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: userMessage }],
-          conversationId,
-          context: {
-            selectedEmails,
-            userPreferences: {},
-          },
-        }),
+      const { data, error } = await supabase.functions.invoke('ai-assistant-chat', {
+        body: {
+          message: userMessage.content,
+          conversation_id: currentConversationId,
+          context: 'email_assistance'
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
+      if (error) throw error;
 
-      const result = await response.json();
-
-      // Add assistant response to UI
-      const assistantMessage: Message = {
-        id: `ai-${Date.now()}`,
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: result.response,
+        content: data.response || 'I apologize, but I encountered an issue processing your request.',
         created_at: new Date().toISOString(),
       };
-      setMessages(prev => [...prev.slice(0, -1), userMessageObj, assistantMessage]);
 
-      // Reload conversations to update timestamps
-      loadConversations();
+      // Save AI response
+      await supabase
+        .from('ai_email_messages')
+        .insert({
+          conversation_id: currentConversationId,
+          user_id: user.id,
+          role: 'assistant',
+          content: aiResponse.content
+        });
+
+      setMessages(prev => [...prev, aiResponse]);
+
+      // If draft was created, call callback
+      if (data.draft && onDraftCreated) {
+        onDraftCreated(data.draft);
+      }
 
     } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-      
-      // Remove user message from UI on error
-      setMessages(prev => prev.slice(0, -1));
+      supabaseErrorToast('send message', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+  const copyToClipboard = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    toastHelpers.success('Message copied to clipboard');
   };
 
-  const copyMessage = (content: string) => {
-    navigator.clipboard.writeText(content);
-    toast.success('Message copied to clipboard');
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
-
-  const MessageComponent = ({ message }: { message: Message }) => (
-    <div className={`flex gap-3 p-4 ${message.role === 'user' ? 'bg-muted/30' : 'bg-background'}`}>
-      <div className="flex-shrink-0">
-        {message.role === 'user' ? (
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-primary-foreground" />
-          </div>
-        ) : (
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-            <Bot className="w-4 h-4 text-white" />
-          </div>
-        )}
-      </div>
-      
-      <div className="flex-1 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-sm">
-            {message.role === 'user' ? 'You' : 'AI Assistant'}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {formatTimestamp(message.created_at)}
-          </span>
-        </div>
-        
-        <div className="prose prose-sm max-w-none">
-          <p className="whitespace-pre-wrap text-foreground">{message.content}</p>
-        </div>
-        
-        <div className="flex items-center gap-2 pt-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => copyMessage(message.content)}
-            className="h-6 px-2 text-xs"
-          >
-            <Copy className="w-3 h-3 mr-1" />
-            Copy
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (!user) {
+  // Simple mode rendering
+  if (mode === 'simple') {
     return (
-      <Card className="w-full max-w-4xl mx-auto">
-        <CardContent className="p-8 text-center">
-          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
-          <p className="text-muted-foreground">
-            Please sign in to use the AI Email Assistant.
-          </p>
+      <Card className="h-[400px] flex flex-col">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            AI Email Assistant
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col gap-4">
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-lg p-3 ${
+                    message.role === 'user' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      {message.role === 'assistant' && <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                      {message.role === 'user' && <User className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                      <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-muted rounded-lg p-3 max-w-[80%]">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-4 w-4" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+          
+          <div className="flex gap-2">
+            <Input
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Ask me about email composition, responses, or management..."
+              onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+              disabled={loading}
+            />
+            <Button onClick={handleSendMessage} disabled={loading || !inputMessage.trim()}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
+  // Full mode rendering
   return (
-    <div className="w-full h-full flex overflow-hidden">
+    <div className="flex h-[600px] border rounded-lg overflow-hidden">
       {/* Conversations Sidebar */}
-      <div className="w-80 border-r border-border bg-muted/30 flex flex-col">
-        <div className="p-4 border-b flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              Conversations
-            </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={createNewConversation}
-              className="h-8 w-8 p-0"
-            >
-              <Plus className="w-4 h-4" />
+      <div className="w-1/3 border-r bg-muted/30">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">Conversations</h3>
+            <Button size="sm" onClick={createNewConversation}>
+              <Plus className="h-4 w-4 mr-1" />
+              New
             </Button>
           </div>
         </div>
         
-        <div className="flex-1 min-h-0">
-          <ScrollArea className="h-full">
-            <div className="space-y-2 p-4">
+        <ScrollArea className="flex-1">
+          {conversationsLoading ? (
+            <div className="p-4">
+              <div className="animate-pulse space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-background rounded-lg"></div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-2">
               {conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    activeConversation === conversation.id
-                      ? 'bg-primary/10 border border-primary/20'
-                      : 'bg-background hover:bg-muted'
-                  }`}
                   onClick={() => setActiveConversation(conversation.id)}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
+                    activeConversation === conversation.id 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'hover:bg-background'
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {conversation.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatTimestamp(conversation.updated_at)}
+                      <h4 className="font-medium truncate">{conversation.title}</h4>
+                      <p className="text-xs opacity-70 mt-1">
+                        {new Date(conversation.updated_at).toLocaleDateString()}
                       </p>
                     </div>
                     <Button
-                      variant="ghost"
                       size="sm"
+                      variant="ghost"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteConversation(conversation.id);
                       }}
                       className="h-6 w-6 p-0 ml-2"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
               ))}
-              
-              {conversations.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Bot className="w-8 h-8 mx-auto mb-2" />
-                  <p className="text-sm">No conversations yet</p>
-                  <p className="text-xs">Start chatting to create one!</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-      </div>
-
-      {/* Chat Interface */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-4 border-b flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            <h3 className="text-lg font-semibold">AI Email Assistant</h3>
-            <Badge variant="secondary" className="ml-auto">
-              <CheckCircle2 className="w-3 h-3 mr-1" />
-              Online
-            </Badge>
-          </div>
-        </div>
-        
-        {/* Messages */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full">
-            {messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center p-8">
-                <div className="text-center max-w-md">
-                  <Bot className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Welcome to AI Email Assistant</h3>
-                  <p className="text-muted-foreground mb-4">
-                    I can help you manage emails, draft responses, and provide insights.
-                  </p>
-                  <div className="grid grid-cols-1 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setInputMessage("Analyze my recent emails")}
-                      className="text-left justify-start"
-                    >
-                      <Mail className="w-4 h-4 mr-2" />
-                      Analyze my recent emails
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setInputMessage("Help me draft a professional email")}
-                      className="text-left justify-start"
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Help me draft a professional email
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setInputMessage("What are my most important emails today?")}
-                      className="text-left justify-start"
-                    >
-                      <Clock className="w-4 h-4 mr-2" />
-                      What are my most important emails today?
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-0">
-                {messages.map((message) => (
-                  <MessageComponent key={message.id} message={message} />
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-            
-            {isLoading && (
-              <div className="flex items-center gap-2 p-4 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>AI is thinking...</span>
-              </div>
-            )}
-          </ScrollArea>
-        </div>
-        
-        {/* Input */}
-        <div className="p-4 border-t flex-shrink-0">
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              placeholder="Ask me anything about your emails..."
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button
-              onClick={sendMessage}
-              disabled={isLoading || !inputMessage.trim()}
-              size="sm"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
-          
-          {selectedEmails.length > 0 && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="w-4 h-4" />
-              {selectedEmails.length} email(s) selected for context
             </div>
           )}
-        </div>
+        </ScrollArea>
+      </div>
+
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {activeConversation ? (
+          <>
+            <div className="p-4 border-b bg-background">
+              <h3 className="font-semibold flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                AI Email Assistant
+              </h3>
+              <p className="text-sm text-muted-foreground">Get help with email composition and management</p>
+            </div>
+            
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] rounded-lg p-4 ${
+                      message.role === 'user' 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-muted'
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        {message.role === 'assistant' && <Bot className="h-5 w-5 mt-0.5 flex-shrink-0" />}
+                        {message.role === 'user' && <User className="h-5 w-5 mt-0.5 flex-shrink-0" />}
+                        <div className="flex-1">
+                          <div className="whitespace-pre-wrap">{message.content}</div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs opacity-70">
+                              {new Date(message.created_at).toLocaleTimeString()}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => copyToClipboard(message.content)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-lg p-4 max-w-[80%]">
+                      <div className="flex items-center gap-3">
+                        <Bot className="h-5 w-5" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>AI is thinking...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+            
+            <div className="p-4 border-t bg-background">
+              <div className="flex gap-2">
+                <Input
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Ask me about email composition, responses, or management..."
+                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  disabled={loading}
+                  className="flex-1"
+                />
+                <Button onClick={handleSendMessage} disabled={loading || !inputMessage.trim()}>
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center">
+              <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Welcome to AI Email Assistant</h3>
+              <p className="text-muted-foreground mb-4">
+                Select an existing conversation or create a new one to get started.
+              </p>
+              <Button onClick={createNewConversation}>
+                <Plus className="h-4 w-4 mr-2" />
+                Start New Conversation
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
