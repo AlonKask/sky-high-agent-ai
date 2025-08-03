@@ -76,85 +76,93 @@ export interface QuoteData {
 }
 
 export class EmailVariableParser {
-  private static getAirportName(code: string): string {
-    const airportMap: { [key: string]: string } = {
-      'JFK': 'John F. Kennedy International Airport',
-      'LHR': 'London Heathrow Airport',
-      'LAX': 'Los Angeles International Airport',
-      'DFW': 'Dallas/Fort Worth International Airport',
-      'ORD': 'Chicago O\'Hare International Airport',
-      'ATL': 'Hartsfield-Jackson Atlanta International Airport',
-      'DEN': 'Denver International Airport',
-      'SFO': 'San Francisco International Airport',
-      'SEA': 'Seattle-Tacoma International Airport',
-      'MIA': 'Miami International Airport',
-      'LAS': 'McCarran International Airport',
-      'PHX': 'Phoenix Sky Harbor International Airport',
-      'IAH': 'George Bush Intercontinental Airport',
-      'CLT': 'Charlotte Douglas International Airport',
-      'MCO': 'Orlando International Airport',
-      'EWR': 'Newark Liberty International Airport',
-      'SLC': 'Salt Lake City International Airport',
-      'DTW': 'Detroit Metropolitan Wayne County Airport',
-      'BWI': 'Baltimore/Washington International Airport',
-      'FLL': 'Fort Lauderdale-Hollywood International Airport'
-    };
-    return airportMap[code] || `${code} Airport`;
+  private static async getAirportName(code: string): Promise<string> {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase
+        .from('airport_codes')
+        .select('name')
+        .eq('iata_code', code)
+        .single();
+      
+      return data?.name || `${code} Airport`;
+    } catch (error) {
+      // Fallback to static mapping
+      const airportMap: { [key: string]: string } = {
+        'JFK': 'John F. Kennedy International Airport',
+        'LHR': 'London Heathrow Airport',
+        'LAX': 'Los Angeles International Airport',
+        'DFW': 'Dallas/Fort Worth International Airport',
+        'ORD': 'Chicago O\'Hare International Airport',
+        'ATL': 'Hartsfield-Jackson Atlanta International Airport',
+        'DEN': 'Denver International Airport',
+        'SFO': 'San Francisco International Airport',
+        'SEA': 'Seattle-Tacoma International Airport',
+        'MIA': 'Miami International Airport',
+        'LAS': 'McCarran International Airport',
+        'PHX': 'Phoenix Sky Harbor International Airport',
+        'IAH': 'George Bush Intercontinental Airport',
+        'CLT': 'Charlotte Douglas International Airport',
+        'MCO': 'Orlando International Airport',
+        'EWR': 'Newark Liberty International Airport',
+        'SLC': 'Salt Lake City International Airport',
+        'DTW': 'Detroit Metropolitan Wayne County Airport',
+        'BWI': 'Baltimore/Washington International Airport',
+        'FLL': 'Fort Lauderdale-Hollywood International Airport'
+      };
+      return airportMap[code] || `${code} Airport`;
+    }
   }
 
-  private static getCityName(airportCode: string): string {
-    const cityMap: { [key: string]: string } = {
-      'JFK': 'New York',
-      'LGA': 'New York',
-      'EWR': 'New York',
-      'LHR': 'London',
-      'LGW': 'London',
-      'STN': 'London',
-      'LAX': 'Los Angeles',
-      'DFW': 'Dallas',
-      'ORD': 'Chicago',
-      'ATL': 'Atlanta',
-      'DEN': 'Denver',
-      'SFO': 'San Francisco',
-      'SEA': 'Seattle',
-      'MIA': 'Miami',
-      'LAS': 'Las Vegas',
-      'PHX': 'Phoenix',
-      'IAH': 'Houston',
-      'CLT': 'Charlotte',
-      'MCO': 'Orlando',
-      'SLC': 'Salt Lake City',
-      'DTW': 'Detroit',
-      'BWI': 'Baltimore',
-      'FLL': 'Fort Lauderdale'
-    };
-    return cityMap[airportCode] || airportCode;
+  private static async getCityName(airportCode: string): Promise<string> {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase
+        .from('airport_codes')
+        .select('city')
+        .eq('iata_code', airportCode)
+        .single();
+      
+      return data?.city || airportCode;
+    } catch (error) {
+      // Fallback to static mapping
+      const cityMap: { [key: string]: string } = {
+        'JFK': 'New York', 'LGA': 'New York', 'EWR': 'New York',
+        'LHR': 'London', 'LGW': 'London', 'STN': 'London',
+        'LAX': 'Los Angeles', 'DFW': 'Dallas', 'ORD': 'Chicago',
+        'ATL': 'Atlanta', 'DEN': 'Denver', 'SFO': 'San Francisco',
+        'SEA': 'Seattle', 'MIA': 'Miami', 'LAS': 'Las Vegas',
+        'PHX': 'Phoenix', 'IAH': 'Houston', 'CLT': 'Charlotte',
+        'MCO': 'Orlando', 'SLC': 'Salt Lake City', 'DTW': 'Detroit',
+        'BWI': 'Baltimore', 'FLL': 'Fort Lauderdale'
+      };
+      return cityMap[airportCode] || airportCode;
+    }
   }
 
-  private static getAirlineName(code: string): string {
-    const airlineMap: { [key: string]: string } = {
-      'AA': 'American Airlines',
-      'DL': 'Delta Air Lines',
-      'UA': 'United Airlines',
-      'WN': 'Southwest Airlines',
-      'AS': 'Alaska Airlines',
-      'B6': 'JetBlue Airways',
-      'F9': 'Frontier Airlines',
-      'NK': 'Spirit Airlines',
-      'G4': 'Allegiant Air',
-      'SY': 'Sun Country Airlines',
-      'AC': 'Air Canada',
-      'BA': 'British Airways',
-      'LH': 'Lufthansa',
-      'AF': 'Air France',
-      'KL': 'KLM',
-      'VS': 'Virgin Atlantic',
-      'EK': 'Emirates',
-      'QR': 'Qatar Airways',
-      'TK': 'Turkish Airlines',
-      'LX': 'Swiss International Air Lines'
-    };
-    return airlineMap[code] || code;
+  private static async getAirlineName(code: string): Promise<string> {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase
+        .from('airline_codes')
+        .select('name')
+        .eq('iata_code', code)
+        .single();
+      
+      return data?.name || code;
+    } catch (error) {
+      // Fallback to static mapping
+      const airlineMap: { [key: string]: string } = {
+        'AA': 'American Airlines', 'DL': 'Delta Air Lines', 'UA': 'United Airlines',
+        'WN': 'Southwest Airlines', 'AS': 'Alaska Airlines', 'B6': 'JetBlue Airways',
+        'F9': 'Frontier Airlines', 'NK': 'Spirit Airlines', 'G4': 'Allegiant Air',
+        'SY': 'Sun Country Airlines', 'AC': 'Air Canada', 'BA': 'British Airways',
+        'LH': 'Lufthansa', 'AF': 'Air France', 'KL': 'KLM', 'VS': 'Virgin Atlantic',
+        'EK': 'Emirates', 'QR': 'Qatar Airways', 'TK': 'Turkish Airlines',
+        'LX': 'Swiss International Air Lines'
+      };
+      return airlineMap[code] || code;
+    }
   }
 
   private static formatTime(time: string): string {
@@ -235,7 +243,7 @@ export class EmailVariableParser {
     }
   }
 
-  private static formatLayovers(segments: FlightSegment[]): string {
+  private static async formatLayovers(segments: FlightSegment[]): Promise<string> {
     if (segments.length <= 1) return '';
     
     const layovers: string[] = [];
@@ -245,7 +253,7 @@ export class EmailVariableParser {
       const next = segments[i + 1];
       
       if (current.arrivalAirport === next.departureAirport) {
-        const cityName = this.getCityName(current.arrivalAirport);
+        const cityName = await this.getCityName(current.arrivalAirport);
         layovers.push(`${cityName} (${current.arrivalAirport})`);
       }
     }
@@ -253,7 +261,7 @@ export class EmailVariableParser {
     return layovers.join(', ');
   }
 
-  static parseQuoteToVariables(quote: QuoteData, clientName: string = 'Valued Client'): EmailVariables {
+  static async parseQuoteToVariables(quote: QuoteData, clientName: string = 'Valued Client'): Promise<EmailVariables> {
     let parsedItinerary: ParsedItinerary | null = null;
     
     // Parse the segments if they exist
@@ -324,15 +332,15 @@ export class EmailVariableParser {
         const firstOutbound = outboundSegments[0];
         const lastOutbound = outboundSegments[outboundSegments.length - 1];
         
-        defaultVariables.FLIGHT_OUTBOUND_AIRLINE = this.getAirlineName(firstOutbound.airlineCode);
+        defaultVariables.FLIGHT_OUTBOUND_AIRLINE = await this.getAirlineName(firstOutbound.airlineCode);
         defaultVariables.FLIGHT_OUTBOUND_NUMBER = firstOutbound.flightNumber;
         defaultVariables.FLIGHT_OUTBOUND_DATE = this.formatDate(firstOutbound.flightDate);
         defaultVariables.FLIGHT_OUTBOUND_DEPARTURE_TIME = this.formatTime(firstOutbound.departureTime);
         defaultVariables.FLIGHT_OUTBOUND_ARRIVAL_TIME = this.formatTime(lastOutbound.arrivalTime);
         defaultVariables.FLIGHT_OUTBOUND_DEPARTURE_AIRPORT = firstOutbound.departureAirport;
         defaultVariables.FLIGHT_OUTBOUND_ARRIVAL_AIRPORT = lastOutbound.arrivalAirport;
-        defaultVariables.FLIGHT_OUTBOUND_DEPARTURE_CITY = this.getCityName(firstOutbound.departureAirport);
-        defaultVariables.FLIGHT_OUTBOUND_ARRIVAL_CITY = this.getCityName(lastOutbound.arrivalAirport);
+        defaultVariables.FLIGHT_OUTBOUND_DEPARTURE_CITY = await this.getCityName(firstOutbound.departureAirport);
+        defaultVariables.FLIGHT_OUTBOUND_ARRIVAL_CITY = await this.getCityName(lastOutbound.arrivalAirport);
         defaultVariables.FLIGHT_OUTBOUND_CLASS = firstOutbound.cabinClass;
         defaultVariables.FLIGHT_OUTBOUND_DURATION = this.calculateDuration(
           firstOutbound.departureTime, 
@@ -341,7 +349,7 @@ export class EmailVariableParser {
         );
         
         if (outboundSegments.length > 1) {
-          defaultVariables.LAYOVERS_OUTBOUND = this.formatLayovers(outboundSegments);
+          defaultVariables.LAYOVERS_OUTBOUND = await this.formatLayovers(outboundSegments);
         }
       }
 
@@ -350,15 +358,15 @@ export class EmailVariableParser {
         const firstReturn = returnSegments[0];
         const lastReturn = returnSegments[returnSegments.length - 1];
         
-        defaultVariables.FLIGHT_RETURN_AIRLINE = this.getAirlineName(firstReturn.airlineCode);
+        defaultVariables.FLIGHT_RETURN_AIRLINE = await this.getAirlineName(firstReturn.airlineCode);
         defaultVariables.FLIGHT_RETURN_NUMBER = firstReturn.flightNumber;
         defaultVariables.FLIGHT_RETURN_DATE = this.formatDate(firstReturn.flightDate);
         defaultVariables.FLIGHT_RETURN_DEPARTURE_TIME = this.formatTime(firstReturn.departureTime);
         defaultVariables.FLIGHT_RETURN_ARRIVAL_TIME = this.formatTime(lastReturn.arrivalTime);
         defaultVariables.FLIGHT_RETURN_DEPARTURE_AIRPORT = firstReturn.departureAirport;
         defaultVariables.FLIGHT_RETURN_ARRIVAL_AIRPORT = lastReturn.arrivalAirport;
-        defaultVariables.FLIGHT_RETURN_DEPARTURE_CITY = this.getCityName(firstReturn.departureAirport);
-        defaultVariables.FLIGHT_RETURN_ARRIVAL_CITY = this.getCityName(lastReturn.arrivalAirport);
+        defaultVariables.FLIGHT_RETURN_DEPARTURE_CITY = await this.getCityName(firstReturn.departureAirport);
+        defaultVariables.FLIGHT_RETURN_ARRIVAL_CITY = await this.getCityName(lastReturn.arrivalAirport);
         defaultVariables.FLIGHT_RETURN_CLASS = firstReturn.cabinClass;
         defaultVariables.FLIGHT_RETURN_DURATION = this.calculateDuration(
           firstReturn.departureTime, 
@@ -367,7 +375,7 @@ export class EmailVariableParser {
         );
         
         if (returnSegments.length > 1) {
-          defaultVariables.LAYOVERS_RETURN = this.formatLayovers(returnSegments);
+          defaultVariables.LAYOVERS_RETURN = await this.formatLayovers(returnSegments);
         }
       }
 

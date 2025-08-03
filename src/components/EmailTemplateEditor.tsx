@@ -637,15 +637,52 @@ export function EmailTemplateEditor({
   const [showPreview, setShowPreview] = useState(false);
   
   // Generate email variables using the new parser
-  const [emailVariables, setEmailVariables] = useState<EmailVariables>(() => {
-    if (quotes && quotes.length > 0) {
-      return EmailVariableParser.parseQuoteToVariables(quotes[0], clientName);
-    }
-    return EmailVariableParser.parseQuoteToVariables({
-      segments: [],
-      total_price: 0
-    }, clientName);
+  const [emailVariables, setEmailVariables] = useState<EmailVariables>({
+    FLIGHT_OUTBOUND_AIRLINE: 'TBD',
+    FLIGHT_OUTBOUND_NUMBER: 'TBD',
+    FLIGHT_OUTBOUND_DATE: 'TBD',
+    FLIGHT_OUTBOUND_DEPARTURE_TIME: 'TBD',
+    FLIGHT_OUTBOUND_ARRIVAL_TIME: 'TBD',
+    FLIGHT_OUTBOUND_DEPARTURE_AIRPORT: 'TBD',
+    FLIGHT_OUTBOUND_ARRIVAL_AIRPORT: 'TBD',
+    FLIGHT_OUTBOUND_DEPARTURE_CITY: 'TBD',
+    FLIGHT_OUTBOUND_ARRIVAL_CITY: 'TBD',
+    FLIGHT_OUTBOUND_CLASS: 'TBD',
+    FLIGHT_OUTBOUND_DURATION: 'TBD',
+    ROUTE_DESCRIPTION: 'TBD',
+    ROUTE_SHORT: 'TBD',
+    TRAVEL_DATE_OUTBOUND: 'TBD',
+    TRAVEL_DURATION_TOTAL: 'TBD',
+    IS_ROUND_TRIP: 'false',
+    PASSENGER_ADULTS_COUNT: '1',
+    PASSENGER_CHILDREN_COUNT: '0',
+    PASSENGER_INFANTS_COUNT: '0',
+    PASSENGER_TOTAL_COUNT: '1',
+    PRICING_NET_PRICE: 'TBD',
+    PRICING_MARKUP: '$0',
+    PRICING_TOTAL_PRICE: 'TBD',
+    PRICING_CURRENCY: 'USD',
+    COMPANY_NAME: 'SBC Travel Solutions',
+    COMPANY_PHONE: '+1 (555) 123-4567',
+    COMPANY_EMAIL: 'bookings@sbctravelsolutions.com',
+    COMPANY_WEBSITE: 'www.sbctravelsolutions.com',
+    AGENT_NAME: 'Your Travel Agent'
   });
+
+  // Load email variables asynchronously
+  useEffect(() => {
+    const loadEmailVariables = async () => {
+      if (quotes && quotes.length > 0) {
+        try {
+          const newEmailVariables = await EmailVariableParser.parseQuoteToVariables(quotes[0], clientName);
+          setEmailVariables(newEmailVariables);
+        } catch (error) {
+          console.warn('Failed to parse email variables:', error);
+        }
+      }
+    };
+    loadEmailVariables();
+  }, [quotes, clientName]);
 
   // Generate flight details HTML from segments
   const generateFlightDetailsHTML = (segments: any[]) => {
@@ -694,34 +731,29 @@ export function EmailTemplateEditor({
     };
   });
 
-  // Update variables when quotes change
+  // Update legacy variables when email variables change
   useEffect(() => {
-    if (quotes && quotes.length > 0) {
-      const newEmailVariables = EmailVariableParser.parseQuoteToVariables(quotes[0], clientName);
-      setEmailVariables(newEmailVariables);
-      
-      // Update legacy variables
-      setVariables({
-        clientName: newEmailVariables.COMPANY_NAME || clientName || 'Valued Client',
-        agentName: newEmailVariables.AGENT_NAME,
-        agencyName: newEmailVariables.COMPANY_NAME,
-        route: newEmailVariables.ROUTE_DESCRIPTION,
-        departure: newEmailVariables.FLIGHT_OUTBOUND_DEPARTURE_AIRPORT,
-        arrival: newEmailVariables.FLIGHT_OUTBOUND_ARRIVAL_AIRPORT,
-        departureDate: newEmailVariables.TRAVEL_DATE_OUTBOUND,
-        returnDate: newEmailVariables.TRAVEL_DATE_RETURN || '',
-        totalPrice: newEmailVariables.PRICING_TOTAL_PRICE,
-        netPrice: newEmailVariables.PRICING_NET_PRICE,
-        markup: newEmailVariables.PRICING_MARKUP,
-        cabinClass: newEmailVariables.FLIGHT_OUTBOUND_CLASS,
-        fareType: newEmailVariables.PRICING_FARE_TYPE,
-        passengers: newEmailVariables.PASSENGER_TOTAL_COUNT,
-        flightDetails: generateFlightDetailsHTML(quotes[0]?.segments || []),
-        savings: '500',
-        expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
-      });
-    }
-  }, [quotes, clientName]);
+    // Update legacy variables
+    setVariables({
+      clientName: emailVariables.COMPANY_NAME || clientName || 'Valued Client',
+      agentName: emailVariables.AGENT_NAME,
+      agencyName: emailVariables.COMPANY_NAME,
+      route: emailVariables.ROUTE_DESCRIPTION,
+      departure: emailVariables.FLIGHT_OUTBOUND_DEPARTURE_AIRPORT,
+      arrival: emailVariables.FLIGHT_OUTBOUND_ARRIVAL_AIRPORT,
+      departureDate: emailVariables.TRAVEL_DATE_OUTBOUND,
+      returnDate: emailVariables.TRAVEL_DATE_RETURN || '',
+      totalPrice: emailVariables.PRICING_TOTAL_PRICE,
+      netPrice: emailVariables.PRICING_NET_PRICE,
+      markup: emailVariables.PRICING_MARKUP,
+      cabinClass: emailVariables.FLIGHT_OUTBOUND_CLASS,
+      fareType: emailVariables.PRICING_FARE_TYPE,
+      passengers: emailVariables.PASSENGER_TOTAL_COUNT,
+      flightDetails: generateFlightDetailsHTML(quotes?.[0]?.segments || []),
+      savings: '500',
+      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
+    });
+  }, [emailVariables, quotes, clientName]);
 
   const applyTemplate = (template: EmailTemplate) => {
     setSelectedTemplate(template);

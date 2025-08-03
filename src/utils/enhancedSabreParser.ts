@@ -372,58 +372,182 @@ export class EnhancedSabreParser {
   }
 
   private static async enhanceSegmentsWithDatabaseData(segments: FlightSegment[]): Promise<void> {
-    logger.info("Enhancing segments with database data", { segmentCount: segments.length });
+    logger.info("Enhancing segments with comprehensive IATA database", { segmentCount: segments.length });
     
-    const enhancementPromises = segments.map(async (segment, index) => {
-      try {
-        // Get airline information with timeout
-        const airlinePromise = DatabaseUtils.getAirlineInfo(segment.airlineCode);
-        const airlineInfo = await Promise.race([
-          airlinePromise,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
-        ]);
-        
-        if (airlineInfo) {
-          segment.operatingAirline = airlineInfo.name;
-          logger.debug(`Enhanced airline for segment ${index + 1}`, { 
-            code: segment.airlineCode, 
-            name: airlineInfo.name 
-          });
-        }
-        
-        // Get airport information with timeout
-        const [depAirportPromise, arrAirportPromise] = [
-          DatabaseUtils.getAirportInfo(segment.departureAirport),
-          DatabaseUtils.getAirportInfo(segment.arrivalAirport)
-        ];
-        
-        const [depAirport, arrAirport] = await Promise.race([
-          Promise.all([depAirportPromise, arrAirportPromise]),
-          new Promise<[null, null]>((resolve) => setTimeout(() => resolve([null, null]), 3000))
-        ]);
-        
-        if (depAirport && arrAirport) {
-          const distance = DatabaseUtils.calculateDistance(depAirport, arrAirport);
-          segment.duration = DatabaseUtils.estimateFlightDuration(distance);
-          segment.aircraftType = this.estimateAircraftType(distance);
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const enhancementPromises = segments.map(async (segment, index) => {
+        try {
+          // Enhanced airline information from IATA database
+          const { data: airlineData } = await supabase
+            .from('airline_codes')
+            .select('name, alliance, country')
+            .eq('iata_code', segment.airlineCode)
+            .single();
           
-          logger.debug(`Enhanced route for segment ${index + 1}`, { 
-            route: `${segment.departureAirport}-${segment.arrivalAirport}`,
-            distance: `${distance}km`,
-            duration: segment.duration
+          if (airlineData) {
+            segment.operatingAirline = airlineData.name;
+            (segment as any).alliance = airlineData.alliance;
+            (segment as any).airlineCountry = airlineData.country;
+            logger.debug(`Enhanced airline for segment ${index + 1}`, { 
+              code: segment.airlineCode, 
+              name: airlineData.name,
+              alliance: airlineData.alliance
+            });
+          }
+          
+          // Enhanced airport information from IATA database
+          const [depAirportQuery, arrAirportQuery] = await Promise.all([
+            supabase
+              .from('airport_codes')
+              .select('name, city, country, timezone, latitude, longitude')
+              .eq('iata_code', segment.departureAirport)
+              .single(),
+            supabase
+              .from('airport_codes')
+              .select('name, city, country, timezone, latitude, longitude')
+              .eq('iata_code', segment.arrivalAirport)
+              .single()
+          ]);
+          
+          const depAirport = depAirportQuery.data;
+          const arrAirport = arrAirportQuery.data;
+          
+          if (depAirport && arrAirport) {
+            // Enhanced flight calculations with real coordinates
+            const distance = this.calculateDistance(
+              { latitude: depAirport.latitude, longitude: depAirport.longitude },
+              { latitude: arrAirport.latitude, longitude: arrAirport.longitude }
+            );
+            
+            segment.duration = this.estimateFlightDuration(distance);
+            segment.aircraftType = this.estimateAircraftType(distance);
+            
+            // Add rich airport information
+            (segment as any).departureAirportName = depAirport.name;
+            (segment as any).arrivalAirportName = arrAirport.name;
+            (segment as any).departureCity = depAirport.city;
+            (segment as any).arrivalCity = arrAirport.city;
+            (segment as any).departureCountry = depAirport.country;
+            (segment as any).arrivalCountry = arrAirport.country;
+            (segment as any).departureTimezone = depAirport.timezone;
+            (segment as any).arrivalTimezone = arrAirport.timezone;
+            (segment as any).distance = `${Math.round(distance)} km`;
+            
+            logger.debug(`Enhanced route for segment ${index + 1}`, { 
+              route: `${depAirport.city} (${segment.departureAirport}) → ${arrAirport.city} (${segment.arrivalAirport})`,
+              distance: `${Math.round(distance)}km`,
+              duration: segment.duration
+            });
+          }
+          
+          // Enhanced booking class mapping from database
+          const { data: bookingClassData } = await supabase
+            .from('airline_rbd_assignments')
+            .select(`
+              class_description,
+              service_class,
+              booking_priority,
+              airline_codes!inner(name)
+            `)
+            .eq('airline_codes.iata_code', segment.airlineCode)
+            .eq('booking_class_code', segment.bookingClass)
+            .eq('is_active', true)
+            .single();
+          
+          if (bookingClassData) {
+            segment.cabinClass = bookingClassData.class_description || bookingClassData.service_class;
+            (segment as any).bookingPriority = bookingClassData.booking_priority;
+            logger.debug(`Enhanced booking class for segment ${index + 1}`, { 
+              code: segment.bookingClass,
+              description: segment.cabinClass,
+              priority: bookingClassData.booking_priority
+            });
+          }
+          
+        } catch (error) {
+          logger.warn(`Failed to enhance segment ${index + 1}`, { 
+            segment: `${segment.departureAirport}-${segment.arrivalAirport}`,
+            error: error.message 
           });
+          // Continue with next segment
         }
-      } catch (error) {
-        logger.warn(`Failed to enhance segment ${index + 1}`, { 
-          segment: `${segment.departureAirport}-${segment.arrivalAirport}`,
-          error: error.message 
+      });
+      
+      await Promise.allSettled(enhancementPromises);
+      logger.info("Completed comprehensive segment enhancement");
+      
+    } catch (error) {
+      logger.error("Failed to enhance segments with database", { error: error.message });
+      // Fallback to basic enhancement
+      await this.enhanceSegmentsWithBasicData(segments);
+    }
+  }
+
+  private static async enhanceSegmentsWithBasicData(segments: FlightSegment[]): Promise<void> {
+    // Fallback enhancement without database
+    segments.forEach((segment, index) => {
+      try {
+        segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+        segment.aircraftType = this.estimateAircraftType(3000); // Default distance
+        segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
+        
+        logger.debug(`Basic enhancement for segment ${index + 1}`, { 
+          route: `${segment.departureAirport}-${segment.arrivalAirport}`,
+          duration: segment.duration
         });
-        // Continue with next segment
+      } catch (error) {
+        logger.warn(`Failed basic enhancement for segment ${index + 1}`, { error: error.message });
       }
     });
+  }
+
+  // Helper methods
+  private static calculateDistance(
+    point1: { latitude: number; longitude: number },
+    point2: { latitude: number; longitude: number }
+  ): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (point2.latitude - point1.latitude) * Math.PI / 180;
+    const dLon = (point2.longitude - point1.longitude) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(point1.latitude * Math.PI / 180) * Math.cos(point2.latitude * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  private static estimateFlightDuration(distance: number): string {
+    const avgSpeed = 850; // km/h
+    const hours = Math.floor(distance / avgSpeed);
+    const minutes = Math.round(((distance / avgSpeed) - hours) * 60);
+    return `${hours}h ${minutes}m`;
+  }
+
+  private static estimateBasicFlightDuration(origin: string, destination: string): string {
+    // Basic distance estimation for common routes
+    const routes: { [key: string]: string } = {
+      'EWRFRA': '7h 20m', 'FRALGA': '8h 45m', 'EWRLGA': '25m', 'LGAEWR': '25m',
+      'LGAFRA': '8h 45m', 'FRAEWR': '8h 30m', 'JFKLHR': '7h 15m', 'LHRJFK': '8h 30m',
+      'EWRBOS': '1h 30m', 'BOSEWR': '1h 30m', 'BOSLGA': '1h 20m', 'LGABOS': '1h 20m'
+    };
     
-    await Promise.allSettled(enhancementPromises);
-    logger.info("Completed segment enhancement");
+    const routeKey = origin + destination;
+    return routes[routeKey] || '3h 30m'; // Default duration
+  }
+
+  private static mapBookingClassBasic(bookingClass: string): string {
+    const mapping: { [key: string]: string } = {
+      'F': 'First Class', 'A': 'First Class', 'P': 'First Class',
+      'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
+      'W': 'Premium Economy', 'S': 'Premium Economy',
+      'Y': 'Economy Class', 'B': 'Economy Class', 'M': 'Economy Class', 'H': 'Economy Class',
+      'K': 'Economy Class', 'L': 'Economy Class', 'Q': 'Economy Class', 'T': 'Economy Class',
+      'E': 'Economy Class', 'N': 'Economy Class', 'R': 'Economy Class', 'V': 'Economy Class'
+    };
+    return mapping[bookingClass] || 'Economy Class';
   }
 
   private static async extractSegmentDataWithDatabase(match: RegExpMatchArray): Promise<FlightSegment> {
