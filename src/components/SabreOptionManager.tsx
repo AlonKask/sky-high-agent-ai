@@ -362,31 +362,19 @@ const SabreOptionManager = ({
 
   const handleSubmit = async () => {
     if (!user?.id) {
-      toast({
-        title: "Authentication Error",
-        description: "You must be logged in to create quotes.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Authentication Error", "You must be logged in to create quotes.");
       return;
     }
 
     if (!newQuote.content.trim()) {
-      toast({
-        title: "Content Required",
-        description: "Please enter Sabre command or itinerary content.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Content Required", "Please enter Sabre command or itinerary content.");
       return;
     }
 
     if (!hasValidPricing()) {
-      toast({
-        title: "Pricing Required",
-        description: newQuote.quote_type === "revenue" 
+      toastHelpers.error("Pricing Required", newQuote.quote_type === "revenue" 
           ? "Please enter net price or adult price." 
-          : "Please select award program and enter number of points.",
-        variant: "destructive"
-      });
+          : "Please select award program and enter number of points.");
       return;
     }
 
@@ -430,20 +418,13 @@ const SabreOptionManager = ({
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Quote created successfully."
-      });
+      toastHelpers.success("Quote created successfully");
 
       handleDialogClose();
       onQuoteAdded();
     } catch (error) {
       console.error('Error creating quote:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create quote. Please try again.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to create quote. Please try again.", error);
     }
   };
 
@@ -488,20 +469,13 @@ const SabreOptionManager = ({
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Quote updated successfully."
-      });
+      toastHelpers.success("Quote updated successfully");
 
       handleDialogClose();
       onQuoteUpdated();
     } catch (error) {
       console.error('Error updating quote:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update quote. Please try again.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to update quote. Please try again.", error);
     }
   };
 
@@ -518,11 +492,7 @@ const SabreOptionManager = ({
       setCurrentClient(clientData);
       setShowEmailBuilder(true);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load client data",
-        variant: "destructive",
-      });
+      toastHelpers.error("Failed to load client data", error);
     }
   };
 

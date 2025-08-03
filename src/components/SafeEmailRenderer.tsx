@@ -98,10 +98,7 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      toast({
-        title: "Copied",
-        description: `${label} copied to clipboard`,
-      });
+      toastHelpers.success("Copied", { description: `${label} copied to clipboard` });
     });
   };
 
