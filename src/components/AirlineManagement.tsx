@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Edit, Trash2, ChevronDown, Settings, Plane } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Edit, Trash2, ChevronDown, Settings, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AirlineRBDAssignment } from "./AirlineRBDAssignment";
 
@@ -20,6 +21,7 @@ interface Airline {
   country?: string;
   alliance?: string;
   logo_url?: string;
+  rbd_count?: number;
   created_at?: string;
 }
 
@@ -55,47 +57,26 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     alliance: "",
     logo_url: "",
   });
-  const [rbdFormData, setRbdFormData] = useState({
-    booking_class_code: "",
-    service_class: "Economy",
-    class_description: "",
-    booking_priority: 1,
-    active: true,
-  });
   const { toast } = useToast();
 
   const fetchAirlines = async () => {
     try {
       const { data, error } = await supabase
         .from('airline_codes')
-        .select('*')
+        .select(`
+          *,
+          airline_rbd_assignments(count)
+        `)
         .order('name');
       
       if (error) throw error;
-      setAirlines(data || []);
       
-        // Fetch RBD assignments for each airline
-        if (data) {
-          const rbdData: { [key: string]: BookingClass[] } = {};
-          for (const airline of data) {
-            const { data: rbds } = await supabase
-              .from('airline_rbd_assignments')
-              .select('*')
-              .eq('airline_id', airline.id)
-              .eq('is_active', true)
-              .order('booking_priority', { ascending: false });
-            rbdData[airline.id] = rbds?.map(rbd => ({
-              id: rbd.id,
-              booking_class_code: rbd.booking_class_code,
-              service_class: rbd.service_class,
-              class_description: rbd.class_description,
-              booking_priority: rbd.booking_priority,
-              airline_id: rbd.airline_id,
-              active: rbd.is_active
-            })) || [];
-          }
-          setAirlineRBDs(rbdData);
-        }
+      const airlinesWithCounts = data?.map(airline => ({
+        ...airline,
+        rbd_count: Array.isArray(airline.airline_rbd_assignments) ? airline.airline_rbd_assignments.length : 0
+      })) || [];
+      
+      setAirlines(airlinesWithCounts);
     } catch (error) {
       console.error('Error fetching airlines:', error);
       toast({
@@ -226,56 +207,9 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     setEditingAirline(null);
   };
 
-  const resetRBDForm = () => {
-    setRbdFormData({
-      booking_class_code: "",
-      service_class: "Economy",
-      class_description: "",
-      booking_priority: 1,
-      active: true,
-    });
-  };
-
   const handleManageRBDs = (airline: Airline) => {
     setSelectedAirlineForRBD(airline);
     setIsRBDDialogOpen(true);
-  };
-
-  const handleAddRBD = async () => {
-    if (!selectedAirlineForRBD || !rbdFormData.booking_class_code.trim()) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('booking_classes')
-        .insert([{
-          ...rbdFormData,
-          airline_id: selectedAirlineForRBD.id,
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "RBD added successfully",
-      });
-
-      resetRBDForm();
-      fetchAirlines(); // Refresh to update RBD counts
-    } catch (error) {
-      console.error('Error adding RBD:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add RBD",
-        variant: "destructive",
-      });
-    }
   };
 
   const toggleAirlineExpansion = (airlineId: string) => {
@@ -303,6 +237,23 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     }
   };
 
+  const handleExport = () => {
+    const csvContent = [
+      "IATA Code,ICAO Code,Name,Country,Alliance,Logo URL,RBD Count",
+      ...airlines.map(airline => 
+        `${airline.iata_code},${airline.icao_code || ''},${airline.name},${airline.country || ''},${airline.alliance || ''},${airline.logo_url || ''},${airline.rbd_count || 0}`
+      )
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'airlines_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filteredAirlines = airlines.filter(airline =>
     airline.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     airline.iata_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -315,98 +266,104 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
         <div className="flex items-center gap-2">
           <CardTitle>Airlines Management</CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {filteredAirlines.length} records
+            {airlines.length} records
           </Badge>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Airline
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingAirline ? "Edit Airline" : "Add New Airline"}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Airline
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {editingAirline ? "Edit Airline" : "Add New Airline"}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="iata_code">IATA Code *</Label>
+                    <Input
+                      id="iata_code"
+                      value={formData.iata_code}
+                      onChange={(e) => setFormData({...formData, iata_code: e.target.value.toUpperCase()})}
+                      maxLength={2}
+                      required
+                      className="font-mono"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="icao_code">ICAO Code</Label>
+                    <Input
+                      id="icao_code"
+                      value={formData.icao_code}
+                      onChange={(e) => setFormData({...formData, icao_code: e.target.value.toUpperCase()})}
+                      maxLength={3}
+                      className="font-mono"
+                    />
+                  </div>
+                </div>
                 <div>
-                  <Label htmlFor="iata_code">IATA Code *</Label>
+                  <Label htmlFor="name">Airline Name *</Label>
                   <Input
-                    id="iata_code"
-                    value={formData.iata_code}
-                    onChange={(e) => setFormData({...formData, iata_code: e.target.value.toUpperCase()})}
-                    maxLength={2}
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                     required
-                    className="font-mono"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="country">Country</Label>
+                    <Input
+                      id="country"
+                      value={formData.country}
+                      onChange={(e) => setFormData({...formData, country: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="alliance">Alliance</Label>
+                    <select
+                      id="alliance"
+                      className="w-full p-2 border rounded-md"
+                      value={formData.alliance}
+                      onChange={(e) => setFormData({...formData, alliance: e.target.value})}
+                    >
+                      <option value="">Select Alliance</option>
+                      <option value="Star Alliance">Star Alliance</option>
+                      <option value="Oneworld">Oneworld</option>
+                      <option value="SkyTeam">SkyTeam</option>
+                    </select>
+                  </div>
+                </div>
                 <div>
-                  <Label htmlFor="icao_code">ICAO Code</Label>
+                  <Label htmlFor="logo_url">Logo URL</Label>
                   <Input
-                    id="icao_code"
-                    value={formData.icao_code}
-                    onChange={(e) => setFormData({...formData, icao_code: e.target.value.toUpperCase()})}
-                    maxLength={3}
-                    className="font-mono"
+                    id="logo_url"
+                    value={formData.logo_url}
+                    onChange={(e) => setFormData({...formData, logo_url: e.target.value})}
                   />
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="name">Airline Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="country">Country</Label>
-                  <Input
-                    id="country"
-                    value={formData.country}
-                    onChange={(e) => setFormData({...formData, country: e.target.value})}
-                  />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {editingAirline ? "Update" : "Create"}
+                  </Button>
                 </div>
-                <div>
-                  <Label htmlFor="alliance">Alliance</Label>
-                  <select
-                    id="alliance"
-                    className="w-full p-2 border rounded-md"
-                    value={formData.alliance}
-                    onChange={(e) => setFormData({...formData, alliance: e.target.value})}
-                  >
-                    <option value="">Select Alliance</option>
-                    <option value="Star Alliance">Star Alliance</option>
-                    <option value="Oneworld">Oneworld</option>
-                    <option value="SkyTeam">SkyTeam</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="logo_url">Logo URL</Label>
-                <Input
-                  id="logo_url"
-                  value={formData.logo_url}
-                  onChange={(e) => setFormData({...formData, logo_url: e.target.value})}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingAirline ? "Update" : "Create"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       
       <CardContent>
@@ -425,16 +382,23 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading airlines...</TableCell>
-                </TableRow>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  </TableRow>
+                ))
               ) : filteredAirlines.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center">No airlines found</TableCell>
                 </TableRow>
               ) : (
                 filteredAirlines.map((airline) => {
-                  const airlineRBDList = airlineRBDs[airline.id] || [];
                   const isExpanded = expandedAirlines.has(airline.id);
                   
                   return (
@@ -457,7 +421,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary">
-                              {airlineRBDList.length} RBDs
+                              {airline.rbd_count || 0} RBDs
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -503,22 +467,10 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                         <TableRow>
                           <TableCell colSpan={7} className="p-4 bg-muted/20">
                             <div className="space-y-2">
-                              <h4 className="text-sm font-medium">RBD Configuration</h4>
-                              {airlineRBDList.length > 0 ? (
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                  {airlineRBDList.map((rbd) => (
-                                    <div key={rbd.id} className="flex items-center gap-2 p-2 border rounded">
-                                      <span className="font-mono font-bold">{rbd.booking_class_code}</span>
-                                      <Badge variant="outline" className={getServiceClassColor(rbd.service_class)}>
-                                        {rbd.service_class}
-                                      </Badge>
-                                      <span className="text-xs text-muted-foreground">P{rbd.booking_priority}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">No RBDs configured for this airline.</p>
-                              )}
+                              <h4 className="text-sm font-medium">RBD Management</h4>
+                              <div className="text-sm text-muted-foreground">
+                                Click "Manage RBDs" to view and configure booking class assignments for this airline.
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>

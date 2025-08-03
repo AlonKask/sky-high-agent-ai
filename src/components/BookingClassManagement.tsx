@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toastHelpers } from "@/utils/toastHelpers";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Edit, Trash2, Download } from "lucide-react";
+import { useBookingClasses, useBookingClassMutations, useAirlines, useDebouncedSearch } from "@/hooks/useIATAData";
 
 interface BookingClass {
   id: string;
@@ -44,9 +44,6 @@ const SERVICE_CLASSES = [
 ];
 
 export function BookingClassManagement({ searchTerm }: BookingClassManagementProps) {
-  const [bookingClasses, setBookingClasses] = useState<BookingClass[]>([]);
-  const [airlines, setAirlines] = useState<Airline[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingClass, setEditingClass] = useState<BookingClass | null>(null);
   const [formData, setFormData] = useState({
@@ -58,64 +55,26 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
     active: true
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [classesResult, airlinesResult] = await Promise.all([
-        supabase
-          .from('booking_classes')
-          .select(`
-            *,
-            airline_codes!inner(iata_code, name)
-          `)
-          .order('booking_priority'),
-        supabase
-          .from('airline_codes')
-          .select('id, iata_code, name')
-          .order('name')
-      ]);
-
-      if (classesResult.error) throw classesResult.error;
-      if (airlinesResult.error) throw airlinesResult.error;
-
-      setBookingClasses(classesResult.data || []);
-      setAirlines(airlinesResult.data || []);
-    } catch (error) {
-      toastHelpers.error("Failed to fetch data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Use optimized hooks
+  const { debouncedValue } = useDebouncedSearch(searchTerm);
+  const { data: bookingClasses = [], isLoading: classesLoading, error: classesError } = useBookingClasses(debouncedValue);
+  const { data: airlines = [], isLoading: airlinesLoading } = useAirlines('', true);
+  const { createBookingClass, updateBookingClass, deleteBookingClass } = useBookingClassMutations();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       if (editingClass) {
-        const { error } = await supabase
-          .from('booking_classes')
-          .update(formData)
-          .eq('id', editingClass.id);
-        
-        if (error) throw error;
-        toastHelpers.success("Booking class updated successfully");
+        await updateBookingClass.mutateAsync({ id: editingClass.id, ...formData });
       } else {
-        const { error } = await supabase
-          .from('booking_classes')
-          .insert([formData]);
-        
-        if (error) throw error;
-        toastHelpers.success("Booking class created successfully");
+        await createBookingClass.mutateAsync(formData);
       }
       
       setShowDialog(false);
       resetForm();
-      fetchData();
     } catch (error) {
-      toastHelpers.error("Failed to save booking class");
+      console.error('Error saving booking class:', error);
     }
   };
 
@@ -136,16 +95,9 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
     if (!confirm("Are you sure you want to delete this booking class?")) return;
     
     try {
-      const { error } = await supabase
-        .from('booking_classes')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      toastHelpers.success("Booking class deleted successfully");
-      fetchData();
+      await deleteBookingClass.mutateAsync(id);
     } catch (error) {
-      toastHelpers.error("Failed to delete booking class");
+      console.error('Error deleting booking class:', error);
     }
   };
 
@@ -161,12 +113,22 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
     setEditingClass(null);
   };
 
-  const filteredClasses = bookingClasses.filter(bc =>
-    bc.booking_class_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bc.airline_codes?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bc.airline_codes?.iata_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bc.service_class.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleExport = () => {
+    const csvContent = [
+      "Class Code,Airline Code,Airline Name,Service Class,Description,Priority,Status",
+      ...bookingClasses.map(bc => 
+        `${bc.booking_class_code},${bc.airline_codes?.iata_code || ''},${bc.airline_codes?.name || ''},${bc.service_class},${bc.class_description || ''},${bc.booking_priority},${bc.active ? 'Active' : 'Inactive'}`
+      )
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'booking_classes_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const getServiceClassColor = (serviceClass: string) => {
     switch (serviceClass) {
@@ -184,112 +146,118 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
         <div className="flex items-center gap-2">
           <CardTitle>Booking Classes Management</CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {filteredClasses.length} records
+            {bookingClasses.length} records
           </Badge>
         </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Booking Class
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingClass ? "Edit Booking Class" : "Add New Booking Class"}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="booking_class_code">Class Code *</Label>
-                  <Input
-                    id="booking_class_code"
-                    value={formData.booking_class_code}
-                    onChange={(e) => setFormData({...formData, booking_class_code: e.target.value.toUpperCase()})}
-                    maxLength={1}
-                    placeholder="Y, J, F, etc."
-                    required
-                  />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Dialog open={showDialog} onOpenChange={setShowDialog}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Booking Class
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {editingClass ? "Edit Booking Class" : "Add New Booking Class"}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="booking_class_code">Class Code *</Label>
+                    <Input
+                      id="booking_class_code"
+                      value={formData.booking_class_code}
+                      onChange={(e) => setFormData({...formData, booking_class_code: e.target.value.toUpperCase()})}
+                      maxLength={1}
+                      placeholder="Y, J, F, etc."
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="airline_id">Airline *</Label>
+                    <Select
+                      value={formData.airline_id}
+                      onValueChange={(value) => setFormData({...formData, airline_id: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select airline" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {airlines.map((airline) => (
+                          <SelectItem key={airline.id} value={airline.id}>
+                            {airline.iata_code} - {airline.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div>
-                  <Label htmlFor="airline_id">Airline *</Label>
+                  <Label htmlFor="service_class">Service Class *</Label>
                   <Select
-                    value={formData.airline_id}
-                    onValueChange={(value) => setFormData({...formData, airline_id: value})}
+                    value={formData.service_class}
+                    onValueChange={(value) => setFormData({...formData, service_class: value})}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select airline" />
+                      <SelectValue placeholder="Select service class" />
                     </SelectTrigger>
                     <SelectContent>
-                      {airlines.map((airline) => (
-                        <SelectItem key={airline.id} value={airline.id}>
-                          {airline.iata_code} - {airline.name}
+                      {SERVICE_CLASSES.map((serviceClass) => (
+                        <SelectItem key={serviceClass} value={serviceClass}>
+                          {serviceClass}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="service_class">Service Class *</Label>
-                <Select
-                  value={formData.service_class}
-                  onValueChange={(value) => setFormData({...formData, service_class: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select service class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SERVICE_CLASSES.map((serviceClass) => (
-                      <SelectItem key={serviceClass} value={serviceClass}>
-                        {serviceClass}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="class_description">Description</Label>
-                <Input
-                  id="class_description"
-                  value={formData.class_description}
-                  onChange={(e) => setFormData({...formData, class_description: e.target.value})}
-                  placeholder="Optional description"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="booking_priority">Priority</Label>
+                  <Label htmlFor="class_description">Description</Label>
                   <Input
-                    id="booking_priority"
-                    type="number"
-                    min="1"
-                    value={formData.booking_priority}
-                    onChange={(e) => setFormData({...formData, booking_priority: parseInt(e.target.value)})}
+                    id="class_description"
+                    value={formData.class_description}
+                    onChange={(e) => setFormData({...formData, class_description: e.target.value})}
+                    placeholder="Optional description"
                   />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="active"
-                    checked={formData.active}
-                    onCheckedChange={(checked) => setFormData({...formData, active: checked})}
-                  />
-                  <Label htmlFor="active">Active</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="booking_priority">Priority</Label>
+                    <Input
+                      id="booking_priority"
+                      type="number"
+                      min="1"
+                      value={formData.booking_priority}
+                      onChange={(e) => setFormData({...formData, booking_priority: parseInt(e.target.value)})}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="active"
+                      checked={formData.active}
+                      onCheckedChange={(checked) => setFormData({...formData, active: checked})}
+                    />
+                    <Label htmlFor="active">Active</Label>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingClass ? "Update" : "Create"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {editingClass ? "Update" : "Create"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="rounded-md border">
@@ -306,16 +274,30 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {classesLoading || airlinesLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  </TableRow>
+                ))
+              ) : classesError ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={7} className="text-center text-destructive">
+                    Error loading booking classes: {classesError.message}
+                  </TableCell>
                 </TableRow>
-              ) : filteredClasses.length === 0 ? (
+              ) : bookingClasses.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center">No booking classes found</TableCell>
                 </TableRow>
               ) : (
-                filteredClasses.map((bookingClass) => (
+                bookingClasses.map((bookingClass) => (
                   <TableRow key={bookingClass.id}>
                     <TableCell>
                       <Badge variant="outline" className="font-mono">

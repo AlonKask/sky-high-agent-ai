@@ -60,14 +60,9 @@ export default function IATAManagement() {
               />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Import
-              </Button>
+              <Badge variant="outline" className="text-xs">
+                Real-time search
+              </Badge>
             </div>
           </div>
         </CardContent>
