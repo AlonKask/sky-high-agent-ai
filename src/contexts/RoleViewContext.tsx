@@ -26,6 +26,9 @@ export const RoleViewProvider = ({ children }: RoleViewProviderProps) => {
   const { role: userRole, loading: roleLoading } = useUserRole();
   const [selectedViewRole, setSelectedViewRoleState] = useState<UserRole>('user');
 
+  // Debug logging
+  console.log('RoleViewProvider - userRole:', userRole, 'loading:', roleLoading);
+
   // Calculate available roles based on user's actual role
   const getAvailableRoles = (currentRole: UserRole): UserRole[] => {
     switch (currentRole) {
@@ -46,7 +49,17 @@ export const RoleViewProvider = ({ children }: RoleViewProviderProps) => {
   // Initialize selected role from localStorage or default to user's actual role
   useEffect(() => {
     if (userRole && !roleLoading) {
+      // For admin and manager, clear any conflicting localStorage and force proper role
+      if (userRole === 'admin' || userRole === 'manager') {
+        console.log('Detected admin/manager role, clearing localStorage and setting role to:', userRole);
+        localStorage.removeItem('selectedViewRole');
+        setSelectedViewRoleState(userRole);
+        return;
+      }
+      
       const savedRole = localStorage.getItem('selectedViewRole') as UserRole;
+      console.log('Saved role from localStorage:', savedRole);
+      
       if (savedRole && availableRoles.includes(savedRole)) {
         setSelectedViewRoleState(savedRole);
       } else {

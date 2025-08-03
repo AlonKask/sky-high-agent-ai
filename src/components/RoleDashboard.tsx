@@ -28,19 +28,26 @@ export const RoleDashboard = () => {
     );
   }
 
-  // Use role-specific dashboards when appropriate, otherwise enhanced dashboard
-  if (selectedViewRole === 'admin' || role === 'admin') {
+  // Debug logging
+  console.log('RoleDashboard - role:', role, 'selectedViewRole:', selectedViewRole, 'isRoleSwitchingEnabled:', isRoleSwitchingEnabled);
+
+  // Use role-specific dashboards - prioritize actual role for admin and manager
+  if (role === 'admin') {
+    console.log('Rendering DeveloperDashboard for admin role');
     return <DeveloperDashboard />;
   }
   
-  if (selectedViewRole === 'supervisor' || role === 'supervisor') {
-    return <SupervisorDashboard />;
-  }
-  
-  if (selectedViewRole === 'manager' || role === 'manager') {
+  if (role === 'manager') {
+    console.log('Rendering ManagerDashboard for manager role');
     return <ManagerDashboard />;
   }
+  
+  if (selectedViewRole === 'supervisor' || role === 'supervisor') {
+    console.log('Rendering SupervisorDashboard');
+    return <SupervisorDashboard />;
+  }
 
-  // Default to enhanced dashboard for all authenticated users
+  // Default to enhanced dashboard for all other authenticated users
+  console.log('Rendering EnhancedDashboard as default');
   return <EnhancedDashboard />;
 };
