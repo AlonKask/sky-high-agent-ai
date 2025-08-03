@@ -31,9 +31,9 @@ import {
   Star
 } from 'lucide-react';
 
-import { QuoteCard } from '@/components/QuoteCard';
+import { EnhancedQuoteCard } from '@/components/EnhancedQuoteCard';
 
-import { SabreParser } from '@/utils/sabreParser';
+import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import SabreOptionManager from '@/components/SabreOptionManager';
 import UnifiedEmailBuilder from '@/components/UnifiedEmailBuilder';
 
@@ -174,9 +174,9 @@ const RequestDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
+      <div className="bg-card border-b border-border sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -184,16 +184,16 @@ const RequestDetail = () => {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => navigate('/requests')}
-                className="hover:bg-gray-100"
+                className="hover:bg-accent"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-foreground">
                   Request #{request.id.slice(0, 8)}
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {client.first_name} {client.last_name} • {formatDate(request.created_at)}
                 </p>
               </div>
@@ -213,7 +213,7 @@ const RequestDetail = () => {
           {/* Left Column - Request Details & Flight Options */}
           <div className="xl:col-span-2 space-y-6">
             {/* Trip Information Card - Inline Editable */}
-            <Card className="border-0 shadow-lg">
+            <Card className="shadow-lg border-0">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -686,8 +686,8 @@ const RequestDetail = () => {
               <CardContent>
                 {quotes.length > 0 ? (
                   <div className="space-y-4">
-                    {quotes.map((quote) => (
-                      <QuoteCard
+                     {quotes.map((quote) => (
+                       <EnhancedQuoteCard
                         key={quote.id}
                         quote={quote}
                         onEdit={() => {
@@ -740,10 +740,10 @@ const RequestDetail = () => {
                             });
                           }
                         }}
-                        onSendToEmail={() => {
-                          // Handle email sending here if needed
-                          console.log('Send email for quote:', quote.id);
-                        }}
+                         onSendEmail={() => {
+                           // Handle email sending here if needed
+                           console.log('Send email for quote:', quote.id);
+                         }}
                         isSelected={selectedQuotes.has(quote.id)}
                         isExpanded={expandedQuotes.has(quote.id)}
                         onToggleSelected={(selected) => {
@@ -794,7 +794,7 @@ const RequestDetail = () => {
           {/* Right Column - Client Information */}
           <div className="space-y-6">
             {/* Client Information */}
-            <Card className="border-0 shadow-lg">
+            <Card className="shadow-lg border-0">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
@@ -812,7 +812,7 @@ const RequestDetail = () => {
                     <h3 className="font-semibold text-lg">
                       {client.first_name} {client.last_name}
                     </h3>
-                    <p className="text-sm text-gray-500">{client.email}</p>
+                    <p className="text-sm text-muted-foreground">{client.email}</p>
                   </div>
                   <Button
                     variant="outline"
@@ -850,7 +850,7 @@ const RequestDetail = () => {
                     </div>
                     <div className="text-sm">
                       <span className="font-medium">${(client.total_spent || 0).toLocaleString()}</span>
-                      <span className="text-gray-500 ml-1">total spent</span>
+                      <span className="text-muted-foreground ml-1">total spent</span>
                     </div>
                   </div>
 
@@ -860,7 +860,7 @@ const RequestDetail = () => {
                     </div>
                     <div className="text-sm">
                       <span className="font-medium">{client.total_bookings || 0}</span>
-                      <span className="text-gray-500 ml-1">bookings</span>
+                      <span className="text-muted-foreground ml-1">bookings</span>
                     </div>
                   </div>
                 </div>
