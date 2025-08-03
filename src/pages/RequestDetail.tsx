@@ -31,7 +31,7 @@ import {
   Star
 } from 'lucide-react';
 
-import { EnhancedQuoteCard } from '@/components/EnhancedQuoteCard';
+import { QuoteCard } from '@/components/QuoteCard';
 
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import SabreOptionManager from '@/components/SabreOptionManager';
@@ -687,7 +687,7 @@ const RequestDetail = () => {
                 {quotes.length > 0 ? (
                   <div className="space-y-4">
                      {quotes.map((quote) => (
-                       <EnhancedQuoteCard
+                       <QuoteCard
                         key={quote.id}
                         quote={quote}
                         onEdit={() => {
@@ -740,7 +740,7 @@ const RequestDetail = () => {
                             });
                           }
                         }}
-                         onSendEmail={() => {
+                         onSendToEmail={() => {
                            // Handle email sending here if needed
                            console.log('Send email for quote:', quote.id);
                          }}
