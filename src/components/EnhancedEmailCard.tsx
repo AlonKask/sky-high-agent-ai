@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { SafeHtmlRenderer } from "@/components/SafeHtmlRenderer";
+import UnifiedEmailRenderer from "./UnifiedEmailRenderer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -419,11 +419,11 @@ const EnhancedEmailCard = ({
                   <div>
                     <h5 className="font-medium mb-2">Message Content</h5>
                     <ScrollArea className="max-h-96">
-                      <SafeHtmlRenderer 
-                        html={displayContent || ''}
-                        className="prose prose-sm max-w-none bg-muted/30 rounded-lg p-4 border"
-                        type="email"
-                        fallback={<p className="text-muted-foreground p-4">No content available</p>}
+                      <UnifiedEmailRenderer 
+                        emailBody={displayContent || email.body || ''}
+                        subject={email.subject}
+                        className="bg-muted/30 rounded-lg p-4 border"
+                        enableExtraction={!showRawContent}
                       />
                     </ScrollArea>
                   </div>
@@ -432,11 +432,9 @@ const EnhancedEmailCard = ({
                   {processedContent?.signature && !showRawContent && (
                     <div>
                       <h5 className="font-medium mb-2">Signature</h5>
-                      <SafeHtmlRenderer 
-                        html={processedContent.signature}
-                        className="text-sm text-muted-foreground bg-accent/30 rounded-lg p-3 border"
-                        type="email"
-                      />
+                      <div className="text-sm text-muted-foreground bg-accent/30 rounded-lg p-3 border">
+                        {processedContent.signature}
+                      </div>
                     </div>
                   )}
 

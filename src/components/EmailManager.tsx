@@ -15,6 +15,7 @@ import { toastHelpers } from '@/utils/toastHelpers';
 import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { logger } from "@/utils/logger";
 import EnhancedEmailCard from "./EnhancedEmailCard";
+import UnifiedEmailRenderer from "./UnifiedEmailRenderer";
 
 
 interface EmailExchange {
