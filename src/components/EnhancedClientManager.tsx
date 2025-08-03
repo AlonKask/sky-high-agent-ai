@@ -16,7 +16,7 @@ import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Br
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AILeadScoring from "@/components/AILeadScoring";
 
@@ -133,14 +133,14 @@ const EnhancedClientManager = () => {
 
       if (error) {
         console.error('Error fetching clients:', error);
-        toast.error('Failed to load clients. Please try again.');
+        toastHelpers.error('Failed to load clients. Please try again.', error);
         return;
       }
 
       setClients(data || []);
     } catch (error) {
       console.error('Unexpected error fetching clients:', error);
-      toast.error('An unexpected error occurred while loading clients.');
+      toastHelpers.error('An unexpected error occurred while loading clients.', error);
     } finally {
       setLoading(false);
     }
@@ -233,7 +233,7 @@ const EnhancedClientManager = () => {
     
     // Validate required fields
     if (!formData.firstName || !formData.lastName || !formData.email) {
-      toast.error('Please fill in all required fields');
+      toastHelpers.error('Please fill in all required fields');
       return;
     }
 
@@ -261,14 +261,14 @@ const EnhancedClientManager = () => {
       if (error) {
         console.error('Error creating client:', error);
         if (error.code === '23505') {
-          toast.error('A client with this email already exists');
+          toastHelpers.error('A client with this email already exists');
         } else {
-          toast.error('Failed to create client. Please check your input and try again.');
+          toastHelpers.error('Failed to create client. Please check your input and try again.', error);
         }
         return;
       }
 
-      toast.success('Client created successfully');
+      toastHelpers.success('Client created successfully');
       
       // Reset form and close dialog
       setFormData({
@@ -288,7 +288,7 @@ const EnhancedClientManager = () => {
       
     } catch (error) {
       console.error('Error creating client:', error);
-      toast.error('Failed to create client');
+      toastHelpers.error('Failed to create client', error);
     } finally {
       setCreating(false);
     }

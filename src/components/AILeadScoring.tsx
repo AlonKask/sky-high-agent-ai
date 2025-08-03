@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 
 interface LeadScore {
   clientId: string;
@@ -87,7 +87,7 @@ const AILeadScoring = () => {
       setLeadScores(scores.sort((a, b) => b.score - a.score));
     } catch (error) {
       console.error('Error fetching lead scores:', error);
-      toast.error('Failed to load lead scores');
+      toastHelpers.error('Failed to load lead scores', error);
     } finally {
       setLoading(false);
     }
@@ -195,12 +195,12 @@ const AILeadScoring = () => {
       });
       
       if (error) throw error;
-      toast.success('AI analysis completed');
+      toastHelpers.success('AI analysis completed');
       // Update lead scores with AI insights
       setLeadScores(data.updatedScores);
     } catch (error) {
       console.error('Error analyzing with AI:', error);
-      toast.error('AI analysis failed');
+      toastHelpers.error('AI analysis failed', error);
     } finally {
       setAnalyzing(false);
     }

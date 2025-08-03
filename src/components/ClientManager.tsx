@@ -15,7 +15,7 @@ import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Br
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AILeadScoring from "@/components/AILeadScoring";
 
@@ -94,14 +94,14 @@ const ClientManager = () => {
 
       if (error) {
         console.error('Error fetching clients:', error);
-        toast.error('Failed to load clients');
+        toastHelpers.error('Failed to load clients', error);
         return;
       }
 
       setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
-      toast.error('Failed to load clients');
+      toastHelpers.error('Failed to load clients', error);
     } finally {
       setLoading(false);
     }
@@ -222,7 +222,7 @@ const ClientManager = () => {
     if (!user) return;
     
     try {
-      toast.info('Starting full email sync...', {
+      toastHelpers.info('Starting full email sync...', {
         duration: 3000
       });
       
@@ -236,15 +236,15 @@ const ClientManager = () => {
       
       if (error) {
         console.error('Email sync error:', error);
-        toast.error('Failed to sync emails');
+        toastHelpers.error('Failed to sync emails', error);
       } else {
-        toast.success(`Successfully synced ${data?.syncedCount || 0} emails`);
+        toastHelpers.success(`Successfully synced ${data?.syncedCount || 0} emails`);
         // Refresh unsynced clients check after sync
         setTimeout(() => checkForUnsyncedClients(), 2000);
       }
     } catch (error) {
       console.error('Error performing full email sync:', error);
-      toast.error('Failed to sync emails');
+      toastHelpers.error('Failed to sync emails', error);
     }
   };
 
@@ -287,11 +287,11 @@ const ClientManager = () => {
       
       if (error) {
         console.error('Error creating clients from emails:', error);
-        toast.error('Failed to create clients');
+        toastHelpers.error('Failed to create clients', error);
         return;
       }
       
-      toast.success(`Successfully created ${data?.length || 0} clients from email contacts`);
+      toastHelpers.success(`Successfully created ${data?.length || 0} clients from email contacts`);
       
       // Clear unsynced notification and refresh
       setShowUnsyncedNotification(false);
@@ -300,7 +300,7 @@ const ClientManager = () => {
       
     } catch (error) {
       console.error('Error creating clients from emails:', error);
-      toast.error('Failed to create clients');
+      toastHelpers.error('Failed to create clients', error);
     } finally {
       setIsCreatingFromEmails(false);
     }
@@ -320,7 +320,7 @@ const ClientManager = () => {
       
       if (error) {
         console.error('Error marking email as not client:', error);
-        toast.error('Failed to mark as not client');
+        toastHelpers.error('Failed to mark as not client', error);
         return;
       }
       
@@ -332,11 +332,11 @@ const ClientManager = () => {
         setShowUnsyncedNotification(false);
       }
       
-      toast.success('Marked as not a client');
+      toastHelpers.success('Marked as not a client');
       
     } catch (error) {
       console.error('Error marking email as not client:', error);
-      toast.error('Failed to mark as not client');
+      toastHelpers.error('Failed to mark as not client', error);
     }
   };
 
@@ -345,7 +345,7 @@ const ClientManager = () => {
     
     // Validate required fields
     if (!formData.firstName || !formData.lastName || !formData.email) {
-      toast.error('Please fill in all required fields');
+      toastHelpers.error('Please fill in all required fields');
       return;
     }
 
@@ -371,11 +371,11 @@ const ClientManager = () => {
 
       if (error) {
         console.error('Error creating client:', error);
-        toast.error('Failed to create client');
+        toastHelpers.error('Failed to create client', error);
         return;
       }
 
-      toast.success('Client created successfully');
+      toastHelpers.success('Client created successfully');
       
       // Reset form and close dialog
       setFormData({
@@ -397,7 +397,7 @@ const ClientManager = () => {
       
     } catch (error) {
       console.error('Error creating client:', error);
-      toast.error('Failed to create client');
+      toastHelpers.error('Failed to create client', error);
     } finally {
       setCreating(false);
     }

@@ -17,7 +17,7 @@ import { CalendarIcon, Search, Plus, MapPin, Users, Clock, Plane, ArrowRight, X,
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 
 const RequestManager = () => {

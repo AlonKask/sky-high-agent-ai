@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { Search, Plane, MapPin, Calendar, User, DollarSign, Clock, FileText } from "lucide-react";
 
 interface Booking {
@@ -87,14 +87,14 @@ const EnhancedBookingManager = () => {
 
       if (error) {
         console.error('Error fetching bookings:', error);
-        toast.error('Failed to load bookings');
+        toastHelpers.error('Failed to load bookings', error);
         return;
       }
 
       setBookings(data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      toast.error('Failed to load bookings');
+      toastHelpers.error('Failed to load bookings', error);
     } finally {
       setLoading(false);
     }

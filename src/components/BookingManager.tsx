@@ -10,7 +10,7 @@ import { Search, Plane, MapPin, Calendar, User, DollarSign, Filter, Plus, Mail, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 
 interface Booking {
   id: string;
@@ -97,14 +97,14 @@ const BookingManager = () => {
 
       if (error) {
         console.error('Error fetching bookings:', error);
-        toast.error('Failed to load bookings');
+        toastHelpers.error('Failed to load bookings', error);
         return;
       }
 
       setBookings(data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      toast.error('Failed to load bookings');
+      toastHelpers.error('Failed to load bookings', error);
     } finally {
       setLoading(false);
     }
@@ -180,9 +180,9 @@ const BookingManager = () => {
   const handleSendConfirmation = async (booking: Booking) => {
     try {
       // This would call an edge function to send confirmation email
-      toast.success('Confirmation email sent successfully');
+      toastHelpers.success('Confirmation email sent successfully');
     } catch (error) {
-      toast.error('Failed to send confirmation email');
+      toastHelpers.error('Failed to send confirmation email', error);
     }
   };
 

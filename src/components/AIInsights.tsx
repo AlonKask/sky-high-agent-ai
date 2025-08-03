@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 
 interface AIInsight {
   id: string;
@@ -67,7 +67,7 @@ const AIInsights = () => {
       setInsights(generatedInsights);
     } catch (error) {
       console.error('Error loading insights:', error);
-      toast.error('Failed to load AI insights');
+      toastHelpers.error('Failed to load AI insights', error);
     } finally {
       setLoading(false);
     }
@@ -180,9 +180,9 @@ const AIInsights = () => {
       // Simulate AI processing
       await new Promise(resolve => setTimeout(resolve, 2000));
       await loadInsights();
-      toast.success('AI insights refreshed');
+      toastHelpers.success('AI insights refreshed');
     } catch (error) {
-      toast.error('Failed to refresh insights');
+      toastHelpers.error('Failed to refresh insights', error);
     } finally {
       setGenerating(false);
     }

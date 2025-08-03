@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Plane, Clock, Users } from "lucide-react";
 import ClientBookingForm from "@/components/ClientBookingForm";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 
 interface Quote {
   id: string;

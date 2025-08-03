@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Plane, Users, Clock, MapPin, Send, CheckCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 
 interface RequestFormData {

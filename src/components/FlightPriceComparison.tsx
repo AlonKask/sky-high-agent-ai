@@ -15,7 +15,7 @@ import {
   Clock,
   AlertCircle
 } from "lucide-react";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 
 interface FlightSearchForm {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -107,19 +107,19 @@ const EnhancedAnalytics = () => {
 
       if (bookingsResult.error) {
         console.error('Error fetching bookings:', bookingsResult.error);
-        toast.error('Failed to load booking analytics');
+        toastHelpers.error('Failed to load booking analytics', bookingsResult.error);
         return;
       }
 
       if (clientsResult.error) {
         console.error('Error fetching clients:', clientsResult.error);
-        toast.error('Failed to load client analytics');
+        toastHelpers.error('Failed to load client analytics', clientsResult.error);
         return;
       }
 
       if (requestsResult.error) {
         console.error('Error fetching requests:', requestsResult.error);
-        toast.error('Failed to load request analytics');
+        toastHelpers.error('Failed to load request analytics', requestsResult.error);
         return;
       }
 
@@ -186,7 +186,7 @@ const EnhancedAnalytics = () => {
 
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      toast.error('Failed to load analytics data');
+      toastHelpers.error('Failed to load analytics data', error);
     } finally {
       setLoading(false);
     }

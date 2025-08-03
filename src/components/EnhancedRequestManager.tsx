@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -76,14 +76,14 @@ const EnhancedRequestManager = () => {
 
       if (error) {
         console.error('Error fetching requests:', error);
-        toast.error('Failed to load requests');
+        toastHelpers.error('Failed to load requests', error);
         return;
       }
 
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
-      toast.error('Failed to load requests');
+      toastHelpers.error('Failed to load requests', error);
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ const EnhancedRequestManager = () => {
 
       if (updateError) {
         console.error('Error taking request:', updateError);
-        toast.error('Failed to take request');
+        toastHelpers.error('Failed to take request', updateError);
         return;
       }
 
@@ -126,11 +126,11 @@ const EnhancedRequestManager = () => {
         // Don't show error for assignment record as the main update succeeded
       }
 
-      toast.success('Request assigned to you successfully');
+      toastHelpers.success('Request assigned to you successfully');
       await fetchRequests(); // Refresh the list
     } catch (error) {
       console.error('Error taking request:', error);
-      toast.error('Failed to take request');
+      toastHelpers.error('Failed to take request', error);
     } finally {
       setTakingRequest(null);
     }

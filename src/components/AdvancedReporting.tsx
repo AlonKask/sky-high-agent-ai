@@ -34,7 +34,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { toast } from "sonner";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { DateRange } from "react-day-picker";
 
@@ -148,7 +148,7 @@ const AdvancedReporting = () => {
       if (bookingsResult.error || clientsResult.error || requestsResult.error) {
         console.error('Error fetching report data:', 
           bookingsResult.error || clientsResult.error || requestsResult.error);
-        toast.error('Failed to generate report');
+        toastHelpers.error('Failed to generate report', bookingsResult.error || clientsResult.error || requestsResult.error);
         return;
       }
 
@@ -263,7 +263,7 @@ const AdvancedReporting = () => {
 
     } catch (error) {
       console.error('Error generating report:', error);
-      toast.error('Failed to generate report');
+      toastHelpers.error('Failed to generate report', error);
     } finally {
       setLoading(false);
     }
@@ -271,12 +271,12 @@ const AdvancedReporting = () => {
 
   const exportToPDF = async () => {
     try {
-      toast.info('PDF export functionality would be implemented here');
+      toastHelpers.info('PDF export functionality would be implemented here');
       // This would integrate with a PDF generation library
       // For now, we'll show a placeholder
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      toast.error('Failed to export PDF');
+      toastHelpers.error('Failed to export PDF', error);
     }
   };
 
@@ -305,10 +305,10 @@ const AdvancedReporting = () => {
       a.click();
       window.URL.revokeObjectURL(url);
 
-      toast.success('Report exported to CSV');
+      toastHelpers.success('Report exported to CSV');
     } catch (error) {
       console.error('Error exporting CSV:', error);
-      toast.error('Failed to export CSV');
+      toastHelpers.error('Failed to export CSV', error);
     }
   };
 

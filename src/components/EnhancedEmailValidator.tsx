@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { validateEmailExchange, validateUserInput } from '@/utils/inputValidation';
 import { preValidateEmailExchange, handleSecurityError } from '@/utils/security';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toastHelpers } from '@/utils/toastHelpers';
 
 interface EnhancedEmailValidatorProps {
   onValidated?: (data: any) => void;
@@ -48,9 +48,7 @@ export const EnhancedEmailValidator: React.FC<EnhancedEmailValidatorProps> = ({
 
       if (!preValidation.isValid) {
         setValidationErrors(preValidation.errors);
-        toast.error('Validation failed', {
-          description: preValidation.errors.join(', ')
-        });
+        toastHelpers.error('Validation failed', { description: preValidation.errors.join(', ') });
         return;
       }
 
@@ -59,7 +57,7 @@ export const EnhancedEmailValidator: React.FC<EnhancedEmailValidatorProps> = ({
         onValidated(validatedData);
       }
 
-      toast.success('Email validated successfully');
+      toastHelpers.success('Email validated successfully');
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Validation failed';
@@ -68,9 +66,7 @@ export const EnhancedEmailValidator: React.FC<EnhancedEmailValidatorProps> = ({
       // Log security error
       await handleSecurityError(error as Error, 'email_validation');
       
-      toast.error('Validation Error', {
-        description: errorMessage
-      });
+      toastHelpers.error('Validation Error', { description: errorMessage });
     } finally {
       setIsValidating(false);
     }
