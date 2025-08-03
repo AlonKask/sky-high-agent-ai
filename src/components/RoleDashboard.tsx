@@ -29,10 +29,6 @@ export const RoleDashboard = () => {
   }
 
   // Use role-specific dashboards when appropriate, otherwise enhanced dashboard
-  if (selectedViewRole === 'admin' || role === 'admin') {
-    return <DeveloperDashboard />;
-  }
-  
   if (selectedViewRole === 'supervisor' || role === 'supervisor') {
     return <SupervisorDashboard />;
   }

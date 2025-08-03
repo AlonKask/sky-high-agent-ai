@@ -242,7 +242,7 @@ export const DeveloperDashboard = () => {
         </Card>
       </div>
 
-      {(userRole === 'admin' || userRole === 'manager') && (
+      {userRole === 'admin' && (
         <div className="flex justify-center pt-6">
           <Button 
             onClick={() => setIataDialogOpen(true)}
