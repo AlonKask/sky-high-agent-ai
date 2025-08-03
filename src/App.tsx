@@ -1,5 +1,6 @@
 
 import { Toaster } from "@/components/ui/sonner";
+import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -44,12 +45,13 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <RoleViewProvider>
-            <SecurityProvider>
-              <ErrorBoundary>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AuthProvider>
+            <RoleViewProvider>
+              <SecurityProvider>
+                <ErrorBoundary>
                 <Routes>
                   {/* Public routes */}
                   <Route path="/auth" element={<Auth />} />
@@ -81,12 +83,14 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Toaster />
-              </ErrorBoundary>
-          </SecurityProvider>
-        </RoleViewProvider>
-      </AuthProvider>
-    </TooltipProvider>
-    </QueryClientProvider>
+                <RadixToaster />
+                </ErrorBoundary>
+              </SecurityProvider>
+            </RoleViewProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   );
 }
 

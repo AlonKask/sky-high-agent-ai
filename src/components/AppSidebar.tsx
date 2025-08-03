@@ -20,6 +20,7 @@ import {
   Shield,
   Database
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { NavLink, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useRoleView } from "@/contexts/RoleViewContext";
@@ -265,6 +266,11 @@ export function AppSidebar() {
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <div className="flex items-center justify-center w-full p-2">
+                  <ThemeToggle />
+                </div>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                    <NavLink 

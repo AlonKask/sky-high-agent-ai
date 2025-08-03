@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole, UserRole } from '@/hooks/useUserRole';
 import { useRoleView } from '@/contexts/RoleViewContext';
+import { useThemeSync } from '@/hooks/useThemeSync';
 import { RoleSelector } from '@/components/RoleSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ const Settings = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
   const { selectedViewRole, setSelectedViewRole, isRoleSwitchingEnabled } = useRoleView();
+  const { theme, setTheme } = useThemeSync();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -111,15 +113,22 @@ const Settings = () => {
         console.error('Error fetching preferences:', preferencesError);
       }
       
+      const userTheme = (preferencesData?.theme as 'light' | 'dark' | 'system') || 'system';
+      
       setPreferences({
         email_notifications: preferencesData?.email_notifications ?? true,
         sms_notifications: preferencesData?.sms_notifications ?? false,
         marketing_emails: false, // Not in DB schema yet
-        theme: (preferencesData?.theme as 'light' | 'dark' | 'system') || 'system',
+        theme: userTheme,
         language: preferencesData?.language || 'en',
         timezone: preferencesData?.timezone || 'UTC',
         currency: preferencesData?.currency || 'USD'
       });
+
+      // Apply theme if different from current theme
+      if (userTheme && userTheme !== theme) {
+        setTheme(userTheme);
+      }
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast({
@@ -398,16 +407,38 @@ const Settings = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Theme</Label>
-                  <Select value={preferences.theme} onValueChange={(value) => setPreferences({...preferences, theme: value as any})}>
+                  <Select 
+                    value={theme || 'system'} 
+                    onValueChange={(value) => {
+                      setTheme(value);
+                      setPreferences({...preferences, theme: value as any});
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select theme" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="light">Light</SelectItem>
-                      <SelectItem value="dark">Dark</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
+                      <SelectItem value="light">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-4 bg-white border border-gray-300 rounded"></div>
+                          Light
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="dark">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-4 bg-gray-900 border border-gray-600 rounded"></div>
+                          Dark
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="system">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-4 bg-gradient-to-br from-white to-gray-900 border border-gray-400 rounded"></div>
+                          System
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">Changes apply immediately</p>
                 </div>
                 
                 <div className="space-y-2">
