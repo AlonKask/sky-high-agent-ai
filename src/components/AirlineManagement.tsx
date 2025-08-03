@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Plus, Edit, Trash2, ChevronDown, Settings, Plane } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AirlineRBDAssignment } from "./AirlineRBDAssignment";
 
 interface Airline {
   id: string;
@@ -73,19 +74,28 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
       if (error) throw error;
       setAirlines(data || []);
       
-      // Fetch RBD counts for each airline
-      if (data) {
-        const rbdData: { [key: string]: BookingClass[] } = {};
-        for (const airline of data) {
-          const { data: rbds } = await supabase
-            .from('booking_classes')
-            .select('*')
-            .eq('airline_id', airline.id)
-            .order('booking_priority', { ascending: false });
-          rbdData[airline.id] = rbds || [];
+        // Fetch RBD assignments for each airline
+        if (data) {
+          const rbdData: { [key: string]: BookingClass[] } = {};
+          for (const airline of data) {
+            const { data: rbds } = await supabase
+              .from('airline_rbd_assignments')
+              .select('*')
+              .eq('airline_id', airline.id)
+              .eq('is_active', true)
+              .order('booking_priority', { ascending: false });
+            rbdData[airline.id] = rbds?.map(rbd => ({
+              id: rbd.id,
+              booking_class_code: rbd.booking_class_code,
+              service_class: rbd.service_class,
+              class_description: rbd.class_description,
+              booking_priority: rbd.booking_priority,
+              airline_id: rbd.airline_id,
+              active: rbd.is_active
+            })) || [];
+          }
+          setAirlineRBDs(rbdData);
         }
-        setAirlineRBDs(rbdData);
-      }
     } catch (error) {
       console.error('Error fetching airlines:', error);
       toast({
@@ -517,129 +527,17 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
         </div>
       </CardContent>
 
-      {/* RBD Management Dialog */}
-      <Dialog open={isRBDDialogOpen} onOpenChange={setIsRBDDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plane className="h-5 w-5" />
-              Manage RBDs for {selectedAirlineForRBD?.name} ({selectedAirlineForRBD?.iata_code})
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Add New RBD Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Add New RBD</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <Label htmlFor="rbd-code">RBD Code *</Label>
-                    <Input
-                      id="rbd-code"
-                      placeholder="Y, J, F, etc."
-                      value={rbdFormData.booking_class_code}
-                      onChange={(e) => setRbdFormData(prev => ({ ...prev, booking_class_code: e.target.value.toUpperCase() }))}
-                      maxLength={1}
-                      className="font-mono"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="service-class">Service Class</Label>
-                    <select
-                      id="service-class"
-                      className="w-full p-2 border rounded-md"
-                      value={rbdFormData.service_class}
-                      onChange={(e) => setRbdFormData(prev => ({ ...prev, service_class: e.target.value }))}
-                    >
-                      <option value="Economy">Economy</option>
-                      <option value="Premium Economy">Premium Economy</option>
-                      <option value="Business">Business</option>
-                      <option value="First">First</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="priority">Priority</Label>
-                    <Input
-                      id="priority"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={rbdFormData.booking_priority}
-                      onChange={(e) => setRbdFormData(prev => ({ ...prev, booking_priority: parseInt(e.target.value) }))}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={handleAddRBD} className="w-full">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add RBD
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="Full Fare Economy, Business Discounted, etc."
-                    value={rbdFormData.class_description}
-                    onChange={(e) => setRbdFormData(prev => ({ ...prev, class_description: e.target.value }))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Current RBDs */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Current RBDs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedAirlineForRBD && airlineRBDs[selectedAirlineForRBD.id]?.length > 0 ? (
-                  <div className="space-y-4">
-                    {['First', 'Business', 'Premium Economy', 'Economy'].map((serviceClass) => {
-                      const classRBDs = airlineRBDs[selectedAirlineForRBD.id]?.filter(
-                        rbd => rbd.service_class === serviceClass
-                      ) || [];
-                      
-                      if (classRBDs.length === 0) return null;
-                      
-                      return (
-                        <div key={serviceClass}>
-                          <h4 className="font-medium mb-2 flex items-center gap-2">
-                            <Badge className={getServiceClassColor(serviceClass)}>
-                              {serviceClass}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">({classRBDs.length} RBDs)</span>
-                          </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                            {classRBDs
-                              .sort((a, b) => (b.booking_priority || 0) - (a.booking_priority || 0))
-                              .map((rbd) => (
-                                <div key={rbd.id} className="p-3 border rounded-lg text-center">
-                                  <div className="font-mono font-bold text-lg">{rbd.booking_class_code}</div>
-                                  <div className="text-xs text-muted-foreground">Priority {rbd.booking_priority}</div>
-                                  <div className="text-xs mt-1">{rbd.class_description}</div>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Plane className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No RBDs configured for this airline yet.</p>
-                    <p className="text-sm">Add your first RBD using the form above.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Enhanced RBD Management Dialog */}
+      {selectedAirlineForRBD && isRBDDialogOpen && (
+        <AirlineRBDAssignment
+          airline={selectedAirlineForRBD}
+          onClose={() => {
+            setIsRBDDialogOpen(false);
+            setSelectedAirlineForRBD(null);
+            fetchAirlines(); // Refresh to update RBD counts
+          }}
+        />
+      )}
     </Card>
   );
 }

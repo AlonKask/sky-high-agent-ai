@@ -299,6 +299,78 @@ export type Database = {
         }
         Relationships: []
       }
+      airline_rbd_assignments: {
+        Row: {
+          airline_id: string
+          booking_class_code: string
+          booking_priority: number
+          class_description: string | null
+          created_at: string
+          effective_from: string | null
+          effective_until: string | null
+          id: string
+          is_active: boolean
+          service_class: string
+          updated_at: string
+        }
+        Insert: {
+          airline_id: string
+          booking_class_code: string
+          booking_priority?: number
+          class_description?: string | null
+          created_at?: string
+          effective_from?: string | null
+          effective_until?: string | null
+          id?: string
+          is_active?: boolean
+          service_class: string
+          updated_at?: string
+        }
+        Update: {
+          airline_id?: string
+          booking_class_code?: string
+          booking_priority?: number
+          class_description?: string | null
+          created_at?: string
+          effective_from?: string | null
+          effective_until?: string | null
+          id?: string
+          is_active?: boolean
+          service_class?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      airline_rbd_templates: {
+        Row: {
+          airline_type: string
+          created_at: string
+          id: string
+          is_default: boolean
+          template_data: Json
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          airline_type?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          template_data?: Json
+          template_name: string
+          updated_at?: string
+        }
+        Update: {
+          airline_type?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          template_data?: Json
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       airport_codes: {
         Row: {
           city: string
