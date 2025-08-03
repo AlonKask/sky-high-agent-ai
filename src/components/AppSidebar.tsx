@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Bot,
   Sparkles,
-  Shield
+  Shield,
+  Database
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -219,7 +220,7 @@ export function AppSidebar() {
                       )}
                     </NavLink>
                   </SidebarMenuButton>
-                </SidebarMenuItem>
+                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                      <NavLink 
@@ -237,6 +238,25 @@ export function AppSidebar() {
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                       <NavLink 
+                         to="/iata-management" 
+                         className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/iata-management")}`}
+                         title={isCollapsed ? "IATA Management" : ""}
+                       >
+                         <Database className="h-5 w-5" />
+                        {!isCollapsed && (
+                          <div className="flex flex-col">
+                            <span>IATA Codes</span>
+                            <span className="text-xs text-muted-foreground">Airline & airport data</span>
+                          </div>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

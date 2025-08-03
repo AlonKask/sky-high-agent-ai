@@ -380,6 +380,50 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_classes: {
+        Row: {
+          active: boolean | null
+          airline_id: string | null
+          booking_class_code: string
+          booking_priority: number | null
+          class_description: string | null
+          created_at: string | null
+          id: string
+          service_class: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          airline_id?: string | null
+          booking_class_code: string
+          booking_priority?: number | null
+          class_description?: string | null
+          created_at?: string | null
+          id?: string
+          service_class: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          airline_id?: string | null
+          booking_class_code?: string
+          booking_priority?: number | null
+          class_description?: string | null
+          created_at?: string | null
+          id?: string
+          service_class?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_classes_airline_id_fkey"
+            columns: ["airline_id"]
+            isOneToOne: false
+            referencedRelation: "airline_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           airline: string

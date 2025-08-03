@@ -30,6 +30,7 @@ import Users from "./pages/Users";
 import { Teams } from "./pages/Teams";
 import TeamDetail from "./pages/TeamDetail";
 import UserProfile from "./pages/UserProfile";
+import IATAManagement from "./pages/IATAManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -76,6 +77,7 @@ function App() {
             <Route path="/teams" element={<Layout><Teams /></Layout>} />
             <Route path="/teams/:id" element={<Layout><TeamDetail /></Layout>} />
             <Route path="/users/:id" element={<Layout><UserProfile /></Layout>} />
+            <Route path="/iata-management" element={<Layout><IATAManagement /></Layout>} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>

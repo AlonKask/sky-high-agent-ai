@@ -1,0 +1,369 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Edit, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toastHelpers } from "@/utils/toastHelpers";
+
+interface BookingClass {
+  id: string;
+  booking_class_code: string;
+  airline_id: string;
+  service_class: string;
+  class_description?: string;
+  booking_priority: number;
+  active: boolean;
+  airline_codes?: {
+    iata_code: string;
+    name: string;
+  };
+}
+
+interface Airline {
+  id: string;
+  iata_code: string;
+  name: string;
+}
+
+interface BookingClassManagementProps {
+  searchTerm: string;
+}
+
+const SERVICE_CLASSES = [
+  "Economy",
+  "Premium Economy", 
+  "Business",
+  "First"
+];
+
+export function BookingClassManagement({ searchTerm }: BookingClassManagementProps) {
+  const [bookingClasses, setBookingClasses] = useState<BookingClass[]>([]);
+  const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingClass, setEditingClass] = useState<BookingClass | null>(null);
+  const [formData, setFormData] = useState({
+    booking_class_code: "",
+    airline_id: "",
+    service_class: "",
+    class_description: "",
+    booking_priority: 1,
+    active: true
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [classesResult, airlinesResult] = await Promise.all([
+        supabase
+          .from('booking_classes')
+          .select(`
+            *,
+            airline_codes!inner(iata_code, name)
+          `)
+          .order('booking_priority'),
+        supabase
+          .from('airline_codes')
+          .select('id, iata_code, name')
+          .order('name')
+      ]);
+
+      if (classesResult.error) throw classesResult.error;
+      if (airlinesResult.error) throw airlinesResult.error;
+
+      setBookingClasses(classesResult.data || []);
+      setAirlines(airlinesResult.data || []);
+    } catch (error) {
+      toastHelpers.error("Failed to fetch data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (editingClass) {
+        const { error } = await supabase
+          .from('booking_classes')
+          .update(formData)
+          .eq('id', editingClass.id);
+        
+        if (error) throw error;
+        toastHelpers.success("Booking class updated successfully");
+      } else {
+        const { error } = await supabase
+          .from('booking_classes')
+          .insert([formData]);
+        
+        if (error) throw error;
+        toastHelpers.success("Booking class created successfully");
+      }
+      
+      setShowDialog(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      toastHelpers.error("Failed to save booking class");
+    }
+  };
+
+  const handleEdit = (bookingClass: BookingClass) => {
+    setEditingClass(bookingClass);
+    setFormData({
+      booking_class_code: bookingClass.booking_class_code,
+      airline_id: bookingClass.airline_id,
+      service_class: bookingClass.service_class,
+      class_description: bookingClass.class_description || "",
+      booking_priority: bookingClass.booking_priority,
+      active: bookingClass.active
+    });
+    setShowDialog(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this booking class?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from('booking_classes')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      toastHelpers.success("Booking class deleted successfully");
+      fetchData();
+    } catch (error) {
+      toastHelpers.error("Failed to delete booking class");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      booking_class_code: "",
+      airline_id: "",
+      service_class: "",
+      class_description: "",
+      booking_priority: 1,
+      active: true
+    });
+    setEditingClass(null);
+  };
+
+  const filteredClasses = bookingClasses.filter(bc =>
+    bc.booking_class_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bc.airline_codes?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bc.airline_codes?.iata_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bc.service_class.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getServiceClassColor = (serviceClass: string) => {
+    switch (serviceClass) {
+      case 'Economy': return 'bg-blue-100 text-blue-800';
+      case 'Premium Economy': return 'bg-purple-100 text-purple-800';
+      case 'Business': return 'bg-yellow-100 text-yellow-800';
+      case 'First': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Booking Classes Management</CardTitle>
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <DialogTrigger asChild>
+            <Button onClick={resetForm}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Booking Class
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingClass ? "Edit Booking Class" : "Add New Booking Class"}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="booking_class_code">Class Code *</Label>
+                  <Input
+                    id="booking_class_code"
+                    value={formData.booking_class_code}
+                    onChange={(e) => setFormData({...formData, booking_class_code: e.target.value.toUpperCase()})}
+                    maxLength={1}
+                    placeholder="Y, J, F, etc."
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="airline_id">Airline *</Label>
+                  <Select
+                    value={formData.airline_id}
+                    onValueChange={(value) => setFormData({...formData, airline_id: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select airline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {airlines.map((airline) => (
+                        <SelectItem key={airline.id} value={airline.id}>
+                          {airline.iata_code} - {airline.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="service_class">Service Class *</Label>
+                <Select
+                  value={formData.service_class}
+                  onValueChange={(value) => setFormData({...formData, service_class: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select service class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SERVICE_CLASSES.map((serviceClass) => (
+                      <SelectItem key={serviceClass} value={serviceClass}>
+                        {serviceClass}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="class_description">Description</Label>
+                <Input
+                  id="class_description"
+                  value={formData.class_description}
+                  onChange={(e) => setFormData({...formData, class_description: e.target.value})}
+                  placeholder="Optional description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="booking_priority">Priority</Label>
+                  <Input
+                    id="booking_priority"
+                    type="number"
+                    min="1"
+                    value={formData.booking_priority}
+                    onChange={(e) => setFormData({...formData, booking_priority: parseInt(e.target.value)})}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="active"
+                    checked={formData.active}
+                    onCheckedChange={(checked) => setFormData({...formData, active: checked})}
+                  />
+                  <Label htmlFor="active">Active</Label>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingClass ? "Update" : "Create"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Class Code</TableHead>
+                <TableHead>Airline</TableHead>
+                <TableHead>Service Class</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                </TableRow>
+              ) : filteredClasses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">No booking classes found</TableCell>
+                </TableRow>
+              ) : (
+                filteredClasses.map((bookingClass) => (
+                  <TableRow key={bookingClass.id}>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono">
+                        {bookingClass.booking_class_code}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">
+                          {bookingClass.airline_codes?.iata_code}
+                        </Badge>
+                        <span className="text-sm">{bookingClass.airline_codes?.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getServiceClassColor(bookingClass.service_class)}>
+                        {bookingClass.service_class}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {bookingClass.class_description || "—"}
+                    </TableCell>
+                    <TableCell>{bookingClass.booking_priority}</TableCell>
+                    <TableCell>
+                      <Badge variant={bookingClass.active ? "default" : "secondary"}>
+                        {bookingClass.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(bookingClass)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(bookingClass.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
