@@ -72,7 +72,7 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
       setAirlines(airlinesRes.data || []);
     } catch (error) {
       console.error('Error fetching IATA data:', error);
-      toast.error('Failed to load IATA data');
+      toastHelpers.error('Failed to load IATA data', error);
     } finally {
       setLoading(false);
     }
@@ -98,10 +98,10 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
 
       setAirports(prev => prev.map(a => a.id === airport.id ? airport : a));
       setEditingAirport(null);
-      toast.success('Airport updated successfully');
+      toastHelpers.success('Airport updated successfully');
     } catch (error) {
       console.error('Error updating airport:', error);
-      toast.error('Failed to update airport');
+      toastHelpers.error('Failed to update airport', error);
     }
   };
 
@@ -123,16 +123,16 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
 
       setAirlines(prev => prev.map(a => a.id === airline.id ? airline : a));
       setEditingAirline(null);
-      toast.success('Airline updated successfully');
+      toastHelpers.success('Airline updated successfully');
     } catch (error) {
       console.error('Error updating airline:', error);
-      toast.error('Failed to update airline');
+      toastHelpers.error('Failed to update airline', error);
     }
   };
 
   const handleAddAirport = async () => {
     if (!newAirport.iata_code || !newAirport.name || !newAirport.city || !newAirport.country) {
-      toast.error('Please fill in all required fields');
+      toastHelpers.error('Please fill in all required fields');
       return;
     }
 
@@ -159,16 +159,16 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
       setAirports(prev => [...prev, data]);
       setNewAirport({});
       setShowAddAirport(false);
-      toast.success('Airport added successfully');
+      toastHelpers.success('Airport added successfully');
     } catch (error) {
       console.error('Error adding airport:', error);
-      toast.error('Failed to add airport');
+      toastHelpers.error('Failed to add airport', error);
     }
   };
 
   const handleAddAirline = async () => {
     if (!newAirline.iata_code || !newAirline.name) {
-      toast.error('Please fill in all required fields');
+      toastHelpers.error('Please fill in all required fields');
       return;
     }
 
@@ -193,10 +193,10 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
       setAirlines(prev => [...prev, data]);
       setNewAirline({});
       setShowAddAirline(false);
-      toast.success('Airline added successfully');
+      toastHelpers.success('Airline added successfully');
     } catch (error) {
       console.error('Error adding airline:', error);
-      toast.error('Failed to add airline');
+      toastHelpers.error('Failed to add airline', error);
     }
   };
 
@@ -210,10 +210,10 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
       if (error) throw error;
 
       setAirports(prev => prev.filter(a => a.id !== id));
-      toast.success('Airport deleted successfully');
+      toastHelpers.success('Airport deleted successfully');
     } catch (error) {
       console.error('Error deleting airport:', error);
-      toast.error('Failed to delete airport');
+      toastHelpers.error('Failed to delete airport', error);
     }
   };
 
@@ -227,10 +227,10 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
       if (error) throw error;
 
       setAirlines(prev => prev.filter(a => a.id !== id));
-      toast.success('Airline deleted successfully');
+      toastHelpers.success('Airline deleted successfully');
     } catch (error) {
       console.error('Error deleting airline:', error);
-      toast.error('Failed to delete airline');
+      toastHelpers.error('Failed to delete airline', error);
     }
   };
 

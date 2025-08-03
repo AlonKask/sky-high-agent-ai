@@ -41,7 +41,7 @@ const FlightPriceComparison = () => {
 
   const handleSearch = async () => {
     if (!searchForm.origin || !searchForm.destination || !searchForm.departureDate) {
-      toast.error('Please fill in required fields');
+      toastHelpers.error('Please fill in required fields');
       return;
     }
 
@@ -90,7 +90,7 @@ const FlightPriceComparison = () => {
         setIsSearching(false);
       }, 2000);
     } catch (error) {
-      toast.error('Failed to search flights');
+      toastHelpers.error('Failed to search flights', error);
       setIsSearching(false);
     }
   };
