@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toastHelpers } from '@/utils/toastHelpers';
 import AIReplyGenerator from "./AIReplyGenerator";
 
 interface EmailExchange {
@@ -97,7 +97,7 @@ const EnhancedEmailCard = ({
   const [showRawContent, setShowRawContent] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isRead, setIsRead] = useState(true);
-  const { toast } = useToast();
+  
 
   // Process email content when expanded
   useEffect(() => {
@@ -207,12 +207,9 @@ const EnhancedEmailCard = ({
 
       // Here you would call an API to update the email status
       // For now, just show a toast
-      toast({
-        title: "Success",
-        description: `Email ${action === 'star' ? (isStarred ? 'unstarred' : 'starred') : 
+      toastHelpers.success(`Email ${action === 'star' ? (isStarred ? 'unstarred' : 'starred') : 
                       action === 'read' ? (isRead ? 'marked as unread' : 'marked as read') : 
-                      'archived'}`,
-      });
+                      'archived'}`);
     } catch (error) {
       console.error(`Error updating email ${action}:`, error);
       // Revert local state on error

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 export const ManualGmailFix = () => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const { toast } = useToast();
+  
   const { connectGmail, refreshStatus, authStatus } = useGmailIntegration();
   const { user } = useAuth();
 
@@ -24,20 +24,13 @@ export const ManualGmailFix = () => {
       // Use the proper OAuth flow from useGmailIntegration
       await connectGmail();
       
-      toast({
-        title: "Success",
-        description: "Gmail connection initiated successfully",
-      });
+      toastHelpers.success("Gmail connection initiated successfully");
       
       // Refresh the integration status
       await refreshStatus();
     } catch (error) {
       console.error('Gmail connection failed:', error);
-      toast({
-        title: "Error",
-        description: "Failed to connect Gmail. Please try again.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to connect Gmail. Please try again.", error);
     } finally {
       setIsProcessing(false);
     }

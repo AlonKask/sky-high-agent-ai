@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 
 interface GmailAuthStatus {
   isConnected: boolean;
@@ -12,7 +12,7 @@ interface GmailAuthStatus {
 
 export const useGmailIntegration = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
+  
   
   const [authStatus, setAuthStatus] = useState<GmailAuthStatus>({
     isConnected: false,

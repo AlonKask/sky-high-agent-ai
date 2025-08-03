@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { X } from "lucide-react";
 import { SabreParser } from "@/utils/sabreParser";
-import { useToast } from "@/hooks/use-toast";
+import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import UnifiedEmailBuilder from "@/components/UnifiedEmailBuilder";
@@ -92,7 +92,7 @@ const SabreOptionManager = ({
   const [showEmailBuilder, setShowEmailBuilder] = useState(false);
   const [currentClient, setCurrentClient] = useState<any>(null);
   const dialogOpen = isOpen !== undefined ? isOpen : isDialogOpen;
-  const { toast } = useToast();
+  
   const { user } = useAuth();
 
   // Initialize passenger counts with guaranteed non-null values

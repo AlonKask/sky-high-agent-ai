@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +55,7 @@ interface User {
 export const Teams = () => {
   const { user } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
-  const { toast } = useToast();
+  
   const navigate = useNavigate();
 
   const [teams, setTeams] = useState<Team[]>([]);

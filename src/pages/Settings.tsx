@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from '@/integrations/supabase/client';
 import {
   User,
@@ -49,7 +49,7 @@ const Settings = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
   const { selectedViewRole, setSelectedViewRole, isRoleSwitchingEnabled } = useRoleView();
-  const { toast } = useToast();
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({

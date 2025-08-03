@@ -13,7 +13,7 @@ import LoadingProgress from './LoadingProgress';
 import ErrorDisplay from './ErrorDisplay';
 import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { SabreParser, type ParsedItinerary } from '@/utils/sabreParser';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { DatabaseUtils } from '@/utils/databaseUtils';
@@ -68,7 +68,7 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
   onSendEmail,
   onCancel
 }) => {
-  const { toast } = useToast();
+  
   const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState('Your Travel Options - Select Business Class');
   const [personalMessage, setPersonalMessage] = useState('');

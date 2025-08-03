@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { 
   Brain, 
   FileText, 
@@ -60,7 +60,7 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
   onMinimizeToggle,
   onClose
 }) => {
-  const { toast } = useToast();
+  
   const [processedContent, setProcessedContent] = useState<ProcessedEmailContent | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showProcessed, setShowProcessed] = useState(false);
@@ -90,27 +90,16 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
       if (data.success) {
         setProcessedContent(data.processedContent);
         setShowProcessed(true);
-        toast({
-          title: "Email Processed",
-          description: "AI has cleaned and extracted key information from the email",
-        });
+        toastHelpers.success("Email Processed", { description: "AI has cleaned and extracted key information from the email" });
       } else {
         // Use fallback content if AI processing failed
         setProcessedContent(data.fallbackContent);
         setShowProcessed(true);
-        toast({
-          title: "Basic Processing",
-          description: "Using fallback processing - AI analysis unavailable",
-          variant: "destructive"
-        });
+        toastHelpers.warning("Basic Processing", { description: "Using fallback processing - AI analysis unavailable" });
       }
     } catch (error) {
       console.error('Error processing email:', error);
-      toast({
-        title: "Processing Failed",
-        description: "Failed to process email content with AI",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to process email content with AI", error);
     } finally {
       setIsProcessing(false);
     }

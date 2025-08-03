@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EmailContentParser, type ParsedEmailContent } from './EmailContentParser';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 
 interface RichEmailRendererProps {
   emailBody: string;
@@ -45,7 +45,7 @@ const RichEmailRenderer: React.FC<RichEmailRendererProps> = ({
   showRawContent = false,
   onToggleRaw
 }) => {
-  const { toast } = useToast();
+  
   const [expandedSections, setExpandedSections] = useState({
     signature: true,
     financial: true,
@@ -68,10 +68,7 @@ const RichEmailRenderer: React.FC<RichEmailRendererProps> = ({
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      toast({
-        title: "Copied",
-        description: `${label} copied to clipboard`,
-      });
+      toastHelpers.success("Copied", { description: `${label} copied to clipboard` });
     });
   };
 

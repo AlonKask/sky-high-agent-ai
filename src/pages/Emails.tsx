@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { format } from 'date-fns';
 import { ManualGmailFix } from '@/components/ManualGmailFix';
 import { Switch } from '@/components/ui/switch';
@@ -71,7 +71,7 @@ interface EmailExchange {
 
 const Emails = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
+  
   const [searchParams] = useSearchParams();
   const { authStatus, connectGmail, disconnectGmail } = useGmailIntegration();
   const emailSyncManager = EmailSyncManager.getInstance();

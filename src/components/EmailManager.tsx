@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toastHelpers } from '@/utils/toastHelpers';
 import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { logger } from "@/utils/logger";
 import EnhancedEmailCard from "./EnhancedEmailCard";
@@ -52,7 +52,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
-  const { toast } = useToast();
+  
   const { authStatus, triggerSync } = useGmailIntegration();
 
   // New email form state
@@ -84,11 +84,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
 
       if (error) {
         logger.error('Error fetching emails:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch email history",
-          variant: "destructive"
-        });
+        toastHelpers.error("Failed to fetch email history", error);
         return;
       }
 
@@ -98,11 +94,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
       })));
     } catch (error) {
       logger.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch email history",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to fetch email history", error);
     } finally {
       setIsLoading(false);
     }
@@ -111,11 +103,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
 
   const sendEmail = async () => {
     if (!newEmail.to || !newEmail.subject || !newEmail.body) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
+      toastHelpers.error("Please fill in all required fields");
       return;
     }
 
@@ -135,18 +123,11 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
 
       if (error) {
         logger.error('Error sending email:', error);
-        toast({
-          title: "Error",
-          description: "Failed to send email",
-          variant: "destructive"
-        });
+        toastHelpers.error("Failed to send email", error);
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Email sent successfully",
-      });
+      toastHelpers.success("Email sent successfully");
 
       // Reset form and close dialog
       setNewEmail({
@@ -163,11 +144,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
 
     } catch (error) {
       logger.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send email",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to send email", error);
     } finally {
       setIsSending(false);
     }

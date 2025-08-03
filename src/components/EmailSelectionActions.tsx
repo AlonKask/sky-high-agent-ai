@@ -10,7 +10,7 @@ import {
   Trash2,
   Archive
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EmailSelectionActionsProps {
@@ -32,7 +32,7 @@ export const EmailSelectionActions: React.FC<EmailSelectionActionsProps> = ({
   onArchive,
   totalEmails
 }) => {
-  const { toast } = useToast();
+  
   const isAllSelected = selectedEmails.size === totalEmails && totalEmails > 0;
   const hasSelection = selectedEmails.size > 0;
 

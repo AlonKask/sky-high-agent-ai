@@ -23,7 +23,7 @@ import {
   ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { sanitizeEmailContent } from '@/utils/sanitization';
 import DOMPurify from 'dompurify';
 
@@ -73,7 +73,7 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
   showRawContent = false,
   onToggleRaw
 }) => {
-  const { toast } = useToast();
+  
   const [expandedSections, setExpandedSections] = useState({
     signature: true,
     financial: true,

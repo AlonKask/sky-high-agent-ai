@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Star, Clock, DollarSign, Plane, MapPin, MessageSquare, Send, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 
 interface Quote {
   id: string;
@@ -50,7 +50,7 @@ interface ChatMessage {
 
 const OptionsReview: React.FC = () => {
   const { clientToken } = useParams();
-  const { toast } = useToast();
+  
   
   const [review, setReview] = useState<OptionReview | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toastHelpers } from '@/utils/toastHelpers';
 
 interface EmailExchange {
   id: string;
@@ -184,7 +184,7 @@ const AIReplyGenerator = ({
   const [generatedReply, setGeneratedReply] = useState<any>(null);
   const [editedReply, setEditedReply] = useState('');
   const [editMode, setEditMode] = useState(false);
-  const { toast } = useToast();
+  
 
   const agents = [
     'Content Analysis Agent',
@@ -264,18 +264,11 @@ const AIReplyGenerator = ({
       setEditedReply(result.finalDraft?.body || '');
       setProgress(100);
 
-      toast({
-        title: "AI Reply Generated",
-        description: `Generated with ${Math.round(result.averageConfidence * 100)}% confidence`,
-      });
+      toastHelpers.success("AI Reply Generated", { description: `Generated with ${Math.round(result.averageConfidence * 100)}% confidence` });
 
     } catch (error) {
       console.error('Error generating AI reply:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate AI reply",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to generate AI reply", error);
     } finally {
       setProcessing(false);
       setCurrentAgent('');
@@ -301,20 +294,13 @@ const AIReplyGenerator = ({
         throw new Error(error.message);
       }
 
-      toast({
-        title: "Reply Sent",
-        description: "Your AI-generated reply has been sent successfully",
-      });
+      toastHelpers.success("Reply Sent", { description: "Your AI-generated reply has been sent successfully" });
 
       onClose();
 
     } catch (error) {
       console.error('Error sending reply:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send reply",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to send reply", error);
     }
   };
 

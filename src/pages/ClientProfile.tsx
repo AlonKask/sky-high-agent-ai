@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ArrowLeft, User, Mail, Phone, Building, Calendar as CalendarIcon, CreditCard, Plane, Loader2, Edit, Save, X, MapPin, Users, Clock } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 const ClientProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -18,7 +18,7 @@ import {
   Star,
   CheckCircle
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EmailAnalysis {
@@ -67,7 +67,7 @@ export const EmailAnalysisViewer: React.FC<EmailAnalysisViewerProps> = ({
     email.metadata?.ai_analysis || null
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const { toast } = useToast();
+  
 
   const analyzeEmail = async () => {
     setIsAnalyzing(true);
@@ -85,17 +85,10 @@ export const EmailAnalysisViewer: React.FC<EmailAnalysisViewerProps> = ({
       setAnalysis(data.analysis);
       onAnalysisComplete?.(data.analysis);
       
-      toast({
-        title: "Analysis Complete",
-        description: "Email has been analyzed with advanced AI insights."
-      });
+      toastHelpers.success("Analysis Complete", { description: "Email has been analyzed with advanced AI insights." });
     } catch (error) {
       console.error('Error analyzing email:', error);
-      toast({
-        title: "Analysis Failed",
-        description: "Could not analyze email. Please try again.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Could not analyze email. Please try again.", error);
     } finally {
       setIsAnalyzing(false);
     }

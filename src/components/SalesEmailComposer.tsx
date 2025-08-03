@@ -23,7 +23,7 @@ import {
   Clock,
   Mail
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SalesEmailComposerProps {
@@ -78,7 +78,7 @@ export const SalesEmailComposer: React.FC<SalesEmailComposerProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
 
-  const { toast } = useToast();
+  
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({

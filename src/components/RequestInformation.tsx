@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar, Users, Plane, MapPin, ArrowRight, ExternalLink, Edit, Save, X, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toastHelpers } from '@/utils/toastHelpers';
 import SegmentCard from "./SegmentCard";
 import { AirportAutocomplete } from "./AirportAutocomplete";
 
@@ -41,7 +41,7 @@ interface RequestInformationProps {
 
 const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProps) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  
   
   const [isEditingRequest, setIsEditingRequest] = useState(false);
   const [isEditingSegment, setIsEditingSegment] = useState<number | null>(null);
@@ -62,10 +62,7 @@ const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProp
   const handleSaveRequest = () => {
     onRequestUpdate?.(editedRequest);
     setIsEditingRequest(false);
-    toast({
-      title: "Request Updated",
-      description: "Request information has been saved successfully."
-    });
+    toastHelpers.success("Request Updated", { description: "Request information has been saved successfully." });
   };
   
   const handleSaveSegment = (index: number, updatedSegment: Segment) => {
@@ -75,19 +72,12 @@ const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProp
     setEditedRequest(updatedRequest);
     onRequestUpdate?.(updatedRequest);
     setIsEditingSegment(null);
-    toast({
-      title: "Segment Updated",
-      description: "Flight segment has been updated successfully."
-    });
+    toastHelpers.success("Segment Updated", { description: "Flight segment has been updated successfully." });
   };
   
   const handleAddSegment = () => {
     if (!newSegment.from || !newSegment.to || !newSegment.date) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required segment fields.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Please fill in all required segment fields.");
       return;
     }
     
@@ -102,10 +92,7 @@ const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProp
       passengers: { adults: 1, children: 0, infants: 0 }
     });
     setIsAddingSegment(false);
-    toast({
-      title: "Segment Added",
-      description: "New flight segment has been added successfully."
-    });
+    toastHelpers.success("Segment Added", { description: "New flight segment has been added successfully." });
   };
   
   const handleDeleteSegment = (index: number) => {
@@ -113,10 +100,7 @@ const RequestInformation = ({ request, onRequestUpdate }: RequestInformationProp
     const updatedRequest = { ...editedRequest, segments: updatedSegments };
     setEditedRequest(updatedRequest);
     onRequestUpdate?.(updatedRequest);
-    toast({
-      title: "Segment Deleted",
-      description: "Flight segment has been removed successfully."
-    });
+    toastHelpers.success("Segment Deleted", { description: "Flight segment has been removed successfully." });
   };
   const getStatusColor = (status: string) => {
     switch (status) {

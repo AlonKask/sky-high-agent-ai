@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 
 interface AddAgentDialogProps {
   onAgentAdded?: () => void;
@@ -24,7 +24,7 @@ export const AddAgentDialog = ({ onAgentAdded }: AddAgentDialogProps) => {
     phone: '',
     company: ''
   });
-  const { toast } = useToast();
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

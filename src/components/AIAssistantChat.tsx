@@ -21,7 +21,7 @@ import {
   Navigation,
   ExternalLink
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
@@ -54,7 +54,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -138,21 +138,14 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
       if (data.functionResults) {
         data.functionResults.forEach((result: any) => {
           if ((result.function === 'navigate_to_page' || result.function === 'search_and_navigate') && result.navigation?.url) {
-            toast({
-              title: "Navigating",
-              description: result.message
-            });
+            toastHelpers.success("Navigating", { description: result.message });
             setTimeout(() => navigate(result.navigation.url), 1000);
           }
         });
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive"
-      });
+      toastHelpers.error("Failed to send message. Please try again.", error);
     } finally {
       setIsLoading(false);
     }
