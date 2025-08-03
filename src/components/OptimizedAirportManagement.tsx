@@ -50,10 +50,11 @@ export default function OptimizedAirportManagement({ searchTerm }: OptimizedAirp
 
   // Debounce search updates
   useEffect(() => {
-    if (searchTerm !== debouncedSearchTerm) {
-      debouncedSearch(searchTerm, setDebouncedSearchTerm);
-    }
-  }, [searchTerm, debouncedSearchTerm, debouncedSearch]);
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const resetForm = useCallback(() => {
     setFormData({

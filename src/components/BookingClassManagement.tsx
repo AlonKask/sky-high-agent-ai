@@ -10,21 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Edit, Trash2, Download } from "lucide-react";
-import { useBookingClasses, useBookingClassMutations, useAirlines, useDebouncedSearch } from "@/hooks/useIATAData";
-
-interface BookingClass {
-  id: string;
-  booking_class_code: string;
-  airline_id: string;
-  service_class: string;
-  class_description?: string;
-  booking_priority: number;
-  active: boolean;
-  airline_codes?: {
-    iata_code: string;
-    name: string;
-  };
-}
+import { useBookingClasses, useBookingClassMutations, useAirlines, useDebouncedSearch, BookingClass } from "@/hooks/useIATAData";
 
 interface Airline {
   id: string;
@@ -117,7 +103,7 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
     const csvContent = [
       "Class Code,Airline Code,Airline Name,Service Class,Description,Priority,Status",
       ...bookingClasses.map(bc => 
-        `${bc.booking_class_code},${bc.airline_codes?.iata_code || ''},${bc.airline_codes?.name || ''},${bc.service_class},${bc.class_description || ''},${bc.booking_priority},${bc.active ? 'Active' : 'Inactive'}`
+        `${bc.booking_class_code},${bc.airline_iata || ''},${bc.airline_name || ''},${bc.service_class},${bc.class_description || ''},${bc.booking_priority},${bc.active ? 'Active' : 'Inactive'}`
       )
     ].join('\n');
     
@@ -307,9 +293,9 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">
-                          {bookingClass.airline_codes?.iata_code}
+                          {bookingClass.airline_iata}
                         </Badge>
-                        <span className="text-sm">{bookingClass.airline_codes?.name}</span>
+                        <span className="text-sm">{bookingClass.airline_name}</span>
                       </div>
                     </TableCell>
                     <TableCell>

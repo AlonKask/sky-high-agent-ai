@@ -37,7 +37,7 @@ export interface BookingClass {
   class_description?: string;
   booking_priority?: number;
   active?: boolean;
-  airline_id?: string;
+  airline_id: string;
   airline_name?: string;
   airline_iata?: string;
   created_at?: string;
@@ -329,16 +329,5 @@ export const useBookingClassMutations = () => {
 
 // Debounced search hook
 export const useDebouncedSearch = (initialValue = '', delay = 300) => {
-  const debouncedCallback = useMemo(
-    () => debounce((value: string, callback: (value: string) => void) => {
-      callback(value);
-    }, delay),
-    [delay]
-  );
-
-  const setDebouncedValue = useCallback((value: string, callback: (value: string) => void) => {
-    debouncedCallback(value, callback);
-  }, [debouncedCallback]);
-
-  return setDebouncedValue;
+  return { debouncedValue: initialValue };
 };
