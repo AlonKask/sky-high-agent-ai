@@ -56,9 +56,10 @@ export class EnhancedSabreParser {
           .filter(line => {
             return line.length > 10 && 
                    !line.startsWith('OPERATED BY') &&
+                   !line.startsWith('CHECK-IN WITH') &&
                    !line.startsWith('SEAT MAP') &&
                    !line.startsWith('MEAL') &&
-                   /\d+[A-Z]{2}\s*\d+/.test(line);
+                   /^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line);
           });
         
         logger.info(`Processing ${lines.length} flight lines`, { lines: lines.length, operationId });
@@ -142,167 +143,79 @@ export class EnhancedSabreParser {
     
     // Skip non-flight lines
     if (line.includes('OPERATED BY') || 
+        line.includes('CHECK-IN WITH') ||
         line.includes('SEAT MAP') || 
         line.includes('MEAL') ||
-        line.length < 10 || 
-        !line.match(/\d+[A-Z]{2}/)) {
+        line.length < 10) {
       console.log('Skipping non-flight line');
       return [];
     }
 
     const segments: FlightSegment[] = [];
     
-    // ENHANCED PATTERN: Complex multi-segment with improved logic
-    const complexMultiPattern = /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6,}(?:\/[A-Z]{3,6})*)\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*.*$/;
-    const complexMatch = line.match(complexMultiPattern);
+    // NEW ENHANCED PATTERN for the exact format: "1 UA2033P 20AUG W EWRBOS*SS1   310P  428P /DCUA /E"
+    const sabrePattern = /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*(?:\/([A-Z0-9]+))?\s*(?:\/([A-Z]+))?\s*.*$/;
     
-    if (complexMatch) {
-      console.log('✓ Complex multi-segment routing detected');
-      const segmentNumber = parseInt(complexMatch[1]);
-      const airlineCode = complexMatch[2];
-      const flightNumber = complexMatch[3];
-      const bookingClass = complexMatch[4];
-      const dateStr = complexMatch[5];
-      const dayOfWeek = complexMatch[6];
-      const routingString = complexMatch[7];
-      const statusCode = complexMatch[8] || 'GK1';
-      const departureTime = complexMatch[9];
-      const arrivalTime = complexMatch[10];
-      const dayOffset = complexMatch[11] ? parseInt(complexMatch[11]) : 0;
+    const match = line.match(sabrePattern);
+    
+    if (match) {
+      console.log('✓ Sabre format pattern matched');
+      const [, segmentStr, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime, nextDateStr, nextDay, misc1, misc2] = match;
       
-      console.log(`Parsing complex routing: "${routingString}"`);
+      const segmentNumber = parseInt(segmentStr);
+      const flightNumber = `${airlineCode}${flightNum}`;
       
-      // Simplified multi-segment parsing
-      const airportSegments = this.parseComplexRoutingEnhanced(routingString);
+      // Parse the 6-character route (e.g., "EWRBOS" = EWR -> BOS)
+      const departureAirport = route.substring(0, 3);
+      const arrivalAirport = route.substring(3, 6);
       
-      if (airportSegments.length > 0) {
-        console.log(`Found ${airportSegments.length} airport pairs:`, airportSegments);
-        
-        // Enhanced time distribution
-        const timeIntervals = await this.distributeFlightTimesEnhanced(
-          departureTime, 
-          arrivalTime, 
-          airportSegments
-        );
-        
-        for (let idx = 0; idx < airportSegments.length; idx++) {
-          const airportPair = airportSegments[idx];
-          const timeInterval = timeIntervals[idx];
-          
-          const segment: FlightSegment = {
-            segmentNumber: segmentNumber + idx,
-            flightNumber: `${airlineCode}${flightNumber}`,
-            airlineCode,
-            bookingClass,
-            flightDate: this.parseDateFromString(dateStr),
-            dayOfWeek,
-            departureAirport: airportPair.departure,
-            arrivalAirport: airportPair.arrival,
-            statusCode,
-            departureTime: timeInterval.departure,
-            arrivalTime: timeInterval.arrival,
-            arrivalDayOffset: idx === airportSegments.length - 1 ? dayOffset : 0,
-            cabinClass: await this.mapBookingClassWithDatabase(bookingClass, airlineCode)
-          };
-          
-          segments.push(segment);
-        }
-        return segments;
+      console.log(`Parsed route: ${departureAirport} → ${arrivalAirport}`);
+      
+      // Handle next day arrival if indicated
+      let arrivalDayOffset = 0;
+      if (nextDateStr && nextDay) {
+        arrivalDayOffset = 1;
       }
+      
+      const segment: FlightSegment = {
+        segmentNumber,
+        flightNumber,
+        airlineCode,
+        bookingClass,
+        flightDate: this.parseDateFromString(dateStr),
+        dayOfWeek,
+        departureAirport,
+        arrivalAirport,
+        statusCode: statusCode || 'SS1',
+        departureTime: this.formatTime(depTime),
+        arrivalTime: this.formatTime(arrTime),
+        arrivalDayOffset,
+        cabinClass: await this.mapBookingClassWithDatabase(bookingClass, airlineCode)
+      };
+      
+      segments.push(segment);
+      console.log('✓ Successfully parsed segment:', segment);
+      return segments;
     }
     
-    // Standard single segment parsing (existing logic)
-    const enhancedPatterns = [
-      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*(?:\/([A-Z0-9]+))?\s*(?:OPERATED BY (.+))?.*$/,
-      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*.*$/,
-      /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*.*$/,
-      /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)\s+([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+(\d+[AP])\s+(\d+[AP])\s*.*$/
-    ];
-    
-    for (let i = 0; i < enhancedPatterns.length; i++) {
-      const match = line.match(enhancedPatterns[i]);
-      if (match) {
-        console.log(`✓ Enhanced pattern ${i + 1} matched`);
-        try {
-          const segment = await this.extractSegmentDataWithDatabase(match);
-          segments.push(segment);
-          return segments;
-        } catch (error) {
-          console.log(`✗ Error with enhanced pattern ${i + 1}:`, error);
-          continue;
-        }
-      }
-    }
-    
-    console.log('✗ No enhanced patterns matched');
+    console.log('✗ No pattern matched for line:', line);
     return segments;
   }
 
-  private static parseComplexRoutingEnhanced(routingString: string): Array<{departure: string, arrival: string}> {
-    console.log(`🔍 ENHANCED COMPLEX ROUTING: Processing "${routingString}"`);
+  // Helper method to format time from "310P" to "3:10 PM"
+  private static formatTime(timeStr: string): string {
+    if (!timeStr) return '';
     
-    const segments = [];
-    const cleaned = routingString.replace(/\*.*$/, '').trim();
-    console.log(`📋 Cleaned string: "${cleaned}"`);
+    const match = timeStr.match(/^(\d+)([AP])$/);
+    if (!match) return timeStr;
     
-    // Special handling for known patterns
-    if (cleaned === "EWRBOS/FRAFRA/LGSLGS") {
-      console.log("✓ Detected known complex pattern EWRBOS/FRAFRA/LGSLGS");
-      return [
-        { departure: "EWR", arrival: "BOS" },
-        { departure: "BOS", arrival: "FRA" },
-        { departure: "FRA", arrival: "LGA" }
-      ];
-    }
+    const [, time, period] = match;
+    let hours = time.length === 3 ? time.substring(0, 1) : time.substring(0, 2);
+    let minutes = time.length === 3 ? time.substring(1) : time.substring(2);
     
-    if (cleaned.includes('/')) {
-      const parts = cleaned.split('/').filter(part => part.length > 0);
-      console.log('📍 Slash-separated parts:', parts);
-      
-      // Collect all airports in order
-      const allAirports = [];
-      
-      for (const part of parts) {
-        if (part.length === 6) {
-          const dep = part.substring(0, 3);
-          const arr = part.substring(3, 6);
-          
-          if (allAirports.length === 0) {
-            allAirports.push(dep);
-          }
-          
-          // If this is not a duplicate destination, add it
-          if (dep !== arr) {
-            allAirports.push(arr);
-          } else {
-            // This represents the final destination
-            allAirports.push(arr);
-          }
-        }
-      }
-      
-      // Remove duplicates while preserving order
-      const uniqueAirports = [];
-      for (const airport of allAirports) {
-        if (uniqueAirports.length === 0 || uniqueAirports[uniqueAirports.length - 1] !== airport) {
-          uniqueAirports.push(airport);
-        }
-      }
-      
-      console.log('📍 Unique airports in order:', uniqueAirports);
-      
-      // Create segments between consecutive airports
-      for (let i = 0; i < uniqueAirports.length - 1; i++) {
-        segments.push({
-          departure: uniqueAirports[i],
-          arrival: uniqueAirports[i + 1]
-        });
-        console.log(`✈️ Sequential segment: ${uniqueAirports[i]} → ${uniqueAirports[i + 1]}`);
-      }
-    }
+    if (minutes.length === 1) minutes = minutes + '0';
     
-    console.log(`✅ ENHANCED PARSER RESULT: ${segments.length} segments created`);
-    return segments;
+    return `${hours}:${minutes} ${period}M`;
   }
 
   private static async distributeFlightTimesEnhanced(
@@ -603,21 +516,6 @@ export class EnhancedSabreParser {
     return segmentData;
   }
 
-  private static async mapBookingClassWithDatabase(bookingClass: string, airlineCode: string): Promise<string> {
-    const airlineInfo = await DatabaseUtils.getAirlineInfo(airlineCode);
-    
-    // Enhanced mapping with airline-specific logic
-    const universalMapping: { [key: string]: string } = {
-      'F': 'First Class', 'A': 'First Class', 'P': 'First Class',
-      'J': 'Business Class', 'C': 'Business Class', 'D': 'Business Class', 'I': 'Business Class', 'Z': 'Business Class',
-      'W': 'Premium Economy', 'S': 'Premium Economy', 'Y': 'Economy Class', 'B': 'Economy Class',
-      'M': 'Economy Class', 'H': 'Economy Class', 'K': 'Economy Class', 'L': 'Economy Class',
-      'Q': 'Economy Class', 'T': 'Economy Class', 'E': 'Economy Class', 'N': 'Economy Class',
-      'R': 'Economy Class', 'V': 'Economy Class', 'G': 'Economy Class', 'X': 'Economy Class'
-    };
-    
-    return universalMapping[bookingClass] || 'Economy Class';
-  }
 
   // Utility methods
   private static timeToMinutes(timeStr: string): number {
@@ -794,5 +692,67 @@ export class EnhancedSabreParser {
     };
     
     return aircraftMap[equipmentCode] || equipmentCode;
+  }
+
+  private static async mapBookingClassWithDatabase(bookingClass: string, airlineCode: string): Promise<string> {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      // Query the airline_rbd_assignments table for the specific booking class and airline
+      const { data: rbdData, error } = await supabase
+        .from('airline_rbd_assignments')
+        .select(`
+          class_description,
+          service_class,
+          airline_codes!inner (name, iata_code)
+        `)
+        .eq('booking_class_code', bookingClass)
+        .eq('airline_codes.iata_code', airlineCode)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (!error && rbdData) {
+        console.log(`✓ Found RBD mapping: ${bookingClass} = ${rbdData.service_class} (${rbdData.class_description})`);
+        return `${rbdData.service_class} (${rbdData.class_description})`;
+      }
+      
+      console.log(`No specific RBD mapping found for ${airlineCode}${bookingClass}, using fallback`);
+    } catch (error) {
+      console.log('Database RBD lookup failed:', error);
+    }
+    
+    // Enhanced fallback mapping
+    const fallbackMapping: { [key: string]: string } = {
+      'F': 'First Class',
+      'A': 'First Class',
+      'J': 'Business Class', 
+      'C': 'Business Class',
+      'D': 'Business Class',
+      'I': 'Business Class',
+      'Z': 'Business Class',
+      'P': 'Premium Economy',
+      'W': 'Premium Economy',
+      'S': 'Premium Economy',
+      'Y': 'Economy Class',
+      'B': 'Economy Class',
+      'M': 'Economy Class',
+      'U': 'Economy Class',
+      'H': 'Economy Class',
+      'Q': 'Economy Class',
+      'V': 'Economy Class',
+      'N': 'Economy Class',
+      'R': 'Economy Class',
+      'G': 'Economy Class',
+      'X': 'Economy Class',
+      'O': 'Economy Class',
+      'E': 'Economy Class',
+      'T': 'Economy Class',
+      'L': 'Economy Class',
+      'K': 'Economy Class'
+    };
+    
+    const mappedClass = fallbackMapping[bookingClass] || 'Economy Class';
+    console.log(`✓ Fallback mapping: ${bookingClass} = ${mappedClass}`);
+    return mappedClass;
   }
 }
