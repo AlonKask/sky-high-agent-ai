@@ -312,7 +312,12 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Airlines Management</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle>Airlines Management</CardTitle>
+          <Badge variant="secondary" className="text-xs">
+            {filteredAirlines.length} records
+          </Badge>
+        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={resetForm}>

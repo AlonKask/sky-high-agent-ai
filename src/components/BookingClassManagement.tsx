@@ -181,7 +181,12 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Booking Classes Management</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle>Booking Classes Management</CardTitle>
+          <Badge variant="secondary" className="text-xs">
+            {filteredClasses.length} records
+          </Badge>
+        </div>
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button onClick={resetForm}>

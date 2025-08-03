@@ -153,7 +153,12 @@ export function AirportManagement({ searchTerm }: AirportManagementProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Airports Management</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle>Airports Management</CardTitle>
+          <Badge variant="secondary" className="text-xs">
+            {filteredAirports.length} records
+          </Badge>
+        </div>
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button onClick={resetForm}>
