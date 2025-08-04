@@ -58,10 +58,11 @@ export class EmailSyncManager {
         toast.loading('Syncing emails...', { id: 'email-sync' });
       }
 
-      // Call enhanced email sync function
-      console.log('🚀 Invoking enhanced email sync...');
-      const { data, error } = await supabase.functions.invoke('enhanced-email-sync', {
+      // Call unified email sync function
+      console.log('🚀 Invoking unified email sync...');
+      const { data, error } = await supabase.functions.invoke('sync-gmail-inbox', {
         body: {
+          trigger_type: 'manual',
           userId: user.id,
           userEmail: prefs.gmail_user_email,
           accessToken: prefs.gmail_access_token,
