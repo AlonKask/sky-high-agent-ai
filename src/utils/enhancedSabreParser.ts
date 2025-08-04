@@ -139,15 +139,24 @@ export class EnhancedSabreParser {
   }
 
   private static async parseFlightLineWithDatabase(line: string): Promise<FlightSegment[]> {
-    console.log(`Enhanced parsing with DB: "${line}"`);
+    console.log(`🔍 Enhanced parsing with DB: "${line}"`);
     
-    // Skip non-flight lines
-    if (line.includes('OPERATED BY') || 
-        line.includes('CHECK-IN WITH') ||
-        line.includes('SEAT MAP') || 
-        line.includes('MEAL') ||
-        line.length < 10) {
-      console.log('Skipping non-flight line');
+    // Enhanced validation with detailed logging
+    const skipReasons = [];
+    if (line.includes('OPERATED BY')) skipReasons.push('contains OPERATED BY');
+    if (line.includes('CHECK-IN WITH')) skipReasons.push('contains CHECK-IN WITH');
+    if (line.includes('SEAT MAP')) skipReasons.push('contains SEAT MAP');
+    if (line.includes('MEAL')) skipReasons.push('contains MEAL');
+    if (line.length < 10) skipReasons.push(`too short (${line.length} chars)`);
+    
+    if (skipReasons.length > 0) {
+      console.log(`⏭️ Skipping line: ${skipReasons.join(', ')}`);
+      return [];
+    }
+    
+    // Enhanced format validation
+    if (!/^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line)) {
+      console.warn(`⚠️ Line doesn't match expected flight format: "${line}"`);
       return [];
     }
 
@@ -159,17 +168,49 @@ export class EnhancedSabreParser {
     const match = line.match(sabrePattern);
     
     if (match) {
-      console.log('✓ Sabre format pattern matched');
+      console.log('✅ Sabre format pattern matched');
       const [, segmentStr, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime, nextDateStr, nextDay, misc1, misc2] = match;
+      
+      // Enhanced validation of extracted components
+      if (!segmentStr || isNaN(parseInt(segmentStr))) {
+        console.error(`❌ Invalid segment number: ${segmentStr}`);
+        return [];
+      }
+      
+      if (!airlineCode || !/^[A-Z]{2}$/.test(airlineCode)) {
+        console.error(`❌ Invalid airline code: ${airlineCode}`);
+        return [];
+      }
+      
+      if (!route || route.length !== 6) {
+        console.error(`❌ Invalid route format: ${route} (expected 6 characters)`);
+        return [];
+      }
       
       const segmentNumber = parseInt(segmentStr);
       const flightNumber = `${airlineCode}${flightNum}`;
       
-      // Parse the 6-character route (e.g., "EWRBOS" = EWR -> BOS)
+      // Enhanced route parsing with validation
       const departureAirport = route.substring(0, 3);
       const arrivalAirport = route.substring(3, 6);
       
-      console.log(`Parsed route: ${departureAirport} → ${arrivalAirport}`);
+      // Validate airport codes
+      if (!/^[A-Z]{3}$/.test(departureAirport)) {
+        console.error(`❌ Invalid departure airport: ${departureAirport}`);
+        return [];
+      }
+      
+      if (!/^[A-Z]{3}$/.test(arrivalAirport)) {
+        console.error(`❌ Invalid arrival airport: ${arrivalAirport}`);
+        return [];
+      }
+      
+      if (departureAirport === arrivalAirport) {
+        console.error(`❌ Same departure and arrival airport: ${departureAirport}`);
+        return [];
+      }
+      
+      console.log(`✅ Parsed route: ${departureAirport} → ${arrivalAirport}`);
       
       // Handle next day arrival if indicated
       let arrivalDayOffset = 0;
@@ -177,28 +218,73 @@ export class EnhancedSabreParser {
         arrivalDayOffset = 1;
       }
       
-      const segment: FlightSegment = {
-        segmentNumber,
-        flightNumber,
-        airlineCode,
-        bookingClass,
-        flightDate: this.parseDateFromString(dateStr),
-        dayOfWeek,
-        departureAirport,
-        arrivalAirport,
-        statusCode: statusCode || 'SS1',
-        departureTime: this.formatTime(depTime),
-        arrivalTime: this.formatTime(arrTime),
-        arrivalDayOffset,
-        cabinClass: await this.mapBookingClassWithDatabase(bookingClass, airlineCode)
-      };
-      
-      segments.push(segment);
-      console.log('✓ Successfully parsed segment:', segment);
-      return segments;
+      try {
+        // Enhanced date and time parsing with validation
+        const flightDate = this.parseDateFromString(dateStr);
+        if (!flightDate) {
+          console.error(`❌ Failed to parse flight date: ${dateStr}`);
+          return [];
+        }
+        
+        const formattedDepTime = this.formatTime(depTime);
+        const formattedArrTime = this.formatTime(arrTime);
+        
+        if (!formattedDepTime || !formattedArrTime) {
+          console.error(`❌ Failed to format times: ${depTime} -> ${formattedDepTime}, ${arrTime} -> ${formattedArrTime}`);
+          return [];
+        }
+        
+        // Enhanced booking class mapping with database fallback
+        let cabinClass;
+        try {
+          cabinClass = await this.mapBookingClassWithDatabase(bookingClass, airlineCode);
+        } catch (dbError) {
+          console.warn(`⚠️ Database booking class lookup failed: ${dbError.message}`);
+          cabinClass = this.mapBookingClassBasic(bookingClass);
+        }
+        
+        const segment: FlightSegment = {
+          segmentNumber,
+          flightNumber,
+          airlineCode,
+          bookingClass,
+          flightDate,
+          dayOfWeek,
+          departureAirport,
+          arrivalAirport,
+          statusCode: statusCode || 'SS1',
+          departureTime: formattedDepTime,
+          arrivalTime: formattedArrTime,
+          arrivalDayOffset,
+          cabinClass
+        };
+        
+        segments.push(segment);
+        console.log('✅ Successfully parsed segment:', {
+          flight: segment.flightNumber,
+          route: `${segment.departureAirport}-${segment.arrivalAirport}`,
+          time: `${segment.departureTime}-${segment.arrivalTime}`,
+          class: segment.cabinClass
+        });
+        return segments;
+        
+      } catch (segmentError) {
+        console.error(`❌ Error creating segment:`, {
+          error: segmentError.message,
+          line,
+          extractedData: { segmentStr, airlineCode, flightNum, bookingClass, dateStr }
+        });
+        return [];
+      }
     }
     
-    console.log('✗ No pattern matched for line:', line);
+    console.error('❌ No enhanced pattern matched for line:', {
+      line,
+      length: line.length,
+      hasFlightPattern: /\d+\s+[A-Z]{2}\d+[A-Z]/.test(line),
+      hasTimePattern: /\d+[AP]/.test(line),
+      hasAirportPattern: /[A-Z]{6}/.test(line)
+    });
     return segments;
   }
 

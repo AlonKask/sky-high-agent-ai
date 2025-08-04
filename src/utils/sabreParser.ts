@@ -36,12 +36,38 @@ export interface ParsedItinerary {
 
 export class SabreParser {
   static parseIFormat(rawItinerary: string): ParsedItinerary | null {
-    console.log("=== ENHANCED SABRE PARSER v2.0 ===");
+    const operationId = `sabre-parse-${Date.now()}`;
+    console.log("=== ENHANCED SABRE PARSER v3.0 WITH ROBUST ERROR HANDLING ===");
     console.log("Raw input:", rawItinerary);
+    console.log("Operation ID:", operationId);
     
-    if (!rawItinerary || !rawItinerary.trim()) {
-      console.log("Empty input provided");
-      return null;
+    // Enhanced input validation
+    if (!rawItinerary || typeof rawItinerary !== 'string') {
+      console.error("❌ Invalid input: null, undefined, or not a string");
+      return {
+        segments: [],
+        totalSegments: 0,
+        route: "Error: Invalid Input",
+        isRoundTrip: false,
+        parseError: "Input is null, undefined, or not a string"
+      } as ParsedItinerary & { parseError: string };
+    }
+    
+    const trimmedInput = rawItinerary.trim();
+    if (!trimmedInput) {
+      console.error("❌ Empty input after trimming");
+      return {
+        segments: [],
+        totalSegments: 0,
+        route: "Error: Empty Input",
+        isRoundTrip: false,
+        parseError: "Input is empty after trimming"
+      } as ParsedItinerary & { parseError: string };
+    }
+    
+    // Check for encoding issues or unexpected characters
+    if (/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/.test(trimmedInput)) {
+      console.warn("⚠️ Input contains control characters - potential encoding issue");
     }
     
     try {
@@ -93,8 +119,24 @@ export class SabreParser {
       }
       
       if (segments.length === 0) {
-        console.log("No valid segments found");
-        return null;
+        console.error("❌ No valid segments found after parsing");
+        console.log("📊 Parse failure analysis:");
+        console.log(`- Lines processed: ${lines.length}`);
+        console.log(`- Lines content: ${JSON.stringify(lines.slice(0, 3))}`);
+        
+        return {
+          segments: [],
+          totalSegments: 0,
+          route: "Parse Error: No Valid Segments",
+          isRoundTrip: false,
+          parseError: `Failed to parse any segments from ${lines.length} lines`,
+          debugInfo: {
+            operationId,
+            linesProcessed: lines.length,
+            sampleLines: lines.slice(0, 3),
+            inputLength: trimmedInput.length
+          }
+        } as ParsedItinerary & { parseError: string; debugInfo: any };
       }
       
       // Enhanced post-processing
@@ -121,8 +163,27 @@ export class SabreParser {
         layoverInfo
       };
     } catch (error) {
-      console.error("Parser error:", error);
-      return null;
+      console.error("❌ Critical parser error:", error);
+      console.error("📊 Error context:", {
+        operationId,
+        inputLength: rawItinerary?.length || 0,
+        error: error.message,
+        stack: error.stack?.split('\n').slice(0, 3)
+      });
+      
+      return {
+        segments: [],
+        totalSegments: 0,
+        route: "Critical Parse Error",
+        isRoundTrip: false,
+        parseError: error.message,
+        criticalError: true,
+        debugInfo: {
+          operationId,
+          errorType: error.constructor.name,
+          inputSample: rawItinerary?.substring(0, 100) || 'No input'
+        }
+      } as ParsedItinerary & { parseError: string; criticalError: boolean; debugInfo: any };
     }
   }
   
@@ -167,16 +228,24 @@ export class SabreParser {
   }
   
   private static parseFlightLineEnhanced(line: string): FlightSegment[] {
-    console.log(`Enhanced parsing: "${line}"`);
+    console.log(`🔍 Enhanced parsing: "${line}"`);
     
-    // Skip non-flight lines with enhanced detection
-    if (line.includes('OPERATED BY') || 
-        line.includes('SEAT MAP') || 
-        line.includes('MEAL') ||
-        line.length < 10 || 
-        !line.match(/\d+[A-Z]{2}/)) {
-      console.log('Skipping non-flight line');
+    // Enhanced validation with detailed logging
+    const skipReasons = [];
+    if (line.includes('OPERATED BY')) skipReasons.push('contains OPERATED BY');
+    if (line.includes('SEAT MAP')) skipReasons.push('contains SEAT MAP');
+    if (line.includes('MEAL')) skipReasons.push('contains MEAL');
+    if (line.length < 10) skipReasons.push(`too short (${line.length} chars)`);
+    if (!line.match(/\d+[A-Z]{2}/)) skipReasons.push('no flight number pattern');
+    
+    if (skipReasons.length > 0) {
+      console.log(`⏭️ Skipping line: ${skipReasons.join(', ')}`);
       return [];
+    }
+    
+    // Enhanced encoding and format validation
+    if (/[^\x20-\x7E\n\r\t]/.test(line)) {
+      console.warn('⚠️ Line contains non-ASCII characters - potential encoding issue');
     }
 
     const segments: FlightSegment[] = [];
@@ -252,19 +321,37 @@ export class SabreParser {
     for (let i = 0; i < enhancedPatterns.length; i++) {
       const match = line.match(enhancedPatterns[i]);
       if (match) {
-        console.log(`✓ Enhanced pattern ${i + 1} matched`);
+        console.log(`✅ Enhanced pattern ${i + 1} matched`);
+        console.log(`📋 Match groups: ${JSON.stringify(match.slice(1, 6))}`);
         try {
-          const segment = this.extractSegmentData(match);
-          segments.push(segment);
-          return segments;
+          const segment = this.extractSegmentDataWithValidation(match, i + 1);
+          if (segment) {
+            segments.push(segment);
+            console.log(`✅ Successfully extracted segment: ${segment.departureAirport}-${segment.arrivalAirport}`);
+            return segments;
+          } else {
+            console.log(`⚠️ Pattern ${i + 1} matched but segment extraction failed`);
+            continue;
+          }
         } catch (error) {
-          console.log(`✗ Error with enhanced pattern ${i + 1}:`, error);
+          console.error(`❌ Error with enhanced pattern ${i + 1}:`, {
+            error: error.message,
+            line,
+            patternIndex: i + 1,
+            matchGroups: match?.slice(1, 10)
+          });
           continue;
         }
       }
     }
     
-    console.log('✗ No enhanced patterns matched');
+    console.error('❌ No enhanced patterns matched');
+    console.log('📊 Pattern matching failure analysis:');
+    console.log(`- Line length: ${line.length}`);
+    console.log(`- Contains digits: ${/\d/.test(line)}`);
+    console.log(`- Contains airline code pattern: ${/[A-Z]{2}/.test(line)}`);
+    console.log(`- Contains time pattern: ${/\d+[AP]/.test(line)}`);
+    
     return segments;
   }
 
@@ -382,72 +469,167 @@ export class SabreParser {
     return airports;
   }
   
-  private static extractSegmentData(match: RegExpMatchArray): FlightSegment {
-    const segmentNumber = parseInt(match[1]);
-    const airlineCode = match[2];
-    const flightNumberDigits = match[3];
-    const bookingClass = match[4];
-    const dateStr = match[5];
-    const dayOfWeek = match[6];
+  private static extractSegmentDataWithValidation(match: RegExpMatchArray, patternIndex: number): FlightSegment | null {
+    try {
+      console.log(`🔍 Extracting segment data using pattern ${patternIndex}`);
+      
+      // Enhanced validation of match groups
+      if (!match || match.length < 12) {
+        throw new Error(`Insufficient match groups: expected ≥12, got ${match?.length || 0}`);
+      }
+      const segmentNumber = parseInt(match[1]);
+      const airlineCode = match[2];
+      const flightNumberDigits = match[3];
+      const bookingClass = match[4];
+      const dateStr = match[5];
+      const dayOfWeek = match[6];
+      
+      // Enhanced validation of extracted data
+      if (isNaN(segmentNumber) || segmentNumber < 1) {
+        throw new Error(`Invalid segment number: ${match[1]}`);
+      }
+      
+      if (!airlineCode || !/^[A-Z]{2}$/.test(airlineCode)) {
+        throw new Error(`Invalid airline code: ${airlineCode}`);
+      }
+      
+      if (!flightNumberDigits || !/^\d+$/.test(flightNumberDigits)) {
+        throw new Error(`Invalid flight number: ${flightNumberDigits}`);
+      }
+      
+      if (!bookingClass || !/^[A-Z]$/.test(bookingClass)) {
+        throw new Error(`Invalid booking class: ${bookingClass}`);
+      }
     
-    // Parse airports - remove any * and status codes
-    const airportString = match[7] + match[8];
-    // Remove anything after * (like *SS1)
-    const cleanAirports = airportString.split('*')[0];
-    const departureAirport = cleanAirports.substring(0, 3);
-    const arrivalAirport = cleanAirports.substring(3, 6);
+      // Enhanced airport parsing with validation
+      const airportString = match[7] + match[8];
+      const cleanAirports = airportString.split('*')[0];
+      
+      if (cleanAirports.length < 6) {
+        throw new Error(`Invalid airport string: ${airportString} (cleaned: ${cleanAirports})`);
+      }
+      
+      const departureAirport = cleanAirports.substring(0, 3);
+      const arrivalAirport = cleanAirports.substring(3, 6);
+      
+      // Validate airport codes
+      if (!/^[A-Z]{3}$/.test(departureAirport)) {
+        throw new Error(`Invalid departure airport code: ${departureAirport}`);
+      }
+      
+      if (!/^[A-Z]{3}$/.test(arrivalAirport)) {
+        throw new Error(`Invalid arrival airport code: ${arrivalAirport}`);
+      }
+      
+      if (departureAirport === arrivalAirport) {
+        throw new Error(`Same departure and arrival airport: ${departureAirport}`);
+      }
     
-    const statusCode = match[9]; // GK1, SS1, etc.
-    const departureTime = match[10];
-    const arrivalTime = match[11];
-    const dayOffset = match[12]; // +1 if present
-    const equipmentCode = match[13]; // Aircraft type like E333, 738, etc.
-    const operatedBy = match[14]; // OPERATED BY information if present
+      const statusCode = match[9] || 'GK1';
+      const departureTime = match[10];
+      const arrivalTime = match[11];
+      const dayOffset = match[12];
+      const equipmentCode = match[13];
+      const operatedBy = match[14];
+      
+      // Enhanced time validation
+      if (!departureTime || !/^\d+[AP]$/.test(departureTime)) {
+        throw new Error(`Invalid departure time format: ${departureTime}`);
+      }
+      
+      if (!arrivalTime || !/^\d+[AP]$/.test(arrivalTime)) {
+        throw new Error(`Invalid arrival time format: ${arrivalTime}`);
+      }
     
-    // Construct full flight number
-    const fullFlightNumber = `${airlineCode}${flightNumberDigits}`;
+      // Construct and validate full flight number
+      const fullFlightNumber = `${airlineCode}${flightNumberDigits}`;
+      console.log(`🆔 Flight number: ${fullFlightNumber}`);
+      
+      // Enhanced date parsing with validation
+      let flightDate;
+      try {
+        flightDate = this.parseDateFromString(dateStr);
+        if (!flightDate) {
+          throw new Error(`Failed to parse date from: ${dateStr}`);
+        }
+      } catch (error) {
+        throw new Error(`Date parsing error: ${error.message}`);
+      }
+      
+      // Enhanced time conversion with validation
+      let depTime24h, arrTime24h;
+      try {
+        depTime24h = this.convert12hTo24h(departureTime);
+        arrTime24h = this.convert12hTo24h(arrivalTime);
+        
+        if (!depTime24h || !arrTime24h) {
+          throw new Error(`Time conversion failed: ${departureTime} -> ${depTime24h}, ${arrivalTime} -> ${arrTime24h}`);
+        }
+      } catch (error) {
+        throw new Error(`Time conversion error: ${error.message}`);
+      }
+      
+      // Enhanced day offset calculation
+      const arrivalDayOffset = dayOffset ? 
+        parseInt(dayOffset.replace('+', '')) : 
+        this.calculateDayOffset(departureTime, arrivalTime, false);
     
-    // Parse date (15SEP -> 2024-09-15)
-    const flightDate = this.parseDateFromString(dateStr);
-    
-    // Convert times to 24-hour format
-    const depTime24h = this.convert12hTo24h(departureTime);
-    const arrTime24h = this.convert12hTo24h(arrivalTime);
-    
-    // Determine if arrival is next day
-    const arrivalDayOffset = dayOffset ? parseInt(dayOffset.replace('+', '')) : 
-                            this.calculateDayOffset(departureTime, arrivalTime, false);
-    
-    const segmentData: FlightSegment = {
-      segmentNumber,
-      flightNumber: fullFlightNumber,
-      airlineCode,
-      bookingClass,
-      flightDate,
-      dayOfWeek,
-      departureAirport,
-      arrivalAirport,
-      statusCode,
-      departureTime: depTime24h,
-      arrivalTime: arrTime24h,
-      arrivalDayOffset,
-      cabinClass: this.mapBookingClass(bookingClass, airlineCode)
-    };
-    
-    // Add equipment information if present
-    if (equipmentCode) {
-      segmentData.aircraftType = this.parseAircraftType(equipmentCode);
+      const segmentData: FlightSegment = {
+        segmentNumber,
+        flightNumber: fullFlightNumber,
+        airlineCode,
+        bookingClass,
+        flightDate,
+        dayOfWeek,
+        departureAirport,
+        arrivalAirport,
+        statusCode,
+        departureTime: depTime24h,
+        arrivalTime: arrTime24h,
+        arrivalDayOffset,
+        cabinClass: this.mapBookingClass(bookingClass, airlineCode)
+      };
+      
+      // Enhanced equipment parsing with validation
+      if (equipmentCode && equipmentCode.trim()) {
+        try {
+          segmentData.aircraftType = this.parseAircraftType(equipmentCode);
+        } catch (error) {
+          console.warn(`⚠️ Aircraft type parsing failed: ${error.message}`);
+          segmentData.aircraftType = equipmentCode.trim();
+        }
+      }
+      
+      // Enhanced operating airline parsing
+      if (operatedBy && operatedBy.trim()) {
+        segmentData.operatingAirline = operatedBy.trim();
+      }
+      
+      // Enhanced duration estimation with error handling
+      try {
+        segmentData.duration = this.estimateFlightDuration(departureAirport, arrivalAirport);
+      } catch (error) {
+        console.warn(`⚠️ Duration estimation failed: ${error.message}`);
+        segmentData.duration = 'Unknown';
+      }
+      
+      console.log(`✅ Successfully created segment: ${JSON.stringify({
+        flight: segmentData.flightNumber,
+        route: `${segmentData.departureAirport}-${segmentData.arrivalAirport}`,
+        time: `${segmentData.departureTime}-${segmentData.arrivalTime}`,
+        class: segmentData.cabinClass
+      })}`);
+      
+      return segmentData;
+      
+    } catch (error) {
+      console.error(`❌ Segment extraction failed for pattern ${patternIndex}:`, {
+        error: error.message,
+        matchLength: match?.length,
+        firstFewGroups: match?.slice(1, 6)
+      });
+      return null;
     }
-    
-    // Add operated by information if present
-    if (operatedBy) {
-      segmentData.operatingAirline = operatedBy.trim();
-    }
-    
-    // Estimate flight duration based on route (simplified)
-    segmentData.duration = this.estimateFlightDuration(departureAirport, arrivalAirport);
-    
-    return segmentData;
   }
 
   private static parseAircraftType(equipmentCode: string): string {
