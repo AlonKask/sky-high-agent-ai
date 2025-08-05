@@ -1413,7 +1413,7 @@ export class SabreParser {
           /([A-Z]{3})\s+/,               // 6. Destination airport code
           /(\d{1,2}:?\d{2}[AP])\s+/,     // 7. Departure time (allow optional colon, e.g. "335P" or "3:35P")
           /(\d{1,2}:?\d{2}[AP])\s+/,     // 8. Arrival time
-          /([A-Z]?)[\s+]?/,             // 9. Meal code (M, S, or blank)
+          /([A-Z]?)\s*/,                 // 9. Meal code (M, S, or blank; allow extra spacing)
           /([A-Z0-9]+)?\s+/,             // 10. Equipment code (aircraft, e.g. 319, 77W; optional)
           /(\d+\.\d+)?\s+/,              // 11. Elapsed time in hours (e.g. 1.55 for 1h55m; optional)
           /(\d+)?\s+/,                   // 12. Miles (optional)
