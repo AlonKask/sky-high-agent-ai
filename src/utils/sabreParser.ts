@@ -1337,12 +1337,14 @@ export class SabreParser {
   // VI Format Parser
   /**
    * Parse detailed Sabre VI format itinerary text into structured flight segments.
+   * Enhanced with comprehensive logging and validation (Phase 2-3).
    * Returns a ParsedItinerary or null if parsing fails.
    */
   static parseVIFormat(rawItinerary: string): ParsedItinerary | null {
     const operationId = `sabre-vi-parse-${Date.now()}`;
-    console.log("=== SABRE VI FORMAT PARSER – Improved Version ===");
-    console.log("Raw VI input:", rawItinerary);
+    console.log("=== SABRE VI FORMAT PARSER – Enhanced Version (Phase 2-3) ===");
+    console.log("Raw VI input (first 200 chars):", rawItinerary?.substring(0, 200));
+    console.log("Input length:", rawItinerary?.length);
     console.log("Operation ID:", operationId);
 
     if (!rawItinerary || typeof rawItinerary !== 'string') {
@@ -1357,30 +1359,50 @@ export class SabreParser {
     }
 
     try {
-      // 1. Clean up the input: remove command prefixes, headers, page numbers.
+      // 1. Enhanced input cleaning (Phase 3: Strengthen VI Parser)
+      console.log("🧹 Starting input cleaning...");
       let cleaned = rawItinerary
         // Remove any leading "*VI" or "VI" command text
         .replace(/^\*?VI\*?\s*/i, '')
-        // Remove the header line (e.g. "FLIGHT  DATE  SEGMENT ...") which might have an optional page number prefix
+        // Remove the header line with more flexible pattern
         .replace(/^\d*\.?\s*FLIGHT\s+DATE\s+SEGMENT.*$/im, '')
-        // Remove any isolated page number lines (e.g. "2." at start of a line)
+        // Remove page number lines and continuation markers
         .replace(/^\d+\.\s*$/gm, '')
+        // Remove additional Sabre formatting
+        .replace(/^PAGE\s+\d+.*$/gm, '')
+        .replace(/^CONTINUED.*$/gm, '')
         .trim();
+      
+      console.log("✅ Cleaned input (first 200 chars):", cleaned?.substring(0, 200));
+      console.log("📊 Cleaning stats:", {
+        originalLength: rawItinerary?.length,
+        cleanedLength: cleaned?.length,
+        linesRemoved: (rawItinerary?.split('\n')?.length || 0) - (cleaned?.split('\n')?.length || 0)
+      });
 
       if (!cleaned) {
-        console.warn("No content remains after cleaning VI input.");
-        return null;
+        console.error("❌ No content remains after cleaning VI input - possible invalid format");
+        return {
+          segments: [],
+          totalSegments: 0,
+          route: "No valid content found",
+          isRoundTrip: false,
+          parseError: "No valid flight data found after cleaning input"
+        } as ParsedItinerary & { parseError: string };
       }
 
-      // Split into lines and filter out any empty lines
+      // Split into lines and filter out any empty lines with enhanced validation
       const lines = cleaned.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-      console.log(`Processing ${lines.length} lines from VI itinerary...`, lines);
+      console.log(`📋 Processing ${lines.length} lines from VI itinerary...`);
+      console.log("🔍 First 3 lines for analysis:", lines.slice(0, 3));
 
       const segments: FlightSegment[] = [];
       let currentSegment: Partial<FlightSegment> | null = null;
 
-      // 2. Regex pattern for main flight lines in VI format.
-      // This pattern captures all the main fields in one line.
+      // 2. Enhanced regex patterns for VI format with fallbacks (Phase 3)
+      console.log("🔍 Setting up enhanced VI format patterns...");
+      
+      // Primary pattern for VI format flight lines
       const flightLinePattern = new RegExp(
         [
           /^(\d+)\s+/,                   // 1. Segment number
@@ -1399,20 +1421,29 @@ export class SabreParser {
         ].map(r => r.source).join(''),
         'i'
       );
+      
+      // Fallback pattern for simpler VI format variations
+      const fallbackPattern = /^(\d+)\s+([A-Z]{2})\*?\s*(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{1,2}:?\d{2}[AP])\s+(\d{1,2}:?\d{2}[AP])/i;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // Check if line matches the main flight segment pattern
-        const match = line.match(flightLinePattern);
+        // Enhanced pattern matching with fallbacks (Phase 3)
+        let match = line.match(flightLinePattern);
+        let patternUsed = "primary";
+        
+        if (!match) {
+          match = line.match(fallbackPattern);
+          patternUsed = "fallback";
+        }
+        
         if (match) {
+          console.log(`✅ VI flight line matched (${patternUsed} pattern): "${line}"`);
           // If we were accumulating a segment and hit a new segment line, push the previous one to list
           if (currentSegment && currentSegment.segmentNumber !== undefined) {
             segments.push(this.completeVISegment(currentSegment));
           }
-          console.log(`✈️ Flight line matched: "${line}"`);
-
-          // Destructure matched groups for clarity
+          // Destructure matched groups with enhanced validation
           const [
             _fullMatch,
             segNum,
@@ -1457,7 +1488,13 @@ export class SabreParser {
             miles: milesStr ? parseInt(milesStr) : undefined
           };
 
-          console.log(`👉 Parsed segment #${segNum}: ${origin} → ${dest}, ${airlineCode}${flightNum} on ${flightDate} ${depTime}-${arrTime}`);
+          console.log(`✅ Successfully parsed segment #${segNum}:`, {
+            route: `${origin} → ${dest}`,
+            flight: `${airlineCode}${flightNum}`,
+            date: flightDate,
+            times: `${depTime} - ${arrTime}`,
+            pattern: patternUsed
+          });
           continue;  // move to next line
         }
 
@@ -1527,8 +1564,13 @@ export class SabreParser {
           continue;
         }
 
-        // If none of the above, just skip this line (could be an irrelevant or already processed part)
-        console.debug(`Unrecognized line segment (skipped): "${line}"`);
+        // Enhanced logging for unrecognized lines (Phase 2)
+        console.debug(`⏭️ Unrecognized VI line (skipped): "${line}"`, {
+          lineLength: line.length,
+          hasFlightPattern: /\d+\s+[A-Z]{2}\d+/.test(line),
+          hasTimePattern: /\d+[AP]/.test(line),
+          hasAirportPattern: /[A-Z]{3}/.test(line)
+        });
       }  // end for each line
 
       // After looping, push the last accumulated segment (if exists)
@@ -1537,8 +1579,25 @@ export class SabreParser {
       }
 
       if (segments.length === 0) {
-        console.error("❌ No flight segments could be parsed from VI input.");
-        return null;  // or return an error object as ParsedItinerary with parseError
+        console.error("❌ No flight segments could be parsed from VI input");
+        console.log("🔍 Debug info for parsing failure:", {
+          cleanedInput: cleaned.substring(0, 300),
+          totalLines: lines.length,
+          linesAnalyzed: lines.map(line => ({
+            content: line.substring(0, 50),
+            hasFlightNumber: /[A-Z]{2}\d+/.test(line),
+            hasAirports: /[A-Z]{3}/.test(line),
+            hasTimes: /\d+[AP]/.test(line)
+          }))
+        });
+        
+        return {
+          segments: [],
+          totalSegments: 0,
+          route: "No flight segments found",
+          isRoundTrip: false,
+          parseError: "Unable to extract flight segments from VI format data"
+        } as ParsedItinerary & { parseError: string };
       }
 
       // 4. Compute layover times between segments (in minutes)
@@ -1562,10 +1621,17 @@ export class SabreParser {
       return result;
     } catch (error: any) {
       console.error("❌ Exception during VI parsing:", error);
+      console.log("🔍 VI parsing failure details:", {
+        errorType: error.constructor?.name,
+        errorMessage: error.message,
+        stack: error.stack?.split('\n').slice(0, 3),
+        operationId
+      });
+      
       return {
         segments: [],
         totalSegments: 0,
-        route: "Error: VI Parsing Failed",
+        route: "Parsing failed",
         isRoundTrip: false,
         parseError: error.message || String(error)
       } as ParsedItinerary & { parseError: string };

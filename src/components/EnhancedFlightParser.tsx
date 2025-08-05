@@ -48,12 +48,22 @@ export function EnhancedFlightParser({ onParsedData, initialData = '' }: Enhance
         result = await EnhancedSabreParser.parseIFormatWithDatabase(sabreData);
       }
       
-      if (result) {
+      // Check for parsing errors (Phase 1: Fix UI Error Handling)
+      if (result && result.totalSegments > 0) {
         setParsedInfo(result);
         onParsedData(result);
         toast({
           title: "Success",
           description: `Parsed ${result.totalSegments} flight segment${result.totalSegments > 1 ? 's' : ''} (${format} format)`
+        });
+      } else if (result && (result as any).parseError) {
+        // Handle error object returned from parser
+        const errorMsg = (result as any).parseError || 'Unable to parse flight data.';
+        setError(errorMsg);
+        toast({
+          title: "Parsing Error",
+          description: errorMsg,
+          variant: "destructive"
         });
       } else {
         setError('Unable to parse flight data. Please check the format and try again.');

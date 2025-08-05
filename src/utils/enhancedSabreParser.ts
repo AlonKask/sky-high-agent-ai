@@ -76,14 +76,13 @@ export class EnhancedSabreParser {
       } catch (error) {
         logger.error('❌ VI parsing with database failed', { error: error.message, operationId });
         
-        // Return error structure
-        return {
-          segments: [],
-          totalSegments: 0,
-          route: "Error: VI Database Parsing Failed",
-          isRoundTrip: false,
-          parseError: error.userMessage || error.message
-        } as ParsedItinerary & { parseError: string };
+        // Phase 1: Throw error instead of returning error object for proper UI handling
+        throw ErrorHandler.createError(
+          ErrorType.PARSING_ERROR,
+          'VI parsing with database enhancement failed',
+          { error: error.message, operationId },
+          error.userMessage || 'Unable to parse VI format flight data. Please check the format and try again.'
+        );
       }
     });
   }
@@ -452,19 +451,45 @@ export class EnhancedSabreParser {
   }
 
   private static async enhanceSegmentsWithDatabaseData(segments: FlightSegment[]): Promise<void> {
-    logger.info("Enhancing segments with comprehensive IATA database", { segmentCount: segments.length });
+    logger.info("Enhancing segments with comprehensive IATA database (Phase 4)", { segmentCount: segments.length });
+    
+    // Phase 4: Add input validation before database queries
+    if (!segments || segments.length === 0) {
+      logger.warn("No segments provided for database enhancement");
+      return;
+    }
     
     try {
       const { supabase } = await import('@/integrations/supabase/client');
       
       const enhancementPromises = segments.map(async (segment, index) => {
         try {
+          // Phase 4: Validate IATA codes before database queries
+          if (!segment.airlineCode || segment.airlineCode.length !== 2) {
+            logger.warn(`Invalid airline code for segment ${index + 1}`, { code: segment.airlineCode });
+            return;
+          }
+          
+          if (!segment.departureAirport || segment.departureAirport.length !== 3) {
+            logger.warn(`Invalid departure airport for segment ${index + 1}`, { airport: segment.departureAirport });
+            return;
+          }
+          
+          if (!segment.arrivalAirport || segment.arrivalAirport.length !== 3) {
+            logger.warn(`Invalid arrival airport for segment ${index + 1}`, { airport: segment.arrivalAirport });
+            return;
+          }
+          
           // Enhanced airline information from IATA database
-          const { data: airlineData } = await supabase
+          const { data: airlineData, error: airlineError } = await supabase
             .from('airline_codes')
             .select('name, alliance, country')
             .eq('iata_code', segment.airlineCode)
             .single();
+          
+          if (airlineError) {
+            logger.debug(`Airline lookup failed for ${segment.airlineCode}`, { error: airlineError.message });
+          }
           
           if (airlineData) {
             segment.operatingAirline = airlineData.name;
@@ -477,8 +502,8 @@ export class EnhancedSabreParser {
             });
           }
           
-          // Enhanced airport information from IATA database
-          const [depAirportQuery, arrAirportQuery] = await Promise.all([
+          // Enhanced airport information from IATA database with error handling
+          const [depAirportQuery, arrAirportQuery] = await Promise.allSettled([
             supabase
               .from('airport_codes')
               .select('name, city, country, timezone, latitude, longitude')
@@ -491,8 +516,20 @@ export class EnhancedSabreParser {
               .single()
           ]);
           
-          const depAirport = depAirportQuery.data;
-          const arrAirport = arrAirportQuery.data;
+          const depAirport = depAirportQuery.status === 'fulfilled' ? depAirportQuery.value.data : null;
+          const arrAirport = arrAirportQuery.status === 'fulfilled' ? arrAirportQuery.value.data : null;
+          
+          if (depAirportQuery.status === 'rejected') {
+            logger.debug(`Departure airport lookup failed for ${segment.departureAirport}`, { 
+              error: depAirportQuery.reason?.message 
+            });
+          }
+          
+          if (arrAirportQuery.status === 'rejected') {
+            logger.debug(`Arrival airport lookup failed for ${segment.arrivalAirport}`, { 
+              error: arrAirportQuery.reason?.message 
+            });
+          }
           
           if (depAirport && arrAirport) {
             // Enhanced flight calculations with real coordinates
@@ -522,36 +559,54 @@ export class EnhancedSabreParser {
             });
           }
           
-          // Enhanced booking class mapping from database
-          const { data: bookingClassData } = await supabase
-            .from('airline_rbd_assignments')
-            .select(`
-              class_description,
-              service_class,
-              booking_priority,
-              airline_codes!inner(name)
-            `)
-            .eq('airline_codes.iata_code', segment.airlineCode)
-            .eq('booking_class_code', segment.bookingClass)
-            .eq('is_active', true)
-            .single();
+          // Enhanced booking class mapping from database with validation
+          if (segment.bookingClass && segment.bookingClass.length === 1) {
+            const { data: bookingClassData, error: bookingError } = await supabase
+              .from('airline_rbd_assignments')
+              .select(`
+                class_description,
+                service_class,
+                booking_priority,
+                airline_codes!inner(name)
+              `)
+              .eq('airline_codes.iata_code', segment.airlineCode)
+              .eq('booking_class_code', segment.bookingClass)
+              .eq('is_active', true)
+              .single();
+            
+            if (bookingError) {
+              logger.debug(`Booking class lookup failed for ${segment.airlineCode}${segment.bookingClass}`, { 
+                error: bookingError.message 
+              });
+            }
           
-          if (bookingClassData) {
-            segment.cabinClass = bookingClassData.class_description || bookingClassData.service_class;
-            (segment as any).bookingPriority = bookingClassData.booking_priority;
-            logger.debug(`Enhanced booking class for segment ${index + 1}`, { 
-              code: segment.bookingClass,
-              description: segment.cabinClass,
-              priority: bookingClassData.booking_priority
-            });
+            if (bookingClassData) {
+              segment.cabinClass = bookingClassData.class_description || bookingClassData.service_class;
+              (segment as any).bookingPriority = bookingClassData.booking_priority;
+              logger.debug(`Enhanced booking class for segment ${index + 1}`, { 
+                code: segment.bookingClass,
+                description: segment.cabinClass,
+                priority: bookingClassData.booking_priority
+              });
+            }
+          } else {
+            logger.warn(`Invalid booking class for segment ${index + 1}`, { code: segment.bookingClass });
           }
           
         } catch (error) {
-          logger.warn(`Failed to enhance segment ${index + 1}`, { 
+          logger.warn(`Failed to enhance segment ${index + 1} - ${error.message}`, { 
             segment: `${segment.departureAirport}-${segment.arrivalAirport}`,
-            error: error.message 
+            airline: segment.airlineCode,
+            error: error.message,
+            errorType: error.constructor?.name
           });
-          // Continue with next segment
+          // Apply basic enhancement as fallback
+          try {
+            segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+            segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
+          } catch (fallbackError) {
+            logger.error(`Even basic enhancement failed for segment ${index + 1}`, { error: fallbackError.message });
+          }
         }
       });
       
