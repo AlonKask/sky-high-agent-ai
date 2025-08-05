@@ -1,4 +1,4 @@
-import { FlightSegment, ParsedItinerary } from './sabreParser';
+import { FlightSegment, ParsedItinerary, SabreParser } from './sabreParser';
 import { DatabaseUtils, AirlineInfo, AirportInfo } from './databaseUtils';
 import { PerformanceMonitor } from './performanceMonitor';
 import { ErrorHandler, ErrorType } from './errorHandler';
@@ -7,6 +7,87 @@ import { logger } from './logger';
 
 export class EnhancedSabreParser {
   
+  // Enhanced format detection
+  static detectFormat(rawContent: string): "I" | "VI" {
+    if (!rawContent) return "I";
+    
+    const content = rawContent.toLowerCase();
+    
+    // Check for VI command prefix
+    if (content.includes("vi*") || content.startsWith("vi")) {
+      return "VI";
+    }
+    
+    // Check for VI format headers and characteristics
+    if (content.includes("flight  date  segment dptr  arvl") ||
+        content.includes("dep-terminal") ||
+        content.includes("arr-terminal") ||
+        content.includes("cabin-business") ||
+        content.includes("cabin-economy") ||
+        content.includes("cabin-first") ||
+        content.includes("oneworld") ||
+        content.includes("star alliance") ||
+        content.includes("skyteam")) {
+      return "VI";
+    }
+    
+    return "I";
+  }
+
+  // VI Format Parser with Database Integration
+  static async parseVIFormatWithDatabase(rawItinerary: string): Promise<ParsedItinerary | null> {
+    const operationId = `sabre-vi-parse-db-${Date.now()}`;
+    logger.info("Starting enhanced VI parser with database integration", { operationId });
+    
+    return await PerformanceMonitor.measureAsync('sabre-vi-parsing', async () => {
+      try {
+        // Input validation
+        const validation = ValidationUtils.validateSabreInput(rawItinerary);
+        if (!validation.isValid) {
+          throw ErrorHandler.createError(
+            ErrorType.VALIDATION_ERROR,
+            `Invalid Sabre VI input: ${validation.errors.join(', ')}`,
+            { input: rawItinerary.substring(0, 100), errors: validation.errors },
+            'The VI flight data format is invalid. Please check and try again.'
+          );
+        }
+
+        // Parse using base VI parser first
+        const baseResult = SabreParser.parseVIFormat(rawItinerary);
+        if (!baseResult || baseResult.segments.length === 0) {
+          throw ErrorHandler.createError(
+            ErrorType.PARSING_ERROR,
+            'VI format parsing failed - no segments extracted',
+            { operationId },
+            'Unable to parse VI format flight data.'
+          );
+        }
+
+        // Enhance with database data
+        await this.enhanceSegmentsWithDatabaseData(baseResult.segments);
+        
+        logger.info(`✅ VI parsing with database enhancement completed`, { 
+          segments: baseResult.segments.length, 
+          operationId 
+        });
+        
+        return baseResult;
+
+      } catch (error) {
+        logger.error('❌ VI parsing with database failed', { error: error.message, operationId });
+        
+        // Return error structure
+        return {
+          segments: [],
+          totalSegments: 0,
+          route: "Error: VI Database Parsing Failed",
+          isRoundTrip: false,
+          parseError: error.userMessage || error.message
+        } as ParsedItinerary & { parseError: string };
+      }
+    });
+  }
+
   static async parseIFormatWithDatabase(rawItinerary: string): Promise<ParsedItinerary | null> {
     const operationId = `sabre-parse-${Date.now()}`;
     logger.info("Starting enhanced Sabre parser with database integration", { operationId });

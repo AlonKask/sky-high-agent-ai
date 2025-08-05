@@ -19,6 +19,13 @@ export interface FlightSegment {
   operatingAirline?: string;
   mealService?: string;
   totalJourneyTime?: string;
+  // Enhanced VI format fields
+  departureTerminal?: string;
+  arrivalTerminal?: string;
+  alliance?: string;
+  elapsedTimeHours?: number;
+  miles?: number;
+  equipmentCode?: string;
 }
 
 export interface ParsedItinerary {
@@ -1298,5 +1305,252 @@ export class SabreParser {
     const distance = 6371 * c; // Earth radius in km
     
     return distance;
+  }
+
+  // Enhanced format detection for VI format
+  static detectFormat(rawContent: string): "I" | "VI" {
+    if (!rawContent) return "I";
+    
+    const content = rawContent.toLowerCase();
+    
+    // Check for VI command prefix
+    if (content.includes("vi*") || content.startsWith("vi")) {
+      return "VI";
+    }
+    
+    // Check for VI format headers and characteristics
+    if (content.includes("flight  date  segment dptr  arvl") ||
+        content.includes("dep-terminal") ||
+        content.includes("arr-terminal") ||
+        content.includes("cabin-business") ||
+        content.includes("cabin-economy") ||
+        content.includes("cabin-first") ||
+        content.includes("oneworld") ||
+        content.includes("star alliance") ||
+        content.includes("skyteam")) {
+      return "VI";
+    }
+    
+    return "I";
+  }
+
+  // VI Format Parser
+  static parseVIFormat(rawItinerary: string): ParsedItinerary | null {
+    const operationId = `sabre-vi-parse-${Date.now()}`;
+    console.log("=== SABRE VI FORMAT PARSER v1.0 ===");
+    console.log("Raw VI input:", rawItinerary);
+    console.log("Operation ID:", operationId);
+    
+    if (!rawItinerary || typeof rawItinerary !== 'string') {
+      console.error("❌ Invalid VI input: null, undefined, or not a string");
+      return {
+        segments: [],
+        totalSegments: 0,
+        route: "Error: Invalid Input",
+        isRoundTrip: false,
+        parseError: "Input is null, undefined, or not a string"
+      } as ParsedItinerary & { parseError: string };
+    }
+
+    try {
+      let cleaned = rawItinerary
+        .replace(/^\*?VI\*?\s*/, '')
+        .replace(/^FLIGHT\s+DATE\s+SEGMENT.*$/m, '') // Remove header line
+        .trim();
+
+      if (!cleaned) {
+        console.log("No content after cleaning VI input");
+        return null;
+      }
+
+      const lines = cleaned.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      console.log(`Processing ${lines.length} VI lines:`, lines);
+
+      const segments: FlightSegment[] = [];
+      let currentSegment: Partial<FlightSegment> | null = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // Check if this is a main flight line (starts with segment number)
+        const flightMatch = line.match(/^(\d+)\s+([A-Z]{2})\*?\s*(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{1,2}:\d{2}[AP])\s+(\d{1,2}:\d{2}[AP])\s+([A-Z]?)\s+([A-Z0-9]+)?\s+(\d+\.\d+)?\s+(\d+)?\s+([A-Z])?/);
+        
+        if (flightMatch) {
+          // Save previous segment if exists
+          if (currentSegment && currentSegment.segmentNumber) {
+            segments.push(this.completeVISegment(currentSegment));
+          }
+
+          // Parse main flight line
+          const [, segNum, airline, flightNum, date, origin, dest, depTime, arrTime, meal, equipment, elapsed, miles, smoking] = flightMatch;
+          
+          currentSegment = {
+            segmentNumber: parseInt(segNum),
+            airlineCode: airline,
+            flightNumber: `${airline}${flightNum}`,
+            flightDate: this.parseDateFromString(date),
+            dayOfWeek: date.substr(-1), // Use last char as day indicator
+            departureAirport: origin,
+            arrivalAirport: dest,
+            departureTime: this.convert12hTo24h(depTime),
+            arrivalTime: this.convert12hTo24h(arrTime),
+            arrivalDayOffset: 0,
+            statusCode: "OK",
+            bookingClass: "Y", // Default, will be updated from cabin info
+            cabinClass: "Economy", // Default, will be updated from cabin info
+            mealService: meal === 'M' ? 'Meal' : meal === 'S' ? 'Snack' : undefined,
+            equipmentCode: equipment,
+            aircraftType: equipment ? this.parseAircraftType(equipment) : undefined,
+            elapsedTimeHours: elapsed ? parseFloat(elapsed) : undefined,
+            miles: miles ? parseInt(miles) : undefined
+          };
+
+          console.log(`Parsed VI flight line ${segNum}:`, currentSegment);
+        }
+        
+        // Check for terminal information
+        else if (line.startsWith('DEP-TERMINAL') && currentSegment) {
+          const termMatch = line.match(/DEP-TERMINAL\s+(\w+).*ARR-TERMINAL\s+(\w+)/);
+          if (termMatch) {
+            currentSegment.departureTerminal = termMatch[1];
+            currentSegment.arrivalTerminal = termMatch[2];
+          } else {
+            const depMatch = line.match(/DEP-TERMINAL\s+(\w+)/);
+            if (depMatch) {
+              currentSegment.departureTerminal = depMatch[1];
+            }
+          }
+        }
+        
+        // Check for arrival terminal on separate line
+        else if (line.startsWith('ARR-TERMINAL') && currentSegment) {
+          const arrMatch = line.match(/ARR-TERMINAL\s+(\w+)/);
+          if (arrMatch) {
+            currentSegment.arrivalTerminal = arrMatch[1];
+          }
+        }
+        
+        // Check for alliance information
+        else if ((line.includes('ONEWORLD') || line.includes('STAR ALLIANCE') || line.includes('SKYTEAM')) && currentSegment) {
+          if (line.includes('ONEWORLD')) currentSegment.alliance = 'Oneworld';
+          else if (line.includes('STAR ALLIANCE')) currentSegment.alliance = 'Star Alliance';
+          else if (line.includes('SKYTEAM')) currentSegment.alliance = 'SkyTeam';
+        }
+        
+        // Check for cabin class information
+        else if (line.startsWith('CABIN-') && currentSegment) {
+          if (line.includes('BUSINESS')) {
+            currentSegment.cabinClass = 'Business';
+            currentSegment.bookingClass = 'C';
+          } else if (line.includes('FIRST')) {
+            currentSegment.cabinClass = 'First';
+            currentSegment.bookingClass = 'F';
+          } else if (line.includes('ECONOMY')) {
+            currentSegment.cabinClass = 'Economy';
+            currentSegment.bookingClass = 'Y';
+          } else if (line.includes('PREMIUM')) {
+            currentSegment.cabinClass = 'Premium Economy';
+            currentSegment.bookingClass = 'W';
+          }
+        }
+        
+        // Check for operating carrier
+        else if (line.includes('OPERATED BY') && currentSegment) {
+          const operatedMatch = line.match(/OPERATED BY\s+(.+)/);
+          if (operatedMatch) {
+            currentSegment.operatingAirline = operatedMatch[1].trim();
+          }
+        }
+      }
+
+      // Add the last segment
+      if (currentSegment && currentSegment.segmentNumber) {
+        segments.push(this.completeVISegment(currentSegment));
+      }
+
+      if (segments.length === 0) {
+        console.log("No valid segments found in VI format");
+        return null;
+      }
+
+      // Calculate layovers and generate route
+      this.calculateLayoverTimes(segments);
+      const route = this.generateRouteEnhanced(segments);
+      const isRoundTrip = this.isRoundTrip(segments);
+
+      const result: ParsedItinerary = {
+        segments,
+        totalSegments: segments.length,
+        route,
+        isRoundTrip,
+        totalDuration: segments.length > 0 ? '8:00' : '', // Simplified for VI format
+        layoverInfo: this.generateLayoverInfo(segments)
+      };
+
+      console.log("✅ VI parsing completed successfully:", result);
+      return result;
+
+    } catch (error) {
+      console.error("❌ VI parsing failed:", error);
+      return {
+        segments: [],
+        totalSegments: 0,
+        route: "Error: VI Parsing Failed",
+        isRoundTrip: false,
+        parseError: error.message
+      } as ParsedItinerary & { parseError: string };
+    }
+  }
+
+  private static completeVISegment(segment: Partial<FlightSegment>): FlightSegment {
+    return {
+      segmentNumber: segment.segmentNumber || 0,
+      flightNumber: segment.flightNumber || '',
+      airlineCode: segment.airlineCode || '',
+      bookingClass: segment.bookingClass || 'Y',
+      flightDate: segment.flightDate || '',
+      dayOfWeek: segment.dayOfWeek || '',
+      departureAirport: segment.departureAirport || '',
+      arrivalAirport: segment.arrivalAirport || '',
+      statusCode: segment.statusCode || 'OK',
+      departureTime: segment.departureTime || '',
+      arrivalTime: segment.arrivalTime || '',
+      arrivalDayOffset: segment.arrivalDayOffset || 0,
+      cabinClass: segment.cabinClass || 'Economy',
+      aircraftType: segment.aircraftType,
+      duration: segment.duration,
+      layoverTime: segment.layoverTime,
+      terminal: segment.departureTerminal || segment.terminal,
+      operatingAirline: segment.operatingAirline,
+      mealService: segment.mealService,
+      totalJourneyTime: segment.totalJourneyTime,
+      departureTerminal: segment.departureTerminal,
+      arrivalTerminal: segment.arrivalTerminal,
+      alliance: segment.alliance,
+      elapsedTimeHours: segment.elapsedTimeHours,
+      miles: segment.miles,
+      equipmentCode: segment.equipmentCode
+    };
+  }
+
+
+  private static generateLayoverInfo(segments: FlightSegment[]): Array<{airport: string; duration: number; terminal?: string}> {
+    const layovers = [];
+    
+    for (let i = 0; i < segments.length - 1; i++) {
+      const current = segments[i];
+      const next = segments[i + 1];
+      
+      if (current.arrivalAirport === next.departureAirport) {
+        // Calculate layover duration (simplified)
+        layovers.push({
+          airport: current.arrivalAirport,
+          duration: next.layoverTime || 60, // Default 1 hour if not calculated
+          terminal: current.arrivalTerminal
+        });
+      }
+    }
+    
+    return layovers;
   }
 }

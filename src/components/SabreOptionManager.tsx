@@ -282,10 +282,7 @@ const SabreOptionManager = ({
   };
 
   const detectFormat = (content: string): "I" | "VI" => {
-    if (content.toLowerCase().includes("vi*") || content.toLowerCase().startsWith("vi")) {
-      return "VI";
-    }
-    return "I";
+    return SabreParser.detectFormat(content);
   };
 
   const handleContentChange = (content: string) => {
@@ -350,8 +347,16 @@ const SabreOptionManager = ({
 
   const parseRouteFromContent = (content: string): string => {
     try {
-      if (content.trim() && detectFormat(content) === "I") {
-        const parsed = SabreParser.parseIFormat(content);
+      if (content.trim()) {
+        const format = detectFormat(content);
+        let parsed;
+        
+        if (format === "I") {
+          parsed = SabreParser.parseIFormat(content);
+        } else if (format === "VI") {
+          parsed = SabreParser.parseVIFormat(content);
+        }
+        
         return parsed?.route || "Unknown Route";
       }
     } catch (error) {
