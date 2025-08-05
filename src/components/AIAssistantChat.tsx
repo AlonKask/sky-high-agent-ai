@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,8 +32,15 @@ interface Message {
   metadata?: {
     tools_used?: string[];
     memory_accessed?: boolean;
-    external_data?: any;
+    external_data?: Record<string, unknown>;
   };
+}
+
+interface FunctionResult {
+  function: string;
+  message?: string;
+  navigation?: { url?: string };
+  [key: string]: unknown;
 }
 
 interface AIAssistantChatProps {
@@ -57,13 +64,13 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     if (initialContext) {
@@ -80,7 +87,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
     }
   }, [initialContext]);
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
 
     const userMessage: Message = {
@@ -126,9 +133,9 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         content: data.response,
         timestamp: new Date(),
         metadata: {
-          tools_used: data.functionResults?.map((r: any) => r.function) || [],
+          tools_used: (data.functionResults as FunctionResult[] | undefined)?.map((r) => r.function) || [],
           memory_accessed: data.memoryUpdated || false,
-          external_data: data.context
+          external_data: data.context as Record<string, unknown>
         }
       };
 
@@ -136,7 +143,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
 
       // Handle navigation if requested
       if (data.functionResults) {
-        data.functionResults.forEach((result: any) => {
+        (data.functionResults as FunctionResult[]).forEach((result) => {
           if ((result.function === 'navigate_to_page' || result.function === 'search_and_navigate') && result.navigation?.url) {
             toastHelpers.success("Navigating", { description: result.message });
             setTimeout(() => navigate(result.navigation.url), 1000);
@@ -149,7 +156,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, isLoading, location.pathname, messages, navigate, initialContext]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

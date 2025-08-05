@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   created_at: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface Conversation {
@@ -43,7 +43,7 @@ interface Conversation {
 
 interface AIEmailAssistantProps {
   mode?: 'full' | 'simple';
-  onDraftCreated?: (draft: any) => void;
+  onDraftCreated?: (draft: unknown) => void;
 }
 
 export const AIEmailAssistant: React.FC<AIEmailAssistantProps> = ({ 
@@ -59,27 +59,11 @@ export const AIEmailAssistant: React.FC<AIEmailAssistantProps> = ({
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (user && mode === 'full') {
-      loadConversations();
-    }
-  }, [user, mode]);
-
-  useEffect(() => {
-    if (activeConversation) {
-      loadMessages(activeConversation);
-    }
-  }, [activeConversation]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -97,9 +81,9 @@ export const AIEmailAssistant: React.FC<AIEmailAssistantProps> = ({
     } finally {
       setConversationsLoading(false);
     }
-  };
+  }, [user]);
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = useCallback(async (conversationId: string) => {
     if (!user) return;
     
     try {
@@ -121,7 +105,23 @@ export const AIEmailAssistant: React.FC<AIEmailAssistantProps> = ({
     } catch (error) {
       supabaseErrorToast('load messages', error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user && mode === 'full') {
+      loadConversations();
+    }
+  }, [user, mode, loadConversations]);
+
+  useEffect(() => {
+    if (activeConversation) {
+      loadMessages(activeConversation);
+    }
+  }, [activeConversation, loadMessages]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   const createNewConversation = async () => {
     if (!user) return;

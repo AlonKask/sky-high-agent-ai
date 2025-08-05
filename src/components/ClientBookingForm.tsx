@@ -16,12 +16,16 @@ interface Quote {
   id: string;
   route: string;
   total_price: number;
-  segments: any;
+  segments: Segment[];
   fare_type: string;
   status: string;
   created_at: string;
   notes?: string;
   client_id: string;
+}
+
+interface Segment {
+  [key: string]: unknown;
 }
 
 interface Client {
@@ -99,18 +103,18 @@ const ClientBookingForm = ({ quote, client, onBack }: ClientBookingFormProps) =>
       passportNumber: '',
       passportExpiry: ''
     };
-    setPassengers([...passengers, newPassenger]);
+    setPassengers(prev => [...prev, newPassenger]);
   };
 
   const updatePassenger = (id: string, field: keyof Passenger, value: string) => {
-    setPassengers(passengers.map(p => 
+    setPassengers(prev => prev.map(p =>
       p.id === id ? { ...p, [field]: value } : p
     ));
   };
 
   const removePassenger = (id: string) => {
     if (passengers.length > 1) {
-      setPassengers(passengers.filter(p => p.id !== id));
+      setPassengers(prev => prev.filter(p => p.id !== id));
     }
   };
 

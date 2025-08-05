@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,18 +19,37 @@ import { toastHelpers } from "@/utils/toastHelpers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AILeadScoring from "@/components/AILeadScoring";
 
+interface Client {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  total_bookings?: number;
+  total_spent?: number;
+  preferred_class?: string;
+  created_at?: string;
+  notes?: string;
+}
+
+interface UnsyncedClient {
+  email: string;
+  source: string;
+}
+
 const ClientManager = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState<Date>();
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
-  const [unsyncedClients, setUnsyncedClients] = useState<any[]>([]);
+  const [unsyncedClients, setUnsyncedClients] = useState<UnsyncedClient[]>([]);
   const [isCheckingUnsynced, setIsCheckingUnsynced] = useState(false);
   const [showUnsyncedNotification, setShowUnsyncedNotification] = useState(false);
   const [isCreatingFromEmails, setIsCreatingFromEmails] = useState(false);
@@ -53,15 +72,9 @@ const ClientManager = () => {
     if (user) {
       initializeClientData();
     }
-  }, [user]);
+  }, [user, initializeClientData]);
 
-  const initializeClientData = async () => {
-    await fetchClients();
-    await checkForUnsyncedClients();
-    await checkAndSyncEmailsIfNeeded();
-  };
-
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -105,9 +118,9 @@ const ClientManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const checkForUnsyncedClients = async () => {
+  const checkForUnsyncedClients = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -185,55 +198,24 @@ const ClientManager = () => {
     } finally {
       setIsCheckingUnsynced(false);
     }
-  };
+  }, [user]);
 
-  const checkAndSyncEmailsIfNeeded = async () => {
+  const performFullEmailSync = useCallback(async () => {
     if (!user) return;
-    
-    try {
-      // Check total email count
-      const { count } = await supabase
-        .from('email_exchanges')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      
-      // Check if this is first login (no emails synced yet)
-      if (count === 0) {
-        setIsFirstLogin(true);
-        await performFullEmailSync();
-      } else if (count && count < 1000) {
-        // If less than 1000 emails, sync all on first login
-        const { data: syncStatus } = await supabase
-          .from('user_preferences')
-          .select('gmail_access_token')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (syncStatus?.gmail_access_token && count < 500) {
-          await performFullEmailSync();
-        }
-      }
-    } catch (error) {
-      console.error('Error checking email sync status:', error);
-    }
-  };
 
-  const performFullEmailSync = async () => {
-    if (!user) return;
-    
     try {
       toastHelpers.info('Starting full email sync...', {
         duration: 3000
       });
-      
+
       // Call the sync function
       const { data, error } = await supabase.functions.invoke('sync-inbox', {
-        body: { 
+        body: {
           fullSync: true,
-          maxResults: 1000 
+          maxResults: 1000
         }
       });
-      
+
       if (error) {
         console.error('Email sync error:', error);
         toastHelpers.error('Failed to sync emails', error);
@@ -246,7 +228,44 @@ const ClientManager = () => {
       console.error('Error performing full email sync:', error);
       toastHelpers.error('Failed to sync emails', error);
     }
-  };
+  }, [user, checkForUnsyncedClients]);
+
+  const checkAndSyncEmailsIfNeeded = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      // Check total email count
+      const { count } = await supabase
+        .from('email_exchanges')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // Check if this is first login (no emails synced yet)
+      if (count === 0) {
+        setIsFirstLogin(true);
+        await performFullEmailSync();
+      } else if (count && count < 1000) {
+        // If less than 1000 emails, sync all on first login
+        const { data: syncStatus } = await supabase
+          .from('user_preferences')
+          .select('gmail_access_token')
+          .eq('user_id', user.id)
+          .single();
+
+        if (syncStatus?.gmail_access_token && count < 500) {
+          await performFullEmailSync();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking email sync status:', error);
+    }
+  }, [user, performFullEmailSync]);
+
+  const initializeClientData = useCallback(async () => {
+    await fetchClients();
+    await checkForUnsyncedClients();
+    await checkAndSyncEmailsIfNeeded();
+  }, [fetchClients, checkForUnsyncedClients, checkAndSyncEmailsIfNeeded]);
 
   const handleCreateClientsFromEmails = async () => {
     if (!user || unsyncedClients.length === 0) return;
