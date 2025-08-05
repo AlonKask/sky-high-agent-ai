@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { X } from "lucide-react";
 import { SabreParser } from "@/utils/sabreParser";
+import { EnhancedSabreParser } from "@/utils/enhancedSabreParser";
 import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -345,16 +346,16 @@ const SabreOptionManager = ({
     }
   };
 
-  const parseRouteFromContent = (content: string): string => {
+  const parseRouteFromContent = async (content: string): Promise<string> => {
     try {
       if (content.trim()) {
         const format = detectFormat(content);
         let parsed;
         
         if (format === "I") {
-          parsed = SabreParser.parseIFormat(content);
+          parsed = await EnhancedSabreParser.parseIFormatWithDatabase(content);
         } else if (format === "VI") {
-          parsed = SabreParser.parseVIFormat(content);
+          parsed = await EnhancedSabreParser.parseVIFormatWithDatabase(content);
         }
         
         return parsed?.route || "Unknown Route";
@@ -384,7 +385,7 @@ const SabreOptionManager = ({
     }
 
     try {
-      const route = parseRouteFromContent(newQuote.content);
+      const route = await parseRouteFromContent(newQuote.content);
       
       const quoteData = {
         user_id: user.id,
@@ -437,7 +438,7 @@ const SabreOptionManager = ({
     if (!editingId || !user?.id) return;
 
     try {
-      const route = parseRouteFromContent(newQuote.content);
+      const route = await parseRouteFromContent(newQuote.content);
       
       const updateData = {
         route,

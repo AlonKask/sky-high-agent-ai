@@ -38,14 +38,22 @@ export function EnhancedFlightParser({ onParsedData, initialData = '' }: Enhance
     setError(null);
 
     try {
-      const result = await EnhancedSabreParser.parseIFormatWithDatabase(sabreData);
+      // Detect format and use appropriate parser
+      const format = EnhancedSabreParser.detectFormat(sabreData);
+      let result;
+      
+      if (format === "VI") {
+        result = await EnhancedSabreParser.parseVIFormatWithDatabase(sabreData);
+      } else {
+        result = await EnhancedSabreParser.parseIFormatWithDatabase(sabreData);
+      }
       
       if (result) {
         setParsedInfo(result);
         onParsedData(result);
         toast({
           title: "Success",
-          description: `Parsed ${result.totalSegments} flight segment${result.totalSegments > 1 ? 's' : ''}`
+          description: `Parsed ${result.totalSegments} flight segment${result.totalSegments > 1 ? 's' : ''} (${format} format)`
         });
       } else {
         setError('Unable to parse flight data. Please check the format and try again.');

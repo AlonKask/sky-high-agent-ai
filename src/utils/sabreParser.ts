@@ -1335,169 +1335,239 @@ export class SabreParser {
   }
 
   // VI Format Parser
+  /**
+   * Parse detailed Sabre VI format itinerary text into structured flight segments.
+   * Returns a ParsedItinerary or null if parsing fails.
+   */
   static parseVIFormat(rawItinerary: string): ParsedItinerary | null {
     const operationId = `sabre-vi-parse-${Date.now()}`;
-    console.log("=== SABRE VI FORMAT PARSER v1.0 ===");
+    console.log("=== SABRE VI FORMAT PARSER – Improved Version ===");
     console.log("Raw VI input:", rawItinerary);
     console.log("Operation ID:", operationId);
-    
+
     if (!rawItinerary || typeof rawItinerary !== 'string') {
-      console.error("❌ Invalid VI input: null, undefined, or not a string");
+      console.error("❌ Invalid VI input: not a string or empty");
       return {
         segments: [],
         totalSegments: 0,
         route: "Error: Invalid Input",
         isRoundTrip: false,
-        parseError: "Input is null, undefined, or not a string"
+        parseError: "Input itinerary is empty or not a string"
       } as ParsedItinerary & { parseError: string };
     }
 
     try {
+      // 1. Clean up the input: remove command prefixes, headers, page numbers.
       let cleaned = rawItinerary
-        .replace(/^\*?VI\*?\s*/, '')
-        .replace(/^FLIGHT\s+DATE\s+SEGMENT.*$/m, '') // Remove header line
+        // Remove any leading "*VI" or "VI" command text
+        .replace(/^\*?VI\*?\s*/i, '')
+        // Remove the header line (e.g. "FLIGHT  DATE  SEGMENT ...") which might have an optional page number prefix
+        .replace(/^\d*\.?\s*FLIGHT\s+DATE\s+SEGMENT.*$/im, '')
+        // Remove any isolated page number lines (e.g. "2." at start of a line)
+        .replace(/^\d+\.\s*$/gm, '')
         .trim();
 
       if (!cleaned) {
-        console.log("No content after cleaning VI input");
+        console.warn("No content remains after cleaning VI input.");
         return null;
       }
 
+      // Split into lines and filter out any empty lines
       const lines = cleaned.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-      console.log(`Processing ${lines.length} VI lines:`, lines);
+      console.log(`Processing ${lines.length} lines from VI itinerary...`, lines);
 
       const segments: FlightSegment[] = [];
       let currentSegment: Partial<FlightSegment> | null = null;
 
+      // 2. Regex pattern for main flight lines in VI format.
+      // This pattern captures all the main fields in one line.
+      const flightLinePattern = new RegExp(
+        [
+          /^(\d+)\s+/,                   // 1. Segment number
+          /([A-Z]{2})\*?\s*/,            // 2. Airline code (2 letters, possibly followed by '*' for codeshare)
+          /(\d+)\s+/,                    // 3. Flight number
+          /(\d{1,2}[A-Z]{3})\s+/,        // 4. Departure date (e.g. 20AUG)
+          /([A-Z]{3})\s+/,               // 5. Origin airport code
+          /([A-Z]{3})\s+/,               // 6. Destination airport code
+          /(\d{1,2}:?\d{2}[AP])\s+/,     // 7. Departure time (allow optional colon, e.g. "335P" or "3:35P")
+          /(\d{1,2}:?\d{2}[AP])\s+/,     // 8. Arrival time
+          /([A-Z]?)[\s+]?/,             // 9. Meal code (M, S, or blank)
+          /([A-Z0-9]+)?\s+/,             // 10. Equipment code (aircraft, e.g. 319, 77W; optional)
+          /(\d+\.\d+)?\s+/,              // 11. Elapsed time in hours (e.g. 1.55 for 1h55m; optional)
+          /(\d+)?\s+/,                   // 12. Miles (optional)
+          /([A-Z])?/                     // 13. Smoking indicator (historical, often "N" or blank)
+        ].map(r => r.source).join(''),
+        'i'
+      );
+
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        
-        // Check if this is a main flight line (starts with segment number)
-        const flightMatch = line.match(/^(\d+)\s+([A-Z]{2})\*?\s*(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{1,2}:\d{2}[AP])\s+(\d{1,2}:\d{2}[AP])\s+([A-Z]?)\s+([A-Z0-9]+)?\s+(\d+\.\d+)?\s+(\d+)?\s+([A-Z])?/);
-        
-        if (flightMatch) {
-          // Save previous segment if exists
-          if (currentSegment && currentSegment.segmentNumber) {
+
+        // Check if line matches the main flight segment pattern
+        const match = line.match(flightLinePattern);
+        if (match) {
+          // If we were accumulating a segment and hit a new segment line, push the previous one to list
+          if (currentSegment && currentSegment.segmentNumber !== undefined) {
             segments.push(this.completeVISegment(currentSegment));
           }
+          console.log(`✈️ Flight line matched: "${line}"`);
 
-          // Parse main flight line
-          const [, segNum, airline, flightNum, date, origin, dest, depTime, arrTime, meal, equipment, elapsed, miles, smoking] = flightMatch;
+          // Destructure matched groups for clarity
+          const [
+            _fullMatch,
+            segNum,
+            airlineCode,
+            flightNum,
+            dateStr,
+            origin,
+            dest,
+            depTimeStr,
+            arrTimeStr,
+            mealCode,
+            equipment,
+            elapsedStr,
+            milesStr,
+            smokingCode
+          ] = match;
           
+          // Parse and transform the captured fields
+          const flightDate = this.parseDateFromString(dateStr);  // "20AUG" -> "2025-08-20" (assuming current year)
+          const depTime = this.convert12hTo24h(depTimeStr);       // e.g. "335P" -> "3:35 PM"
+          const arrTime = this.convert12hTo24h(arrTimeStr);       // e.g. "640P" -> "6:40 PM"
+
+          // Initialize a new currentSegment object with parsed data
           currentSegment = {
             segmentNumber: parseInt(segNum),
-            airlineCode: airline,
-            flightNumber: `${airline}${flightNum}`,
-            flightDate: this.parseDateFromString(date),
-            dayOfWeek: date.substr(-1), // Use last char as day indicator
+            airlineCode: airlineCode,
+            flightNumber: `${airlineCode}${flightNum}`,
+            flightDate: flightDate || dateStr,  // If parseDate fails, use original string
+            dayOfWeek: flightDate ? new Date(flightDate).toLocaleDateString('en-US', { weekday: 'short' }) : '', // derive day if needed
             departureAirport: origin,
             arrivalAirport: dest,
-            departureTime: this.convert12hTo24h(depTime),
-            arrivalTime: this.convert12hTo24h(arrTime),
-            arrivalDayOffset: 0,
-            statusCode: "OK",
-            bookingClass: "Y", // Default, will be updated from cabin info
-            cabinClass: "Economy", // Default, will be updated from cabin info
-            mealService: meal === 'M' ? 'Meal' : meal === 'S' ? 'Snack' : undefined,
-            equipmentCode: equipment,
+            departureTime: depTime,
+            arrivalTime: arrTime,
+            arrivalDayOffset: 0,    // (VI format output already accounts for day changes in the date if any, so default 0)
+            statusCode: "OK",       // VI output doesn't show status codes per segment line; assume "OK" or confirmed
+            bookingClass: "Y",      // will adjust based on cabin info line
+            cabinClass: "Economy",  // default, will adjust when we see CABIN- line
+            mealService: mealCode === 'M' ? 'Meal' : (mealCode === 'S' ? 'Snack' : undefined),
+            equipmentCode: equipment || undefined,
             aircraftType: equipment ? this.parseAircraftType(equipment) : undefined,
-            elapsedTimeHours: elapsed ? parseFloat(elapsed) : undefined,
-            miles: miles ? parseInt(miles) : undefined
+            elapsedTimeHours: elapsedStr ? parseFloat(elapsedStr) : undefined,
+            miles: milesStr ? parseInt(milesStr) : undefined
           };
 
-          console.log(`Parsed VI flight line ${segNum}:`, currentSegment);
+          console.log(`👉 Parsed segment #${segNum}: ${origin} → ${dest}, ${airlineCode}${flightNum} on ${flightDate} ${depTime}-${arrTime}`);
+          continue;  // move to next line
         }
-        
-        // Check for terminal information
-        else if (line.startsWith('DEP-TERMINAL') && currentSegment) {
-          const termMatch = line.match(/DEP-TERMINAL\s+(\w+).*ARR-TERMINAL\s+(\w+)/);
+
+        // If we reach here, the line did not match the flight pattern, so it might be an auxiliary info line:
+        if (!currentSegment) {
+          // If we have an info line without a current segment, skip it (data is malformed)
+          console.warn(`Skipping line without current segment: "${line}"`);
+          continue;
+        }
+
+        // 3. Handle multi-line details for the current segment:
+        if (line.toUpperCase().startsWith('DEP-TERMINAL')) {
+          // Both departure and arrival terminal might be on one line
+          const termMatch = line.match(/DEP-TERMINAL\s+(\w+).*ARR-TERMINAL\s+(\w+)/i);
           if (termMatch) {
             currentSegment.departureTerminal = termMatch[1];
             currentSegment.arrivalTerminal = termMatch[2];
           } else {
-            const depMatch = line.match(/DEP-TERMINAL\s+(\w+)/);
-            if (depMatch) {
-              currentSegment.departureTerminal = depMatch[1];
+            // If only departure terminal is on this line (sometimes arrival terminal might be on next line)
+            const depOnlyMatch = line.match(/DEP-TERMINAL\s+(\w+)/i);
+            if (depOnlyMatch) {
+              currentSegment.departureTerminal = depOnlyMatch[1];
             }
           }
+          continue;
         }
-        
-        // Check for arrival terminal on separate line
-        else if (line.startsWith('ARR-TERMINAL') && currentSegment) {
-          const arrMatch = line.match(/ARR-TERMINAL\s+(\w+)/);
+
+        if (line.toUpperCase().startsWith('ARR-TERMINAL')) {
+          const arrMatch = line.match(/ARR-TERMINAL\s+(\w+)/i);
           if (arrMatch) {
             currentSegment.arrivalTerminal = arrMatch[1];
           }
+          continue;
         }
-        
-        // Check for alliance information
-        else if ((line.includes('ONEWORLD') || line.includes('STAR ALLIANCE') || line.includes('SKYTEAM')) && currentSegment) {
-          if (line.includes('ONEWORLD')) currentSegment.alliance = 'Oneworld';
-          else if (line.includes('STAR ALLIANCE')) currentSegment.alliance = 'Star Alliance';
-          else if (line.includes('SKYTEAM')) currentSegment.alliance = 'SkyTeam';
+
+        if (line.toUpperCase().includes('ONEWORLD') || line.toUpperCase().includes('STAR ALLIANCE') || line.toUpperCase().includes('SKYTEAM')) {
+          if (line.toUpperCase().includes('ONEWORLD')) currentSegment.alliance = 'Oneworld';
+          else if (line.toUpperCase().includes('STAR ALLIANCE')) currentSegment.alliance = 'Star Alliance';
+          else if (line.toUpperCase().includes('SKYTEAM')) currentSegment.alliance = 'SkyTeam';
+          continue;
         }
-        
-        // Check for cabin class information
-        else if (line.startsWith('CABIN-') && currentSegment) {
-          if (line.includes('BUSINESS')) {
+
+        if (line.toUpperCase().startsWith('CABIN-')) {
+          // Determine cabin class from the line
+          if (line.toUpperCase().includes('BUSINESS')) {
             currentSegment.cabinClass = 'Business';
-            currentSegment.bookingClass = 'C';
-          } else if (line.includes('FIRST')) {
+            currentSegment.bookingClass = 'C';  // assign a representative booking code for business
+          } else if (line.toUpperCase().includes('FIRST')) {
             currentSegment.cabinClass = 'First';
             currentSegment.bookingClass = 'F';
-          } else if (line.includes('ECONOMY')) {
+          } else if (line.toUpperCase().includes('ECONOMY')) {
             currentSegment.cabinClass = 'Economy';
             currentSegment.bookingClass = 'Y';
-          } else if (line.includes('PREMIUM')) {
+          } else if (line.toUpperCase().includes('PREMIUM')) {
             currentSegment.cabinClass = 'Premium Economy';
             currentSegment.bookingClass = 'W';
           }
+          continue;
         }
-        
-        // Check for operating carrier
-        else if (line.includes('OPERATED BY') && currentSegment) {
-          const operatedMatch = line.match(/OPERATED BY\s+(.+)/);
-          if (operatedMatch) {
-            currentSegment.operatingAirline = operatedMatch[1].trim();
-          }
-        }
-      }
 
-      // Add the last segment
-      if (currentSegment && currentSegment.segmentNumber) {
+        if (line.toUpperCase().includes('OPERATED BY')) {
+          // Capture the operating carrier information (codeshare details)
+          const operatedByMatch = line.match(/OPERATED BY\s+(.+)/i);
+          if (operatedByMatch) {
+            currentSegment.operatingAirline = operatedByMatch[1].trim();
+          }
+          continue;
+        }
+
+        // If none of the above, just skip this line (could be an irrelevant or already processed part)
+        console.debug(`Unrecognized line segment (skipped): "${line}"`);
+      }  // end for each line
+
+      // After looping, push the last accumulated segment (if exists)
+      if (currentSegment && currentSegment.segmentNumber !== undefined) {
         segments.push(this.completeVISegment(currentSegment));
       }
 
       if (segments.length === 0) {
-        console.log("No valid segments found in VI format");
-        return null;
+        console.error("❌ No flight segments could be parsed from VI input.");
+        return null;  // or return an error object as ParsedItinerary with parseError
       }
 
-      // Calculate layovers and generate route
+      // 4. Compute layover times between segments (in minutes)
       this.calculateLayoverTimes(segments);
+
+      // 5. Generate summary info
       const route = this.generateRouteEnhanced(segments);
       const isRoundTrip = this.isRoundTrip(segments);
+      const totalDuration = this.calculateTotalDuration(segments);
+      const layoverInfo = this.generateLayoverInfo(segments);  // uses updated logic for accuracy
 
       const result: ParsedItinerary = {
         segments,
         totalSegments: segments.length,
         route,
         isRoundTrip,
-        totalDuration: segments.length > 0 ? '8:00' : '', // Simplified for VI format
-        layoverInfo: this.generateLayoverInfo(segments)
+        totalDuration,
+        layoverInfo
       };
-
       console.log("✅ VI parsing completed successfully:", result);
       return result;
-
-    } catch (error) {
-      console.error("❌ VI parsing failed:", error);
+    } catch (error: any) {
+      console.error("❌ Exception during VI parsing:", error);
       return {
         segments: [],
         totalSegments: 0,
         route: "Error: VI Parsing Failed",
         isRoundTrip: false,
-        parseError: error.message
+        parseError: error.message || String(error)
       } as ParsedItinerary & { parseError: string };
     }
   }
@@ -1535,22 +1605,18 @@ export class SabreParser {
 
 
   private static generateLayoverInfo(segments: FlightSegment[]): Array<{airport: string; duration: number; terminal?: string}> {
-    const layovers = [];
-    
+    const layovers: Array<{ airport: string; duration: number; terminal?: string }> = [];
     for (let i = 0; i < segments.length - 1; i++) {
-      const current = segments[i];
+      const curr = segments[i];
       const next = segments[i + 1];
-      
-      if (current.arrivalAirport === next.departureAirport) {
-        // Calculate layover duration (simplified)
+      if (curr.arrivalAirport === next.departureAirport) {
         layovers.push({
-          airport: current.arrivalAirport,
-          duration: next.layoverTime || 60, // Default 1 hour if not calculated
-          terminal: current.arrivalTerminal
+          airport: curr.arrivalAirport,
+          duration: curr.layoverTime || 0,  // use calculated layoverTime (should be set by calculateLayoverTimes)
+          terminal: curr.arrivalTerminal || curr.terminal  // prefer arrivalTerminal if available
         });
       }
     }
-    
     return layovers;
   }
 }
