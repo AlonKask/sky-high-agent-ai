@@ -16,7 +16,9 @@ export class ValidationUtils {
     }
     
     // Check for basic Sabre patterns
-    const hasFlightPattern = /\d+[A-Z]{2}\s*\d+/.test(trimmed);
+    // Allow optional spacing between segment number, airline code, and flight number
+    // to handle VI format lines like "1 BA  952" in addition to "1BA952"
+    const hasFlightPattern = /\d+\s*[A-Z]{2}\s*\d+/.test(trimmed);
     const hasTimePattern = /\d+[AP]/.test(trimmed);
     const hasAirportPattern = /[A-Z]{3}/.test(trimmed);
     
