@@ -339,7 +339,15 @@ export type Database = {
           service_class?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_airline_rbd_assignments_airline_id"
+            columns: ["airline_id"]
+            isOneToOne: false
+            referencedRelation: "airline_codes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       airline_rbd_templates: {
         Row: {
