@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Edit, Trash2, ChevronDown, Settings, Download, AlertCircle } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, Download, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AirlineRBDAssignment } from "./AirlineRBDAssignment";
+
 import { useAirlines, useAirlineMutations, type Airline } from "@/hooks/useIATAData";
+import { InlineRBDManagement } from "./InlineRBDManagement";
 
 interface AirlineManagementProps {
   searchTerm: string;
@@ -21,8 +22,6 @@ interface AirlineManagementProps {
 export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
   const [expandedAirlines, setExpandedAirlines] = useState<Set<string>>(new Set());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isRBDDialogOpen, setIsRBDDialogOpen] = useState(false);
-  const [selectedAirlineForRBD, setSelectedAirlineForRBD] = useState<Airline | null>(null);
   const [editingAirline, setEditingAirline] = useState<Airline | null>(null);
   const [formData, setFormData] = useState({
     iata_code: "",
@@ -121,10 +120,6 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     setEditingAirline(null);
   };
 
-  const handleManageRBDs = (airline: Airline) => {
-    setSelectedAirlineForRBD(airline);
-    setIsRBDDialogOpen(true);
-  };
 
   const toggleAirlineExpansion = (airlineId: string) => {
     const newExpanded = new Set(expandedAirlines);
@@ -349,17 +344,6 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleManageRBDs(airline);
-                                }}
-                                title="Manage RBDs"
-                              >
-                                <Settings className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
                                   handleEdit(airline);
                                 }}
                                 title="Edit Airline"
@@ -381,15 +365,14 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                           </TableCell>
                         </TableRow>
                       </CollapsibleTrigger>
-                      <CollapsibleContent asChild>
+                       <CollapsibleContent asChild>
                         <TableRow>
                           <TableCell colSpan={7} className="p-4 bg-muted/20">
-                            <div className="space-y-2">
-                              <h4 className="text-sm font-medium">RBD Management</h4>
-                              <div className="text-sm text-muted-foreground">
-                                Click "Manage RBDs" to view and configure booking class assignments for this airline.
-                              </div>
-                            </div>
+                            <InlineRBDManagement 
+                              airlineId={airline.id}
+                              airlineName={airline.name}
+                              airlineIata={airline.iata_code}
+                            />
                           </TableCell>
                         </TableRow>
                       </CollapsibleContent>
@@ -402,17 +385,6 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
         </div>
       </CardContent>
 
-      {/* Enhanced RBD Management Dialog */}
-      {selectedAirlineForRBD && isRBDDialogOpen && (
-        <AirlineRBDAssignment
-          airline={selectedAirlineForRBD}
-          onClose={() => {
-            setIsRBDDialogOpen(false);
-            setSelectedAirlineForRBD(null);
-            refetchAirlines(); // Refresh to update RBD counts
-          }}
-        />
-      )}
     </Card>
   );
 }

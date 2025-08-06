@@ -2348,6 +2348,21 @@ export type Database = {
         }
         Returns: string
       }
+      get_airline_rbds: {
+        Args: { airline_uuid: string }
+        Returns: {
+          id: string
+          booking_class_code: string
+          service_class: string
+          class_description: string
+          booking_priority: number
+          is_active: boolean
+          effective_from: string
+          effective_until: string
+          created_at: string
+          updated_at: string
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]

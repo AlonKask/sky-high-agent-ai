@@ -134,7 +134,7 @@ export const useAirportMutations = () => {
   return { createAirport, updateAirport, deleteAirport };
 };
 
-// Airline hooks
+// Airline hooks with proper RBD relationship
 export const useAirlines = (searchTerm?: string, enabled = true) => {
   return useQuery({
     queryKey: ['airlines', searchTerm],
@@ -148,19 +148,14 @@ export const useAirlines = (searchTerm?: string, enabled = true) => {
         if (error) throw error;
         return data as Airline[];
       } else {
-        // Use LEFT JOIN to include airlines without RBDs
-        const { data, error } = await supabase
-          .from('airline_codes')
-          .select(`
-            *,
-            airline_rbd_assignments(id)
-          `)
-          .order('name');
+        // Use new function that properly handles the relationship
+        const { data, error } = await supabase.rpc('search_airlines', {
+          search_term: '',
+          page_limit: 1000,
+          page_offset: 0
+        });
         if (error) throw error;
-        return data.map(airline => ({
-          ...airline,
-          rbd_count: airline.airline_rbd_assignments?.length || 0
-        })) as Airline[];
+        return data as Airline[];
       }
     },
     enabled,
@@ -326,6 +321,98 @@ export const useBookingClassMutations = () => {
   });
 
   return { createBookingClass, updateBookingClass, deleteBookingClass };
+};
+
+// Airline RBD hooks for the unified interface
+export const useAirlineRBDs = (airlineId: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['airline-rbds', airlineId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_airline_rbds', {
+        airline_uuid: airlineId
+      });
+      if (error) throw error;
+      return data;
+    },
+    enabled: enabled && !!airlineId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+};
+
+export const useAirlineRBDMutations = () => {
+  const queryClient = useQueryClient();
+
+  const createRBD = useMutation({
+    mutationFn: async (rbd: {
+      airline_id: string;
+      booking_class_code: string;
+      service_class: string;
+      class_description?: string;
+      booking_priority?: number;
+      is_active?: boolean;
+      effective_from?: string;
+      effective_until?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('airline_rbd_assignments')
+        .insert([rbd])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['airline-rbds', variables.airline_id] });
+      queryClient.invalidateQueries({ queryKey: ['airlines'] });
+      toast.success('RBD assignment added successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to add RBD assignment: ${error.message}`);
+    },
+  });
+
+  const updateRBD = useMutation({
+    mutationFn: async ({ id, airline_id, ...rbd }: any) => {
+      const { data, error } = await supabase
+        .from('airline_rbd_assignments')
+        .update(rbd)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['airline-rbds', variables.airline_id] });
+      queryClient.invalidateQueries({ queryKey: ['airlines'] });
+      toast.success('RBD assignment updated successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to update RBD assignment: ${error.message}`);
+    },
+  });
+
+  const deleteRBD = useMutation({
+    mutationFn: async ({ id, airline_id }: { id: string; airline_id: string }) => {
+      const { error } = await supabase
+        .from('airline_rbd_assignments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { airline_id };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['airline-rbds', data.airline_id] });
+      queryClient.invalidateQueries({ queryKey: ['airlines'] });
+      toast.success('RBD assignment deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete RBD assignment: ${error.message}`);
+    },
+  });
+
+  return { createRBD, updateRBD, deleteRBD };
 };
 
 // Debounced search hook

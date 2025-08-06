@@ -8,7 +8,7 @@ import { Plus, Search, Download, Upload } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AirlineManagement } from "@/components/AirlineManagement";
 import OptimizedAirportManagement from "@/components/OptimizedAirportManagement";
-import { BookingClassManagement } from "@/components/BookingClassManagement";
+
 
 export default function IATAManagement() {
   const { canAccess } = usePermissions();
@@ -38,7 +38,7 @@ export default function IATAManagement() {
         <div>
           <h1 className="text-3xl font-bold">IATA Codes Management</h1>
           <p className="text-muted-foreground">
-            Manage airline codes, airport codes, and booking classes
+            Manage airline codes with integrated RBDs and airport codes
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -53,7 +53,7 @@ export default function IATAManagement() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search airlines, airports, or booking classes..."
+                placeholder="Search airlines with RBDs or airports..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -68,12 +68,11 @@ export default function IATAManagement() {
         </CardContent>
       </Card>
 
-      {/* Management Tabs */}
+      {/* Management Tabs - Removed Booking Classes tab, integrated into Airlines */}
       <Tabs defaultValue="airlines" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="airlines">Airlines</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="airlines">Airlines & RBDs</TabsTrigger>
           <TabsTrigger value="airports">Airports</TabsTrigger>
-          <TabsTrigger value="booking-classes">Booking Classes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="airlines" className="space-y-6">
@@ -82,10 +81,6 @@ export default function IATAManagement() {
 
         <TabsContent value="airports" className="space-y-6">
           <OptimizedAirportManagement searchTerm={searchTerm} />
-        </TabsContent>
-
-        <TabsContent value="booking-classes" className="space-y-6">
-          <BookingClassManagement searchTerm={searchTerm} />
         </TabsContent>
       </Tabs>
     </div>
