@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,42 +8,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, ChevronDown, Settings, Download } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, Edit, Trash2, ChevronDown, Settings, Download, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AirlineRBDAssignment } from "./AirlineRBDAssignment";
-
-interface Airline {
-  id: string;
-  iata_code: string;
-  icao_code?: string;
-  name: string;
-  country?: string;
-  alliance?: string;
-  logo_url?: string;
-  rbd_count?: number;
-  created_at?: string;
-}
-
-interface BookingClass {
-  id: string;
-  booking_class_code: string;
-  service_class: string;
-  class_description?: string;
-  booking_priority?: number;
-  airline_id?: string;
-  active: boolean;
-}
+import { useAirlines, useAirlineMutations, type Airline } from "@/hooks/useIATAData";
 
 interface AirlineManagementProps {
   searchTerm: string;
 }
 
 export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
-  const [airlines, setAirlines] = useState<Airline[]>([]);
-  const [bookingClasses, setBookingClasses] = useState<BookingClass[]>([]);
-  const [airlineRBDs, setAirlineRBDs] = useState<{ [key: string]: BookingClass[] }>({});
   const [expandedAirlines, setExpandedAirlines] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRBDDialogOpen, setIsRBDDialogOpen] = useState(false);
   const [selectedAirlineForRBD, setSelectedAirlineForRBD] = useState<Airline | null>(null);
@@ -57,56 +32,31 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     alliance: "",
     logo_url: "",
   });
+  
   const { toast } = useToast();
+  
+  // Use optimized hooks for data fetching
+  const { 
+    data: airlines = [], 
+    isLoading: loading, 
+    error: airlinesError,
+    refetch: refetchAirlines 
+  } = useAirlines(searchTerm);
+  
+  const { createAirline, updateAirline, deleteAirline } = useAirlineMutations();
 
-  const fetchAirlines = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('airline_codes')
-        .select(`
-          *,
-          airline_rbd_assignments(count)
-        `)
-        .order('name');
-      
-      if (error) throw error;
-      
-      const airlinesWithCounts = data?.map(airline => ({
-        ...airline,
-        rbd_count: Array.isArray(airline.airline_rbd_assignments) ? airline.airline_rbd_assignments.length : 0
-      })) || [];
-      
-      setAirlines(airlinesWithCounts);
-    } catch (error) {
-      console.error('Error fetching airlines:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch airlines",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchBookingClasses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('booking_classes')
-        .select('*')
-        .order('service_class', { ascending: true });
-      
-      if (error) throw error;
-      setBookingClasses(data || []);
-    } catch (error) {
-      console.error('Error fetching booking classes:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchAirlines();
-    fetchBookingClasses();
-  }, []);
+  // Filter airlines based on search term
+  const filteredAirlines = useMemo(() => {
+    if (!searchTerm.trim()) return airlines;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return airlines.filter(airline =>
+      airline.name.toLowerCase().includes(searchLower) ||
+      airline.iata_code.toLowerCase().includes(searchLower) ||
+      airline.country?.toLowerCase().includes(searchLower) ||
+      airline.alliance?.toLowerCase().includes(searchLower)
+    );
+  }, [airlines, searchTerm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,38 +72,16 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
 
     try {
       if (editingAirline) {
-        const { error } = await supabase
-          .from('airline_codes')
-          .update(formData)
-          .eq('id', editingAirline.id);
-        
-        if (error) throw error;
-        toast({
-          title: "Success",
-          description: "Airline updated successfully",
-        });
+        await updateAirline.mutateAsync({ id: editingAirline.id, ...formData });
       } else {
-        const { error } = await supabase
-          .from('airline_codes')
-          .insert([formData]);
-        
-        if (error) throw error;
-        toast({
-          title: "Success",
-          description: "Airline created successfully",
-        });
+        await createAirline.mutateAsync(formData);
       }
       
       setIsDialogOpen(false);
       resetForm();
-      fetchAirlines();
     } catch (error) {
       console.error('Error saving airline:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save airline",
-        variant: "destructive",
-      });
+      // Error handling is done in the mutation hooks
     }
   };
 
@@ -174,24 +102,10 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     if (!confirm("Are you sure you want to delete this airline?")) return;
     
     try {
-      const { error } = await supabase
-        .from('airline_codes')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      toast({
-        title: "Success",
-        description: "Airline deleted successfully",
-      });
-      fetchAirlines();
+      await deleteAirline.mutateAsync(id);
     } catch (error) {
       console.error('Error deleting airline:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete airline",
-        variant: "destructive",
-      });
+      // Error handling is done in the mutation hook
     }
   };
 
@@ -254,11 +168,6 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     URL.revokeObjectURL(url);
   };
 
-  const filteredAirlines = airlines.filter(airline =>
-    airline.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    airline.iata_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    airline.country?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <Card>
@@ -367,6 +276,15 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
       </CardHeader>
       
       <CardContent>
+        {airlinesError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Failed to load airlines: {airlinesError.message}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -491,7 +409,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
           onClose={() => {
             setIsRBDDialogOpen(false);
             setSelectedAirlineForRBD(null);
-            fetchAirlines(); // Refresh to update RBD counts
+            refetchAirlines(); // Refresh to update RBD counts
           }}
         />
       )}

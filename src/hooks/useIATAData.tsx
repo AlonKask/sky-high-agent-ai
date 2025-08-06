@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { debounce } from '@/utils/performanceMonitor';
-import { useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 
 // Types
@@ -148,11 +148,12 @@ export const useAirlines = (searchTerm?: string, enabled = true) => {
         if (error) throw error;
         return data as Airline[];
       } else {
+        // Use LEFT JOIN to include airlines without RBDs
         const { data, error } = await supabase
           .from('airline_codes')
           .select(`
             *,
-            airline_rbd_assignments!inner(id)
+            airline_rbd_assignments(id)
           `)
           .order('name');
         if (error) throw error;
@@ -329,5 +330,17 @@ export const useBookingClassMutations = () => {
 
 // Debounced search hook
 export const useDebouncedSearch = (initialValue = '', delay = 300) => {
-  return { debouncedValue: initialValue };
+  const [debouncedValue, setDebouncedValue] = useState(initialValue);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(initialValue);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [initialValue, delay]);
+
+  return { debouncedValue };
 };
