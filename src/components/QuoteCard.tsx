@@ -78,7 +78,7 @@ export function QuoteCard({
   const fareTypeDisplay = quote.fare_type.replace('_', ' ').toUpperCase();
   
   // Extract route info for collapsed view
-  const routeParts = quote.route.split(' → ');
+  const routeParts = quote.route.split(' -> ');
   const origin = routeParts[0] || '';
   const destination = routeParts[routeParts.length - 1] || '';
 
@@ -105,7 +105,7 @@ export function QuoteCard({
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="text-xs font-medium">
                       <MapPin className="h-3 w-3 mr-1" />
-                      {origin} → {destination}
+                      {origin} -&gt; {destination}
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
                       {quote.total_segments} segment{quote.total_segments > 1 ? 's' : ''}
@@ -211,7 +211,7 @@ export function QuoteCard({
                             {segment.flightNumber}
                           </Badge>
                           <span className="font-medium text-sm">
-                            {segment.departureAirport} → {segment.arrivalAirport}
+                            {segment.departureAirport} -&gt; {segment.arrivalAirport}
                           </span>
                           <Badge variant="outline" className="text-xs">
                             {segment.cabinClass}

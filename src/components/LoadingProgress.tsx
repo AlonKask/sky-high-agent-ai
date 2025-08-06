@@ -59,7 +59,7 @@ const LoadingProgress: React.FC<LoadingProgressProps> = ({
                       'text-muted-foreground'
                     }`} />
                     <span>{step.label}</span>
-                    {isCompleted && <span className="text-green-600">✓</span>}
+                    {isCompleted && <span className="text-green-600">OK</span>}
                   </div>
                 );
               })}

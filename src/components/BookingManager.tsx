@@ -146,10 +146,10 @@ const BookingManager = () => {
 
   const formatRoute = (route: string) => {
     // Handle different route formats
-    if (route.includes('→')) {
+    if (route.includes('->')) {
       return route;
     } else if (route.includes('-')) {
-      return route.replace('-', ' → ');
+      return route.replace('-', ' -> ');
     }
     return route;
   };
@@ -204,7 +204,7 @@ const BookingManager = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">✈️ Booking Manager</h1>
+          <h1 className="text-3xl font-bold">Flight Booking Manager</h1>
           <p className="text-muted-foreground">Track and manage all client bookings</p>
         </div>
         <Button onClick={handleNewBooking} className="bg-primary hover:bg-primary/90">
@@ -275,7 +275,7 @@ const BookingManager = () => {
                         <span>{formatRoute(booking.route)}</span>
                         {booking.airline && (
                           <>
-                            <span>•</span>
+                            <span>-</span>
                             <span>{booking.airline}</span>
                           </>
                         )}
@@ -394,7 +394,7 @@ const BookingManager = () => {
                       <div className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-4">
                           <div className="text-center">
-                            <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[0]}</div>
+                            <div className="font-medium">{formatRoute(selectedBooking.route).split(' -&gt; ')[0]}</div>
                             <div className="text-xs text-muted-foreground">
                               {formatDate(selectedBooking.departure_date)}
                             </div>
@@ -404,7 +404,7 @@ const BookingManager = () => {
                           </div>
                           <Plane className="h-4 w-4 text-muted-foreground" />
                           <div className="text-center">
-                            <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[1]}</div>
+                            <div className="font-medium">{formatRoute(selectedBooking.route).split(' -&gt; ')[1]}</div>
                             <div className="text-xs text-muted-foreground">
                               {formatDate(selectedBooking.arrival_date)}
                             </div>
@@ -423,7 +423,7 @@ const BookingManager = () => {
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="flex items-center space-x-4">
                             <div className="text-center">
-                              <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[1]}</div>
+                              <div className="font-medium">{formatRoute(selectedBooking.route).split(' -&gt; ')[1]}</div>
                               <div className="text-xs text-muted-foreground">
                                 {formatDate(selectedBooking.return_departure_date)}
                               </div>
@@ -433,7 +433,7 @@ const BookingManager = () => {
                             </div>
                             <Plane className="h-4 w-4 text-muted-foreground" />
                             <div className="text-center">
-                              <div className="font-medium">{formatRoute(selectedBooking.route).split(' → ')[0]}</div>
+                              <div className="font-medium">{formatRoute(selectedBooking.route).split(' -&gt; ')[0]}</div>
                               <div className="text-xs text-muted-foreground">
                                 {selectedBooking.return_arrival_date ? formatDate(selectedBooking.return_arrival_date) : 'TBD'}
                               </div>

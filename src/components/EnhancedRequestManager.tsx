@@ -206,7 +206,7 @@ const EnhancedRequestManager = () => {
       <CardContent className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="w-4 h-4" />
-          <span>{request.origin} → {request.destination}</span>
+          <span>{request.origin} -&gt; {request.destination}</span>
         </div>
         
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -284,7 +284,7 @@ const EnhancedRequestManager = () => {
                         </Badge>
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {request.origin} → {request.destination}
+                        {request.origin} -&gt; {request.destination}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {new Date(request.departure_date).toLocaleDateString()}

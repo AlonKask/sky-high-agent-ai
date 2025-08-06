@@ -1078,13 +1078,13 @@ export class EmailTemplateGenerator {
       'AKL': 'Auckland Airport',
       'YYZ': 'Toronto Pearson International Airport',
       'YVR': 'Vancouver International Airport',
-      'GRU': 'São Paulo-Guarulhos International Airport',
-      'GIG': 'Rio de Janeiro-Galeão International Airport',
+      'GRU': 'Sao Paulo-Guarulhos International Airport',
+      'GIG': 'Rio de Janeiro-Galeao International Airport',
       'SCL': 'Santiago International Airport',
-      'LIM': 'Jorge Chávez International Airport (Lima)',
-      'BOG': 'El Dorado International Airport (Bogotá)',
+      'LIM': 'Jorge Chavez International Airport (Lima)',
+      'BOG': 'El Dorado International Airport (Bogota)',
       'MEX': 'Mexico City International Airport',
-      'CUN': 'Cancún International Airport'
+      'CUN': 'Cancun International Airport'
     };
     
     return airports[code] || `${code} Airport`;
@@ -1105,7 +1105,7 @@ export class EmailTemplateGenerator {
       'DL': 'Delta Air Lines',
       'EK': 'Emirates',
       'EY': 'Etihad Airways',
-      'G3': 'Gol Linhas Aéreas',
+      'G3': 'Gol Linhas Aereas',
       'HA': 'Hawaiian Airlines',
       'IB': 'Iberia',
       'KL': 'KLM Royal Dutch Airlines',

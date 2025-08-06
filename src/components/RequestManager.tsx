@@ -554,7 +554,7 @@ const RequestManager = () => {
                       <h3 className="font-semibold">{request.clients?.first_name} {request.clients?.last_name}</h3>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <MapPin className="h-3 w-3" />
-                        <span>{request.origin} → {request.destination}</span>
+                        <span>{request.origin} -&gt; {request.destination}</span>
                       </div>
                     </div>
                   </div>
@@ -597,7 +597,7 @@ const RequestManager = () => {
                 Request Details
               </DialogTitle>
               <DialogDescription>
-                {selectedRequest.clients?.first_name} {selectedRequest.clients?.last_name} • {selectedRequest.origin} → {selectedRequest.destination}
+                {selectedRequest.clients?.first_name} {selectedRequest.clients?.last_name} - {selectedRequest.origin} -&gt; {selectedRequest.destination}
               </DialogDescription>
             </DialogHeader>
             
@@ -615,7 +615,7 @@ const RequestManager = () => {
                 </div>
                 <div>
                   <span className="font-medium">Route:</span>
-                  <p className="text-muted-foreground">{selectedRequest.origin} → {selectedRequest.destination}</p>
+                  <p className="text-muted-foreground">{selectedRequest.origin} -&gt; {selectedRequest.destination}</p>
                 </div>
                 <div>
                   <span className="font-medium">Departure:</span>

@@ -299,7 +299,7 @@ export default function OptimizedAirportManagement({ searchTerm }: OptimizedAirp
                       {airport.iata_code}
                     </TableCell>
                     <TableCell className="font-mono text-muted-foreground">
-                      {airport.icao_code || "—"}
+                      {airport.icao_code || "-"}
                     </TableCell>
                     <TableCell className="max-w-xs truncate" title={airport.name}>
                       {airport.name}

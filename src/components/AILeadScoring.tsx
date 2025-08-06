@@ -407,7 +407,7 @@ const AILeadScoring = () => {
                   <div className="space-y-1">
                     {lead.recommendations.map((rec, index) => (
                       <div key={index} className="text-sm text-muted-foreground bg-primary/5 p-2 rounded">
-                        • {rec}
+                        - {rec}
                       </div>
                     ))}
                   </div>

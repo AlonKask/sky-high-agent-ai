@@ -542,7 +542,7 @@ const SabreOptionManager = ({
                 <Badge variant="outline" className="text-xs">
                   Format: {newQuote.format}
                 </Badge>
-                <span>•</span>
+                <span>-</span>
                 <span>Paste your Sabre command output above</span>
               </div>
             </div>
@@ -645,9 +645,9 @@ const SabreOptionManager = ({
                       {isNetPriceAutoCalculated && (
                         <p className="text-xs text-muted-foreground">
                           {[
-                            (Number(newQuote.adults_count) || 0) > 0 && newQuote.adult_net_price ? `${Number(newQuote.adults_count)} Adults × $${Number(newQuote.adult_net_price).toFixed(2)}` : null,
-                            (Number(newQuote.children_count) || 0) > 0 && newQuote.child_net_price ? `${Number(newQuote.children_count)} Children × $${Number(newQuote.child_net_price).toFixed(2)}` : null,
-                            (Number(newQuote.infants_count) || 0) > 0 && newQuote.infant_net_price ? `${Number(newQuote.infants_count)} Infants × $${Number(newQuote.infant_net_price).toFixed(2)}` : null
+                            (Number(newQuote.adults_count) || 0) > 0 && newQuote.adult_net_price ? `${Number(newQuote.adults_count)} Adults x $${Number(newQuote.adult_net_price).toFixed(2)}` : null,
+                            (Number(newQuote.children_count) || 0) > 0 && newQuote.child_net_price ? `${Number(newQuote.children_count)} Children x $${Number(newQuote.child_net_price).toFixed(2)}` : null,
+                            (Number(newQuote.infants_count) || 0) > 0 && newQuote.infant_net_price ? `${Number(newQuote.infants_count)} Infants x $${Number(newQuote.infant_net_price).toFixed(2)}` : null
                           ].filter(Boolean).join(' + ')} = ${calculateTotalNetPrice.toFixed(2)}
                         </p>
                       )}

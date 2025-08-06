@@ -148,7 +148,7 @@ const AgentCard = ({
               <div className="text-xs font-medium text-destructive">Issues:</div>
               {issues.map((issue, index) => (
                 <div key={index} className="text-xs text-muted-foreground">
-                  • {issue}
+                  - {issue}
                 </div>
               ))}
             </div>
@@ -159,7 +159,7 @@ const AgentCard = ({
               <div className="text-xs font-medium text-warning">Suggestions:</div>
               {suggestions.map((suggestion, index) => (
                 <div key={index} className="text-xs text-muted-foreground">
-                  • {suggestion}
+                  - {suggestion}
                 </div>
               ))}
             </div>

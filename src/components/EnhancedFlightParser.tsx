@@ -170,7 +170,7 @@ export function EnhancedFlightParser({ onParsedData, initialData = '' }: Enhance
                         <Badge variant="outline" className="text-xs">
                           {segment.flightNumber}
                         </Badge>
-                        <span>{segment.departureAirport} → {segment.arrivalAirport}</span>
+                        <span>{segment.departureAirport} -&gt; {segment.arrivalAirport}</span>
                       </div>
                       <div className="text-muted-foreground">
                         {segment.departureTime} - {segment.arrivalTime}

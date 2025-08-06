@@ -527,10 +527,10 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
                           <div className="font-semibold text-lg">{request.client_name || 'Unknown Client'}</div>
                           <div className="flex items-center text-sm text-muted-foreground">
                             <MapPin className="mr-1 h-4 w-4" />
-                            {request.departure_city} → {request.destination_city}
+                            {request.departure_city} -&gt; {request.destination_city}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {request.departure_date} • {request.passengers} passengers
+                            {request.departure_date} - {request.passengers} passengers
                           </div>
                         </div>
                       </div>

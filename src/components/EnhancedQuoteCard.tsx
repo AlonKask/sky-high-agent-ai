@@ -224,7 +224,7 @@ export const EnhancedQuoteCard: React.FC<EnhancedQuoteCardProps> = ({
                     {segment.departureCity || segment.departureAirport} ({segment.departureAirport})
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {segment.departureTime} • {segment.flightDate}
+                    {segment.departureTime} - {segment.flightDate}
                   </div>
                   {segment.departureAirportName && (
                     <div className="text-xs text-muted-foreground truncate">
@@ -289,7 +289,7 @@ export const EnhancedQuoteCard: React.FC<EnhancedQuoteCardProps> = ({
               <span className="font-medium text-blue-700">Layovers</span>
             </div>
             <div className="text-sm text-blue-600">
-              {enhancedData.layoverInfo.join(' • ')}
+              {enhancedData.layoverInfo.join(' - ')}
             </div>
           </div>
         )}

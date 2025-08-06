@@ -266,7 +266,7 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
             className="max-w-sm"
           />
           <Badge variant="outline">
-            {airports.length} Airports • {airlines.length} Airlines
+            {airports.length} Airports - {airlines.length} Airlines
           </Badge>
         </div>
 

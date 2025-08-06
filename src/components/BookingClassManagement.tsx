@@ -304,7 +304,7 @@ export function BookingClassManagement({ searchTerm }: BookingClassManagementPro
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-xs truncate">
-                      {bookingClass.class_description || "—"}
+                      {bookingClass.class_description || "-"}
                     </TableCell>
                     <TableCell>{bookingClass.booking_priority}</TableCell>
                     <TableCell>

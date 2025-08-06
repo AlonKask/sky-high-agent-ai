@@ -334,7 +334,7 @@ export const SalesEmailComposer: React.FC<SalesEmailComposerProps> = ({
                       {formData.personalizedInfo.interests.map((interest, index) => (
                         <Badge key={index} variant="secondary" className="cursor-pointer" 
                                onClick={() => removeArrayItem('personalizedInfo.interests', index)}>
-                          {interest} ×
+                          {interest} X
                         </Badge>
                       ))}
                     </div>
@@ -360,7 +360,7 @@ export const SalesEmailComposer: React.FC<SalesEmailComposerProps> = ({
                       {formData.personalizedInfo.painPoints.map((pain, index) => (
                         <Badge key={index} variant="destructive" className="cursor-pointer"
                                onClick={() => removeArrayItem('personalizedInfo.painPoints', index)}>
-                          {pain} ×
+                          {pain} X
                         </Badge>
                       ))}
                     </div>
@@ -386,7 +386,7 @@ export const SalesEmailComposer: React.FC<SalesEmailComposerProps> = ({
                       {formData.personalizedInfo.mutualConnections.map((connection, index) => (
                         <Badge key={index} variant="outline" className="cursor-pointer"
                                onClick={() => removeArrayItem('personalizedInfo.mutualConnections', index)}>
-                          {connection} ×
+                          {connection} X
                         </Badge>
                       ))}
                     </div>
@@ -548,7 +548,7 @@ export const SalesEmailComposer: React.FC<SalesEmailComposerProps> = ({
                           <ul className="mt-2 space-y-1">
                             {generatedEmail.improvement_suggestions.map((suggestion, index) => (
                               <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                                <span className="text-yellow-500">•</span>
+                                <span className="text-yellow-500">-</span>
                                 {suggestion}
                               </li>
                             ))}

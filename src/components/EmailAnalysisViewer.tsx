@@ -285,7 +285,7 @@ export const EmailAnalysisViewer: React.FC<EmailAnalysisViewerProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold">
-                    {analysis.clientProfile.decisionMaker ? '✓' : '✗'}
+                    {analysis.clientProfile.decisionMaker ? 'Yes' : 'No'}
                   </div>
                   <p className="text-sm text-muted-foreground">Decision Maker</p>
                 </div>

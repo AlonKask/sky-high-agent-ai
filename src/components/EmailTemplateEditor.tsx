@@ -96,7 +96,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
             <p>Thank you for choosing Select Business Class for your travel needs. I'm pleased to present you with a carefully curated business class option that aligns with your requirements.</p>
             
             <div class="flight-card">
-                <div class="route-header">✈️ {{ROUTE_DESCRIPTION}}</div>
+                <div class="route-header">Flight {{ROUTE_DESCRIPTION}}</div>
                 <div class="flight-details">
                     <div class="detail-item">
                         <div class="detail-label">Departure Date</div>
@@ -166,8 +166,8 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                 <p><strong>{agentName}</strong><br>
                 Senior Travel Consultant<br>
                 Select Business Class<br>
-                📞 Direct Line: (555) 123-4567<br>
-                ✉️ expert@selectbusinessclass.com</p>
+                Phone: (555) 123-4567<br>
+                Email: expert@selectbusinessclass.com</p>
             </div>
         </div>
         
@@ -242,7 +242,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                         <div class="experience-value">{passengers}</div>
                     </div>
                     <div class="experience-item">
-                        <div class="experience-icon">✈️</div>
+                        <div class="experience-icon">Flight</div>
                         <div class="experience-label">Service Level</div>
                         <div class="experience-value">{class}</div>
                     </div>
@@ -283,7 +283,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                 Principal Travel Curator<br>
                 Select Business Class<br>
                 🏆 Personal Service Line: {agentPhone}<br>
-                📧 {agentEmail}</p>
+                Email: {agentEmail}</p>
             </div>
         </div>
         
@@ -333,7 +333,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
 <body>
     <div class="email-container">
         <div class="urgent-banner">
-            ⚠️ TIME-SENSITIVE OPPORTUNITY - IMMEDIATE ACTION REQUIRED
+            WARNING: TIME-SENSITIVE OPPORTUNITY - IMMEDIATE ACTION REQUIRED
         </div>
         
         <div class="urgent-header">
@@ -353,7 +353,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
             </div>
             
             <div class="flight-urgent">
-                <div class="route-urgent">🔥 {route}</div>
+                <div class="route-urgent">HOT: {route}</div>
                 <div class="urgent-details">
                     <div class="urgent-item">
                         <div class="urgent-label">Departure</div>
@@ -386,14 +386,14 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
             
             <div class="alert-box">
                 <strong>Why this rate is exceptional:</strong><br>
-                • Last-minute airline inventory release<br>
-                • Peak season pricing override<br>
-                • Exclusive SBC partner rates<br>
-                • No change fees included
+                - Last-minute airline inventory release<br>
+                - Peak season pricing override<br>
+                - Exclusive SBC partner rates<br>
+                - No change fees included
             </div>
             
             <p style="text-align: center; color: #dc2626; font-weight: bold;">
-                📞 URGENT BOOKING LINE: {agentPhone}<br>
+                Phone: URGENT BOOKING LINE: {agentPhone}<br>
                 ⚡ Immediate response guaranteed
             </p>
             
@@ -402,7 +402,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                 Urgent Booking Specialist<br>
                 Select Business Class<br>
                 📱 Direct/WhatsApp: {agentPhone}<br>
-                ✉️ Priority: {agentEmail}</p>
+                Email Priority: {agentEmail}</p>
             </div>
         </div>
         
@@ -459,7 +459,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
         .inclusion-title { font-weight: bold; color: #059669; margin-bottom: 10px; }
         .inclusion-list { list-style: none; padding: 0; font-size: 14px; }
         .inclusion-list li { padding: 3px 0; }
-        .inclusion-list li::before { content: '✓'; color: #10b981; font-weight: bold; margin-right: 8px; }
+        .inclusion-list li::before { content: 'OK'; color: #10b981; font-weight: bold; margin-right: 8px; }
         .terms-section { background: #f9fafb; border-radius: 8px; padding: 20px; font-size: 13px; color: #4b5563; }
         .cta-detailed { background: #059669; color: white; padding: 15px 40px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 25px 0; font-weight: 600; font-size: 16px; }
         .footer { background: #1f2937; color: white; padding: 25px; text-align: center; font-size: 12px; }
@@ -480,12 +480,12 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
             </div>
             
             <div class="section">
-                <div class="section-title">📋 Executive Summary</div>
+                <div class="section-title">Executive Summary</div>
                 <p>Thank you for choosing Select Business Class for your upcoming journey. This comprehensive proposal outlines a carefully curated travel solution designed to meet your specific requirements while ensuring exceptional value and comfort.</p>
             </div>
             
             <div class="section">
-                <div class="section-title">✈️ Flight Itinerary</div>
+                <div class="section-title">Flight Itinerary</div>
                 <div class="itinerary-card">
                     <div class="segment">
                         <div class="flight-row">
@@ -493,7 +493,7 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                                 <div class="airport-code">{originCode}</div>
                                 <div class="airport-name">{originCity}</div>
                             </div>
-                            <div class="flight-arrow">✈️</div>
+                            <div class="flight-arrow">-&gt;</div>
                             <div class="airport">
                                 <div class="airport-code">{destinationCode}</div>
                                 <div class="airport-name">{destinationCity}</div>
@@ -581,8 +581,8 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
                 <p><strong>{agentName}</strong><br>
                 Senior Travel Consultant<br>
                 Select Business Class<br>
-                📞 Direct Line: {agentPhone}<br>
-                ✉️ Email: {agentEmail}<br>
+                Phone: {agentPhone}<br>
+                Email: {agentEmail}<br>
                 🌐 Expert in Business & First Class Travel</p>
                 
                 <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">

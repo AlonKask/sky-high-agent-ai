@@ -231,7 +231,7 @@ const EmailContentProcessor: React.FC<EmailContentProcessorProps> = ({
                       <ul className="text-sm space-y-1">
                         {processedContent.keyInformation.actionItems.map((item, index) => (
                           <li key={index} className="flex items-start gap-2">
-                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">-</span>
                             {item}
                           </li>
                         ))}

@@ -295,7 +295,7 @@ export function AirportManagement({ searchTerm }: AirportManagementProps) {
                       <Badge variant="outline">{airport.iata_code}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{airport.icao_code || "—"}</Badge>
+                      <Badge variant="secondary">{airport.icao_code || "-"}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">{airport.name}</TableCell>
                     <TableCell>{airport.city}</TableCell>

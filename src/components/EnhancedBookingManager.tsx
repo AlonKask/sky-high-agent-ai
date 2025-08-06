@@ -146,7 +146,7 @@ const EnhancedBookingManager = () => {
                 {booking.clients?.first_name} {booking.clients?.last_name}
               </CardTitle>
               <CardDescription className="text-sm">
-                {booking.booking_reference} • {booking.airline}
+                {booking.booking_reference} - {booking.airline}
               </CardDescription>
             </div>
           </div>
