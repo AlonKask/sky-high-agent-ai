@@ -1,0 +1,73 @@
+project_id = "ekrwjfdypqzequovmvjn"
+
+[functions.advanced-ai-assistant]
+verify_jwt = true
+
+[functions.advanced-email-analysis]
+verify_jwt = true
+
+[functions.ai-assistant-chat]
+verify_jwt = true
+
+[functions.ai-lead-analysis]
+verify_jwt = true
+
+[functions.analyze-emails-for-clients]
+verify_jwt = true
+
+[functions.auto-gmail-sync]
+verify_jwt = true
+
+[functions.create-agent-user]
+verify_jwt = true
+
+[functions.create-notification]
+verify_jwt = true
+
+[functions.create-user]
+verify_jwt = true
+
+[functions.fetch-gmail-emails]
+verify_jwt = true
+
+[functions.gdpr-data-export]
+verify_jwt = true
+
+[functions.gmail-integration]
+verify_jwt = false
+
+[functions.gmail-oauth]
+verify_jwt = false
+
+[functions.gmail-webhook]
+verify_jwt = false
+
+[functions.process-email-content]
+verify_jwt = true
+
+[functions.process-selected-emails]
+verify_jwt = true
+
+[functions.ringcentral-messages]
+verify_jwt = true
+
+[functions.sales-email-composer]
+verify_jwt = true
+
+[functions.scheduled-gmail-sync]
+verify_jwt = true
+
+[functions.secure-data-encryption]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.sync-inbox]
+verify_jwt = true
+
+[functions.sync-gmail-inbox]
+verify_jwt = false
+
+[functions.user-preferences]
+verify_jwt = true

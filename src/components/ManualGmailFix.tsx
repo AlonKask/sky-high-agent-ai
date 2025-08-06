@@ -1,0 +1,55 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { toastHelpers } from '@/utils/toastHelpers';
+import { useGmailIntegration } from '@/hooks/useGmailIntegration';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+
+export const ManualGmailFix = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const { connectGmail, refreshStatus, authStatus } = useGmailIntegration();
+  const { user } = useAuth();
+
+  // Don't render if Gmail is already connected or still loading
+  if (authStatus.isLoading || authStatus.isConnected) {
+    return null;
+  }
+
+  const handleGmailConnection = async () => {
+    if (!user) return;
+    
+    setIsProcessing(true);
+    try {
+      // Use the proper OAuth flow from useGmailIntegration
+      await connectGmail();
+      
+      toastHelpers.success("Gmail connection initiated successfully");
+      
+      // Refresh the integration status
+      await refreshStatus();
+    } catch (error) {
+      console.error('Gmail connection failed:', error);
+      toastHelpers.error("Failed to connect Gmail. Please try again.", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="p-4 bg-orange-50 border border-orange-200 rounded-md">
+      <h3 className="font-medium text-orange-800 mb-2">Gmail Integration Fix</h3>
+      <p className="text-sm text-orange-700 mb-3">
+        If your Gmail connection didn't complete properly, click below to manually process the tokens.
+      </p>
+      <Button 
+        onClick={handleGmailConnection}
+        disabled={isProcessing}
+        variant="outline"
+        size="sm"
+      >
+        {isProcessing ? 'Processing...' : 'Fix Gmail Connection'}
+      </Button>
+    </div>
+  );
+};
