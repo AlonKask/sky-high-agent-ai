@@ -45,7 +45,7 @@ export default function OptimizedAirportManagement({ searchTerm }: OptimizedAirp
   const debouncedSearch = useDebouncedSearch();
 
   // Use optimized query with debounced search
-  const { data: airports = [], isLoading, error } = useAirports(debouncedSearchTerm || undefined);
+  const { data: airports = [], isLoading, error } = useAirports(debouncedSearchTerm);
   const { createAirport, updateAirport, deleteAirport } = useAirportMutations();
 
   // Debounce search updates

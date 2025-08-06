@@ -49,7 +49,7 @@ export const useAirports = (searchTerm?: string, enabled = true) => {
   return useQuery({
     queryKey: ['airports', searchTerm],
     queryFn: async () => {
-      if (searchTerm) {
+      if (searchTerm && searchTerm.trim() !== '') {
         const { data, error } = await supabase.rpc('search_airports', {
           search_term: searchTerm,
           page_limit: 1000,
