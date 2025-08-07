@@ -28,9 +28,9 @@ interface Quote {
   net_price: number;
   markup: number;
   total_price: number;
-  adults_count: number;
-  children_count: number;
-  infants_count: number;
+  adults_count?: number;
+  children_count?: number;
+  infants_count?: number;
   quote_type: string;
   award_program?: string;
   number_of_points?: number;

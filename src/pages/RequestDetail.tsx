@@ -911,10 +911,20 @@ const RequestDetail = () => {
             net_price: Number(q.net_price),
             markup: Number(q.markup),
             ck_fee_amount: Number(q.ck_fee_amount),
-            valid_until: q.valid_until || ""
+            valid_until: q.valid_until || "",
+            adults_count: q.adults_count || 1,
+            children_count: q.children_count || 0,
+            infants_count: q.infants_count || 0
           }))}
           client={client}
-          onCancel={() => setShowEmailBuilder(false)}
+          onClose={() => setShowEmailBuilder(false)}
+          onEmailSent={() => {
+            setShowEmailBuilder(false);
+            toast({
+              title: "Email sent successfully!",
+              description: "Flight options have been sent to the client.",
+            });
+          }}
         />
       )}
 

@@ -944,10 +944,17 @@ const SabreOptionManager = ({
             markup: Number(q.markup),
             ck_fee_amount: Number(q.ck_fee_amount),
             valid_until: q.valid_until || "",
-            quote_type: (q.quote_type as "award" | "revenue") || "revenue"
+            quote_type: (q.quote_type as "award" | "revenue") || "revenue",
+            adults_count: q.adults_count || 1,
+            children_count: q.children_count || 0,
+            infants_count: q.infants_count || 0
           }))}
           client={currentClient}
-          onCancel={() => setShowEmailBuilder(false)}
+          onClose={() => setShowEmailBuilder(false)}
+          onEmailSent={() => {
+            setShowEmailBuilder(false);
+            toastHelpers.success("Email sent successfully!", { description: "Flight options have been sent to the client." });
+          }}
         />
       )}
     </div>
