@@ -2366,6 +2366,22 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_cities_with_airports: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          city: string
+          country: string
+          airport_count: number
+        }[]
+      }
+      get_city_suggestions: {
+        Args: { partial_name: string; suggestion_limit?: number }
+        Returns: {
+          city: string
+          country: string
+          airport_count: number
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2408,6 +2424,14 @@ export type Database = {
           p_user_id?: string
         }
         Returns: string
+      }
+      merge_cities: {
+        Args: {
+          source_cities: Json
+          target_city: string
+          target_country: string
+        }
+        Returns: number
       }
       search_airlines: {
         Args: { search_term: string; page_limit?: number; page_offset?: number }

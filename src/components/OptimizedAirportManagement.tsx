@@ -23,6 +23,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Pencil, Trash2, Plus, Search, ChevronDown, ChevronRight, MapPin } from "lucide-react";
 import { useAirports, useAirportMutations, useDebouncedSearch, type Airport } from "@/hooks/useIATAData";
+import { CityAutocomplete } from "./CityAutocomplete";
 
 interface OptimizedAirportManagementProps {
   searchTerm: string;
@@ -232,17 +233,13 @@ export default function OptimizedAirportManagement({ searchTerm }: OptimizedAirp
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="city">City *</Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="New York"
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
+                <CityAutocomplete
+                  value={formData.city}
+                  country={formData.country}
+                  onChange={(city, country) => setFormData({ ...formData, city, country })}
+                  disabled={isSubmitting}
+                  required
+                />
                 <div>
                   <Label htmlFor="country">Country *</Label>
                   <Input
