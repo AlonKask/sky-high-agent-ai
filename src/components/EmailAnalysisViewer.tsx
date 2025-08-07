@@ -52,9 +52,15 @@ interface EmailAnalysis {
   };
 }
 
+interface Email {
+  metadata?: { ai_analysis?: EmailAnalysis };
+  sender_email?: string;
+  [key: string]: unknown;
+}
+
 interface EmailAnalysisViewerProps {
   emailId: string;
-  email: any;
+  email: Email;
   onAnalysisComplete?: (analysis: EmailAnalysis) => void;
 }
 
