@@ -15,6 +15,7 @@ import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { SabreParser } from '@/utils/sabreParser';
 import { DatabaseUtils } from '@/utils/databaseUtils';
 import { EmailTemplateGenerator, SabreOption } from '@/utils/emailTemplateGenerator';
+import { ModernEmailTemplate } from './ModernEmailTemplate';
 
 interface Quote {
   id: string;
@@ -190,6 +191,44 @@ export default function UnifiedEmailBuilder({
   };
 
   const generateEmailHTML = async (): Promise<string> => {
+    console.log("🎯 Generating modern email template");
+    
+    const selectedQuoteData = selectedQuotes.map(quoteId => 
+      quotes.find(q => q.id === quoteId)
+    ).filter(Boolean);
+    
+    if (selectedQuoteData.length === 0) {
+      return generateBasicEmailHTML([]);
+    }
+
+    // Use the new modern template
+    try {
+      const { renderToStaticMarkup } = await import('react-dom/server');
+      
+      const reviewUrl = `${window.location.origin}/options/${crypto.randomUUID()}`;
+      
+      const emailHtml = renderToStaticMarkup(
+        React.createElement(ModernEmailTemplate, {
+          clientName: client?.first_name || "Valued Client",
+          options: selectedQuoteData,
+          reviewUrl,
+          companyInfo: {
+            name: 'Select Business Class',
+            phone: '+1 (555) 123-4567', 
+            email: 'booking@selectbusinessclass.com',
+            website: 'selectbusinessclass.com'
+          }
+        })
+      );
+      
+      return `<!DOCTYPE html>${emailHtml}`;
+    } catch (error) {
+      console.error("⚠️ Modern template generation failed, falling back to basic template:", error);
+      return generateBasicEmailHTML(selectedQuoteData);
+    }
+  };
+
+  const generateEmailHTMLLegacy = async (): Promise<string> => {
     console.log("🔄 Generating email HTML with selected quotes");
     const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
     
@@ -513,20 +552,25 @@ export default function UnifiedEmailBuilder({
   
   useEffect(() => {
     const updatePreview = async () => {
-      if (selectedQuotes.length === 0) {
-        setPreviewHtml('<div style="padding: 40px; text-align: center; color: #666;">Select quotes to preview your email</div>');
-        return;
-      }
-      
-      try {
-        const html = await generateEmailHTML();
-        setPreviewHtml(html);
-      } catch (error) {
-        console.error('Preview generation error:', error);
-        const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
-        setPreviewHtml(generateBasicEmailHTML(selectedQuoteData));
+      if (selectedQuotes.length > 0) {
+        try {
+          const html = await generateEmailHTML();
+          setPreviewHtml(html);
+        } catch (error) {
+          console.error("Preview generation error:", error);
+          setPreviewHtml("<p>Error generating preview</p>");
+        }
+      } else {
+        setPreviewHtml(`
+          <div style="padding: 40px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+            <div style="font-size: 48px; margin-bottom: 20px;">✈️</div>
+            <h2 style="color: #667eea; margin-bottom: 16px;">Modern Email Template</h2>
+            <p style="color: #6b7280;">Select flight options to preview the beautiful email template</p>
+          </div>
+        `);
       }
     };
+    
     updatePreview();
   }, [selectedQuotes, processedQuotes]);
 
@@ -598,8 +642,12 @@ export default function UnifiedEmailBuilder({
         <div className="flex-1 flex min-h-0">
           {/* Left Panel - Email Composition */}
           <div className="w-1/2 border-r flex flex-col">
-            <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold mb-4">Compose Email</h3>
+            <div className="p-6 border-b bg-gradient-to-r from-primary/5 to-primary/10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="text-2xl">✨</div>
+                <h3 className="text-lg font-semibold text-primary">Modern Email Builder</h3>
+                <Badge variant="secondary" className="ml-auto">AI-Powered</Badge>
+              </div>
               
               <div className="space-y-4">
                 <div>
@@ -607,7 +655,8 @@ export default function UnifiedEmailBuilder({
                   <Input
                     value={emailSubject}
                     onChange={(e) => setEmailSubject(e.target.value)}
-                    placeholder="Email subject"
+                    placeholder="Your Premium Flight Options Are Ready ✈️"
+                    className="bg-white/80 border-primary/20 focus:border-primary/40"
                   />
                 </div>
                 
@@ -616,53 +665,95 @@ export default function UnifiedEmailBuilder({
                   <Textarea
                     value={personalMessage}
                     onChange={(e) => setPersonalMessage(e.target.value)}
-                    placeholder="Add a personal message for your client..."
+                    placeholder="Add a personal touch to make this email special for your client..."
                     rows={3}
+                    className="bg-white/80 border-primary/20 focus:border-primary/40"
                   />
+                </div>
+                
+                <div className="p-3 bg-white/60 rounded-lg border border-primary/20">
+                  <div className="flex items-center gap-2 text-sm text-primary">
+                    <span>💡</span>
+                    <span className="font-medium">Pro Tip:</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your email will use our modern, responsive template optimized for all email clients
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Quote Selection */}
             <div className="flex-1 overflow-auto p-6">
-              <h4 className="text-lg font-semibold mb-4">Select Flight Options ({processedQuotes.length} available)</h4>
+              <div className="flex items-center gap-3 mb-4">
+                <h4 className="text-lg font-semibold">Flight Options</h4>
+                <Badge variant="outline">{processedQuotes.length} available</Badge>
+              </div>
               
               <div className="space-y-3">
                 {processedQuotes.map((quote, index) => (
-                  <Card key={quote.id} className={`cursor-pointer transition-all ${selectedQuotes.includes(quote.id) ? 'ring-2 ring-primary' : ''}`}>
+                  <Card 
+                    key={quote.id} 
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                      selectedQuotes.includes(quote.id) 
+                        ? 'ring-2 ring-primary bg-gradient-to-r from-primary/5 to-primary/10 border-primary/30' 
+                        : 'hover:border-primary/20'
+                    }`}
+                    onClick={() => {
+                      if (selectedQuotes.includes(quote.id)) {
+                        setSelectedQuotes(selectedQuotes.filter(id => id !== quote.id));
+                      } else {
+                        setSelectedQuotes([...selectedQuotes, quote.id]);
+                      }
+                    }}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center space-x-3">
                         <Checkbox
                           checked={selectedQuotes.includes(quote.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedQuotes([...selectedQuotes, quote.id]);
-                            } else {
-                              setSelectedQuotes(selectedQuotes.filter(id => id !== quote.id));
-                            }
-                          }}
+                          onChange={() => {}}
+                          className="pointer-events-none"
                         />
-                        <div className="flex items-center gap-2">
-                          {getOptionIcon(index)}
-                          <CardTitle className="text-base">{getOptionLabel(index)}</CardTitle>
-                          <Badge variant="secondary" className="ml-auto">
-                            {formatPrice(quote.total_price)}
-                          </Badge>
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className="text-lg">
+                            {index === 0 ? '⭐' : index === 1 ? '⚡' : '💎'}
+                          </div>
+                          <div className="flex-1">
+                            <CardTitle className="text-base text-gray-900">{getOptionLabel(index)}</CardTitle>
+                            <div className="text-sm text-muted-foreground">{quote.route}</div>
+                          </div>
+                          <div className="text-right">
+                            <Badge 
+                              variant={quote.quote_type === 'award' ? 'secondary' : 'default'} 
+                              className="font-semibold"
+                            >
+                              {quote.quote_type === 'award' && quote.number_of_points 
+                                ? `${quote.number_of_points.toLocaleString()} pts`
+                                : formatPrice(quote.total_price)
+                              }
+                            </Badge>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {quote.quote_type === 'award' ? 'Award Ticket' : 'Revenue Ticket'}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <div><strong>Route:</strong> {quote.route}</div>
-                        <div><strong>Type:</strong> {quote.fare_type}</div>
-                        <div><strong>Passengers:</strong> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
-                        {quote.parsedItinerary?.segments?.length > 0 && (
-                          <div className="text-green-600 text-xs mt-2 flex items-center gap-1">
-                            <span>✅</span>
-                            Enhanced with {quote.parsedItinerary.segments.length} flight segments
-                          </div>
-                        )}
+                      <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                        <div>
+                          <span className="font-medium text-gray-700">Type:</span> {quote.fare_type}
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-700">Passengers:</span> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}
+                        </div>
                       </div>
+                      {quote.parsedItinerary?.segments?.length > 0 && (
+                        <div className="text-green-600 text-xs mt-3 flex items-center gap-1 bg-green-50 px-2 py-1 rounded">
+                          <span>✅</span>
+                          Enhanced with {quote.parsedItinerary.segments.length} flight segments
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -672,13 +763,25 @@ export default function UnifiedEmailBuilder({
 
           {/* Right Panel - Email Preview */}
           <div className="w-1/2 flex flex-col">
-            <div className="p-6 border-b bg-muted/50">
-              <h3 className="text-lg font-semibold">Email Preview</h3>
-              <p className="text-sm text-muted-foreground">This is how your email will appear to the client</p>
+            <div className="p-6 border-b bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">📧</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-green-800">Live Email Preview</h3>
+                  <p className="text-sm text-green-700">Real-time preview with modern design</p>
+                </div>
+                <Badge variant="secondary" className="ml-auto bg-green-100 text-green-800">
+                  Responsive
+                </Badge>
+              </div>
             </div>
             
-            <div className="flex-1 overflow-auto bg-gray-50">
-              <SafeHtmlRenderer html={previewHtml} className="prose max-w-none" />
+            <div className="flex-1 overflow-auto bg-gradient-to-br from-gray-50 to-gray-100">
+              <div className="p-4">
+                <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                  <SafeHtmlRenderer html={previewHtml} className="max-w-none" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
