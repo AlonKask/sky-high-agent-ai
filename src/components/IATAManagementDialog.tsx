@@ -45,7 +45,7 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
   const [editingAirport, setEditingAirport] = useState<string | null>(null);
   const [editingAirline, setEditingAirline] = useState<string | null>(null);
   const [newAirport, setNewAirport] = useState<Partial<AirportCode>>({});
-  const [newAirline, setNewAirline] = useState<Partial<AirlineCode>>({});
+  const [newAirline, setNewAirline] = useState<Partial<AirlineCode & {logo_url?: string}>>({});
   const [showAddAirport, setShowAddAirport] = useState(false);
   const [showAddAirline, setShowAddAirline] = useState(false);
 
@@ -488,6 +488,7 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
                     <TableHead>Name</TableHead>
                     <TableHead>Country</TableHead>
                     <TableHead>Alliance</TableHead>
+                    <TableHead>Logo</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -537,6 +538,13 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
                             ))}
                           </SelectContent>
                         </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Logo URL"
+                          value={newAirline.logo_url || ''}
+                          onChange={(e) => setNewAirline(prev => ({ ...prev, logo_url: e.target.value }))}
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
@@ -629,29 +637,56 @@ export const IATAManagementDialog = ({ open, onOpenChange }: IATAManagementDialo
                           )
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-1">
-                          {editingAirline === airline.id ? (
-                            <>
-                              <Button size="sm" onClick={() => handleSaveAirline(airline)}>
-                                <Save className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingAirline(null)}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => setEditingAirline(airline.id)}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleDeleteAirline(airline.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         {editingAirline === airline.id ? (
+                           <Input
+                             value={airline.logo_url || ''}
+                             onChange={(e) => setAirlines(prev => prev.map(a => 
+                               a.id === airline.id ? { ...a, logo_url: e.target.value } : a
+                             ))}
+                             placeholder="Logo URL"
+                           />
+                         ) : (
+                           <div className="flex items-center gap-2">
+                             {airline.logo_url && (
+                               <img 
+                                 src={airline.logo_url} 
+                                 alt={`${airline.name} logo`}
+                                 className="h-6 w-6 object-contain"
+                                 onError={(e) => {
+                                   e.currentTarget.style.display = 'none';
+                                 }}
+                               />
+                             )}
+                             <span className="text-xs text-muted-foreground">
+                               {airline.logo_url ? 'Logo' : 'No logo'}
+                             </span>
+                           </div>
+                         )}
+                       </TableCell>
+                       <TableCell>
+                         <div className="flex space-x-1">
+                           {editingAirline === airline.id ? (
+                             <>
+                               <Button size="sm" onClick={() => handleSaveAirline(airline)}>
+                                 <Save className="h-3 w-3" />
+                               </Button>
+                               <Button size="sm" variant="outline" onClick={() => setEditingAirline(null)}>
+                                 <X className="h-3 w-3" />
+                               </Button>
+                             </>
+                           ) : (
+                             <>
+                               <Button size="sm" variant="outline" onClick={() => setEditingAirline(airline.id)}>
+                                 <Edit className="h-3 w-3" />
+                               </Button>
+                               <Button size="sm" variant="destructive" onClick={() => handleDeleteAirline(airline.id)}>
+                                 <Trash2 className="h-3 w-3" />
+                               </Button>
+                             </>
+                           )}
+                         </div>
+                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
