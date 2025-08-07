@@ -1609,10 +1609,17 @@ export class SabreParser {
       const totalDuration = this.calculateTotalDuration(segments);
       const layoverInfo = this.generateLayoverInfo(segments);  // uses updated logic for accuracy
 
+      // Generate correct route based on actual segments
+      const correctedRoute = segments.length > 0 ? 
+        segments.map((seg, idx) => {
+          if (idx === 0) return `${seg.departureAirport}-${seg.arrivalAirport}`;
+          return seg.arrivalAirport;
+        }).join(' -> ') : route;
+
       const result: ParsedItinerary = {
         segments,
         totalSegments: segments.length,
-        route,
+        route: correctedRoute,
         isRoundTrip,
         totalDuration,
         layoverInfo

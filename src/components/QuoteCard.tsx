@@ -47,6 +47,19 @@ interface Quote {
   ck_fee_enabled?: boolean;
   ck_fee_amount?: string;
   segments: Segment[];
+  adults_count?: number;
+  children_count?: number;
+  infants_count?: number;
+  adult_price?: string;
+  child_price?: string;
+  infant_price?: string;
+  adult_net_price?: string;
+  child_net_price?: string;
+  infant_net_price?: string;
+  adult_markup?: string;
+  child_markup?: string;
+  infant_markup?: string;
+  detailed_passenger_breakdown?: any;
 }
 
 interface QuoteCardProps {
@@ -283,30 +296,60 @@ export function QuoteCard({
                     </div>
                   </div>
 
-                  {/* Passenger-specific Pricing */}
-                  {((quote as any).adult_net_price || (quote as any).child_net_price || (quote as any).infant_net_price) && (
+                  {/* Enhanced Passenger-specific Pricing */}
+                  {(quote.adult_net_price || quote.child_net_price || quote.infant_net_price) && (
                     <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-200">
-                      <h5 className="text-sm font-medium text-blue-800 mb-2">Per Passenger Breakdown</h5>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        {(quote as any).adult_net_price && (
-                          <div>
-                            <div className="text-xs text-blue-600 font-medium">Adults</div>
-                            <div className="text-xs text-muted-foreground">Net: ${parseFloat((quote as any).adult_net_price).toFixed(2)}</div>
-                            <div className="text-xs text-muted-foreground">Sell: ${parseFloat((quote as any).adult_price || '0').toFixed(2)}</div>
+                      <h5 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Passenger Breakdown
+                      </h5>
+                      <div className="space-y-3">
+                        {quote.adult_net_price && quote.adults_count > 0 && (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-blue-700">
+                                {quote.adults_count} Adult{quote.adults_count > 1 ? 's' : ''}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                ${parseFloat(quote.adult_net_price).toFixed(2)} net + ${parseFloat(quote.adult_markup || '0').toFixed(2)} markup
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium">${(parseFloat(quote.adult_price || '0') * quote.adults_count).toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">per person: ${parseFloat(quote.adult_price || '0').toFixed(2)}</div>
+                            </div>
                           </div>
                         )}
-                        {(quote as any).child_net_price && (
-                          <div>
-                            <div className="text-xs text-blue-600 font-medium">Children</div>
-                            <div className="text-xs text-muted-foreground">Net: ${parseFloat((quote as any).child_net_price).toFixed(2)}</div>
-                            <div className="text-xs text-muted-foreground">Sell: ${parseFloat((quote as any).child_price || '0').toFixed(2)}</div>
+                        {quote.child_net_price && quote.children_count > 0 && (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-blue-700">
+                                {quote.children_count} Child{quote.children_count > 1 ? 'ren' : ''}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                ${parseFloat(quote.child_net_price).toFixed(2)} net + ${parseFloat(quote.child_markup || '0').toFixed(2)} markup
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium">${(parseFloat(quote.child_price || '0') * quote.children_count).toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">per person: ${parseFloat(quote.child_price || '0').toFixed(2)}</div>
+                            </div>
                           </div>
                         )}
-                        {(quote as any).infant_net_price && (
-                          <div>
-                            <div className="text-xs text-blue-600 font-medium">Infants</div>
-                            <div className="text-xs text-muted-foreground">Net: ${parseFloat((quote as any).infant_net_price).toFixed(2)}</div>
-                            <div className="text-xs text-muted-foreground">Sell: ${parseFloat((quote as any).infant_price || '0').toFixed(2)}</div>
+                        {quote.infant_net_price && quote.infants_count > 0 && (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-blue-700">
+                                {quote.infants_count} Infant{quote.infants_count > 1 ? 's' : ''}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                ${parseFloat(quote.infant_net_price).toFixed(2)} net + ${parseFloat(quote.infant_markup || '0').toFixed(2)} markup
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium">${(parseFloat(quote.infant_price || '0') * quote.infants_count).toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">per person: ${parseFloat(quote.infant_price || '0').toFixed(2)}</div>
+                            </div>
                           </div>
                         )}
                       </div>

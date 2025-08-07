@@ -39,6 +39,19 @@ interface Quote {
   taxes?: number;
   number_of_points?: number;
   award_program?: string;
+  adults_count?: number;
+  children_count?: number;
+  infants_count?: number;
+  adult_price?: number;
+  child_price?: number;
+  infant_price?: number;
+  adult_net_price?: number;
+  child_net_price?: number;
+  infant_net_price?: number;
+  adult_markup?: number;
+  child_markup?: number;
+  infant_markup?: number;
+  detailed_passenger_breakdown?: any;
 }
 
 interface Client {
@@ -314,6 +327,54 @@ export const EnhancedQuoteCard: React.FC<EnhancedQuoteCardProps> = ({
               <div>
                 <span className="text-muted-foreground">Class:</span> {emailVariables.FLIGHT_OUTBOUND_CLASS}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Passenger Breakdown */}
+        {quote.detailed_passenger_breakdown && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-4 w-4 text-blue-500" />
+              <span className="font-medium text-blue-700">Passenger Breakdown</span>
+            </div>
+            <div className="space-y-2">
+              {quote.adults_count > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-600">{quote.adults_count} Adult{quote.adults_count > 1 ? 's' : ''}</span>
+                  <div className="text-right">
+                    <div className="font-medium">{formatPrice((quote.adult_price || 0) * quote.adults_count)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Net: {formatPrice((quote.adult_net_price || 0) * quote.adults_count)} + 
+                      Markup: {formatPrice((quote.adult_markup || 0) * quote.adults_count)}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {quote.children_count > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-600">{quote.children_count} Child{quote.children_count > 1 ? 'ren' : ''}</span>
+                  <div className="text-right">
+                    <div className="font-medium">{formatPrice((quote.child_price || 0) * quote.children_count)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Net: {formatPrice((quote.child_net_price || 0) * quote.children_count)} + 
+                      Markup: {formatPrice((quote.child_markup || 0) * quote.children_count)}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {quote.infants_count > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-blue-600">{quote.infants_count} Infant{quote.infants_count > 1 ? 's' : ''}</span>
+                  <div className="text-right">
+                    <div className="font-medium">{formatPrice((quote.infant_price || 0) * quote.infants_count)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Net: {formatPrice((quote.infant_net_price || 0) * quote.infants_count)} + 
+                      Markup: {formatPrice((quote.infant_markup || 0) * quote.infants_count)}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

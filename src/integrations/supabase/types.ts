@@ -1600,10 +1600,12 @@ export type Database = {
       }
       quotes: {
         Row: {
+          adult_markup: number | null
           adult_net_price: number | null
           adult_price: number | null
           adults_count: number | null
           award_program: string | null
+          child_markup: number | null
           child_net_price: number | null
           child_price: number | null
           children_count: number | null
@@ -1613,9 +1615,11 @@ export type Database = {
           client_token: string | null
           content: string | null
           created_at: string
+          detailed_passenger_breakdown: Json | null
           fare_type: string
           format: string | null
           id: string
+          infant_markup: number | null
           infant_net_price: number | null
           infant_price: number | null
           infants_count: number | null
@@ -1643,10 +1647,12 @@ export type Database = {
           weight_of_bags: number | null
         }
         Insert: {
+          adult_markup?: number | null
           adult_net_price?: number | null
           adult_price?: number | null
           adults_count?: number | null
           award_program?: string | null
+          child_markup?: number | null
           child_net_price?: number | null
           child_price?: number | null
           children_count?: number | null
@@ -1656,9 +1662,11 @@ export type Database = {
           client_token?: string | null
           content?: string | null
           created_at?: string
+          detailed_passenger_breakdown?: Json | null
           fare_type: string
           format?: string | null
           id?: string
+          infant_markup?: number | null
           infant_net_price?: number | null
           infant_price?: number | null
           infants_count?: number | null
@@ -1686,10 +1694,12 @@ export type Database = {
           weight_of_bags?: number | null
         }
         Update: {
+          adult_markup?: number | null
           adult_net_price?: number | null
           adult_price?: number | null
           adults_count?: number | null
           award_program?: string | null
+          child_markup?: number | null
           child_net_price?: number | null
           child_price?: number | null
           children_count?: number | null
@@ -1699,9 +1709,11 @@ export type Database = {
           client_token?: string | null
           content?: string | null
           created_at?: string
+          detailed_passenger_breakdown?: Json | null
           fare_type?: string
           format?: string | null
           id?: string
+          infant_markup?: number | null
           infant_net_price?: number | null
           infant_price?: number | null
           infants_count?: number | null
@@ -2315,6 +2327,20 @@ export type Database = {
       archive_old_emails: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      calculate_passenger_totals: {
+        Args: {
+          p_adults_count?: number
+          p_children_count?: number
+          p_infants_count?: number
+          p_adult_net_price?: number
+          p_child_net_price?: number
+          p_infant_net_price?: number
+          p_adult_markup?: number
+          p_child_markup?: number
+          p_infant_markup?: number
+        }
+        Returns: Json
       }
       can_manage_teams: {
         Args: { _user_id: string }
