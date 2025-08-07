@@ -431,7 +431,7 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
     try {
       // Create option review record
       const { data: reviewData, error: reviewError } = await supabase
-        .from('client_option_reviews')
+        .from('option_reviews')
         .insert({
           user_id: (await supabase.auth.getUser()).data.user?.id,
           client_id: clientId,
@@ -471,10 +471,20 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
       onSendEmail?.(reviewData);
     } catch (error: any) {
       console.error('Error sending email:', error);
-      toast({
-        title: "Failed to send email",
-        description: error.message || "Please try again.",
-        variant: "destructive"
+      
+      // More detailed error handling
+      let errorMessage = "Please try again.";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.details) {
+        errorMessage = error.details;
+      } else if (error.error) {
+        errorMessage = typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
+      }
+
+      toastHelpers.error("Failed to send email", error, {
+        description: `Error details: ${errorMessage}`,
+        duration: 8000
       });
     } finally {
       setIsLoading(false);
