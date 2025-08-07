@@ -11,7 +11,7 @@ export const SECURITY_HEADERS = {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
-    `connect-src 'self' ${typeof window !== 'undefined' && window.location.origin} https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co`,
+    `connect-src 'self' ${typeof window !== 'undefined' && window.location.origin} https://selectbc.online ${getSupabaseUrl()} ${getSupabaseUrl().replace('https://', 'wss://')}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'"
@@ -35,7 +35,7 @@ export const PRODUCTION_CSP = [
   "style-src 'self' 'unsafe-inline'", // May need hashes for specific inline styles
   "img-src 'self' data: https:",
   "font-src 'self'",
-  `connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co`,
+  `connect-src 'self' https://selectbc.online ${getSupabaseUrl()} ${getSupabaseUrl().replace('https://', 'wss://')}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -59,8 +59,14 @@ export const RATE_LIMITS = {
 /**
  * Allowed origins for CORS
  */
+/**
+ * Helper function to get Supabase URL from environment
+ */
+function getSupabaseUrl(): string {
+  return import.meta.env.VITE_SUPABASE_URL || 'https://ekrwjfdypqzequovmvjn.supabase.co';
+}
+
 export const ALLOWED_ORIGINS = [
-  'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
   'https://selectbc.online',
   'https://www.selectbc.online',
   process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : null,

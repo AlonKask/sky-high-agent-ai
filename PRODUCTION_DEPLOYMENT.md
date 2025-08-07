@@ -1,23 +1,35 @@
-# Production Deployment Guide
+# Production Deployment Guide for Select Business Class CRM
 
-## Overview
-This guide provides the steps to deploy your application to production at `https://selectbc.online` after fixing the configuration issues.
+## ⚠️ CRITICAL: Replace Credentials Before Deployment
 
-## Pre-Deployment Checklist
+**The application WILL show a blank screen until you update these values in `.env.production`:**
 
-### 1. Update Environment Variables
-Edit `.env.production` with your actual values:
-```bash
-# Replace with your actual Supabase project details
-VITE_SUPABASE_URL=https://your-actual-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-actual-anon-key
+```env
+VITE_SUPABASE_URL=YOUR-PROJECT-REF.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR-ANON-KEY-HERE
+VITE_GOOGLE_CLIENT_ID=YOUR-GOOGLE-CLIENT-ID
+```
 
-# Replace with your actual Google OAuth client ID
-VITE_GOOGLE_CLIENT_ID=your-actual-google-client-id
+## Quick Fix Steps
 
-# App URLs (already set)
+### 1. Get Your Supabase Credentials
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Open your project → Settings → API
+3. Copy the **Project URL** and **anon public key**
+
+### 2. Update Environment Variables
+Replace placeholders in `.env.production`:
+```env
+# Replace YOUR-PROJECT-REF with actual project reference
+VITE_SUPABASE_URL=https://[your-project-ref].supabase.co
+VITE_SUPABASE_ANON_KEY=[your-anon-key]
+
+# If using Google OAuth
+VITE_GOOGLE_CLIENT_ID=[your-google-client-id]
+
+# Already configured for selectbc.online
 VITE_APP_URL=https://selectbc.online
-VITE_API_URL=https://your-actual-project-ref.supabase.co/functions/v1
+VITE_API_URL=https://[your-project-ref].supabase.co/functions/v1
 ```
 
 ### 2. SSL Certificate Setup
