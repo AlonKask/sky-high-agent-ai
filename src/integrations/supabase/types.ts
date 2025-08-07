@@ -390,6 +390,7 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           name: string
+          priority: number
           timezone: string | null
         }
         Insert: {
@@ -402,6 +403,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name: string
+          priority?: number
           timezone?: string | null
         }
         Update: {
@@ -414,6 +416,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name?: string
+          priority?: number
           timezone?: string | null
         }
         Relationships: []
