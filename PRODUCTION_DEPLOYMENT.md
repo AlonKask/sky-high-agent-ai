@@ -75,13 +75,19 @@ Replace `https://ekrwjfdypqzequovmvjn.supabase.co` with your project URL.
 
 ## Deployment Steps
 
-### Option 1: Docker Deployment
+### Option 1: Docker Deployment (Recommended)
 ```bash
-# 1. Build and run with docker-compose
-docker-compose up -d --build
+# 1. Stop any existing containers
+docker-compose down
 
-# 2. Check logs
-docker-compose logs -f
+# 2. Build fresh images with no cache to ensure latest env vars
+docker-compose build --no-cache
+
+# 3. Start the services
+docker-compose up -d
+
+# 4. Check logs to verify successful startup
+docker-compose logs -f app
 ```
 
 ### Option 2: Manual Build and Deploy
