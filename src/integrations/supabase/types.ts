@@ -1562,6 +1562,45 @@ export type Database = {
         }
         Relationships: []
       }
+      option_reviews: {
+        Row: {
+          client_id: string
+          client_token: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          quote_ids: string[]
+          request_id: string | null
+          review_status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          client_token?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          quote_ids: string[]
+          request_id?: string | null
+          review_status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          client_token?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          quote_ids?: string[]
+          request_id?: string | null
+          review_status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2392,6 +2431,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_airline_with_logo: {
+        Args: { p_iata_code: string }
+        Returns: {
+          id: string
+          iata_code: string
+          name: string
+          logo_url: string
+          country: string
+          alliance: string
+        }[]
+      }
       get_cities_with_airports: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2525,6 +2575,10 @@ export type Database = {
           updated_at: string
           total_count: number
         }[]
+      }
+      update_airline_logo: {
+        Args: { p_airline_id: string; p_logo_url: string }
+        Returns: undefined
       }
       update_client_memory: {
         Args: {
