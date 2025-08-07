@@ -122,4 +122,8 @@ class Logger {
 export const logger = new Logger();
 
 // Convenience exports
-export const { debug, info, warn, error } = logger;
+// Bind methods to preserve `this` context when exporting
+export const debug = logger.debug.bind(logger);
+export const info = logger.info.bind(logger);
+export const warn = logger.warn.bind(logger);
+export const error = logger.error.bind(logger);
