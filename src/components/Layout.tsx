@@ -2,6 +2,7 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { DebugInfo } from "@/components/DebugInfo";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ export const Layout = ({ children }: LayoutProps) => {
           <main className="flex-1 overflow-hidden">
             <div className="h-full overflow-auto relative">
               <NotificationCenter />
+              <DebugInfo />
               {children}
             </div>
           </main>
