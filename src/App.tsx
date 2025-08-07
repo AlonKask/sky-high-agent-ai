@@ -56,7 +56,7 @@ function App() {
                   {/* Public routes */}
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/options/:token" element={<OptionsReview />} />
-                  <Route path="/view-option/:token/:quoteId" element={<ViewOption />} />
+                  <Route path="/view-option/:token" element={<ViewOption />} />
                   <Route path="/public-request" element={<PublicRequest />} />
                   
                   {/* Protected routes */}

@@ -429,18 +429,23 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
     setIsLoading(true);
     
     try {
-      // Get the first quote to use its client_token for the review URL
-      const firstQuoteId = selectedQuotes[0];
-      const { data: quoteData, error: quoteError } = await supabase
-        .from('quotes')
-        .select('client_token')
-        .eq('id', firstQuoteId)
+      // Create option review record
+      const { data: reviewData, error: reviewError } = await supabase
+        .from('option_reviews')
+        .insert({
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          client_id: clientId,
+          request_id: requestId,
+          quote_ids: selectedQuotes,
+          review_status: 'pending'
+        })
+        .select()
         .single();
 
-      if (quoteError) throw quoteError;
+      if (reviewError) throw reviewError;
 
-      // Generate email with review URL using the quote's client_token
-      const reviewUrl = `${window.location.origin}/view-option?token=${quoteData.client_token}`;
+      // Generate email with review URL
+      const reviewUrl = `${window.location.origin}/view-option/${reviewData.client_token}`;
       const emailHTML = await generateEmailHTML();
       const finalEmailHTML = emailHTML.replace('{REVIEW_URL}', reviewUrl);
 
@@ -456,7 +461,10 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
         }
       });
 
-      if (emailError) throw emailError;
+      if (emailError) {
+        console.error('Email sending error:', emailError);
+        throw new Error(emailError.message || 'Failed to send email');
+      }
 
       toast({
         title: "Email sent successfully!",

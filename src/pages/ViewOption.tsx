@@ -1,24 +1,25 @@
-import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Plane, Clock, Users } from "lucide-react";
-import ClientBookingForm from "@/components/ClientBookingForm";
-import { toastHelpers } from "@/utils/toastHelpers";
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { SharedItineraryCard } from '@/components/SharedItineraryCard';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plane, Share2, Mail, Phone } from 'lucide-react';
+import { toastHelpers } from '@/utils/toastHelpers';
 
 interface Quote {
   id: string;
   route: string;
-  total_price: number;
-  segments: any;
   fare_type: string;
-  status: string;
-  created_at: string;
-  notes?: string;
-  client_id: string;
+  total_price: number;
+  adults_count: number;
+  children_count: number;
+  infants_count: number;
+  segments: any[];
+  valid_until?: string;
+  client_token: string;
 }
 
 interface Client {
@@ -26,265 +27,275 @@ interface Client {
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string;
+  company?: string;
 }
 
-const ViewOption = () => {
-  const { optionId } = useParams();
-  const [searchParams] = useSearchParams();
-  const clientToken = searchParams.get('token');
-  
-  const [quote, setQuote] = useState<Quote | null>(null);
+interface OptionReview {
+  id: string;
+  client_token: string;
+  quote_ids: string[];
+  review_status: string;
+  created_at: string;
+}
+
+export default function ViewOption() {
+  const { token } = useParams<{ token: string }>();
+  const [optionReview, setOptionReview] = useState<OptionReview | null>(null);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [client, setClient] = useState<Client | null>(null);
-  const [optionHistory, setOptionHistory] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (optionId && clientToken) {
-      fetchOptionData();
+    if (token) {
+      fetchOptionReview();
     }
-  }, [optionId, clientToken]);
+  }, [token]);
 
-  const fetchOptionData = async () => {
+  const fetchOptionReview = async () => {
     try {
-      // Fetch the specific quote using the client token for secure access
-      const { data: quoteData, error: quoteError } = await supabase
-        .from('quotes')
+      setLoading(true);
+      
+      // Fetch option review
+      const { data: reviewData, error: reviewError } = await supabase
+        .from('option_reviews')
         .select('*')
-        .eq('id', optionId)
-        .eq('client_token', clientToken)
+        .eq('client_token', token)
         .single();
 
-      if (quoteError) throw quoteError;
-      setQuote(quoteData);
+      if (reviewError) {
+        console.error('Error fetching option review:', reviewError);
+        setError('Option not found or has expired');
+        return;
+      }
+
+      setOptionReview(reviewData);
+
+      // Fetch quotes
+      const { data: quotesData, error: quotesError } = await supabase
+        .from('quotes')
+        .select('*')
+        .in('id', reviewData.quote_ids);
+
+      if (quotesError) {
+        console.error('Error fetching quotes:', quotesError);
+        setError('Failed to load quotes');
+        return;
+      }
+
+      setQuotes((quotesData || []).map(quote => ({
+        ...quote,
+        segments: Array.isArray(quote.segments) ? quote.segments : []
+      })));
 
       // Fetch client data
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', quoteData.client_id)
-        .single();
+      if (quotesData && quotesData.length > 0) {
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', quotesData[0].client_id)
+          .single();
 
-      if (clientError) throw clientError;
-      setClient(clientData);
+        if (clientError) {
+          console.error('Error fetching client:', clientError);
+          setError('Failed to load client data');
+          return;
+        }
 
-      // Fetch option history for this client
-      const { data: historyData, error: historyError } = await supabase
-        .from('quotes')
-        .select('*')
-        .eq('client_id', quoteData.client_id)
-        .order('created_at', { ascending: false });
+        setClient(clientData);
+      }
 
-      if (historyError) throw historyError;
-      setOptionHistory(historyData || []);
-
-    } catch (error) {
-      console.error('Error fetching option data:', error);
-      toastHelpers.error('Failed to load option data', error);
+    } catch (err: any) {
+      console.error('Error:', err);
+      setError('Failed to load travel options');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
+  const handleBookNow = async (quoteId: string) => {
+    try {
+      // Store booking intent
+      const { error } = await supabase
+        .from('option_feedback')
+        .insert({
+          review_id: optionReview?.id,
+          quote_id: quoteId,
+          client_id: client?.id,
+          user_id: client?.id, // Temporary - should be agent user_id
+          feedback_type: 'booking_intent',
+          rating: 5,
+          comments: 'Client clicked Book Now'
+        });
+
+      if (error) {
+        console.error('Error recording booking intent:', error);
+      }
+
+      toastHelpers.success('Booking request received!', {
+        description: 'Our travel agent will contact you shortly to complete your booking.'
+      });
+
+    } catch (err) {
+      console.error('Error:', err);
+      toastHelpers.error('Something went wrong', 'Please contact us directly to proceed with booking.');
+    }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-500';
-      case 'pending': return 'bg-yellow-500';
-      case 'expired': return 'bg-red-500';
-      default: return 'bg-gray-500';
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Travel Options - ${quotes[0]?.route}`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        // User cancelled sharing
+      }
+    } else {
+      // Fallback to copying link
+      await navigator.clipboard.writeText(window.location.href);
+      toastHelpers.success('Link copied to clipboard!');
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 flex items-center justify-center">
+        <LoadingSpinner />
       </div>
     );
   }
 
-  if (!quote || !client) {
+  if (error || !optionReview || !client) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-2">Option Not Found</h3>
-              <p className="text-muted-foreground">
-                The requested travel option could not be found or may have expired.
-              </p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardHeader className="text-center">
+            <Plane className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <CardTitle className="text-xl">Travel Options Not Found</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-muted-foreground">
+              {error || 'The travel options you\'re looking for may have expired or been removed.'}
+            </p>
+            <Button onClick={() => window.history.back()}>
+              Go Back
+            </Button>
           </CardContent>
         </Card>
-      </div>
-    );
-  }
-
-  if (showBookingForm) {
-    return (
-      <div className="min-h-screen bg-background">
-        <ClientBookingForm 
-          quote={quote} 
-          client={client}
-          onBack={() => setShowBookingForm(false)}
-        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-4xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Travel Option Details</h1>
-          <p className="text-muted-foreground">
-            Hello {client.first_name}, here are your travel options
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
+      {/* Header */}
+      <div className="bg-background/95 backdrop-blur border-b sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                <Plane className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Select Business Class</h1>
+                <p className="text-sm text-muted-foreground">Your personalized travel options</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleShare}>
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Current Option */}
+      <div className="container mx-auto px-4 py-8">
+        {/* Client Info */}
         <Card className="mb-8">
           <CardHeader>
-            <div className="flex justify-between items-start">
+            <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-xl mb-2">Current Option</CardTitle>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span className="font-medium">{quote.route}</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-primary">
-                  {formatPrice(quote.total_price)}
-                </div>
-                <Badge className={getStatusColor(quote.status)}>
-                  {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {quote.segments && quote.segments.length > 0 && (
-              <div className="space-y-4">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Plane className="h-4 w-4" />
-                  Flight Details
-                </h4>
-                {quote.segments.map((segment: any, index: number) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">From</p>
-                        <p className="font-medium">{segment.origin}</p>
-                        <p className="text-sm">{segment.departure_time}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground">Flight</p>
-                        <p className="font-medium">{segment.airline} {segment.flight_number}</p>
-                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {segment.duration}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">To</p>
-                        <p className="font-medium">{segment.destination}</p>
-                        <p className="text-sm">{segment.arrival_time}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <Separator className="my-4" />
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Fare Type</p>
-                <p className="font-medium">{quote.fare_type}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Created</p>
-                <p className="font-medium">
-                  {new Date(quote.created_at).toLocaleDateString()}
+                <CardTitle className="text-lg">
+                  Dear {client.first_name} {client.last_name}
+                </CardTitle>
+                <p className="text-muted-foreground mt-1">
+                  Here are your personalized travel options. Please review and select your preferred option.
                 </p>
               </div>
-            </div>
-
-            {quote.notes && (
-              <div className="mt-4 p-4 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-2">Additional Notes</p>
-                <p className="text-sm">{quote.notes}</p>
+              <div className="text-right space-y-1">
+                {client.email && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    <span>{client.email}</span>
+                  </div>
+                )}
+                {client.phone && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    <span>{client.phone}</span>
+                  </div>
+                )}
               </div>
-            )}
-
-            <div className="mt-6 flex gap-4">
-              <Button 
-                size="lg" 
-                onClick={() => setShowBookingForm(true)}
-                className="flex-1"
-              >
-                Book This Option
-              </Button>
-              <Button variant="outline" size="lg">
-                Contact Agent
-              </Button>
             </div>
-          </CardContent>
+          </CardHeader>
         </Card>
 
-        {/* Option History */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Previous Options
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {optionHistory.length > 1 ? (
-              <div className="space-y-4">
-                {optionHistory
-                  .filter(option => option.id !== quote.id)
-                  .map((option) => (
-                    <div key={option.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{option.route}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(option.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold">{formatPrice(option.total_price)}</p>
-                          <Badge className={getStatusColor(option.status)}>
-                            {option.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No previous options available</p>
-              </div>
-            )}
+        {/* Travel Options */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Available Options</h2>
+            <Badge variant="secondary" className="text-sm">
+              {quotes.length} option{quotes.length !== 1 ? 's' : ''} available
+            </Badge>
+          </div>
+
+          {quotes.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Plane className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No travel options available</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6">
+              {quotes.map((quote, index) => (
+                <SharedItineraryCard
+                  key={quote.id}
+                  quote={quote}
+                  onBookNow={handleBookNow}
+                  className={index === 0 ? "ring-2 ring-primary/20" : ""}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Contact Information */}
+        <Card className="mt-8">
+          <CardContent className="text-center py-6">
+            <h3 className="font-semibold mb-2">Need Help?</h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              Our travel experts are here to assist you with your booking and answer any questions.
+            </p>
+            <div className="flex justify-center gap-4">
+              <Button variant="outline" size="sm">
+                <Mail className="h-4 w-4 mr-2" />
+                Email Us
+              </Button>
+              <Button variant="outline" size="sm">
+                <Phone className="h-4 w-4 mr-2" />
+                Call Us
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
     </div>
   );
-};
-
-export default ViewOption;
+}
