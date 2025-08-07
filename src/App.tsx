@@ -44,6 +44,8 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  console.log('🚀 App component rendering');
+  
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
@@ -51,7 +53,7 @@ function App() {
           <AuthProvider>
             <RoleViewProvider>
               <SecurityProvider>
-                <ErrorBoundary>
+                 <ErrorBoundary>
                 <Routes>
                   {/* Public routes */}
                   <Route path="/auth" element={<Auth />} />
