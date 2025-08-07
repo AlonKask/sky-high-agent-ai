@@ -1,46 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import LoadingProgress from './LoadingProgress';
-import ErrorDisplay from './ErrorDisplay';
-import { Plane, Clock, MapPin, DollarSign, CheckCircle, MessageSquare, Star, X, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toastHelpers, toast } from '@/utils/toastHelpers';
-import { SabreParser, type ParsedItinerary } from '@/utils/sabreParser';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, X, Send, Mail, Star, Clock, DollarSign, AlertCircle, RotateCcw } from 'lucide-react';
+import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
+import { SabreParser } from '@/utils/sabreParser';
 import { DatabaseUtils } from '@/utils/databaseUtils';
-import { EmailTemplateGenerator, type SabreOption } from '@/utils/emailTemplateGenerator';
-import { PerformanceMonitor } from '@/utils/performanceMonitor';
-import { ErrorHandler, ErrorType } from '@/utils/errorHandler';
-import { ValidationUtils } from '@/utils/validationUtils';
-import { logger } from '@/utils/logger';
+import { EmailTemplateGenerator, SabreOption } from '@/utils/emailTemplateGenerator';
 
 interface Quote {
   id: string;
+  user_id: string;
+  request_id: string;
+  client_id: string;
   route: string;
-  total_price: number;
   fare_type: string;
+  content?: string;
   segments: any[];
-  valid_until: string;
-  notes?: string;
   net_price: number;
   markup: number;
-  ck_fee_amount: number;
-  ck_fee_enabled: boolean;
-  sabre_data?: string;
-  parsedItinerary?: ParsedItinerary;
-  quote_type?: "award" | "revenue";
-  taxes?: number;
-  number_of_points?: number;
+  total_price: number;
+  adults_count: number;
+  children_count: number;
+  infants_count: number;
+  quote_type: string;
   award_program?: string;
+  number_of_points?: number;
+  taxes?: number;
+  notes?: string;
+  parsedItinerary?: any;
 }
 
 interface Client {
@@ -48,7 +44,6 @@ interface Client {
   first_name: string;
   last_name: string;
   email: string;
-  preferred_class?: string;
 }
 
 interface UnifiedEmailBuilderProps {
@@ -56,151 +51,108 @@ interface UnifiedEmailBuilderProps {
   requestId: string;
   quotes: Quote[];
   client: Client;
-  onSendEmail?: (emailData: any) => void;
+  onClose: () => void;
+  onEmailSent: () => void;
   onCancel?: () => void;
 }
 
-const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
-  clientId,
-  requestId,
-  quotes,
-  client,
-  onSendEmail,
-  onCancel
-}) => {
-  
+export default function UnifiedEmailBuilder({ 
+  clientId, 
+  requestId, 
+  quotes, 
+  client, 
+  onClose, 
+  onEmailSent 
+}: UnifiedEmailBuilderProps) {
   const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
-  const [emailSubject, setEmailSubject] = useState('Your Travel Options - Select Business Class');
+  const [emailSubject, setEmailSubject] = useState('Your Premium Travel Options Are Ready');
   const [personalMessage, setPersonalMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [processedQuotes, setProcessedQuotes] = useState<Quote[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
-  const [processingStatus, setProcessingStatus] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
 
-  // Process quotes with enhanced Sabre parser and comprehensive error handling
   useEffect(() => {
-    const processQuotes = async () => {
-      if (quotes.length === 0) return;
-      
-      setIsProcessing(true);
-      setProcessingProgress(0);
-      setProcessingStatus('Initializing quote processing...');
-      setErrors([]);
-      
-      logger.info("Starting quote processing with enhanced Sabre parser", { quoteCount: quotes.length });
-      
-      try {
-        const enhanced = await Promise.all(quotes.map(async (quote, index) => {
-          const enhanced = { ...quote };
-          
-          setProcessingProgress((index / quotes.length) * 50); // First 50% for parsing
-          setProcessingStatus(`Processing quote ${index + 1} of ${quotes.length}...`);
-          
-          if (quote.sabre_data) {
-            logger.info(`Processing Sabre data for quote ${quote.id}`);
+    if (quotes.length > 0) {
+      processQuotes();
+    }
+  }, [quotes]);
+
+  const processQuotes = async () => {
+    console.log("🔄 Starting quote processing for enhanced email generation");
+    setIsProcessing(true);
+    setProcessingProgress(0);
+    setErrors([]);
+    
+    try {
+      const processPromises = quotes.map(async (quote, index) => {
+        console.log(`📝 Processing quote ${index + 1}/${quotes.length}: ${quote.id}`);
+        
+        try {
+          if (quote.content && quote.content.trim()) {
+            // Detect format and parse accordingly
+            const format = EnhancedSabreParser.detectFormat(quote.content);
+            console.log(`🔍 Detected format for quote ${quote.id}: ${format}`);
             
-            try {
-              // Validate quote data first
-              const quoteValidation = ValidationUtils.validateQuoteData(quote);
-              if (!quoteValidation.isValid) {
-                throw ErrorHandler.createError(
-                  ErrorType.VALIDATION_ERROR,
-                  `Invalid quote data: ${quoteValidation.errors.join(', ')}`,
-                  { quoteId: quote.id, errors: quoteValidation.errors }
-                );
-              }
+            let parsedResult;
+            if (format === "VI") {
+              parsedResult = await EnhancedSabreParser.parseVIFormatWithDatabase(quote.content);
+            } else {
+              parsedResult = await EnhancedSabreParser.parseIFormatWithDatabase(quote.content);
+            }
+            
+            if (parsedResult && parsedResult.segments && parsedResult.segments.length > 0) {
+              console.log(`✅ Successfully parsed ${parsedResult.segments.length} segments for quote ${quote.id}`);
               
-              // Try enhanced parser with performance monitoring
-              const parsed = await PerformanceMonitor.measureAsync(
-                `parse-quote-${quote.id}`,
-                () => EnhancedSabreParser.parseIFormatWithDatabase(quote.sabre_data!)
-              );
+              // Save to database for future use
+              // Save to database for future use - will be implemented with full flight data
               
-              if (parsed) {
-                enhanced.parsedItinerary = parsed;
-                logger.info(`Enhanced parser success for quote ${quote.id}`, {
-                  segments: parsed.segments.length,
-                  route: parsed.route
-                });
-                
-                // Save to database with enhanced error handling
-                setProcessingProgress((index / quotes.length) * 50 + 25); // 75% total
-                setProcessingStatus(`Saving flight data for quote ${index + 1}...`);
-                
-                try {
-                  const userId = (await supabase.auth.getUser()).data.user?.id;
-                  if (userId && parsed.segments.length > 0) {
-                    await DatabaseUtils.saveFlightOption({
-                      user_id: userId,
-                      quote_id: quote.id,
-                      parsed_segments: parsed.segments,
-                      route_label: parsed.route,
-                      total_duration: parsed.totalSegments,
-                      raw_pnr_text: quote.sabre_data,
-                      currency: 'USD'
-                    });
-                    logger.info(`Saved flight option to database for quote ${quote.id}`);
-                  }
-                } catch (dbError) {
-                  logger.warn(`Could not save to database for quote ${quote.id}`, { error: dbError.message });
-                }
-              } else {
-                throw ErrorHandler.createError(
-                  ErrorType.PARSING_ERROR,
-                  'Enhanced parser returned null',
-                  { quoteId: quote.id }
-                );
-              }
-            } catch (enhancedError) {
-              logger.warn(`Enhanced parser failed for quote ${quote.id}, falling back`, { error: enhancedError.message });
-              setErrors(prev => [...prev, `Failed to process quote ${quote.id}: ${ErrorHandler.getUserMessage(enhancedError)}`]);
+              const updatedQuote = {
+                ...quote,
+                parsedItinerary: parsedResult
+              };
               
-              // Fallback to original parser
-              try {
-                const parsed = SabreParser.parseIFormat(quote.sabre_data!);
-                if (parsed) {
-                  enhanced.parsedItinerary = parsed;
-                  logger.info(`Fallback parser success for quote ${quote.id}`, {
-                    segments: parsed.segments.length,
-                    route: parsed.route
-                  });
-                } else {
-                  logger.error(`Both parsers failed for quote ${quote.id}`);
-                }
-              } catch (fallbackError) {
-                logger.error(`Fallback parser also failed for quote ${quote.id}`, { error: fallbackError.message });
-              }
+              setProcessingProgress(((index + 1) / quotes.length) * 100);
+              return updatedQuote;
+            } else {
+              console.warn(`⚠️ No segments found for quote ${quote.id}`);
+              setProcessingProgress(((index + 1) / quotes.length) * 100);
+              return quote;
             }
           } else {
-            logger.warn(`No Sabre data available for quote ${quote.id}`);
+            console.warn(`⚠️ No content to parse for quote ${quote.id}`);
+            setProcessingProgress(((index + 1) / quotes.length) * 100);
+            return quote;
           }
-          
-          return enhanced;
-        }));
-        
-        setProcessedQuotes(enhanced);
-        setSelectedQuotes(enhanced.map(q => q.id));
-        setProcessingProgress(100);
-        setProcessingStatus('Quote processing completed');
-        
-        logger.info("Completed quote processing", { 
-          totalQuotes: enhanced.length,
-          enhancedQuotes: enhanced.filter(q => q.parsedItinerary).length
-        });
-        
-      } catch (error) {
-        logger.error("Quote processing failed", { error: error.message });
-        setErrors(prev => [...prev, 'Failed to process quotes. Please try again.']);
-        await ErrorHandler.handleError(error, 'quote-processing');
-      } finally {
-        setIsProcessing(false);
+        } catch (error) {
+          const errorMsg = `Failed to process quote ${quote.id}: ${error.message}`;
+          console.error("❌", errorMsg);
+          setErrors(prev => [...prev, errorMsg]);
+          setProcessingProgress(((index + 1) / quotes.length) * 100);
+          return quote;
+        }
+      });
+      
+      const results = await Promise.all(processPromises);
+      setProcessedQuotes(results);
+      
+      // Auto-select first quote if none selected
+      if (selectedQuotes.length === 0 && results.length > 0) {
+        setSelectedQuotes([results[0].id]);
       }
-    };
-    
-    processQuotes();
-  }, [quotes]);
+      
+      console.log("✅ Quote processing completed");
+      
+    } catch (error) {
+      console.error("❌ Processing failed:", error);
+      setErrors(prev => [...prev, "Failed to process quotes for enhanced display"]);
+      setProcessedQuotes(quotes);
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(100);
+    }
+  };
 
   const retryProcessing = () => {
     setErrors([]);
@@ -319,406 +271,457 @@ const UnifiedEmailBuilder: React.FC<UnifiedEmailBuilderProps> = ({
     }
   };
 
-  const generateBasicEmailHTML = (selectedQuoteData: Quote[]): string => {
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Travel Options</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8fafc; }
-        .container { max-width: 600px; margin: 0 auto; background: white; }
-        .header { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 30px; text-align: center; }
-        .content { padding: 30px; }
-        .option-card { border: 1px solid #e5e7eb; border-radius: 12px; margin: 20px 0; overflow: hidden; }
-        .option-header { background: #f8fafc; padding: 15px; border-bottom: 1px solid #e5e7eb; }
-        .option-content { padding: 20px; }
-        .flight-row { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
-        .price-section { background: #f0f9ff; padding: 20px; border-radius: 8px; text-align: center; margin: 15px 0; }
-        .cta-button { display: inline-block; background: #1e40af; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 10px; }
-        .footer { background: #f8fafc; padding: 20px; text-align: center; color: #6b7280; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Your Travel Options</h1>
-            <p>Carefully selected for ${client.first_name} ${client.last_name}</p>
+  const generateBasicEmailHTML = (quotes: any[]): string => {
+    const quotesHtml = quotes.map((quote, index) => `
+      <div style="margin-bottom: 30px; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+              Option ${index + 1}
+            </span>
+            <h3 style="margin: 0; color: #1a202c; font-size: 20px;">${getOptionLabel(index)}</h3>
+          </div>
+          <div style="text-align: right;">
+            <div style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; padding: 12px 20px; border-radius: 25px; font-size: 18px; font-weight: 700; box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);">
+              ${formatPrice(quote.total_price)}
+            </div>
+            <div style="font-size: 12px; color: #718096; margin-top: 4px;">${quote.quote_type === 'award' ? 'Award Ticket' : 'Revenue Ticket'}</div>
+          </div>
         </div>
         
-        <div class="content">
-            ${personalMessage ? `<p style="color: #374151; line-height: 1.6; margin-bottom: 30px;">${personalMessage}</p>` : ''}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div style="background: rgba(102, 126, 234, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;">
+            <div style="font-size: 12px; color: #667eea; font-weight: 600; text-transform: uppercase; margin-bottom: 5px;">Route</div>
+            <div style="font-size: 16px; color: #1a202c; font-weight: 600;">${quote.route}</div>
+          </div>
+          <div style="background: rgba(72, 187, 120, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #48bb78;">
+            <div style="font-size: 12px; color: #48bb78; font-weight: 600; text-transform: uppercase; margin-bottom: 5px;">Fare Type</div>
+            <div style="font-size: 16px; color: #1a202c; font-weight: 600;">${quote.fare_type || 'Flexible'}</div>
+          </div>
+        </div>
+
+        <div style="background: #f7fafc; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+            <div style="text-align: center;">
+              <div style="font-size: 24px; margin-bottom: 5px;">⏱️</div>
+              <div style="font-size: 12px; color: #718096; font-weight: 600; text-transform: uppercase;">Duration</div>
+              <div style="font-size: 14px; color: #1a202c; font-weight: 600;">${formatDuration(quote.segments)}</div>
+            </div>
+            <div style="text-align: center;">
+              <div style="font-size: 24px; margin-bottom: 5px;">👥</div>
+              <div style="font-size: 12px; color: #718096; font-weight: 600; text-transform: uppercase;">Passengers</div>
+              <div style="font-size: 14px; color: #1a202c; font-weight: 600;">${quote.adults_count || 1} Adult${(quote.adults_count || 1) > 1 ? 's' : ''}${quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}${quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
+            </div>
+            <div style="text-align: center;">
+              <div style="font-size: 24px; margin-bottom: 5px;">✈️</div>
+              <div style="font-size: 12px; color: #718096; font-weight: 600; text-transform: uppercase;">Class</div>
+              <div style="font-size: 14px; color: #1a202c; font-weight: 600;">Business</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%); padding: 20px; border-radius: 10px; border-left: 4px solid #38b2ac;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <span style="font-size: 20px;">🎯</span>
+            <h4 style="margin: 0; color: #234e52; font-size: 16px;">Ready to Book This Option?</h4>
+          </div>
+          <p style="margin: 0; color: #234e52; font-size: 14px; line-height: 1.5;">Complete flight details with departure times, aircraft types, and connection information will be provided upon selection. Click the link below to proceed with booking.</p>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your Premium Flight Options</title>
+        <style>
+          @media only screen and (max-width: 600px) {
+            .email-container { padding: 10px !important; }
+            .quote-card { padding: 15px !important; }
+            .grid-2 { grid-template-columns: 1fr !important; }
+            .price-display { font-size: 16px !important; padding: 8px 16px !important; }
+          }
+        </style>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #333; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px;">
+        <div class="email-container" style="max-width: 700px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 50px 40px; text-align: center; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: -50px; right: -50px; width: 100px; height: 100px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; opacity: 0.5;"></div>
+              <div style="position: absolute; bottom: -30px; left: -30px; width: 60px; height: 60px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; opacity: 0.3;"></div>
+              <div style="font-size: 48px; margin-bottom: 15px;">✈️</div>
+              <h1 style="margin: 0 0 15px 0; font-size: 32px; font-weight: 700; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">Your Premium Flight Options</h1>
+              <p style="margin: 0; font-size: 18px; opacity: 0.95; font-weight: 300;">Dear ${client?.first_name || 'Valued Client'}, we've curated these exceptional travel options just for you</p>
+            </div>
             
-            ${selectedQuoteData.map((quote, index) => `
-                <div class="option-card">
-                    <div class="option-header">
-                        <h3 style="margin: 0; color: #1f2937; display: flex; align-items: center; gap: 8px;">
-                            ${getOptionLabel(index)}
-                            <span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${quote.fare_type}</span>
-                        </h3>
+            <!-- Content -->
+            <div style="padding: 50px 40px;">
+                <!-- Welcome Message -->
+                <div style="text-align: center; margin-bottom: 40px;">
+                  <h2 style="margin: 0 0 15px 0; color: #1a202c; font-size: 24px; font-weight: 600;">Handpicked Travel Solutions</h2>
+                  <p style="margin: 0; color: #718096; font-size: 16px; line-height: 1.6;">Each option has been carefully selected to match your preferences and deliver exceptional value.</p>
+                </div>
+
+                <!-- Flight Options -->
+                ${quotesHtml}
+                
+                <!-- Call to Action -->
+                <div style="margin-top: 40px; padding: 30px; background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%); border-radius: 12px; border-left: 4px solid #38b2ac; text-align: center;">
+                    <div style="font-size: 32px; margin-bottom: 15px;">🎯</div>
+                    <h3 style="margin: 0 0 15px 0; color: #234e52; font-size: 20px; font-weight: 600;">Ready to Secure Your Journey?</h3>
+                    <p style="margin: 0 0 20px 0; color: #234e52; font-size: 16px; line-height: 1.6;">Our travel specialists are standing by to finalize your booking and provide complete flight details including seat selections, meal preferences, and special accommodations.</p>
+                    <div style="display: inline-block; background: linear-gradient(135deg, #38b2ac 0%, #319795 100%); color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(56, 178, 172, 0.3); margin: 10px;">
+                      📞 Call Now: +1 (555) 123-4567
                     </div>
-                    <div class="option-content">
-                        <div style="color: #6b7280; margin-bottom: 15px;">${quote.route}</div>
-                        
-                        ${quote.parsedItinerary ? `
-                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 15px; margin: 15px 0;">
-                                <h4 style="color: #166534; margin: 0 0 10px 0;">✈️ Flight Details</h4>
-                                <div style="color: #15803d;">
-                                    <strong>Route:</strong> ${quote.parsedItinerary.route}<br>
-                                    <strong>Segments:</strong> ${quote.parsedItinerary.totalSegments} flights<br>
-                                    ${quote.parsedItinerary.totalDuration ? `<strong>Duration:</strong> ${quote.parsedItinerary.totalDuration}` : ''}
-                                </div>
-                            </div>
-                        ` : (quote.segments && quote.segments.length > 0) ? quote.segments.map(segment => `
-                            <div class="flight-row">
-                                <div>
-                                    <div style="font-weight: 600; color: #1f2937;">${segment.departureAirport || 'TBD'} → ${segment.arrivalAirport || 'TBD'}</div>
-                                    <div style="color: #6b7280; font-size: 14px;">${segment.flightNumber || 'TBD'} • ${segment.aircraftType || segment.aircraft || 'Aircraft TBD'}</div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-weight: 500;">${segment.departureTime || 'TBD'} - ${segment.arrivalTime || 'TBD'}</div>
-                                    <div style="color: #6b7280; font-size: 14px;">${segment.duration || formatDuration([segment])}</div>
-                                </div>
-                            </div>
-                        `).join('') : '<div style="color: #6b7280; font-style: italic;">Flight details being processed...</div>'}
-                        
-                        <div class="price-section">
-                            <div style="font-size: 24px; font-weight: bold; color: #1e40af; margin-bottom: 8px;">
-                                ${formatPrice(quote.total_price)}
-                            </div>
-                            <div style="color: #6b7280; font-size: 14px;">Per person, including taxes & fees</div>
-                        </div>
-                        
-                        <div style="text-align: center; margin-top: 20px;">
-                            <a href="{REVIEW_URL}" class="cta-button">Review Option</a>
-                        </div>
+                    <div style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); margin: 10px;">
+                      📧 Reply to This Email
                     </div>
                 </div>
-            `).join('')}
-            
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 30px 0;">
-                <h4 style="color: #166534; margin: 0 0 10px 0;">Need to discuss your options?</h4>
-                <p style="color: #15803d; margin: 0; line-height: 1.5;">
-                    I'm here to help you make the best choice. Click "Review Option" above to compare all options, 
-                    chat with me directly, and provide feedback on each option.
-                </p>
+                
+                <!-- Footer -->
+                <div style="margin-top: 40px; text-align: center; padding-top: 30px; border-top: 1px solid #e2e8f0;">
+                    <div style="font-size: 24px; margin-bottom: 10px;">🌟</div>
+                    <h4 style="margin: 0 0 10px 0; color: #1a202c; font-size: 18px; font-weight: 600;">Why Choose Our Service?</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin: 20px 0;">
+                      <div style="text-align: center;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">🔒</div>
+                        <div style="font-size: 14px; color: #718096; font-weight: 600;">Secure Booking</div>
+                      </div>
+                      <div style="text-align: center;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">💼</div>
+                        <div style="font-size: 14px; color: #718096; font-weight: 600;">Business Class Experts</div>
+                      </div>
+                      <div style="text-align: center;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">🎯</div>
+                        <div style="font-size: 14px; color: #718096; font-weight: 600;">Best Price Guarantee</div>
+                      </div>
+                      <div style="text-align: center;">
+                        <div style="font-size: 20px; margin-bottom: 5px;">📞</div>
+                        <div style="font-size: 14px; color: #718096; font-weight: 600;">24/7 Support</div>
+                      </div>
+                    </div>
+                    <p style="margin: 20px 0 0 0; color: #718096; font-size: 14px;">Thank you for choosing our premium travel services. We look forward to making your journey exceptional!</p>
+                </div>
             </div>
         </div>
-        
-        <div class="footer">
-            <p>Best regards,<br>Your Travel Agent</p>
-            <p style="font-size: 12px;">This quote is valid until ${selectedQuoteData[0]?.valid_until ? new Date(selectedQuoteData[0].valid_until).toLocaleDateString() : 'the end of the week'}</p>
-        </div>
-    </div>
-</body>
-</html>`;
+    </body>
+    </html>
+    `;
   };
 
   const handleSendEmail = async () => {
     if (selectedQuotes.length === 0) {
       toast({
-        title: "No options selected",
-        description: "Please select at least one travel option to send.",
-        variant: "destructive"
+        title: "No quotes selected",
+        description: "Please select at least one quote to send.",
+        variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
-    
     try {
-      // Create option review record
-      const { data: reviewData, error: reviewError } = await supabase
+      console.log("📧 Initiating email send process");
+      
+      // Generate unique token for the review
+      const clientToken = crypto.randomUUID();
+      
+      // Create option review record with the token
+      const { data: optionReview, error: reviewError } = await supabase
         .from('option_reviews')
         .insert({
-          user_id: (await supabase.auth.getUser()).data.user?.id,
           client_id: clientId,
           request_id: requestId,
+          user_id: (await supabase.auth.getUser()).data.user?.id,
           quote_ids: selectedQuotes,
-          review_status: 'pending'
+          metadata: {
+            email_subject: emailSubject,
+            personal_message: personalMessage
+          },
+          client_token: clientToken
         })
         .select()
         .single();
 
-      if (reviewError) throw reviewError;
+      if (reviewError) {
+        console.error("❌ Failed to create option review:", reviewError);
+        throw new Error("Failed to create option review");
+      }
 
-      // Generate email with review URL
-      const reviewUrl = `${window.location.origin}/view-option/${reviewData.client_token}`;
+      console.log("✅ Option review created:", optionReview.id);
+
+      // Generate the final email HTML with review URL
       const emailHTML = await generateEmailHTML();
-      const finalEmailHTML = emailHTML.replace('{REVIEW_URL}', reviewUrl);
+      const reviewUrl = `${window.location.origin}/view-option/${clientToken}`;
+      
+      const finalEmailHTML = emailHTML.replace(
+        /#book-[^"]+/g, 
+        reviewUrl
+      ).replace(
+        /Click the link below to proceed with booking/g,
+        `<a href="${reviewUrl}" style="color: #38b2ac; text-decoration: none; font-weight: 600;">Click here to review and book your preferred option</a>`
+      );
 
-      // Send email via edge function
-      const { error: emailError } = await supabase.functions.invoke('send-email', {
+      // Send email using Supabase function
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
-          to: [client.email],
+          to: client.email,
           subject: emailSubject,
           body: finalEmailHTML,
-          clientId,
-          requestId,
-          emailType: 'quote'
+          metadata: {
+            type: 'flight_options',
+            client_id: clientId,
+            request_id: requestId,
+            quote_ids: selectedQuotes,
+            review_id: optionReview.id,
+            personal_message: personalMessage
+          }
         }
       });
 
       if (emailError) {
-        console.error('Email sending error:', emailError);
-        throw new Error(emailError.message || 'Failed to send email');
+        console.error("❌ Email sending failed:", emailError);
+        throw new Error("Failed to send email");
       }
+
+      console.log("✅ Email sent successfully:", emailResult);
 
       toast({
         title: "Email sent successfully!",
-        description: `Travel options sent to ${client.email} with review portal access.`
+        description: `Flight options sent to ${client.first_name} at ${client.email}`,
       });
 
-      onSendEmail?.({ quotesSelected: selectedQuotes.length, reviewUrl });
-    } catch (error: any) {
-      console.error('Error sending email:', error);
-      
-      // More detailed error handling
-      let errorMessage = "Please try again.";
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.details) {
-        errorMessage = error.details;
-      } else if (error.error) {
-        errorMessage = typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
-      }
-
-      toastHelpers.error("Failed to send email", error, {
-        description: `Error details: ${errorMessage}`,
-        duration: 8000
+      onEmailSent();
+      onClose();
+    } catch (error) {
+      console.error("❌ Send email error:", error);
+      toast({
+        title: "Failed to send email",
+        description: error.message || "There was an error sending the email. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Add ESC key handler
+  // Email preview content - now uses the same function as sending
+  const [previewHtml, setPreviewHtml] = useState('<div style="padding: 40px; text-align: center; color: #666;">Select quotes to preview your email</div>');
+  
+  useEffect(() => {
+    const updatePreview = async () => {
+      if (selectedQuotes.length === 0) {
+        setPreviewHtml('<div style="padding: 40px; text-align: center; color: #666;">Select quotes to preview your email</div>');
+        return;
+      }
+      
+      try {
+        const html = await generateEmailHTML();
+        setPreviewHtml(html);
+      } catch (error) {
+        console.error('Preview generation error:', error);
+        const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
+        setPreviewHtml(generateBasicEmailHTML(selectedQuoteData));
+      }
+    };
+    updatePreview();
+  }, [selectedQuotes, processedQuotes]);
+
+  // Handle ESC key to close
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onCancel?.();
+        onClose();
       }
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
-  }, [onCancel]);
+  }, [onClose]);
+
+  const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
+  const totalPrice = selectedQuoteData.reduce((sum, quote) => sum + quote.total_price, 0);
 
   return (
-    <div className="flex flex-col h-full max-h-[85vh]">
-      {/* Sticky Header with Close Button */}
-      <div className="flex items-center justify-between p-4 border-b bg-background">
-        <div>
-          <h2 className="text-lg font-semibold">Select Travel Options</h2>
-          <p className="text-sm text-muted-foreground">
-            {selectedQuotes.length} of {quotes.length} options selected
-          </p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-background rounded-lg shadow-xl w-full max-w-7xl h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-background z-10">
+          <div>
+            <h2 className="text-2xl font-semibold">Send Flight Options to {client.first_name}</h2>
+            <p className="text-muted-foreground">Client: {client.email}</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={onCancel}
-          className="h-8 w-8 rounded-full"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full p-6">
+        {/* Processing Status */}
+        {isProcessing && (
+          <div className="p-4 border-b bg-muted/50">
+            <div className="flex items-center gap-3 mb-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">Processing flight data for enhanced email generation...</span>
+            </div>
+            <Progress value={processingProgress} className="w-full" />
+          </div>
+        )}
+
+        {/* Error Display */}
+        {errors.length > 0 && (
+          <div className="p-4 border-b">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  {errors.map((error, index) => (
+                    <div key={index}>{error}</div>
+                  ))}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={retryProcessing}
+                  className="mt-2"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Retry Processing
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1 flex min-h-0">
           {/* Left Panel - Email Composition */}
-          <div className="space-y-6">
-            {/* Loading Progress */}
-            {isProcessing && (
-              <LoadingProgress 
-                progress={processingProgress}
-                status={processingStatus}
-                showSteps={true}
-              />
-            )}
-            
-            {/* Error Display */}
-            {errors.length > 0 && (
-              <ErrorDisplay 
-                errors={errors}
-                onRetry={retryProcessing}
-                onDismiss={() => setErrors([])}
-                showDetails={true}
-              />
-            )}
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Composition</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          <div className="w-1/2 border-r flex flex-col">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold mb-4">Compose Email</h3>
+              
+              <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Subject Line</label>
+                  <label className="text-sm font-medium mb-2 block">Email Subject</label>
                   <Input
                     value={emailSubject}
                     onChange={(e) => setEmailSubject(e.target.value)}
-                    placeholder="Enter email subject"
+                    placeholder="Email subject"
                   />
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium">Personal Message (Optional)</label>
+                  <label className="text-sm font-medium mb-2 block">Personal Message (Optional)</label>
                   <Textarea
                     value={personalMessage}
                     onChange={(e) => setPersonalMessage(e.target.value)}
-                    placeholder="Add a personal touch to your email..."
+                    placeholder="Add a personal message for your client..."
                     rows={3}
                   />
                 </div>
+              </div>
+            </div>
 
-                <Separator />
-
-                <div className="flex items-center justify-between text-sm">
-                  <div>
-                    <div className="font-medium">Recipient: {client.email}</div>
-                    <div className="text-muted-foreground">
-                      {selectedQuotes.length} option(s) selected
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plane className="h-5 w-5" />
-                  Flight Options
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[300px] pr-4">
-                  <div className="space-y-4">
-                    {processedQuotes.map((quote, index) => (
-                      <Card 
-                        key={quote.id} 
-                        className={`cursor-pointer transition-all ${
-                          selectedQuotes.includes(quote.id) 
-                            ? 'ring-2 ring-primary bg-primary/5' 
-                            : 'hover:bg-muted/50'
-                        }`}
-                        onClick={() => {
-                          setSelectedQuotes(prev => 
-                            prev.includes(quote.id)
-                              ? prev.filter(id => id !== quote.id)
-                              : [...prev, quote.id]
-                          );
-                        }}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              {getOptionIcon(index)}
-                              <h4 className="font-semibold">{getOptionLabel(index)}</h4>
-                              <Badge variant="secondary">{quote.fare_type}</Badge>
-                            </div>
-                            {selectedQuotes.includes(quote.id) && (
-                              <CheckCircle className="h-5 w-5 text-primary" />
-                            )}
+            {/* Quote Selection */}
+            <div className="flex-1 overflow-auto p-6">
+              <h4 className="text-lg font-semibold mb-4">Select Flight Options ({processedQuotes.length} available)</h4>
+              
+              <div className="space-y-3">
+                {processedQuotes.map((quote, index) => (
+                  <Card key={quote.id} className={`cursor-pointer transition-all ${selectedQuotes.includes(quote.id) ? 'ring-2 ring-primary' : ''}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          checked={selectedQuotes.includes(quote.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedQuotes([...selectedQuotes, quote.id]);
+                            } else {
+                              setSelectedQuotes(selectedQuotes.filter(id => id !== quote.id));
+                            }
+                          }}
+                        />
+                        <div className="flex items-center gap-2">
+                          {getOptionIcon(index)}
+                          <CardTitle className="text-base">{getOptionLabel(index)}</CardTitle>
+                          <Badge variant="secondary" className="ml-auto">
+                            {formatPrice(quote.total_price)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div><strong>Route:</strong> {quote.route}</div>
+                        <div><strong>Type:</strong> {quote.fare_type}</div>
+                        <div><strong>Passengers:</strong> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
+                        {quote.parsedItinerary?.segments?.length > 0 && (
+                          <div className="text-green-600 text-xs mt-2 flex items-center gap-1">
+                            <span>✅</span>
+                            Enhanced with {quote.parsedItinerary.segments.length} flight segments
                           </div>
-                          
-                          <div className="text-sm text-muted-foreground mb-2">
-                            {quote.parsedItinerary ? quote.parsedItinerary.route : quote.route}
-                          </div>
-                          
-                          {quote.parsedItinerary && (
-                            <div className="text-xs text-green-600 mb-2 bg-green-50 px-2 py-1 rounded">
-                              ✅ {quote.parsedItinerary.totalSegments} segments parsed
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="text-2xl font-bold text-primary">
-                              {formatPrice(quote.total_price)}
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">
-                                {quote.parsedItinerary ? 'Total Duration' : 'Duration'}
-                              </div>
-                              <div className="text-sm font-medium">
-                                {quote.parsedItinerary?.totalDuration || formatDuration(quote.segments)}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Right Panel - Email Preview */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Preview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                 <div className="bg-muted/30 rounded-lg p-4 h-[600px] overflow-auto">
-                   <SafeHtmlRenderer 
-                     html={generateBasicEmailHTML(processedQuotes.filter(q => selectedQuotes.includes(q.id))).replace('{REVIEW_URL}', '#review-portal')}
-                     className="bg-white rounded border min-h-full"
-                     type="email"
-                   />
-                 </div>
-              </CardContent>
-            </Card>
+          <div className="w-1/2 flex flex-col">
+            <div className="p-6 border-b bg-muted/50">
+              <h3 className="text-lg font-semibold">Email Preview</h3>
+              <p className="text-sm text-muted-foreground">This is how your email will appear to the client</p>
+            </div>
+            
+            <div className="flex-1 overflow-auto bg-gray-50">
+              <SafeHtmlRenderer html={previewHtml} className="prose max-w-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t p-6 bg-background sticky bottom-0">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {selectedQuotes.length > 0 ? (
+                <>
+                  {selectedQuotes.length} option{selectedQuotes.length > 1 ? 's' : ''} selected • 
+                  Total value: {formatPrice(totalPrice)}
+                </>
+              ) : (
+                'No options selected'
+              )}
+            </div>
+            
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSendEmail} 
+                disabled={isLoading || selectedQuotes.length === 0}
+                className="min-w-[120px]"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send Email
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-
-    {/* Sticky Bottom Action Bar */}
-    <div className="border-t bg-background p-4">
-      <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <Badge variant={selectedQuotes.length > 0 ? "default" : "secondary"}>
-            {selectedQuotes.length} option{selectedQuotes.length !== 1 ? 's' : ''} selected
-          </Badge>
-          {selectedQuotes.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedQuotes([])}
-            >
-              Clear Selection
-            </Button>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSendEmail}
-            disabled={isLoading || selectedQuotes.length === 0}
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Send Options ({selectedQuotes.length})
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
-    
     </div>
   );
-};
-
-export default UnifiedEmailBuilder;
+}
