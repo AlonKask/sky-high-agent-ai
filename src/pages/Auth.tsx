@@ -15,18 +15,11 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log('🔑 Auth page mounted');
     // Check if user is already logged in
     const checkUser = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('🔑 Auth check session:', session?.user?.id, error);
-        if (session) {
-          console.log('🔑 User already authenticated, redirecting to /');
-          navigate("/", { replace: true });
-        }
-      } catch (err) {
-        console.error('🔑 Error checking session:', err);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/", { replace: true });
       }
     };
     checkUser();
@@ -43,7 +36,6 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    console.log('🔑 Attempting sign in for:', email);
 
     try {
       // Clean up auth state before signing in
@@ -53,8 +45,6 @@ const Auth = () => {
         email,
         password,
       });
-      
-      console.log('🔑 Sign in response:', data?.user?.id, error);
 
       if (error) {
         let errorMessage = error.message;

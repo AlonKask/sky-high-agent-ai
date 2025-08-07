@@ -54,9 +54,6 @@ export interface EmailVariables {
   PRICING_FARE_TYPE?: string;
   PRICING_CK_FEES?: string;
 
-  // Airline Information
-  AIRLINE_LOGO: string;
-
   // Company Information
   COMPANY_NAME: string;
   COMPANY_PHONE: string;
@@ -165,21 +162,6 @@ export class EmailVariableParser {
         'LX': 'Swiss International Air Lines'
       };
       return airlineMap[code] || code;
-    }
-  }
-
-  private static async getAirlineLogo(code: string): Promise<string> {
-    try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data } = await supabase
-        .from('airline_codes')
-        .select('logo_url')
-        .eq('iata_code', code)
-        .single();
-      
-      return data?.logo_url || '';
-    } catch {
-      return '';
     }
   }
 
@@ -326,8 +308,6 @@ export class EmailVariableParser {
       PRICING_FARE_TYPE: quote.fare_type || 'TBD',
       PRICING_CK_FEES: quote.ck_fee_enabled ? `$${quote.ck_fee_amount || 0}` : '$0',
       
-      AIRLINE_LOGO: '',
-      
       COMPANY_NAME: 'SBC Travel Solutions',
       COMPANY_PHONE: '+1 (555) 123-4567',
       COMPANY_EMAIL: 'bookings@sbctravelsolutions.com',
@@ -353,7 +333,6 @@ export class EmailVariableParser {
         const lastOutbound = outboundSegments[outboundSegments.length - 1];
         
         defaultVariables.FLIGHT_OUTBOUND_AIRLINE = await this.getAirlineName(firstOutbound.airlineCode);
-        defaultVariables.AIRLINE_LOGO = await this.getAirlineLogo(firstOutbound.airlineCode);
         defaultVariables.FLIGHT_OUTBOUND_NUMBER = firstOutbound.flightNumber;
         defaultVariables.FLIGHT_OUTBOUND_DATE = this.formatDate(firstOutbound.flightDate);
         defaultVariables.FLIGHT_OUTBOUND_DEPARTURE_TIME = this.formatTime(firstOutbound.departureTime);
@@ -475,7 +454,6 @@ export class EmailVariableParser {
       'PRICING_CURRENCY',
       'PRICING_FARE_TYPE',
       'PRICING_CK_FEES',
-      'AIRLINE_LOGO',
       'COMPANY_NAME',
       'COMPANY_PHONE',
       'COMPANY_EMAIL',

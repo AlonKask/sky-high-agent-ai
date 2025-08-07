@@ -2392,17 +2392,6 @@ export type Database = {
           updated_at: string
         }[]
       }
-      get_airline_with_logo: {
-        Args: { p_iata_code: string }
-        Returns: {
-          id: string
-          iata_code: string
-          name: string
-          logo_url: string
-          country: string
-          alliance: string
-        }[]
-      }
       get_cities_with_airports: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2536,10 +2525,6 @@ export type Database = {
           updated_at: string
           total_count: number
         }[]
-      }
-      update_airline_logo: {
-        Args: { p_airline_id: string; p_logo_url: string }
-        Returns: undefined
       }
       update_client_memory: {
         Args: {

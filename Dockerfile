@@ -6,14 +6,13 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install ALL dependencies (including dev deps needed for build)
-RUN npm ci
+# Install dependencies
+RUN npm ci --only=production
 
-# Copy source code and production environment
+# Copy source code
 COPY . .
 
-# Set production environment and build
-ENV NODE_ENV=production
+# Build the application
 RUN npm run build
 
 # Production stage

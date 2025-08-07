@@ -23,13 +23,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('🚨 ErrorBoundary caught an error:', error, errorInfo);
-    
-    // Log additional context for debugging
-    console.error('🚨 Error stack:', error.stack);
-    console.error('🚨 Component stack:', errorInfo.componentStack);
-    console.error('🚨 Current URL:', window.location.href);
-    console.error('🚨 User agent:', navigator.userAgent);
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   private handleReset = () => {

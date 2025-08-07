@@ -194,17 +194,6 @@ export class SabreParser {
     }
   }
   
-  // Import the enhanced segment calculation
-  static calculateSegmentsFromFlights = (() => {
-    const SabreSegmentCalculator = require('./sabreParserEnhanced').SabreSegmentCalculator;
-    return SabreSegmentCalculator.calculateSegmentsFromFlights.bind(SabreSegmentCalculator);
-  })();
-
-  static generateRouteFromSegments = (() => {
-    const SabreSegmentCalculator = require('./sabreParserEnhanced').SabreSegmentCalculator;
-    return SabreSegmentCalculator.generateRouteFromSegments.bind(SabreSegmentCalculator);
-  })();
-
   private static generateRouteEnhanced(segments: FlightSegment[]): string {
     if (segments.length === 0) return "Unknown Route";
     

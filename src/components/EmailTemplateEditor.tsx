@@ -662,7 +662,6 @@ export function EmailTemplateEditor({
     PRICING_MARKUP: '$0',
     PRICING_TOTAL_PRICE: 'TBD',
     PRICING_CURRENCY: 'USD',
-    AIRLINE_LOGO: '',
     COMPANY_NAME: 'SBC Travel Solutions',
     COMPANY_PHONE: '+1 (555) 123-4567',
     COMPANY_EMAIL: 'bookings@sbctravelsolutions.com',
