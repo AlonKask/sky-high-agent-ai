@@ -2441,6 +2441,24 @@ export type Database = {
           total_count: number
         }[]
       }
+      search_airports_grouped: {
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Returns: {
+          id: string
+          iata_code: string
+          icao_code: string
+          name: string
+          city: string
+          country: string
+          latitude: number
+          longitude: number
+          timezone: string
+          priority: number
+          created_at: string
+          city_airport_count: number
+          total_count: number
+        }[]
+      }
       search_booking_classes: {
         Args: { search_term: string; page_limit?: number; page_offset?: number }
         Returns: {

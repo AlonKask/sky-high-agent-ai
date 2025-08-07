@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Edit, Trash2, ChevronDown, Download, AlertCircle } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, Download, AlertCircle, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 import { useAirlines, useAirlineMutations, type Airline } from "@/hooks/useIATAData";
 import { InlineRBDManagement } from "./InlineRBDManagement";
+import RBDCopyDialog from "./RBDCopyDialog";
 
 interface AirlineManagementProps {
   searchTerm: string;
@@ -23,6 +24,8 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
   const [expandedAirlines, setExpandedAirlines] = useState<Set<string>>(new Set());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAirline, setEditingAirline] = useState<Airline | null>(null);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [selectedAirlineForCopy, setSelectedAirlineForCopy] = useState<Airline | null>(null);
   const [formData, setFormData] = useState({
     iata_code: "",
     icao_code: "",
@@ -355,6 +358,18 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  setSelectedAirlineForCopy(airline);
+                                  setCopyDialogOpen(true);
+                                }}
+                                title="Copy RBDs to other airlines"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   handleDelete(airline.id);
                                 }}
                                 title="Delete Airline"
@@ -385,6 +400,14 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
         </div>
       </CardContent>
 
+      {/* RBD Copy Dialog */}
+      {selectedAirlineForCopy && (
+        <RBDCopyDialog
+          open={copyDialogOpen}
+          onOpenChange={setCopyDialogOpen}
+          sourceAirline={selectedAirlineForCopy}
+        />
+      )}
     </Card>
   );
 }

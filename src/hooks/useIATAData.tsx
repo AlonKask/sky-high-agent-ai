@@ -15,7 +15,9 @@ export interface Airport {
   latitude?: number;
   longitude?: number;
   timezone?: string;
+  priority?: number;
   created_at?: string;
+  city_airport_count?: number;
 }
 
 export interface Airline {
@@ -412,7 +414,67 @@ export const useAirlineRBDMutations = () => {
     },
   });
 
-  return { createRBD, updateRBD, deleteRBD };
+  const copyRBDs = useMutation({
+    mutationFn: async ({ sourceAirlineId, targetAirlineIds, overwriteExisting = false }: {
+      sourceAirlineId: string;
+      targetAirlineIds: string[];
+      overwriteExisting?: boolean;
+    }) => {
+      // First, get the source airline RBDs
+      const { data: sourceRBDs, error: sourceError } = await supabase.rpc('get_airline_rbds', {
+        airline_uuid: sourceAirlineId
+      });
+      if (sourceError) throw sourceError;
+
+      const results = [];
+      for (const targetId of targetAirlineIds) {
+        // If overwrite is enabled, delete existing RBDs first
+        if (overwriteExisting) {
+          await supabase
+            .from('airline_rbd_assignments')
+            .delete()
+            .eq('airline_id', targetId);
+        }
+
+        // Copy RBDs to target airline
+        const rbdsToInsert = sourceRBDs.map((rbd: any) => ({
+          airline_id: targetId,
+          booking_class_code: rbd.booking_class_code,
+          service_class: rbd.service_class,
+          class_description: rbd.class_description,
+          booking_priority: rbd.booking_priority,
+          is_active: rbd.is_active,
+          effective_from: rbd.effective_from,
+          effective_until: rbd.effective_until
+        }));
+
+        const { data, error } = await supabase
+          .from('airline_rbd_assignments')
+          .insert(rbdsToInsert)
+          .select();
+        
+        if (error) throw error;
+        results.push({ targetId, inserted: data?.length || 0 });
+      }
+      
+      return results;
+    },
+    onSuccess: (results) => {
+      // Invalidate queries for all affected airlines
+      results.forEach(({ targetId }) => {
+        queryClient.invalidateQueries({ queryKey: ['airline-rbds', targetId] });
+      });
+      queryClient.invalidateQueries({ queryKey: ['airlines'] });
+      
+      const totalCopied = results.reduce((sum, r) => sum + r.inserted, 0);
+      toast.success(`Successfully copied RBDs to ${results.length} airline(s). ${totalCopied} RBDs copied.`);
+    },
+    onError: (error) => {
+      toast.error(`Failed to copy RBDs: ${error.message}`);
+    },
+  });
+
+  return { createRBD, updateRBD, deleteRBD, copyRBDs };
 };
 
 // Debounced search hook
