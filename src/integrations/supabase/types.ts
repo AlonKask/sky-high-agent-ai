@@ -2436,6 +2436,7 @@ export type Database = {
           latitude: number
           longitude: number
           timezone: string
+          priority: number
           created_at: string
           total_count: number
         }[]
