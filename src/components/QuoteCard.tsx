@@ -93,8 +93,26 @@ export function QuoteCard({
   // Extract route info for collapsed view
   const routeParts = quote.route.split(' -> ');
   const origin = routeParts[0] || '';
-  const destination = routeParts[routeParts.length - 1] || '';
+  let destination = routeParts[routeParts.length - 1] || '';
 
+  // If round-trip like A -> B -> A, show final outbound destination (B)
+  if (destination === origin && routeParts.length > 1) {
+    destination = routeParts[routeParts.length - 2] || destination;
+  }
+
+  // Prefer segments when available to determine true outbound destination
+  if (quote.segments && quote.segments.length > 0) {
+    const originFromSeg = quote.segments[0]?.departureAirport || origin;
+    let outboundIndex = 0;
+    for (let i = 0; i < quote.segments.length; i++) {
+      const arr = quote.segments[i]?.arrivalAirport;
+      if (arr && arr !== originFromSeg) {
+        outboundIndex = i; // keep last arrival that isn't the origin
+      }
+    }
+    const segDest = quote.segments[outboundIndex]?.arrivalAirport;
+    if (segDest) destination = segDest;
+  }
   return (
     <Card className={cn(
       "transition-all duration-200 hover:shadow-md",

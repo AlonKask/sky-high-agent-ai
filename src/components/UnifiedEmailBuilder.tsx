@@ -227,6 +227,12 @@ export default function UnifiedEmailBuilder({
     const paxAdults = requestInfo?.adults_count ?? selectedQuoteData[0]?.adults_count ?? 1;
     const paxChildren = requestInfo?.children_count ?? selectedQuoteData[0]?.children_count ?? 0;
     const paxInfants = requestInfo?.infants_count ?? selectedQuoteData[0]?.infants_count ?? 0;
+    const paxParts: string[] = [
+      `${paxAdults} Adult${paxAdults !== 1 ? 's' : ''}`
+    ];
+    if (paxChildren > 0) paxParts.push(`${paxChildren} Child${paxChildren !== 1 ? '(ren)' : ''}`);
+    if (paxInfants > 0) paxParts.push(`${paxInfants} Infant${paxInfants !== 1 ? 's' : ''}`);
+    const paxLine = `Passengers: ${paxParts.join(', ')}`;
 
     const fmtNum = (n?: number) => n !== undefined && n !== null ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n) : '—';
 
@@ -245,15 +251,24 @@ export default function UnifiedEmailBuilder({
 
     const buildOptionCard = (quote: Quote) => {
       const segs = (quote.parsedItinerary?.segments || quote.segments || []) as any[];
-      const stops = Math.max(0, (segs?.length || 1) - 1);
       const first = segs[0] || {};
-      const last = segs[segs.length - 1] || {};
-      const depCode = first.departureAirport || first.origin || (quote.route ? (quote.route.split(/[-→]/)[0] || '').trim().toUpperCase() : '—');
-      const arrCode = last.arrivalAirport || last.destination || (quote.route ? (quote.route.split(/[-→]/).slice(-1)[0] || '').trim().toUpperCase() : '—');
+
+      // Determine true outbound destination (final destination before any return to origin)
+      const originCode = first.departureAirport || first.origin || (quote.route ? (quote.route.split(/[-→]/)[0] || '').trim().toUpperCase() : '—');
+      let outboundIndex = segs.length > 0 ? segs.length - 1 : 0;
+      for (let i = 0; i < segs.length; i++) {
+        const arr = segs[i]?.arrivalAirport || segs[i]?.destination;
+        if (arr && arr !== originCode) outboundIndex = i;
+      }
+      const outLast = segs[outboundIndex] || segs[segs.length - 1] || {};
+
+      const stops = Math.max(0, (segs?.length || 1) - 1);
+      const depCode = originCode;
+      const arrCode = outLast.arrivalAirport || outLast.destination || (quote.route ? (quote.route.split(/[-→]/).slice(-1)[0] || '').trim().toUpperCase() : '—');
       const depTime = first.departureTime || first.departure_time || 'TBD';
-      const arrTime = last.arrivalTime || last.arrival_time || 'TBD';
+      const arrTime = outLast.arrivalTime || outLast.arrival_time || 'TBD';
       const depCity = first.departureCity || depCode;
-      const arrCity = last.arrivalCity || arrCode;
+      const arrCity = outLast.arrivalCity || arrCode;
       const duration = quote.parsedItinerary?.totalDuration || formatDuration(segs);
       const airline = first.airlineName || first.airlineCode || '—';
       const flightNumber = first.flightNumber || '—';
@@ -267,60 +282,110 @@ export default function UnifiedEmailBuilder({
       const changeRules = 'Fare dependent';
       const aircraft = first.aircraft || 'TBD';
 
+      // Build full itinerary rows
+      const itineraryRows = (segs || []).map((s: any) => {
+        const dCode = s.departureAirport || s.origin || '';
+        const aCode = s.arrivalAirport || s.destination || '';
+        const dCity = s.departureCity || dCode;
+        const aCity = s.arrivalCity || aCode;
+        const aOffset = s.arrivalDayOffset && s.arrivalDayOffset > 0 ? ` <span style=\"color:#0B5FFF;\">+${s.arrivalDayOffset}d</span>` : '';
+        const line1 = `${dCity} (${dCode}) ${s.departureTime || ''} → ${aCity} (${aCode}) ${s.arrivalTime || ''}${aOffset}`;
+        const metaParts = [s.airlineName || s.airlineCode || '', s.flightNumber || ''].filter(Boolean).join(' ');
+        const extras: string[] = [];
+        if (s.cabin || s.cabinClass) extras.push(s.cabin || s.cabinClass);
+        if (s.bookingClass) extras.push(`RBD ${s.bookingClass}`);
+        if (s.aircraft) extras.push(s.aircraft);
+        const line2 = [metaParts, extras.join(' • ')].filter(Boolean).join(' • ');
+        return `
+          <tr>
+            <td style=\"padding:6px 0;\">
+              <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#0B1220;\">${line1}</div>
+              ${line2 ? `<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:2px;\">${line2}</div>` : ''}
+            </td>
+          </tr>`;
+      }).join('');
+
+      const itineraryHtml = segs && segs.length > 0 ? `
+        <tr>
+          <td colspan=\"2\" style=\"padding:6px 0 10px 0;\">
+            <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-bottom:6px;\">Full itinerary</div>
+            <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;\">
+              ${itineraryRows}
+            </table>
+          </td>
+        </tr>` : '';
+
+      // Conditional pax columns
+      const anyKids = paxChildren > 0;
+      const anyInfants = paxInfants > 0;
+
+      const adultBorder = anyKids || anyInfants ? 'border-right:1px solid #E8EDF3;' : '';
+      const childBorder = anyInfants ? 'border-right:1px solid #E8EDF3;' : '';
+
+      const adultCol = `
+        <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;${adultBorder}\">
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Adult</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
+            ${currency} ${fmtNum(adultPrice)}
+          </div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxAdults}</div>
+        </td>`;
+
+      const childCol = !anyKids ? '' : `
+        <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;${childBorder}\">
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Child</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
+            ${currency} ${fmtNum(childPrice)}
+          </div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxChildren}</div>
+        </td>`;
+
+      const infantCol = !anyInfants ? '' : `
+        <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;\">
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Infant</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
+            ${currency} ${fmtNum(infantPrice)}
+          </div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxInfants}</div>
+        </td>`;
+
       return `
           <tr>
-            <td class="px" style="padding:14px 28px 0 28px;">
-              <table role="presentation" width="100%" class="card" style="border-collapse:collapse;background:#FFFFFF;border:1px solid #E8EDF3;border-radius:14px;padding:18px;">
+            <td class=\"px\" style=\"padding:14px 28px 0 28px;\">
+              <table role=\"presentation\" width=\"100%\" class=\"card\" style=\"border-collapse:collapse;background:#FFFFFF;border:1px solid #E8EDF3;border-radius:14px;padding:18px;\">
                 <tr>
-                  <td class="stack" style="vertical-align:top;padding-right:12px;">
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;line-height:26px;font-weight:800;color:#0B1220;">
+                  <td class=\"stack\" style=\"vertical-align:top;padding-right:12px;\">
+                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;line-height:26px;font-weight:800;color:#0B1220;\">
                       ${depTime} → ${arrTime}
                     </div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#2B3A4B;margin-top:4px;">
+                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#2B3A4B;margin-top:4px;\">
                       ${depCity} (${depCode}) → ${arrCity} (${arrCode}) • Duration ${duration} • ${stops} stop(s)
                     </div>
                   </td>
-                  <td class="stack" align="right" style="vertical-align:top;min-width:180px;">
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">
+                  <td class=\"stack\" align=\"right\" style=\"vertical-align:top;min-width:180px;\">
+                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">
                       Airline
                     </div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:700;color:#0B1220;">
+                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:700;color:#0B1220;\">
                       ${airline} • ${flightNumber}
                     </div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B5FFF;font-weight:700;margin-top:2px;">
+                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B5FFF;font-weight:700;margin-top:2px;\">
                       ${cabin} • Fare Class ${rbd}
                     </div>
                   </td>
                 </tr>
-                <tr><td colspan="2" style="border-top:1px solid #E8EDF3;height:14px;line-height:14px;font-size:0;">&nbsp;</td></tr>
+                <tr><td colspan=\"2\" style=\"border-top:1px solid #E8EDF3;height:14px;line-height:14px;font-size:0;\">&nbsp;</td></tr>
+                ${itineraryHtml}
                 <tr>
-                  <td colspan="2" style="padding-top:0;">
-                    <table role="presentation" width="100%" style="border-collapse:collapse;">
+                  <td colspan=\"2\" style=\"padding-top:0;\">
+                    <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;\">
                       <tr>
-                        <td class="stack" style="vertical-align:top;padding:10px 12px;border-right:1px solid #E8EDF3;">
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Adult</div>
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;">
-                            ${currency} ${fmtNum(adultPrice)}
-                          </div>
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">x ${paxAdults}</div>
-                        </td>
-                        <td class="stack" style="vertical-align:top;padding:10px 12px;border-right:1px solid #E8EDF3;">
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Child</div>
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;">
-                            ${currency} ${fmtNum(childPrice)}
-                          </div>
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">x ${paxChildren}</div>
-                        </td>
-                        <td class="stack" style="vertical-align:top;padding:10px 12px;">
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Infant</div>
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;">
-                            ${currency} ${fmtNum(infantPrice)}
-                          </div>
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">x ${paxInfants}</div>
-                        </td>
-                        <td class="stack" align="right" style="vertical-align:middle;padding:10px 12px;min-width:140px;">
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Total</div>
-                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;font-weight:900;color:#0B1220;margin-top:2px;">
+                        ${adultCol}
+                        ${childCol}
+                        ${infantCol}
+                        <td class=\"stack\" align=\"right\" style=\"vertical-align:middle;padding:10px 12px;min-width:140px;\">
+                          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Total</div>
+                          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;font-weight:900;color:#0B1220;margin-top:2px;\">
                             ${currency} ${fmtNum(totalPrice)}
                           </div>
                         </td>
@@ -329,27 +394,27 @@ export default function UnifiedEmailBuilder({
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="padding-top:8px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
+                  <td colspan=\"2\" style=\"padding-top:8px;\">
+                    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">
                       <tr>
-                        <td bgcolor="#0B5FFF" style="border-radius:12px;">
-                          <a href="{{ViewLink}}" style="display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">View Details</a>
+                        <td bgcolor=\"#0B5FFF\" style=\"border-radius:12px;\">
+                          <a href=\"{{ViewLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">View Details</a>
                         </td>
-                        <td width="8"></td>
-                        <td style="border:1px solid #0B5FFF;border-radius:12px;">
-                          <a href="{{HoldLink}}" style="display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B5FFF;text-decoration:none;">Hold Seats</a>
+                        <td width=\"8\"></td>
+                        <td style=\"border:1px solid #0B5FFF;border-radius:12px;\">
+                          <a href=\"{{HoldLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B5FFF;text-decoration:none;\">Hold Seats</a>
                         </td>
-                        <td width="8"></td>
-                        <td style="border:1px solid #E8EDF3;border-radius:12px;">
-                          <a href="{{AltLink}}" style="display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B1220;text-decoration:none;">See Alternatives</a>
+                        <td width=\"8\"></td>
+                        <td style=\"border:1px solid #E8EDF3;border-radius:12px;\">
+                          <a href=\"{{AltLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B1220;text-decoration:none;\">See Alternatives</a>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="padding-top:10px;">
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#5B6472;">
+                  <td colspan=\"2\" style=\"padding-top:10px;\">
+                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#5B6472;\">
                       Baggage: ${baggage} • Change rules: ${changeRules} • Booking code: ${rbd} • Aircraft: ${aircraft}
                     </div>
                   </td>
@@ -409,7 +474,7 @@ export default function UnifiedEmailBuilder({
           <tr>
             <td class="px" style="padding:26px 28px 6px 28px;">
               <div class="h1" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:28px;line-height:34px;font-weight:800;color:#0B1220;">Flight Options for ${clientName}</div>
-              <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:22px;color:#263244;margin-top:6px;">Dates: ${dateRange || '—'} • Passengers: ${paxAdults} Adult(s), ${paxChildren} Child(ren), ${paxInfants} Infant(s)</div>
+              <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:22px;color:#263244;margin-top:6px;">Dates: ${dateRange || '—'} • ${paxLine}</div>
             </td>
           </tr>
           ${cardsHtml}
