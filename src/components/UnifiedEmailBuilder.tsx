@@ -36,6 +36,9 @@ interface Quote {
   number_of_points?: number;
   taxes?: number;
   notes?: string;
+  adult_price?: number;
+  child_price?: number;
+  infant_price?: number;
   parsedItinerary?: any;
 }
 
@@ -65,13 +68,36 @@ export default function UnifiedEmailBuilder({
   onEmailSent 
 }: UnifiedEmailBuilderProps) {
   const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
-  const [emailSubject, setEmailSubject] = useState('Your Premium Travel Options Are Ready');
+  const [emailSubject, setEmailSubject] = useState(`Select Business Class — Flight Options for ${client.first_name}`);
   const [personalMessage, setPersonalMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [processedQuotes, setProcessedQuotes] = useState<Quote[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
+
+  const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string } | null>(null);
+  const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string } | null>(null);
+  const [requestInfo, setRequestInfo] = useState<{ departure_date?: string; return_date?: string; adults_count?: number; children_count?: number; infants_count?: number; origin?: string; destination?: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      try {
+        const [profileRes, prefsRes, reqRes] = await Promise.all([
+          userId ? supabase.from('profiles').select('first_name,last_name,email,phone,company').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
+          userId ? supabase.from('user_preferences').select('currency,timezone,date_format').eq('user_id', userId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
+          requestId ? supabase.from('requests').select('departure_date,return_date,adults_count,children_count,infants_count,origin,destination').eq('id', requestId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
+        ]);
+        if (!profileRes.error) setAgentProfile(profileRes.data as any);
+        if (!prefsRes.error) setUserPrefs(prefsRes.data as any);
+        if (!reqRes.error) setRequestInfo(reqRes.data as any);
+      } catch (e) {
+        console.error('Failed to load email context', e);
+      }
+    })();
+  }, [requestId]);
 
   useEffect(() => {
     if (quotes.length > 0) {
@@ -190,85 +216,239 @@ export default function UnifiedEmailBuilder({
   };
 
   const generateEmailHTML = async (): Promise<string> => {
-    console.log("🔄 Generating email HTML with selected quotes");
     const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
-    
     if (selectedQuoteData.length === 0) {
       return '<p>No options selected.</p>';
     }
 
-    try {
-      // First, check if we have saved flight options in database
-      const userId = (await supabase.auth.getUser()).data.user?.id;
-      if (userId) {
-        const savedOptions = await DatabaseUtils.getFlightOptionsByQuoteIds(
-          userId, 
-          selectedQuoteData.map(q => q.id)
-        );
-        
-        console.log(`📊 Found ${savedOptions.length} saved flight options in database`);
-        
-        // Merge saved database options with quotes
-        const mergedOptions = selectedQuoteData.map(quote => {
-          const savedOption = savedOptions.find(saved => saved.quote_id === quote.id);
-          if (savedOption) {
-            return {
-              ...quote,
-                parsedItinerary: {
-                segments: savedOption.parsed_segments,
-                route: savedOption.route_label,
-                totalSegments: savedOption.parsed_segments.length,
-                totalDuration: `${Math.floor(savedOption.total_duration / 60)}h ${savedOption.total_duration % 60}m`,
-                isRoundTrip: false
-              }
-            };
-          }
-          return quote;
-        });
-        
-        // Check if we have enhanced parsed data
-        const hasEnhancedData = mergedOptions.some(option => 
-          option.parsedItinerary && option.parsedItinerary.segments && option.parsedItinerary.segments.length > 0
-        );
+    const currency = userPrefs?.currency || 'USD';
+    const clientName = `${client?.first_name || ''} ${client?.last_name || ''}`.trim() || 'Valued Client';
 
-        if (hasEnhancedData) {
-          console.log("✅ Using enhanced template with database-enriched flight data");
-          
-          // Generate enhanced email template with database lookups
-          const emailPromises = mergedOptions.map(async (option) => {
-            const sabreOption: SabreOption = {
-              id: option.id,
-              parsedInfo: option.parsedItinerary || {
-                segments: [],
-                route: option.route,
-                totalSegments: 0,
-                isRoundTrip: false
-              },
-              quoteType: (option.quote_type as "award" | "revenue") || "revenue",
-              sellingPrice: option.total_price,
-              netPrice: option.net_price,
-              markup: option.markup,
-              taxes: option.taxes,
-              numberOfPoints: option.number_of_points,
-              awardProgram: option.award_program,
-              fareType: option.fare_type,
-              notes: option.notes
-            };
-            
-            return EmailTemplateGenerator.generateItineraryEmail(sabreOption, client?.first_name || "Valued Client");
-          });
-          
-          const emailContents = await Promise.all(emailPromises);
-          return emailContents.join('<div style="page-break-after: always;"></div>');
-        }
-      }
-      
-      console.log("⚠️ Using basic template - no enhanced data available");
-      return generateBasicEmailHTML(selectedQuoteData);
-    } catch (error) {
-      console.error("❌ Error generating enhanced email:", error);
-      return generateBasicEmailHTML(selectedQuoteData);
+    const paxAdults = requestInfo?.adults_count ?? selectedQuoteData[0]?.adults_count ?? 1;
+    const paxChildren = requestInfo?.children_count ?? selectedQuoteData[0]?.children_count ?? 0;
+    const paxInfants = requestInfo?.infants_count ?? selectedQuoteData[0]?.infants_count ?? 0;
+
+    const fmtNum = (n?: number) => n !== undefined && n !== null ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n) : '—';
+
+    const formatDate = (d?: string) => {
+      if (!d) return '';
+      const dt = new Date(d);
+      return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(dt);
+    };
+
+    const dateRange = (() => {
+      const dep = requestInfo?.departure_date ? formatDate(requestInfo.departure_date) : '';
+      const ret = requestInfo?.return_date ? formatDate(requestInfo.return_date) : '';
+      if (dep && ret) return `${dep} — ${ret}`;
+      return dep || ret || '';
+    })();
+
+    const buildOptionCard = (quote: Quote) => {
+      const segs = (quote.parsedItinerary?.segments || quote.segments || []) as any[];
+      const stops = Math.max(0, (segs?.length || 1) - 1);
+      const first = segs[0] || {};
+      const last = segs[segs.length - 1] || {};
+      const depCode = first.departureAirport || first.origin || (quote.route ? (quote.route.split(/[-→]/)[0] || '').trim().toUpperCase() : '—');
+      const arrCode = last.arrivalAirport || last.destination || (quote.route ? (quote.route.split(/[-→]/).slice(-1)[0] || '').trim().toUpperCase() : '—');
+      const depTime = first.departureTime || first.departure_time || 'TBD';
+      const arrTime = last.arrivalTime || last.arrival_time || 'TBD';
+      const depCity = first.departureCity || depCode;
+      const arrCity = last.arrivalCity || arrCode;
+      const duration = quote.parsedItinerary?.totalDuration || formatDuration(segs);
+      const airline = first.airlineName || first.airlineCode || '—';
+      const flightNumber = first.flightNumber || '—';
+      const cabin = first.cabin || first.cabinClass || 'Business';
+      const rbd = first.bookingClass || '—';
+      const adultPrice = (quote as any).adult_price as number | undefined;
+      const childPrice = (quote as any).child_price as number | undefined;
+      const infantPrice = (quote as any).infant_price as number | undefined;
+      const totalPrice = quote.total_price;
+      const baggage = 'As per fare rules';
+      const changeRules = 'Fare dependent';
+      const aircraft = first.aircraft || 'TBD';
+
+      return `
+          <tr>
+            <td class="px" style="padding:14px 28px 0 28px;">
+              <table role="presentation" width="100%" class="card" style="border-collapse:collapse;background:#FFFFFF;border:1px solid #E8EDF3;border-radius:14px;padding:18px;">
+                <tr>
+                  <td class="stack" style="vertical-align:top;padding-right:12px;">
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;line-height:26px;font-weight:800;color:#0B1220;">
+                      ${depTime} → ${arrTime}
+                    </div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#2B3A4B;margin-top:4px;">
+                      ${depCity} (${depCode}) → ${arrCity} (${arrCode}) • Duration ${duration} • ${stops} stop(s)
+                    </div>
+                  </td>
+                  <td class="stack" align="right" style="vertical-align:top;min-width:180px;">
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">
+                      Airline
+                    </div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:700;color:#0B1220;">
+                      ${airline} • ${flightNumber}
+                    </div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B5FFF;font-weight:700;margin-top:2px;">
+                      ${cabin} • Fare Class ${rbd}
+                    </div>
+                  </td>
+                </tr>
+                <tr><td colspan="2" style="border-top:1px solid #E8EDF3;height:14px;line-height:14px;font-size:0;">&nbsp;</td></tr>
+                <tr>
+                  <td colspan="2" style="padding-top:0;">
+                    <table role="presentation" width="100%" style="border-collapse:collapse;">
+                      <tr>
+                        <td class="stack" style="vertical-align:top;padding:10px 12px;border-right:1px solid #E8EDF3;">
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Adult</div>
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;">
+                            ${currency} ${fmtNum(adultPrice)}
+                          </div>
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">x ${paxAdults}</div>
+                        </td>
+                        <td class="stack" style="vertical-align:top;padding:10px 12px;border-right:1px solid #E8EDF3;">
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Child</div>
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;">
+                            ${currency} ${fmtNum(childPrice)}
+                          </div>
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">x ${paxChildren}</div>
+                        </td>
+                        <td class="stack" style="vertical-align:top;padding:10px 12px;">
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Infant</div>
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;">
+                            ${currency} ${fmtNum(infantPrice)}
+                          </div>
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">x ${paxInfants}</div>
+                        </td>
+                        <td class="stack" align="right" style="vertical-align:middle;padding:10px 12px;min-width:140px;">
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;">Total</div>
+                          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;font-weight:900;color:#0B1220;margin-top:2px;">
+                            ${currency} ${fmtNum(totalPrice)}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding-top:8px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td bgcolor="#0B5FFF" style="border-radius:12px;">
+                          <a href="{{ViewLink}}" style="display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">View Details</a>
+                        </td>
+                        <td width="8"></td>
+                        <td style="border:1px solid #0B5FFF;border-radius:12px;">
+                          <a href="{{HoldLink}}" style="display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B5FFF;text-decoration:none;">Hold Seats</a>
+                        </td>
+                        <td width="8"></td>
+                        <td style="border:1px solid #E8EDF3;border-radius:12px;">
+                          <a href="{{AltLink}}" style="display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B1220;text-decoration:none;">See Alternatives</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding-top:10px;">
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#5B6472;">
+                      Baggage: ${baggage} • Change rules: ${changeRules} • Booking code: ${rbd} • Aircraft: ${aircraft}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`;
+    };
+
+    const cardsHtml = selectedQuoteData.map(q => buildOptionCard(q)).join('\n');
+
+    const signatureName = `${agentProfile?.first_name || ''} ${agentProfile?.last_name || ''}`.trim();
+    const signatureCompany = agentProfile?.company || 'Select Business Class';
+    const signatureEmail = agentProfile?.email || (await supabase.auth.getUser()).data.user?.email || 'support@selectbc.online';
+    const signaturePhone = agentProfile?.phone || '';
+
+    return `<!doctype html>
+<html lang="en" style="margin:0;padding:0;">
+<head>
+  <meta charset="utf-8">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Select Business Class — Flight Options</title>
+  <style>
+    :root { color-scheme: light only; }
+    @media screen and (max-width:640px){
+      .container{width:100% !important;}
+      .px{padding-left:20px !important;padding-right:20px !important;}
+      .stack{display:block !important;width:100% !important;}
+      .hide-sm{display:none !important;}
+      .h1{font-size:24px !important;line-height:30px !important;}
+      .card{padding:16px !important;}
     }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#F5F7FB;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Curated flight options from Select Business Class.</div>
+  <table role="presentation" width="100%" bgcolor="#F5F7FB" style="border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="640" class="container" style="width:640px;border-collapse:collapse;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 3px 18px rgba(0,0,0,.05);">
+          <tr>
+            <td class="px" style="padding:22px 28px;border-bottom:1px solid #E8EDF3;">
+              <table role="presentation" width="100%">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-weight:800;font-size:20px;letter-spacing:.2px;color:#0B1220;">SELECT <span style="color:#0B5FFF;">BUSINESS</span> CLASS</div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:4px;">Premium airfare • Blue / Black / White palette</div>
+                  </td>
+                  <td align="right" class="hide-sm" style="vertical-align:middle;">
+                    <a href="https://selectbc.online" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;text-decoration:none;">selectbc.online</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="padding:26px 28px 6px 28px;">
+              <div class="h1" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:28px;line-height:34px;font-weight:800;color:#0B1220;">Flight Options for ${clientName}</div>
+              <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:22px;color:#263244;margin-top:6px;">Dates: ${dateRange || '—'} • Passengers: ${paxAdults} Adult(s), ${paxChildren} Child(ren), ${paxInfants} Infant(s)</div>
+            </td>
+          </tr>
+          ${cardsHtml}
+          <tr>
+            <td class="px" style="padding:22px 28px 28px 28px;">
+              <table role="presentation" width="100%">
+                <tr>
+                  <td>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#263244;">Questions or a different date/cabin? Reply to this email or contact our concierge.</div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:6px;">Select Business Class • +1 (000) 000-0000 • support@selectbc.online</div>
+                  </td>
+                  <td align="right">
+                    <a href="{{UnsubscribeLink}}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;text-decoration:none;">Unsubscribe</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="640" class="container" style="width:640px;border-collapse:collapse;">
+          <tr>
+            <td align="center" style="padding:10px 10px 8px 10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#94A3B8;">Prices subject to change until ticketed. © Select Business Class</td>
+          </tr>
+          <tr>
+            <td align="left" style="padding:0 10px 24px 10px;">
+              <div style="border-top:1px solid #E8EDF3;margin-top:8px;padding-top:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#263244;">
+                <div style="font-size:13px;font-weight:700;">${signatureName || 'Your Travel Advisor'}</div>
+                <div style="font-size:12px;color:#5B6472;">${signatureCompany}</div>
+                ${signaturePhone ? `<div style="font-size:12px;color:#5B6472;">${signaturePhone}</div>` : ''}
+                <div style="font-size:12px;color:#5B6472;">${signatureEmail}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
   };
 
   const generateBasicEmailHTML = (quotes: any[]): string => {
@@ -456,14 +636,12 @@ export default function UnifiedEmailBuilder({
       // Generate the final email HTML with review URL
       const emailHTML = await generateEmailHTML();
       const reviewUrl = `${window.location.origin}/view-option/${clientToken}`;
-      
-      const finalEmailHTML = emailHTML.replace(
-        /#book-[^"]+/g, 
-        reviewUrl
-      ).replace(
-        /Click the link below to proceed with booking/g,
-        `<a href="${reviewUrl}" style="color: #38b2ac; text-decoration: none; font-weight: 600;">Click here to review and book your preferred option</a>`
-      );
+
+      const finalEmailHTML = emailHTML
+        .replace(/\{\{ViewLink\}\}/g, reviewUrl)
+        .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
+        .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
+        .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbc.online?subject=Unsubscribe');
 
       // Send email using Supabase function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
@@ -678,7 +856,7 @@ export default function UnifiedEmailBuilder({
             </div>
             
             <div className="flex-1 overflow-auto bg-gray-50">
-              <SafeHtmlRenderer html={previewHtml} className="prose max-w-none" />
+              <SafeHtmlRenderer html={previewHtml} className="prose max-w-none" type="email" />
             </div>
           </div>
         </div>
