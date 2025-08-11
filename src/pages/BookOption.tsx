@@ -149,6 +149,7 @@ export default function BookOption() {
               quote={selectedQuote as any}
               client={client as any}
               onBack={() => navigate(`/view-option/${token}`)}
+              initialStep={3}
             />
           </div>
 

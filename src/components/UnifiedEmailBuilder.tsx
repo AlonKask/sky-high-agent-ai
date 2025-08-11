@@ -397,6 +397,10 @@ export default function UnifiedEmailBuilder({
                   <td colspan=\"2\" style=\"padding-top:8px;\">
                     <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">
                       <tr>
+                        <td bgcolor=\"#16A34A\" style=\"border-radius:12px;\">
+                          <a href=\"{{BookLink:${'${quote.id}'} }}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
+                        </td>
+                        <td width=\"8\"></td>
                         <td bgcolor=\"#0B5FFF\" style=\"border-radius:12px;\">
                           <a href=\"{{ViewLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">View Details</a>
                         </td>
@@ -702,11 +706,17 @@ export default function UnifiedEmailBuilder({
       const emailHTML = await generateEmailHTML();
       const reviewUrl = `${window.location.origin}/view-option/${clientToken}`;
 
-      const finalEmailHTML = emailHTML
+      let finalEmailHTML = emailHTML
         .replace(/\{\{ViewLink\}\}/g, reviewUrl)
         .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
         .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
         .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbc.online?subject=Unsubscribe');
+
+      const bookUrlBase = `${window.location.origin}/book/${clientToken}`;
+      selectedQuotes.forEach((qid) => {
+        const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
+        finalEmailHTML = finalEmailHTML.replace(re, `${bookUrlBase}?quote_id=${qid}`);
+      });
 
       // Send email using Supabase function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {

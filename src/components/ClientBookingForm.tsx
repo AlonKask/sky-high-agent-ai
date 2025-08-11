@@ -35,6 +35,7 @@ interface ClientBookingFormProps {
   quote: Quote;
   client: Client;
   onBack: () => void;
+  initialStep?: number;
 }
 
 interface Passenger {
@@ -48,8 +49,8 @@ interface Passenger {
   passportExpiry: string;
 }
 
-const ClientBookingForm = ({ quote, client, onBack }: ClientBookingFormProps) => {
-  const [currentStep, setCurrentStep] = useState(1);
+const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBookingFormProps) => {
+  const [currentStep, setCurrentStep] = useState(initialStep ?? 1);
   const [passengers, setPassengers] = useState<Passenger[]>([
     {
       id: '1',

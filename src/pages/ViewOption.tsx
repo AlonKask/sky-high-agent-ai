@@ -47,6 +47,8 @@ export default function ViewOption() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (token) {
       fetchOptionReview();
@@ -132,14 +134,13 @@ export default function ViewOption() {
       if (error) {
         console.error('Error recording booking intent:', error);
       }
-
-      toastHelpers.success('Booking request received!', {
-        description: 'Our travel agent will contact you shortly to complete your booking.'
-      });
-
     } catch (err) {
       console.error('Error:', err);
-      toastHelpers.error('Something went wrong', 'Please contact us directly to proceed with booking.');
+    }
+
+    // Redirect to payment form
+    if (token) {
+      navigate(`/book/${token}?quote_id=${quoteId}`);
     }
   };
 
@@ -269,7 +270,7 @@ export default function ViewOption() {
                   key={quote.id}
                   quote={quote}
                   onBookNow={handleBookNow}
-                  className={index === 0 ? "ring-2 ring-primary/20" : ""}
+                  className={`${index === 0 ? "ring-2 ring-primary/20" : ""} animate-fade-in hover:scale-[1.01] transition-transform`}
                 />
               ))}
             </div>
