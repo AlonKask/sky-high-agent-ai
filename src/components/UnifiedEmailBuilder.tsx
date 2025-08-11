@@ -398,7 +398,7 @@ export default function UnifiedEmailBuilder({
                     <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">
                       <tr>
                         <td bgcolor=\"#16A34A\" style=\"border-radius:12px;\">
-                          <a href=\"{{BookLink:${'${quote.id}'} }}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
+                          <a href=\"{{BookLink:${'${quote.id}'}}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
                         </td>
                         <td width=\"8\"></td>
                         <td bgcolor=\"#0B5FFF\" style=\"border-radius:12px;\">
@@ -770,10 +770,25 @@ export default function UnifiedEmailBuilder({
         setPreviewHtml('<div style="padding: 40px; text-align: center; color: #666;">Select quotes to preview your email</div>');
         return;
       }
-      
       try {
         const html = await generateEmailHTML();
-        setPreviewHtml(html);
+        const previewToken = 'preview';
+        const origin = window.location.origin;
+        const reviewUrl = `${origin}/view-option/${previewToken}`;
+        const bookUrlBase = `${origin}/book/${previewToken}`;
+
+        let replaced = html
+          .replace(/\{\{ViewLink\}\}/g, reviewUrl)
+          .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
+          .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
+          .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbc.online?subject=Unsubscribe');
+
+        selectedQuotes.forEach((qid) => {
+          const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
+          replaced = replaced.replace(re, `${bookUrlBase}?quote_id=${qid}`);
+        });
+
+        setPreviewHtml(replaced);
       } catch (error) {
         console.error('Preview generation error:', error);
         const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
@@ -852,8 +867,14 @@ export default function UnifiedEmailBuilder({
           {/* Left Panel - Email Composition */}
           <div className="w-1/2 border-r flex flex-col">
             <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold mb-4">Compose Email</h3>
-              
+              <h3 className="text-lg font-semibold mb-2">Compose Email</h3>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                <span className="px-2 py-1 rounded-full bg-muted">1. Compose</span>
+                <span className="h-px w-6 bg-border" />
+                <span className="px-2 py-1 rounded-full bg-primary/10 text-primary">2. Select</span>
+                <span className="h-px w-6 bg-border" />
+                <span className="px-2 py-1 rounded-full bg-muted">3. Send</span>
+              </div>
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Email Subject</label>
@@ -882,7 +903,7 @@ export default function UnifiedEmailBuilder({
               
               <div className="space-y-3">
                 {processedQuotes.map((quote, index) => (
-                  <Card key={quote.id} className={`cursor-pointer transition-all ${selectedQuotes.includes(quote.id) ? 'ring-2 ring-primary' : ''}`}>
+                  <Card key={quote.id} className={`cursor-pointer transition-transform hover:scale-[1.01] hover:shadow-lg animate-fade-in ${selectedQuotes.includes(quote.id) ? 'ring-2 ring-primary' : ''}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center space-x-3">
                         <Checkbox

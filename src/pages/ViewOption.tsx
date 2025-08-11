@@ -217,6 +217,13 @@ export default function ViewOption() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
+        <div className="mb-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <span className="px-2 py-1 rounded-full bg-muted">1. Explore</span>
+          <span className="h-px w-6 bg-border" />
+          <span className="px-2 py-1 rounded-full bg-primary/10 text-primary">2. Select</span>
+          <span className="h-px w-6 bg-border" />
+          <span className="px-2 py-1 rounded-full bg-muted">3. Book</span>
+        </div>
         {/* Client Info */}
         <Card className="mb-8">
           <CardHeader>
