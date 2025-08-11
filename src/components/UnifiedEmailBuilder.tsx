@@ -398,7 +398,7 @@ export default function UnifiedEmailBuilder({
                     <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">
                       <tr>
                         <td bgcolor=\"#16A34A\" style=\"border-radius:12px;\">
-                          <a href=\"{{BookLink:${'${quote.id}'}}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
+                          <a href=\"{{BookLink:${quote.id}}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
                         </td>
                         <td width=\"8\"></td>
                         <td bgcolor=\"#0B5FFF\" style=\"border-radius:12px;\">
