@@ -24,6 +24,7 @@ import Messages from "./pages/Messages";
 import AgentStatistics from "./pages/AgentStatistics";
 import OptionsReview from "./pages/OptionsReview";
 import ViewOption from "./pages/ViewOption";
+import BookOption from "./pages/BookOption";
 import PublicRequest from "./pages/PublicRequest";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -57,6 +58,7 @@ function App() {
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/options/:token" element={<OptionsReview />} />
                   <Route path="/view-option/:token" element={<ViewOption />} />
+                  <Route path="/book/:token" element={<BookOption />} />
                   <Route path="/public-request" element={<PublicRequest />} />
                   
                   {/* Protected routes */}
