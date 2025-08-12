@@ -22,7 +22,7 @@ import Calendar from "./pages/Calendar";
 import Analytics from "./pages/Analytics";
 import Messages from "./pages/Messages";
 import AgentStatistics from "./pages/AgentStatistics";
-import OptionsReview from "./pages/OptionsReview";
+import OptionsRedirect from "./pages/OptionsRedirect";
 import ViewOption from "./pages/ViewOption";
 import BookOption from "./pages/BookOption";
 import PublicRequest from "./pages/PublicRequest";
@@ -56,7 +56,7 @@ function App() {
                 <Routes>
                   {/* Public routes */}
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/options/:token" element={<OptionsReview />} />
+                  <Route path="/options/:token" element={<OptionsRedirect />} />
                   <Route path="/view-option/:token" element={<ViewOption />} />
                   <Route path="/book/:token" element={<BookOption />} />
                   <Route path="/public-request" element={<PublicRequest />} />

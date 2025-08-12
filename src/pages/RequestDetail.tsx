@@ -199,6 +199,54 @@ const RequestDetail = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const requestId = id as string;
+                    let clientToken: string | null = null;
+
+                    // Try new table first
+                    const { data: r1, error: e1 } = await supabase
+                      .from('option_reviews')
+                      .select('client_token')
+                      .eq('request_id', requestId)
+                      .order('created_at', { ascending: false })
+                      .limit(1);
+
+                    if (!e1 && r1 && r1.length > 0) {
+                      clientToken = (r1[0] as any).client_token as string;
+                    }
+
+                    // Fallback to legacy table
+                    if (!clientToken) {
+                      const { data: r2, error: e2 } = await supabase
+                        .from('client_option_reviews')
+                        .select('client_token')
+                        .eq('request_id', requestId)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                      if (!e2 && r2 && r2.length > 0) {
+                        clientToken = (r2[0] as any).client_token as string;
+                      }
+                    }
+
+                    if (clientToken) {
+                      const url = `${window.location.origin}/view-option/${clientToken}`;
+                      await navigator.clipboard.writeText(url);
+                      toast({ title: 'Link copied', description: 'Client review link copied to clipboard.' });
+                    } else {
+                      toast({ title: 'No review link found', description: 'Create and send options first to generate a client link.', variant: 'destructive' });
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    toast({ title: 'Failed to copy link', description: 'Please try again.', variant: 'destructive' });
+                  }
+                }}
+              >
+                Copy client link
+              </Button>
               <Badge variant={request.status === 'pending' ? 'secondary' : 'default'}>
                 {request.status}
               </Badge>

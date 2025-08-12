@@ -60,26 +60,38 @@ export default function ViewOption() {
     try {
       setLoading(true);
       
-      // Fetch option review
+      // Fetch option review (new table)
       const { data: reviewData, error: reviewError } = await supabase
         .from('option_reviews')
         .select('*')
         .eq('client_token', token)
         .single();
 
-      if (reviewError) {
-        console.error('Error fetching option review:', reviewError);
-        setError('Option not found or has expired');
-        return;
+      let finalReview: any = reviewData;
+
+      if (reviewError || !reviewData) {
+        console.error('Error fetching option review from option_reviews:', reviewError);
+        // Fallback: legacy table
+        const { data: legacyReview, error: legacyError } = await supabase
+          .from('client_option_reviews')
+          .select('*')
+          .eq('client_token', token)
+          .single();
+
+        if (legacyError || !legacyReview) {
+          setError('Option not found or has expired');
+          return;
+        }
+        finalReview = legacyReview;
       }
 
-      setOptionReview(reviewData);
+      setOptionReview(finalReview);
 
       // Fetch quotes
       const { data: quotesData, error: quotesError } = await supabase
         .from('quotes')
         .select('*')
-        .in('id', reviewData.quote_ids);
+        .in('id', (finalReview as any).quote_ids);
 
       if (quotesError) {
         console.error('Error fetching quotes:', quotesError);
@@ -230,6 +242,11 @@ export default function ViewOption() {
             </div>
             
             <div className="flex items-center gap-2">
+              {quotes.length === 1 && (
+                <Button size="sm" onClick={() => handleBookNow(quotes[0].id)}>
+                  Book Now
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handleShare}>
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
