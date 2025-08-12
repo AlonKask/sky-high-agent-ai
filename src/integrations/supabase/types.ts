@@ -592,6 +592,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bookings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bookings_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
@@ -703,6 +710,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_memories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1241,6 +1255,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flight_options_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients_public"
             referencedColumns: ["id"]
           },
           {
@@ -1969,6 +1990,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sales_memories: {
@@ -2026,6 +2054,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_memories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients_public"
             referencedColumns: ["id"]
           },
           {
@@ -2389,6 +2424,66 @@ export type Database = {
       }
     }
     Views: {
+      clients_public: {
+        Row: {
+          client_type: string | null
+          company: string | null
+          created_at: string | null
+          data_classification: string | null
+          date_of_birth: string | null
+          email: string | null
+          first_name: string | null
+          id: string | null
+          last_name: string | null
+          last_trip_date: string | null
+          notes: string | null
+          phone: string | null
+          preferred_class: string | null
+          total_bookings: number | null
+          total_spent: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          client_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          data_classification?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          last_trip_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          preferred_class?: string | null
+          total_bookings?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          client_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          data_classification?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          last_trip_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          preferred_class?: string | null
+          total_bookings?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       gmail_integration_status: {
         Row: {
           gmail_user_email: string | null
@@ -2518,6 +2613,15 @@ export type Database = {
           city: string
           country: string
           airport_count: number
+        }[]
+      }
+      get_client_sensitive: {
+        Args: { p_client_id: string }
+        Returns: {
+          id: string
+          encrypted_payment_info: Json
+          encrypted_ssn: string
+          encrypted_passport_number: string
         }[]
       }
       get_current_user_role: {

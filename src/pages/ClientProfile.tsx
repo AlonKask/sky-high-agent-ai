@@ -44,15 +44,21 @@ const ClientProfile = () => {
     try {
       setLoading(true);
       
-      // Fetch client data
+      // Fetch client data from safe view (read-only non-sensitive fields)
       const { data: clientData, error: clientError } = await supabase
-        .from('clients')
+        .from('clients_public')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (clientError) {
-        console.error('Error fetching client:', clientError);
+        console.error('Error fetching client (public view):', clientError);
+        setError("Client not found");
+        setLoading(false);
+        return;
+      }
+
+      if (!clientData) {
         setError("Client not found");
         setLoading(false);
         return;
@@ -114,6 +120,7 @@ const ClientProfile = () => {
         preferred_class: editForm.preferred_class
       };
 
+      // Keep updates on base table (RLS will enforce ownership)
       const { error } = await supabase
         .from('clients')
         .update(updateData)
