@@ -67,7 +67,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.sync-gmail-inbox]
-verify_jwt = false
+verify_jwt = true
 
 [functions.user-preferences]
 verify_jwt = true
