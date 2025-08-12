@@ -874,6 +874,33 @@ export type Database = {
         }
         Relationships: []
       }
+      credential_access_audit: {
+        Row: {
+          accessor_id: string
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          accessor_id?: string
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          accessor_id?: string
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       csp_violations: {
         Row: {
           created_at: string | null
@@ -2362,7 +2389,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      gmail_integration_status: {
+        Row: {
+          gmail_user_email: string | null
+          has_access_token: boolean | null
+          has_refresh_token: boolean | null
+          token_expired: boolean | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          gmail_user_email?: string | null
+          has_access_token?: never
+          has_refresh_token?: never
+          token_expired?: never
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          gmail_user_email?: string | null
+          has_access_token?: never
+          has_refresh_token?: never
+          token_expired?: never
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       archive_old_communications: {
