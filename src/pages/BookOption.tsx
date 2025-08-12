@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Plane, ArrowLeft, CreditCard, Users, MapPin } from "lucide-react";
 import ClientBookingForm from "@/components/ClientBookingForm";
+import { SEOManager } from "@/utils/seo";
 
 interface Quote {
   id: string;
@@ -85,6 +86,24 @@ export default function BookOption() {
     })();
   }, [token]);
 
+  // SEO and canonical for booking page
+  useEffect(() => {
+    if (client && selectedQuote) {
+      SEOManager.updateMetaTags({
+        title: `Book – ${selectedQuote.route} | Select Business Class`,
+        description: `Secure checkout for ${selectedQuote.route}. Total ${selectedQuote.total_price.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}.`,
+        url: window.location.href,
+      });
+      let link = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.setAttribute('rel', 'canonical');
+        document.head.appendChild(link);
+      }
+      link.setAttribute('href', window.location.href.split('?')[0]);
+    }
+  }, [client, selectedQuote]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 flex items-center justify-center">
@@ -138,7 +157,7 @@ export default function BookOption() {
         </div>
         {/* subtle progress hint */}
         <div className="container mx-auto px-4 pb-3">
-          <Progress value={33} className="h-1" />
+          <Progress value={100} className="h-1" />
         </div>
       </header>
 
@@ -172,6 +191,10 @@ export default function BookOption() {
             </Card>
             <Button
               onClick={() => {
+                // Haptic feedback
+                if ('vibrate' in navigator) {
+                  try { (navigator as any).vibrate?.(10); } catch {}
+                }
                 // Scroll to payment step inside form (UX helper)
                 window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
               }}

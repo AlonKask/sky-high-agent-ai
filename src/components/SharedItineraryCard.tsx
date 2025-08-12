@@ -196,7 +196,7 @@ export const SharedItineraryCard: React.FC<SharedItineraryCardProps> = ({
         {/* Book Now Button */}
         <Button 
           onClick={() => onBookNow(quote.id)}
-          className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300 shadow-lg hover:shadow-xl"
+          className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300 shadow-lg hover:shadow-xl hover-scale"
         >
           <CreditCard className="mr-2 h-5 w-5" />
           Book This Trip

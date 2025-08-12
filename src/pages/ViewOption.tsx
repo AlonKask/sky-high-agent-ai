@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plane, Share2, Mail, Phone } from 'lucide-react';
 import { toastHelpers } from '@/utils/toastHelpers';
+import { SEOManager } from '@/utils/seo';
 
 interface Quote {
   id: string;
@@ -116,6 +117,24 @@ export default function ViewOption() {
     }
   };
 
+  // SEO and canonical
+  useEffect(() => {
+    if (client && quotes.length > 0) {
+      SEOManager.updateMetaTags({
+        title: `${client.first_name} ${client.last_name} – Business Class Options`,
+        description: `Review ${quotes.length} curated business class itineraries for ${quotes[0].route}. Book securely in minutes.`,
+        url: window.location.href,
+      });
+      let link = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.setAttribute('rel', 'canonical');
+        document.head.appendChild(link);
+      }
+      link.setAttribute('href', window.location.href.split('?')[0]);
+    }
+  }, [client, quotes]);
+
   const handleBookNow = async (quoteId: string) => {
     try {
       // Store booking intent
@@ -136,6 +155,10 @@ export default function ViewOption() {
       }
     } catch (err) {
       console.error('Error:', err);
+    }
+    // Haptic feedback
+    if ('vibrate' in navigator) {
+      try { (navigator as any).vibrate?.(10); } catch {}
     }
 
     // Redirect to payment form
