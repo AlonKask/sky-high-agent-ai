@@ -280,7 +280,7 @@ export default function ViewOption() {
         {/* Travel Options */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Available Options</h2>
+            <h2 className="text-2xl font-bold font-playfair tracking-tight">Available Options</h2>
             <Badge variant="secondary" className="text-sm">
               {quotes.length} option{quotes.length !== 1 ? 's' : ''} available
             </Badge>

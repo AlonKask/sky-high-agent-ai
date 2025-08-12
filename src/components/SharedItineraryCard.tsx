@@ -65,13 +65,13 @@ export const SharedItineraryCard: React.FC<SharedItineraryCardProps> = ({
   };
 
   return (
-    <Card className={`overflow-hidden bg-gradient-to-br from-background to-secondary/20 border-2 hover:border-primary/30 transition-all duration-300 hover:shadow-lg ${className}`}>
+    <Card className={`overflow-hidden bg-gradient-to-br from-background to-secondary/20 border-2 hover:border-primary/30 transition-all duration-300 hover:shadow-lg animate-fade-in ${className}`}>
       <CardHeader className="relative pb-4">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Plane className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold text-foreground">{quote.route}</h2>
+              <h2 className="font-playfair text-2xl md:text-3xl font-bold tracking-tight text-foreground">{quote.route}</h2>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
@@ -85,7 +85,7 @@ export const SharedItineraryCard: React.FC<SharedItineraryCardProps> = ({
           </div>
           
           <div className="text-right">
-            <div className="text-3xl font-bold text-primary">
+            <div className="font-playfair text-3xl md:text-4xl font-bold text-primary">
               ${quote.total_price.toLocaleString()}
             </div>
             <div className="text-sm text-muted-foreground">

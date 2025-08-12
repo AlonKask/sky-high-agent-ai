@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { SharedItineraryCard } from '@/components/SharedItineraryCard';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -316,96 +317,67 @@ const OptionsReview: React.FC = () => {
             <h2 className="text-2xl font-semibold mb-4">Travel Options</h2>
             
             {quotes.map((quote, index) => (
-              <Card key={quote.id} className="overflow-hidden">
-                <CardHeader className="bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getOptionIcon(index)}
-                      <CardTitle>{getOptionLabel(index)}</CardTitle>
-                      <Badge variant="secondary">{quote.fare_type}</Badge>
-                    </div>
-                    <div className="text-2xl font-bold text-primary">
-                      {formatPrice(quote.total_price)}
-                    </div>
+              <div key={quote.id} className="space-y-3">
+                <SharedItineraryCard
+                  quote={{
+                    ...(quote as any),
+                    adults_count: (quote as any).adults_count ?? 1,
+                    children_count: (quote as any).children_count ?? 0,
+                    infants_count: (quote as any).infants_count ?? 0,
+                    client_token: (clientToken as string) || ''
+                  } as any}
+                  onBookNow={(qid) => {
+                    if (clientToken) {
+                      window.location.href = `/book/${clientToken}?quote_id=${qid}`;
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-between gap-2 p-3 bg-muted/20 rounded-lg">
+                  <div className="flex gap-2">
+                    <Button
+                      variant={feedback[quote.id]?.feedback_type === 'interested' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleFeedbackChange(quote.id, 'feedback_type', 'interested')}
+                    >
+                      Love it
+                    </Button>
+                    <Button
+                      variant={feedback[quote.id]?.feedback_type === 'need_changes' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleFeedbackChange(quote.id, 'feedback_type', 'need_changes')}
+                    >
+                      Tweak it
+                    </Button>
+                    <Button
+                      variant={feedback[quote.id]?.feedback_type === 'not_interested' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleFeedbackChange(quote.id, 'feedback_type', 'not_interested')}
+                    >
+                      Pass
+                    </Button>
                   </div>
-                </CardHeader>
-                
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="text-muted-foreground">{quote.route}</div>
-                    
-                    {/* Flight Segments */}
-                    <div className="space-y-3">
-                      {quote.segments.map((segment: any, segIndex: number) => (
-                        <div key={segIndex} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Plane className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <div className="font-medium">
-                                {segment.departureAirport} → {segment.arrivalAirport}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {segment.flightNumber} • {segment.aircraft || 'Various Aircraft'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium">
-                              {segment.departureTime} - {segment.arrivalTime}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {segment.duration ? `${Math.floor(segment.duration / 60)}h ${segment.duration % 60}m` : 'N/A'}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Separator />
-
-                    {/* Feedback Section */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">What do you think of this option?</h4>
-                      
-                      <RadioGroup
-                        value={feedback[quote.id]?.feedback_type || ''}
-                        onValueChange={(value) => handleFeedbackChange(quote.id, 'feedback_type', value)}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="interested" id={`interested-${quote.id}`} />
-                          <Label htmlFor={`interested-${quote.id}`}>I'm interested in this option</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="need_changes" id={`changes-${quote.id}`} />
-                          <Label htmlFor={`changes-${quote.id}`}>I'd like some changes</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="not_interested" id={`not-interested-${quote.id}`} />
-                          <Label htmlFor={`not-interested-${quote.id}`}>Not interested</Label>
-                        </div>
-                      </RadioGroup>
-
-                      <Textarea
-                        placeholder="Add your comments or specific requests..."
-                        value={feedback[quote.id]?.comments || ''}
-                        onChange={(e) => handleFeedbackChange(quote.id, 'comments', e.target.value)}
-                        rows={3}
-                      />
-
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleSubmitFeedback(quote.id)}
-                          disabled={!feedback[quote.id]?.feedback_type || submittingFeedback}
-                          size="sm"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Submit Feedback
-                        </Button>
-                      </div>
-                    </div>
+                  <div>
+                    <Button
+                      onClick={() => handleSubmitFeedback(quote.id)}
+                      disabled={!feedback[quote.id]?.feedback_type || submittingFeedback}
+                      size="sm"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Submit
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                {feedback[quote.id]?.feedback_type === 'need_changes' && (
+                  <div className="animate-fade-in">
+                    <Textarea
+                      placeholder="Tell us what to adjust (dates, airlines, stops, price)..."
+                      value={feedback[quote.id]?.comments || ''}
+                      onChange={(e) => handleFeedbackChange(quote.id, 'comments', e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 
