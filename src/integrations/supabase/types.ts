@@ -1316,10 +1316,12 @@ export type Database = {
       gmail_credentials: {
         Row: {
           access_token: string
+          access_token_encrypted: string | null
           created_at: string | null
           gmail_user_email: string
           id: string
           refresh_token: string | null
+          refresh_token_encrypted: string | null
           scope: string | null
           token_expires_at: string | null
           updated_at: string | null
@@ -1327,10 +1329,12 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          access_token_encrypted?: string | null
           created_at?: string | null
           gmail_user_email: string
           id?: string
           refresh_token?: string | null
+          refresh_token_encrypted?: string | null
           scope?: string | null
           token_expires_at?: string | null
           updated_at?: string | null
@@ -1338,10 +1342,12 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          access_token_encrypted?: string | null
           created_at?: string | null
           gmail_user_email?: string
           id?: string
           refresh_token?: string | null
+          refresh_token_encrypted?: string | null
           scope?: string | null
           token_expires_at?: string | null
           updated_at?: string | null
