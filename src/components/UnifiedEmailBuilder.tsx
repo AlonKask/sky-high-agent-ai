@@ -723,6 +723,9 @@ export default function UnifiedEmailBuilder({
         .replace(/(<a [^>]*?style=\")([^"]*?)(\">Book Now<\/a>)/g, '$1background-color:#16A34A;border-radius:12px;$2$3')
         .replace(/(<a [^>]*?style=\")([^"]*?)(\">View Details<\/a>)/g, '$1background-color:#0B5FFF;border-radius:12px;$2$3');
 
+      // Ensure links open in a new tab (preview + many clients)
+      finalEmailHTML = finalEmailHTML.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
+
       // Send email using Supabase function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
@@ -793,11 +796,15 @@ export default function UnifiedEmailBuilder({
           replaced = replaced.replace(re, `${bookUrlBase}?quote_id=${qid}`);
         });
 
+        // Ensure links open outside the sandboxed preview
+        replaced = replaced.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
+
         setPreviewHtml(replaced);
       } catch (error) {
         console.error('Preview generation error:', error);
         const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
-        setPreviewHtml(generateBasicEmailHTML(selectedQuoteData));
+        const basic = generateBasicEmailHTML(selectedQuoteData).replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
+        setPreviewHtml(basic);
       }
     };
     updatePreview();
@@ -954,7 +961,7 @@ export default function UnifiedEmailBuilder({
             <div className="p-6 border-b bg-muted/50">
               <h3 className="text-lg font-semibold">Email Preview</h3>
               <p className="text-sm text-muted-foreground">This is how your email will appear to the client</p>
-              <div className="mt-2 text-xs text-muted-foreground">Preview mode: Links are active and open in-app pages for testing.</div>
+              <div className="mt-2 text-xs text-muted-foreground">Preview mode: Links open in a new tab for testing.</div>
             </div>
             
             <div className="flex-1 overflow-auto bg-gray-50">
