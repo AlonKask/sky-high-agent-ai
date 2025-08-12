@@ -2565,6 +2565,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      is_base64: {
+        Args: { p_text: string }
+        Returns: boolean
+      }
       is_team_manager: {
         Args: { _user_id: string; _team_id: string }
         Returns: boolean
