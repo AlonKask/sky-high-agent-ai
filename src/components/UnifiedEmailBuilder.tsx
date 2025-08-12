@@ -397,7 +397,7 @@ export default function UnifiedEmailBuilder({
                   <td colspan=\"2\" style=\"padding-top:8px;\">
                     <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">
                       <tr>
-                        <td bgcolor=\"#16A34A\" style=\"border-radius:12px;\">
+                        <td style=\"border-radius:12px;\">
                           <a href=\"{{BookLink:${quote.id}}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
                         </td>
                         <td width=\"8\"></td>
@@ -949,6 +949,7 @@ export default function UnifiedEmailBuilder({
             <div className="p-6 border-b bg-muted/50">
               <h3 className="text-lg font-semibold">Email Preview</h3>
               <p className="text-sm text-muted-foreground">This is how your email will appear to the client</p>
+              <div className="mt-2 text-xs text-muted-foreground">Preview mode: Links are active and open in-app pages for testing.</div>
             </div>
             
             <div className="flex-1 overflow-auto bg-gray-50">
