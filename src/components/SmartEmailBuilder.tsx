@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { sanitizeText, sanitizeEmailContent } from '@/utils/sanitization';
 
 interface Quote {
   id: string;
@@ -92,11 +93,12 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
           </div>
       `;
 
-      if (personalMessage.trim()) {
+      const safePersonalMessage = sanitizeText(personalMessage);
+      if (safePersonalMessage.trim()) {
         emailHTML += `
           <div style="background: #f0f9ff; padding: 25px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #0ea5e9;">
             <h3 style="margin: 0 0 15px 0; color: #0c4a6e; font-size: 18px; font-weight: 600;">📝 Personal Message</h3>
-            <div style="color: #075985; line-height: 1.7; font-size: 15px;">${personalMessage.replace(/\n/g, '<br>')}</div>
+            <div style="color: #075985; line-height: 1.7; font-size: 15px;">${safePersonalMessage.replace(/\n/g, '<br>')}</div>
           </div>
         `;
       }
@@ -108,6 +110,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
         const fareType = (quote.fare_type || 'Economy').replace('_', ' ').toUpperCase();
         const route = quote.route || 'Route not specified';
         const segments = quote.segments || [];
+        const safeNotes = quote.notes ? sanitizeText(quote.notes) : null;
         
         emailHTML += `
           <div style="border: 2px solid #e5e7eb; border-radius: 12px; margin-bottom: 30px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
@@ -190,10 +193,10 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
                  </div>`
               }
               
-              ${quote.notes ? `
+              ${safeNotes ? `
                 <div style="margin-top: 20px; padding: 18px; background: #fefce8; border-radius: 8px; border-left: 4px solid #eab308;">
                   <h4 style="margin: 0 0 10px 0; color: #92400e; font-size: 15px; font-weight: 600;">💡 Important Notes:</h4>
-                  <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.6;">${quote.notes}</p>
+                  <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.6;">${safeNotes}</p>
                 </div>
               ` : ''}
             </div>
@@ -297,7 +300,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
         body: {
           to: [client.email],
           subject: emailSubject,
-          html: emailContent,
+          html: sanitizeEmailContent(emailContent),
           metadata: {
             type: 'flight_options',
             client_id: client.id,
@@ -316,7 +319,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
         client_id: client.id,
         request_id: requestId,
         subject: emailSubject,
-        body: emailContent,
+        body: sanitizeEmailContent(emailContent),
         recipient_emails: [client.email],
         sender_email: user.email,
         direction: 'outbound',
@@ -478,7 +481,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
                   </div>
                   <div 
                     className="p-4 max-h-96 overflow-y-auto bg-white"
-                    dangerouslySetInnerHTML={{ __html: emailContent }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeEmailContent(emailContent) }}
                   />
                 </div>
               )}
