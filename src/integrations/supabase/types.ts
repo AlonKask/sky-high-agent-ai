@@ -2462,6 +2462,21 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_option_reviews_by_token: {
+        Args: { p_client_token: string }
+        Returns: {
+          client_id: string
+          client_token: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          quote_ids: string[]
+          request_id: string | null
+          review_status: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_user_teams: {
         Args: { _user_id: string }
         Returns: {
