@@ -818,8 +818,8 @@ export default function UnifiedEmailBuilder({
   const totalPrice = selectedQuoteData.reduce((sum, quote) => sum + quote.total_price, 0);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background rounded-lg shadow-xl w-full max-w-7xl h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-background/5 backdrop-blur-sm md:backdrop-blur flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-background rounded-2xl shadow-2xl w-[95vw] h-[95vh] max-w-none flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-background z-10">
           <div>
