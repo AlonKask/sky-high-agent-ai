@@ -958,7 +958,12 @@ export default function UnifiedEmailBuilder({
             </div>
             
             <div className="flex-1 overflow-auto bg-gray-50">
-              <SafeHtmlRenderer html={previewHtml} className="prose max-w-none" type="email" />
+              <iframe
+                title="Email Preview"
+                srcDoc={previewHtml}
+                className="w-full h-full border-0"
+                sandbox="allow-popups allow-top-navigation-by-user-activation allow-forms allow-same-origin"
+              />
             </div>
           </div>
         </div>

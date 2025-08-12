@@ -51,7 +51,7 @@ const RequestDetail = () => {
   const [segments, setSegments] = useState<any[]>([]);
   
   const [editingQuote, setEditingQuote] = useState<any>(null);
-  const [selectedQuotes, setSelectedQuotes] = useState<Set<string>>(new Set());
+  
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
   const [showEmailBuilder, setShowEmailBuilder] = useState(false);
   const [newQuote, setNewQuote] = useState({
@@ -710,18 +710,15 @@ const RequestDetail = () => {
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedQuotes.size > 0 && (
-                      <Button 
-                        onClick={() => {
-                          setShowEmailBuilder(true);
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button 
+                      onClick={() => setShowEmailBuilder(true)}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span className="ml-2 hidden sm:inline">Send Options</span>
+                    </Button>
                     <Button 
                       onClick={() => setShowQuoteDialog(true)}
                       className="flex items-center"
@@ -792,19 +789,7 @@ const RequestDetail = () => {
                            // Handle email sending here if needed
                            console.log('Send email for quote:', quote.id);
                          }}
-                        isSelected={selectedQuotes.has(quote.id)}
                         isExpanded={expandedQuotes.has(quote.id)}
-                        onToggleSelected={(selected) => {
-                          if (selected) {
-                            setSelectedQuotes(prev => new Set([...prev, quote.id]));
-                          } else {
-                            setSelectedQuotes(prev => {
-                              const newSet = new Set(prev);
-                              newSet.delete(quote.id);
-                              return newSet;
-                            });
-                          }
-                        }}
                         onToggleExpanded={() => {
                           setExpandedQuotes(prev => {
                             const newSet = new Set(prev);
@@ -816,6 +801,7 @@ const RequestDetail = () => {
                             return newSet;
                           });
                         }}
+                        selectable={false}
                         generateIFormatDisplay={(quote) => (quote as any).content || "No Sabre content available"}
                       />
                     ))}
@@ -953,7 +939,7 @@ const RequestDetail = () => {
         <UnifiedEmailBuilder
           clientId={request.client_id}
           requestId={id}
-          quotes={quotes.filter(quote => selectedQuotes.has(quote.id)).map(q => ({
+          quotes={quotes.map(q => ({
             ...q,
             total_price: Number(q.total_price),
             net_price: Number(q.net_price),

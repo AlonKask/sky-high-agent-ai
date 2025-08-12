@@ -64,15 +64,16 @@ interface Quote {
 
 interface QuoteCardProps {
   quote: Quote;
-  isSelected: boolean;
+  isSelected?: boolean;
   isExpanded: boolean;
   onToggleExpanded: () => void;
-  onToggleSelected: (selected: boolean) => void;
+  onToggleSelected?: (selected: boolean) => void;
   onEdit: () => void;
   onToggleVisibility: () => void;
   onDelete: () => void;
   onSendToEmail: () => void;
   generateIFormatDisplay: (quote: Quote) => string;
+  selectable?: boolean;
 }
 
 export function QuoteCard({
@@ -85,7 +86,8 @@ export function QuoteCard({
   onToggleVisibility,
   onDelete,
   onSendToEmail,
-  generateIFormatDisplay
+  generateIFormatDisplay,
+  selectable = true,
 }: QuoteCardProps) {
   const totalPrice = parseFloat(quote.total_price);
   const fareTypeDisplay = quote.fare_type.replace('_', ' ').toUpperCase();
@@ -126,11 +128,13 @@ export function QuoteCard({
             <div className="flex items-center justify-between">
               {/* Left section - Route and basic info */}
               <div className="flex items-center gap-3 flex-1">
-                <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={onToggleSelected}
-                  className="mt-1"
-                />
+                {selectable && (
+                  <Checkbox
+                    checked={!!isSelected}
+                    onCheckedChange={onToggleSelected || (() => {})}
+                    className="mt-1"
+                  />
+                )}
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
