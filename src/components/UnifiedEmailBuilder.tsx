@@ -718,6 +718,11 @@ export default function UnifiedEmailBuilder({
         finalEmailHTML = finalEmailHTML.replace(re, `${bookUrlBase}?quote_id=${qid}`);
       });
 
+      // Ensure CTA buttons have visible background colors across email clients
+      finalEmailHTML = finalEmailHTML
+        .replace(/(<a [^>]*?style=\")([^"]*?)(\">Book Now<\/a>)/g, '$1background-color:#16A34A;border-radius:12px;$2$3')
+        .replace(/(<a [^>]*?style=\")([^"]*?)(\">View Details<\/a>)/g, '$1background-color:#0B5FFF;border-radius:12px;$2$3');
+
       // Send email using Supabase function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
