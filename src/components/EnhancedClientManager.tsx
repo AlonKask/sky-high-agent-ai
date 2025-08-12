@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toastHelpers } from "@/utils/toastHelpers";
+import { logDataAccess } from "@/utils/security";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AILeadScoring from "@/components/AILeadScoring";
 
@@ -430,7 +431,14 @@ const EnhancedClientManager = () => {
                   <Card 
                     key={client.id} 
                     className="hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 border-l-primary/20"
-                    onClick={() => navigate(`/clients/${client.id}`)}
+                    onClick={async () => {
+                      try {
+                        await logDataAccess(client.id, 'personal_data', 'view_client_card');
+                      } catch (e) {
+                        console.error('Failed to log data access', e);
+                      }
+                      navigate(`/clients/${client.id}`);
+                    }}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
