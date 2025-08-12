@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-token",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface GmailPushNotification {
@@ -28,6 +29,18 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate shared webhook token
+    const incomingToken = req.headers.get('x-webhook-token') ?? '';
+    const expectedToken = Deno.env.get('GMAIL_WEBHOOK_TOKEN') ?? '';
+    if (!expectedToken) {
+      console.error('GMAIL_WEBHOOK_TOKEN is not configured');
+      return new Response('Server misconfigured', { status: 500, headers: corsHeaders });
+    }
+    if (incomingToken !== expectedToken) {
+      console.warn('Invalid webhook token');
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use service role for webhook
