@@ -1159,6 +1159,45 @@ export type Database = {
         }
         Relationships: []
       }
+      encryption_audit_log: {
+        Row: {
+          action: string
+          client_id: string | null
+          field_type: string
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          success: boolean | null
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          client_id?: string | null
+          field_type: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          success?: boolean | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          client_id?: string | null
+          field_type?: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          success?: boolean | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       encryption_keys: {
         Row: {
           algorithm: string
@@ -2558,6 +2597,17 @@ export type Database = {
           airport_count: number
         }[]
       }
+      get_client_decrypted_preview: {
+        Args: { p_client_id: string }
+        Returns: {
+          client_id: string
+          has_encrypted_ssn: boolean
+          has_encrypted_passport: boolean
+          has_encrypted_payment: boolean
+          data_classification: string
+          last_sensitive_update: string
+        }[]
+      }
       get_client_sensitive: {
         Args: { p_client_id: string }
         Returns: {
@@ -2771,6 +2821,14 @@ export type Database = {
         Args: { p_airline_id: string; p_logo_url: string }
         Returns: undefined
       }
+      update_client_encrypted_field: {
+        Args: {
+          p_client_id: string
+          p_field_name: string
+          p_encrypted_value: string
+        }
+        Returns: boolean
+      }
       update_client_memory: {
         Args: {
           p_user_id: string
@@ -2788,6 +2846,10 @@ export type Database = {
           p_interaction_type?: string
         }
         Returns: undefined
+      }
+      validate_field_encryption: {
+        Args: { encrypted_data: string; field_name: string }
+        Returns: boolean
       }
       validate_oauth_state_token: {
         Args: { p_state_token: string }

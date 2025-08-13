@@ -1,206 +1,146 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-interface EncryptionRequest {
-  data: string;
-  dataType: 'ssn' | 'passport' | 'payment_info' | 'personal_data';
-  clientId?: string;
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface DecryptionRequest {
-  encryptedData: string;
-  dataType: 'ssn' | 'passport' | 'payment_info' | 'personal_data';
-  clientId?: string;
-  accessReason: string;
+interface EncryptionRequest {
+  action: 'encrypt' | 'decrypt'
+  data: string
+  fieldType: 'ssn' | 'passport' | 'payment' | 'general'
+  clientId?: string
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client with service role key for admin operations
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
-    // Authenticate user
-    const authHeader = req.headers.get("Authorization");
+    // Verify user authentication
+    const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error("No authorization header provided");
+      throw new Error('Missing authorization header')
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError || !userData.user) {
-      throw new Error("Authentication failed");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    )
+
+    if (authError || !user) {
+      throw new Error('Invalid authentication')
     }
 
-    const user = userData.user;
-    const { operation, ...requestData } = await req.json();
+    const { action, data, fieldType, clientId }: EncryptionRequest = await req.json()
 
     // Log security event
-    await supabaseClient.from('security_events').insert({
-      user_id: user.id,
-      event_type: 'admin_action',
-      severity: 'medium',
-      ip_address: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || 'unknown',
-      details: {
-        operation: operation,
-        data_type: requestData.dataType,
-        client_id: requestData.clientId
-      }
-    });
-
-    if (operation === 'encrypt') {
-      const encryptRequest = requestData as EncryptionRequest;
-      
-      // Proper AES-256-GCM encryption
-      const encoder = new TextEncoder();
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      
-      // Generate key from secure source (in production, use proper key management)
-      const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(`${user.id}-${encryptRequest.dataType}-key`),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits', 'deriveKey']
-      );
-
-      const key = await crypto.subtle.deriveKey(
-        {
-          name: 'PBKDF2',
-          salt: encoder.encode(user.id),
-          iterations: 100000,
-          hash: 'SHA-256',
-        },
-        keyMaterial,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-      );
-
-      const encryptedBuffer = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: iv },
-        key,
-        encoder.encode(encryptRequest.data)
-      );
-
-      // Combine IV and encrypted data
-      const result = new Uint8Array(iv.length + encryptedBuffer.byteLength);
-      result.set(iv);
-      result.set(new Uint8Array(encryptedBuffer), iv.length);
-      
-      const encryptedData = btoa(String.fromCharCode(...result));
-      
-      // Log data access
-      await supabaseClient.from('sensitive_data_access').insert({
+    await supabase
+      .from('security_events')
+      .insert({
         user_id: user.id,
-        client_id: encryptRequest.clientId,
-        data_type: encryptRequest.dataType,
-        access_reason: 'Data encryption',
-        ip_address: req.headers.get('x-forwarded-for') || null
-      });
+        event_type: `field_level_${action}`,
+        severity: 'medium',
+        details: {
+          field_type: fieldType,
+          client_id: clientId,
+          timestamp: new Date().toISOString()
+        }
+      })
 
-      return new Response(JSON.stringify({
-        success: true,
-        encryptedData: encryptedData,
-        keyVersion: '1.0'
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-
-    } else if (operation === 'decrypt') {
-      const decryptRequest = requestData as DecryptionRequest;
-      
-      // Proper AES-256-GCM decryption
-      const encoder = new TextEncoder();
-      const decoder = new TextDecoder();
-      
-      try {
-        const encryptedBuffer = Uint8Array.from(atob(decryptRequest.encryptedData), c => c.charCodeAt(0));
-        const iv = encryptedBuffer.slice(0, 12);
-        const encrypted = encryptedBuffer.slice(12);
-
-        const keyMaterial = await crypto.subtle.importKey(
-          'raw',
-          encoder.encode(`${user.id}-${decryptRequest.dataType}-key`),
-          { name: 'PBKDF2' },
-          false,
-          ['deriveBits', 'deriveKey']
-        );
-
-        const key = await crypto.subtle.deriveKey(
-          {
-            name: 'PBKDF2',
-            salt: encoder.encode(user.id),
-            iterations: 100000,
-            hash: 'SHA-256',
-          },
-          keyMaterial,
-          { name: 'AES-GCM', length: 256 },
-          false,
-          ['encrypt', 'decrypt']
-        );
-
-        const decryptedBuffer = await crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: iv },
-          key,
-          encrypted
-        );
-
-        const decryptedData = decoder.decode(decryptedBuffer);
-      } catch (decryptError) {
-        await supabaseClient.from('security_events').insert({
-          user_id: user.id,
-          event_type: 'admin_action',
-          severity: 'high',
-          details: { operation: 'decryption_failed', error: 'Invalid encrypted data' }
-        });
-        throw new Error('Decryption failed');
-      }
-      
-      // Log data access with reason
-      await supabaseClient.from('sensitive_data_access').insert({
-        user_id: user.id,
-        client_id: decryptRequest.clientId,
-        data_type: decryptRequest.dataType,
-        access_reason: decryptRequest.accessReason,
-        ip_address: req.headers.get('x-forwarded-for') || null
-      });
-
-      return new Response(JSON.stringify({
-        success: true,
-        decryptedData: decryptedData
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-
-    } else {
-      throw new Error("Invalid operation. Use 'encrypt' or 'decrypt'");
+    const masterKey = Deno.env.get('ENCRYPTION_MASTER_KEY')
+    if (!masterKey) {
+      throw new Error('Encryption master key not configured')
     }
 
+    let result: string
+
+    if (action === 'encrypt') {
+      // Use Web Crypto API for AES-GCM encryption
+      const encoder = new TextEncoder()
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(masterKey.padEnd(32, '0').slice(0, 32)),
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+      )
+
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const encrypted = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        keyMaterial,
+        encoder.encode(data)
+      )
+
+      // Combine IV and encrypted data, then base64 encode
+      const combined = new Uint8Array(iv.length + encrypted.byteLength)
+      combined.set(iv)
+      combined.set(new Uint8Array(encrypted), iv.length)
+      result = btoa(String.fromCharCode(...combined))
+
+    } else if (action === 'decrypt') {
+      // Decode base64 and extract IV and encrypted data
+      const combined = new Uint8Array(
+        atob(data).split('').map(c => c.charCodeAt(0))
+      )
+      const iv = combined.slice(0, 12)
+      const encryptedData = combined.slice(12)
+
+      const encoder = new TextEncoder()
+      const decoder = new TextDecoder()
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(masterKey.padEnd(32, '0').slice(0, 32)),
+        { name: 'AES-GCM' },
+        false,
+        ['decrypt']
+      )
+
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        keyMaterial,
+        encryptedData
+      )
+
+      result = decoder.decode(decrypted)
+    } else {
+      throw new Error('Invalid action. Must be "encrypt" or "decrypt"')
+    }
+
+    console.log(`Successfully ${action}ed ${fieldType} field for user ${user.id}`)
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        result,
+        field_type: fieldType
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      },
+    )
+
   } catch (error) {
-    console.error("Error in secure-data-encryption:", error);
+    console.error('Encryption service error:', error)
     
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      },
+    )
   }
-});
+})
