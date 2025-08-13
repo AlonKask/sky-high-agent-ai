@@ -104,33 +104,9 @@ const EnhancedClientManager = () => {
     try {
       setLoading(true);
 
-      let query = supabase
-        .from('clients')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          company,
-          client_type,
-          total_bookings,
-          total_spent,
-          last_trip_date,
-          created_at,
-          notes,
-          preferred_class
-        `)
-        .order('created_at', { ascending: false });
-
-      // Apply user filtering
-      if (filterUserId) {
-        query = query.eq('user_id', filterUserId);
-      } else {
-        query = query.eq('user_id', user.id);
-      }
-
-      const { data, error } = await query;
+      // Use the secure client view function to get masked data
+      const { data, error } = await supabase
+        .rpc('get_secure_client_view');
 
       if (error) {
         console.error('Error fetching clients:', error);
@@ -138,7 +114,24 @@ const EnhancedClientManager = () => {
         return;
       }
 
-      setClients(data || []);
+      // Transform the secure view data to match Client interface
+      const transformedClients: Client[] = (data || []).map(client => ({
+        id: client.id,
+        first_name: client.first_name,
+        last_name: client.last_name,
+        email: client.email_masked || '', // Use masked email
+        phone: client.phone_masked || '', // Use masked phone
+        company: client.company,
+        client_type: client.client_type,
+        total_bookings: client.total_bookings,
+        total_spent: client.total_spent,
+        last_trip_date: client.last_trip_date,
+        created_at: client.created_at,
+        notes: client.notes,
+        preferred_class: client.preferred_class
+      }));
+
+      setClients(transformedClients);
     } catch (error) {
       console.error('Unexpected error fetching clients:', error);
       toastHelpers.error('An unexpected error occurred while loading clients.', error);
