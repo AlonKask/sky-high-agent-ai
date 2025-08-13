@@ -65,10 +65,33 @@ const PublicRequestForm = () => {
     }));
   };
 
+  // Enhanced validation functions
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    return emailRegex.test(email) && email.length <= 254 && !email.includes('..');
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    if (!phone) return true; // Optional field
+    const phoneRegex = /^\+?[\d\s\-\(\)]{10,20}$/;
+    const digitCount = phone.replace(/\D/g, '').length;
+    return phoneRegex.test(phone) && digitCount >= 10 && digitCount <= 15;
+  };
+
   const handleSubmitRequest = async () => {
-    // Validate required fields
-    if (!formData.clientName || !formData.clientEmail || !formData.origin || !formData.destination || !formData.departureDate) {
-      toastHelpers.error('Please fill in all required fields');
+    // Enhanced validation
+    const errors: string[] = [];
+    
+    if (!formData.clientName.trim()) errors.push('Name is required');
+    if (!formData.clientEmail.trim()) errors.push('Email is required');
+    if (!validateEmail(formData.clientEmail)) errors.push('Please enter a valid email address');
+    if (formData.clientPhone && !validatePhone(formData.clientPhone)) errors.push('Please enter a valid phone number');
+    if (!formData.origin) errors.push('Departure location is required');
+    if (!formData.destination) errors.push('Destination is required');
+    if (!formData.departureDate) errors.push('Departure date is required');
+    
+    if (errors.length > 0) {
+      toastHelpers.error(`Please fix the following: ${errors.join(', ')}`);
       return;
     }
 

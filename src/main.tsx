@@ -5,6 +5,10 @@ import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
+import { initSecurityMonitoring } from "./utils/enhancedSecurity";
+
+// Initialize security monitoring
+initSecurityMonitoring();
 
 // Create a client with optimized settings
 const queryClient = new QueryClient({
