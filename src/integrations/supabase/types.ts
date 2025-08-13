@@ -2737,6 +2737,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      is_authenticated_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_base64: {
         Args: { p_text: string }
         Returns: boolean
