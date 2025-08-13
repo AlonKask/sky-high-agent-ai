@@ -2443,33 +2443,7 @@ export type Database = {
       }
     }
     Views: {
-      gmail_integration_status: {
-        Row: {
-          created_at: string | null
-          gmail_user_email: string | null
-          is_connected: boolean | null
-          token_expires_at: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          gmail_user_email?: string | null
-          is_connected?: never
-          token_expires_at?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          gmail_user_email?: string | null
-          is_connected?: never
-          token_expires_at?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       archive_old_communications: {
@@ -2608,6 +2582,17 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_gmail_integration_status: {
+        Args: { p_user_id?: string }
+        Returns: {
+          user_id: string
+          gmail_user_email: string
+          token_expires_at: string
+          is_connected: boolean
+          created_at: string
+          updated_at: string
+        }[]
       }
       get_option_reviews_by_token: {
         Args: { p_client_token: string }

@@ -75,112 +75,45 @@ const PublicRequestForm = () => {
     try {
       setIsSubmitting(true);
 
-      // Create a temporary client record if needed
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id, user_id')
-        .eq('email', formData.clientEmail)
-        .single();
-
-      let clientId = existingClient?.id;
-      let assignedAgent = existingClient?.user_id;
-
-      // If no existing client, create a temporary one (will be assigned to first available agent)
-      if (!clientId) {
-        // Get first available agent
-        const { data: agents } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .in('role', ['agent', 'admin'])
-          .limit(1);
-
-        if (agents && agents.length > 0) {
-          assignedAgent = agents[0].user_id;
-
-          const { data: newClient, error: clientError } = await supabase
-            .from('clients')
-            .insert({
-              user_id: assignedAgent,
-              first_name: formData.clientName.split(' ')[0],
-              last_name: formData.clientName.split(' ').slice(1).join(' ') || '',
-              email: formData.clientEmail,
-              phone: formData.clientPhone || null,
-              client_type: 'new',
-              preferred_class: formData.classPreference,
-              notes: `Public request submission - ${new Date().toISOString()}`
-            })
-            .select()
-            .single();
-
-          if (clientError) {
-            console.error('Error creating client:', clientError);
-            toastHelpers.error('Failed to create client record', clientError);
-            return;
-          }
-
-          clientId = newClient.id;
+      // Use the secure public request endpoint
+      const { data, error } = await supabase.functions.invoke('secure-public-request', {
+        body: {
+          first_name: formData.clientName.split(' ')[0],
+          last_name: formData.clientName.split(' ').slice(1).join(' ') || '',
+          email: formData.clientEmail,
+          phone: formData.clientPhone || null,
+          origin: formData.origin,
+          destination: formData.destination,
+          departure_date: formData.departureDate?.toISOString().split('T')[0],
+          return_date: formData.returnDate?.toISOString().split('T')[0] || null,
+          passengers: formData.adultsCount + formData.childrenCount + formData.infantsCount,
+          class_preference: formData.classPreference,
+          special_requirements: formData.specialRequirements || null,
+          request_details: `Budget: ${formData.budgetRange || 'Not specified'}, Urgency: ${formData.urgency}`
         }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to submit request');
       }
 
-      if (!clientId || !assignedAgent) {
-        toastHelpers.error('No available agents to assign request');
-        return;
-      }
-
-      // Create the request
-      const requestData = {
-        user_id: assignedAgent,
-        client_id: clientId,
-        request_type: formData.requestType,
-        origin: formData.origin,
-        destination: formData.destination,
-        departure_date: formData.departureDate?.toISOString().split('T')[0],
-        return_date: formData.returnDate?.toISOString().split('T')[0] || null,
-        adults_count: formData.adultsCount,
-        children_count: formData.childrenCount,
-        infants_count: formData.infantsCount,
-        class_preference: formData.classPreference,
-        budget_range: formData.budgetRange || null,
-        special_requirements: formData.specialRequirements || null,
-        priority: formData.urgency === 'urgent' ? 'high' : 'medium',
-        status: 'pending',
-        assignment_status: 'assigned',
-        assigned_to: assignedAgent,
-        notes: `Public request - Contact: ${formData.clientPhone || 'Not provided'}`
-      };
-
-      const { error: requestError } = await supabase
-        .from('requests')
-        .insert(requestData);
-
-      if (requestError) {
-        console.error('Error creating request:', requestError);
-        toastHelpers.error('Failed to submit request', requestError);
-        return;
-      }
-
-      // Create assignment record
-      const { error: assignmentError } = await supabase
-        .from('request_assignments')
-        .insert({
-          request_id: clientId, // This should be the request ID, but we'll use clientId for now
-          assigned_to: assignedAgent,
-          assigned_by: assignedAgent,
-          status: 'active',
-          notes: 'Auto-assigned from public request form'
-        });
-
-      if (assignmentError) {
-        console.error('Error creating assignment:', assignmentError);
-        // Don't fail the whole request for this
+      if (!data?.success) {
+        throw new Error(data?.error || 'Request submission failed');
       }
 
       setIsSubmitted(true);
-      toastHelpers.success('Request submitted successfully! We will contact you shortly.');
+      toastHelpers.success(data.message || 'Request submitted successfully! We will contact you shortly.');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting request:', error);
-      toastHelpers.error('Failed to submit request', error);
+      const errorMessage = error.message || 'Failed to submit request. Please try again.';
+      
+      // Handle rate limiting specifically
+      if (errorMessage.includes('Too many requests')) {
+        toastHelpers.error('You have submitted too many requests recently. Please try again later.');
+      } else {
+        toastHelpers.error(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
