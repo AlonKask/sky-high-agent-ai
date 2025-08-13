@@ -2511,11 +2511,23 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      can_access_client_data_enhanced: {
+        Args: { target_user_id: string; client_id?: string }
+        Returns: boolean
+      }
       can_access_client_data_secure: {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      can_access_communication_data: {
+        Args: { target_user_id: string; client_id?: string }
+        Returns: boolean
+      }
       can_access_financial_data: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
+      can_access_gmail_credentials_enhanced: {
         Args: { target_user_id: string }
         Returns: boolean
       }
@@ -2541,6 +2553,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_oauth_tokens: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -2927,6 +2943,10 @@ export type Database = {
       }
       validate_password_strength: {
         Args: { password: string }
+        Returns: boolean
+      }
+      validate_session_access: {
+        Args: { target_user_id: string }
         Returns: boolean
       }
     }
