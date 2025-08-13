@@ -47,11 +47,15 @@ Masked UI ← Secure Function ← Authentication Check ← RLS Policies
 ### 📊 Current Security Status
 
 - ✅ **Anonymous Access**: Completely blocked
-- ✅ **Data Encryption**: AES-GCM with unique IVs
+- ✅ **Data Encryption**: AES-GCM with unique IVs  
 - ✅ **Access Control**: Role-based with full audit trail
 - ✅ **Input Validation**: Comprehensive field validation
 - ✅ **Error Handling**: Secure error responses
 - ✅ **Monitoring**: Real-time security event logging
+- ✅ **Security Event Constraints**: All event types properly configured
+- ✅ **Flight Data Access**: Restricted to authorized agent roles and above
+- ✅ **Performance Indexes**: Security event queries optimized
+- ✅ **Data Cleanup**: Automated retention policies for compliance
 
 ### 🔧 Technical Implementation
 
