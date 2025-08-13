@@ -2516,7 +2516,7 @@ export type Database = {
         Returns: boolean
       }
       can_access_client_data_ultra_strict: {
-        Args: { target_user_id: string; client_id?: string }
+        Args: { target_user_id: string; client_id: string }
         Returns: boolean
       }
       can_access_communication_data: {
