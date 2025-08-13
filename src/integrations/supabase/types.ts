@@ -2470,21 +2470,7 @@ export type Database = {
       }
     }
     Views: {
-      client_access_audit: {
-        Row: {
-          accessing_user_id: string | null
-          accessing_user_name: string | null
-          accessing_user_role: Database["public"]["Enums"]["app_role"] | null
-          client_id: string | null
-          event_type: string | null
-          id: string | null
-          justification: string | null
-          severity: string | null
-          target_user_id: string | null
-          timestamp: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       archive_old_communications: {
@@ -2652,6 +2638,21 @@ export type Database = {
           city: string
           country: string
           airport_count: number
+        }[]
+      }
+      get_client_access_audit: {
+        Args: { limit_records?: number; offset_records?: number }
+        Returns: {
+          id: string
+          accessing_user_id: string
+          accessing_user_name: string
+          accessing_user_role: Database["public"]["Enums"]["app_role"]
+          event_type: string
+          severity: string
+          client_id: string
+          target_user_id: string
+          justification: string
+          event_timestamp: string
         }[]
       }
       get_client_decrypted_preview: {
