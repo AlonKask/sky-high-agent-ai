@@ -2470,7 +2470,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      client_access_audit: {
+        Row: {
+          accessing_user_id: string | null
+          accessing_user_name: string | null
+          accessing_user_role: Database["public"]["Enums"]["app_role"] | null
+          client_id: string | null
+          event_type: string | null
+          id: string | null
+          justification: string | null
+          severity: string | null
+          target_user_id: string | null
+          timestamp: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       archive_old_communications: {
@@ -2508,6 +2522,10 @@ export type Database = {
         Returns: boolean
       }
       can_access_client_data: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
+      can_access_client_data_secure: {
         Args: { target_user_id: string }
         Returns: boolean
       }
@@ -2570,6 +2588,21 @@ export type Database = {
           p_related_type?: string
         }
         Returns: string
+      }
+      emergency_client_access: {
+        Args: {
+          p_client_id: string
+          p_justification: string
+          p_incident_id?: string
+        }
+        Returns: {
+          id: string
+          first_name: string
+          last_name: string
+          email: string
+          phone: string
+          emergency_access_granted: boolean
+        }[]
       }
       generate_oauth_state_token: {
         Args: { p_user_id: string }
