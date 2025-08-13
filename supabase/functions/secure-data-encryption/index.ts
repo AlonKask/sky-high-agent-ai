@@ -14,6 +14,12 @@ interface EncryptionRequest {
 }
 
 serve(async (req) => {
+  // Enhanced security: Origin validation
+  const origin = req.headers.get('origin');
+  if (origin && origin !== 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com') {
+    return new Response('Forbidden', { status: 403 });
+  }
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
