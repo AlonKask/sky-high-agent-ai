@@ -2481,6 +2481,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      audit_client_access: {
+        Args: {
+          p_client_id: string
+          p_client_owner: string
+          p_access_type: string
+        }
+        Returns: undefined
+      }
       calculate_passenger_totals: {
         Args: {
           p_adults_count?: number
@@ -2494,6 +2502,10 @@ export type Database = {
           p_infant_markup?: number
         }
         Returns: Json
+      }
+      can_access_client: {
+        Args: { p_client_user_id: string; p_accessing_user_id: string }
+        Returns: boolean
       }
       can_access_gmail_integration: {
         Args: { target_user_id: string }
