@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authSecurity } from "@/utils/authSecurity";
@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Plane, Mail, Lock, ArrowRight } from "lucide-react";
+import { Plane, Mail, Lock, ArrowRight, Shield } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -17,6 +18,9 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [showPasswordStrength, setShowPasswordStrength] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -39,11 +43,21 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!captchaToken) {
+      toast({
+        title: "CAPTCHA Required",
+        description: "Please complete the CAPTCHA verification.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      // Use enhanced sign in with security features
-      const result = await authSecurity.enhancedSignIn(email, password);
+      // Use enhanced sign in with CAPTCHA
+      const result = await authSecurity.enhancedSignIn(email, password, captchaToken);
 
       if (!result.success) {
         toast({
@@ -51,6 +65,9 @@ const Auth = () => {
           description: result.error || "Sign in failed",
           variant: "destructive",
         });
+        // Reset CAPTCHA on failure
+        setCaptchaToken(null);
+        captchaRef.current?.resetCaptcha();
         return;
       }
 
@@ -59,7 +76,6 @@ const Auth = () => {
           title: "MFA Required",
           description: "Please complete multi-factor authentication.",
         });
-        // TODO: Implement MFA flow
         return;
       }
 
@@ -75,6 +91,64 @@ const Auth = () => {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
+      // Reset CAPTCHA on error
+      setCaptchaToken(null);
+      captchaRef.current?.resetCaptcha();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!captchaToken) {
+      toast({
+        title: "CAPTCHA Required",
+        description: "Please complete the CAPTCHA verification.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setLoading(true);
+
+    try {
+      cleanupAuthState();
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          captchaToken
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user && !data.session) {
+        toast({
+          title: "Check Your Email",
+          description: "We've sent you a confirmation link to complete your registration.",
+        });
+      } else if (data.session) {
+        toast({
+          title: "Welcome!",
+          description: "Your account has been created successfully.",
+        });
+        navigate("/", { replace: true });
+      }
+
+    } catch (error: any) {
+      toast({
+        title: "Sign Up Error",
+        description: error.message || "An error occurred during sign up",
+        variant: "destructive",
+      });
+      // Reset CAPTCHA on error
+      setCaptchaToken(null);
+      captchaRef.current?.resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -118,6 +192,19 @@ const Auth = () => {
       });
       setLoading(false);
     }
+  };
+
+  const onCaptchaChange = (token: string | null) => {
+    setCaptchaToken(token);
+  };
+
+  const onCaptchaExpire = () => {
+    setCaptchaToken(null);
+    toast({
+      title: "CAPTCHA Expired",
+      description: "Please complete the CAPTCHA verification again.",
+      variant: "destructive",
+    });
   };
 
   const handlePasswordChange = (newPassword: string) => {
@@ -170,13 +257,32 @@ const Auth = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSignIn} className="space-y-4">
+          <div className="flex justify-center space-x-4 mb-4">
+            <Button
+              type="button"
+              variant={!isSignUp ? "default" : "outline"}
+              onClick={() => setIsSignUp(false)}
+              className="flex-1"
+            >
+              Sign In
+            </Button>
+            <Button
+              type="button"
+              variant={isSignUp ? "default" : "outline"}
+              onClick={() => setIsSignUp(true)}
+              className="flex-1"
+            >
+              Sign Up
+            </Button>
+          </div>
+
+          <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="signin-email">Email</Label>
+              <Label htmlFor="auth-email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="signin-email"
+                  id="auth-email"
                   type="email"
                   placeholder="Enter your email"
                   value={email}
@@ -187,11 +293,11 @@ const Auth = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="signin-password">Password</Label>
+              <Label htmlFor="auth-password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="signin-password"
+                  id="auth-password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
@@ -211,10 +317,31 @@ const Auth = () => {
                 )}
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : (
+            
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Security Verification
+              </Label>
+              <div className="flex justify-center">
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey="10000000-ffff-ffff-ffff-000000000001"
+                  onVerify={onCaptchaChange}
+                  onExpire={onCaptchaExpire}
+                  theme="dark"
+                />
+              </div>
+            </div>
+            
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading || !captchaToken}
+            >
+              {loading ? (isSignUp ? "Creating Account..." : "Signing in...") : (
                 <>
-                  Sign In
+                  {isSignUp ? "Create Account" : "Sign In"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}
@@ -222,7 +349,11 @@ const Auth = () => {
           </form>
 
           <div className="text-center text-sm text-muted-foreground">
-            Need an account? Contact your administrator for access.
+            {isSignUp ? (
+              <>Already have an account? Switch to sign in above.</>
+            ) : (
+              <>Need an account? Use the sign up option above or contact your administrator.</>
+            )}
           </div>
         </CardContent>
       </Card>
