@@ -2535,6 +2535,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      can_access_profile_ultra_strict: {
+        Args: { profile_user_id: string }
+        Returns: boolean
+      }
       can_manage_teams: {
         Args: { _user_id: string }
         Returns: boolean
