@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_rate_limits: {
+        Row: {
+          created_at: string | null
+          endpoint: string
+          id: string
+          identifier: string
+          request_count: number | null
+          window_start: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          identifier: string
+          request_count?: number | null
+          window_start?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          identifier?: string
+          request_count?: number | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       agent_client_chat: {
         Row: {
           attachments: Json | null
@@ -1342,12 +1369,10 @@ export type Database = {
       }
       gmail_credentials: {
         Row: {
-          access_token: string
           access_token_encrypted: string | null
           created_at: string | null
           gmail_user_email: string
           id: string
-          refresh_token: string | null
           refresh_token_encrypted: string | null
           scope: string | null
           token_expires_at: string | null
@@ -1355,12 +1380,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          access_token: string
           access_token_encrypted?: string | null
           created_at?: string | null
           gmail_user_email: string
           id?: string
-          refresh_token?: string | null
           refresh_token_encrypted?: string | null
           scope?: string | null
           token_expires_at?: string | null
@@ -1368,12 +1391,10 @@ export type Database = {
           user_id: string
         }
         Update: {
-          access_token?: string
           access_token_encrypted?: string | null
           created_at?: string | null
           gmail_user_email?: string
           id?: string
-          refresh_token?: string | null
           refresh_token_encrypted?: string | null
           scope?: string | null
           token_expires_at?: string | null
@@ -1632,6 +1653,8 @@ export type Database = {
           quote_ids: string[]
           request_id: string | null
           review_status: string
+          token_expires_at: string | null
+          token_used: boolean | null
           updated_at: string
           user_id: string
         }
@@ -1644,6 +1667,8 @@ export type Database = {
           quote_ids: string[]
           request_id?: string | null
           review_status?: string
+          token_expires_at?: string | null
+          token_used?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -1656,6 +1681,8 @@ export type Database = {
           quote_ids?: string[]
           request_id?: string | null
           review_status?: string
+          token_expires_at?: string | null
+          token_used?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -2418,28 +2445,25 @@ export type Database = {
     Views: {
       gmail_integration_status: {
         Row: {
+          created_at: string | null
           gmail_user_email: string | null
-          has_access_token: boolean | null
-          has_refresh_token: boolean | null
-          token_expired: boolean | null
+          is_connected: boolean | null
           token_expires_at: string | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          created_at?: string | null
           gmail_user_email?: string | null
-          has_access_token?: never
-          has_refresh_token?: never
-          token_expired?: never
+          is_connected?: never
           token_expires_at?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          created_at?: string | null
           gmail_user_email?: string | null
-          has_access_token?: never
-          has_refresh_token?: never
-          token_expired?: never
+          is_connected?: never
           token_expires_at?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -2482,6 +2506,15 @@ export type Database = {
         Args: { _user_id: string; _resource_user_id: string }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: {
+          p_identifier: string
+          p_endpoint: string
+          p_max_requests?: number
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
       cleanup_expired_oauth_tokens: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2515,6 +2548,10 @@ export type Database = {
       }
       generate_oauth_state_token: {
         Args: { p_user_id: string }
+        Returns: string
+      }
+      generate_secure_client_token: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       get_airline_rbds: {
@@ -2583,6 +2620,8 @@ export type Database = {
           quote_ids: string[]
           request_id: string | null
           review_status: string
+          token_expires_at: string | null
+          token_used: boolean | null
           updated_at: string
           user_id: string
         }[]
