@@ -332,6 +332,12 @@ const Auth = () => {
                   theme="dark"
                 />
               </div>
+              
+              {!import.meta.env.VITE_HCAPTCHA_SITE_KEY && (
+                <p className="text-sm text-muted-foreground text-center mt-2">
+                  ⚠️ CAPTCHA using test key - set VITE_HCAPTCHA_SITE_KEY in production
+                </p>
+              )}
             </div>
             
             <Button 
