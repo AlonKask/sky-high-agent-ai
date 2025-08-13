@@ -2507,6 +2507,10 @@ export type Database = {
         Args: { p_client_user_id: string; p_accessing_user_id: string }
         Returns: boolean
       }
+      can_access_client_data: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       can_access_financial_data: {
         Args: { target_user_id: string }
         Returns: boolean
