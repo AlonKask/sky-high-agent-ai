@@ -28,6 +28,12 @@ const roleHierarchy = {
 };
 
 serve(async (req) => {
+  // Enhanced security: Origin validation
+  const origin = req.headers.get('origin');
+  if (origin && origin !== 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com') {
+    return new Response('Forbidden', { status: 403 });
+  }
+
   // SECURITY: Apply strict rate limiting to user creation
   return await withRateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
@@ -92,12 +98,38 @@ serve(async (req) => {
       );
     }
 
-    const { email, password, firstName, lastName, role, phone, company }: CreateUserRequest = await req.json();
+    const requestBody = await req.json();
+    
+    // Enhanced input validation and sanitization
+    const sanitizeInput = (input: string) => {
+      return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                  .replace(/[<>]/g, '')
+                  .trim();
+    };
+
+    const { email, password, firstName, lastName, role, phone, company }: CreateUserRequest = {
+      email: sanitizeInput(requestBody.email || ''),
+      password: requestBody.password || '', // Don't sanitize password
+      firstName: sanitizeInput(requestBody.firstName || ''),
+      lastName: sanitizeInput(requestBody.lastName || ''),
+      role: requestBody.role || '',
+      phone: requestBody.phone ? sanitizeInput(requestBody.phone) : undefined,
+      company: requestBody.company ? sanitizeInput(requestBody.company) : undefined
+    };
 
     // Validate required fields
     if (!email || !password || !firstName || !lastName || !role) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid email format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
