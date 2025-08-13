@@ -619,6 +619,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bookings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "secure_client_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bookings_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
@@ -730,6 +737,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_memories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "secure_client_view"
             referencedColumns: ["id"]
           },
         ]
@@ -1268,6 +1282,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flight_options_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "secure_client_view"
             referencedColumns: ["id"]
           },
           {
@@ -2023,6 +2044,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "secure_client_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sales_memories: {
@@ -2080,6 +2108,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_memories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "secure_client_view"
             referencedColumns: ["id"]
           },
           {
@@ -2431,7 +2466,75 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      secure_client_view: {
+        Row: {
+          client_type: string | null
+          company: string | null
+          created_at: string | null
+          data_classification: string | null
+          date_of_birth: string | null
+          email_masked: string | null
+          first_name: string | null
+          id: string | null
+          last_name: string | null
+          last_trip_date: string | null
+          notes: string | null
+          passport_status: string | null
+          payment_status: string | null
+          phone_masked: string | null
+          preferred_class: string | null
+          ssn_status: string | null
+          total_bookings: number | null
+          total_spent: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          client_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          data_classification?: string | null
+          date_of_birth?: string | null
+          email_masked?: never
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          last_trip_date?: string | null
+          notes?: string | null
+          passport_status?: never
+          payment_status?: never
+          phone_masked?: never
+          preferred_class?: string | null
+          ssn_status?: never
+          total_bookings?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          client_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          data_classification?: string | null
+          date_of_birth?: string | null
+          email_masked?: never
+          first_name?: string | null
+          id?: string | null
+          last_name?: string | null
+          last_trip_date?: string | null
+          notes?: string | null
+          passport_status?: never
+          payment_status?: never
+          phone_masked?: never
+          preferred_class?: string | null
+          ssn_status?: never
+          total_bookings?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       archive_old_communications: {
@@ -2567,6 +2670,15 @@ export type Database = {
           encrypted_passport_number: string
         }[]
       }
+      get_client_sensitive_data: {
+        Args: { p_client_id: string }
+        Returns: {
+          id: string
+          encrypted_ssn: string
+          encrypted_passport_number: string
+          encrypted_payment_info: Json
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2653,6 +2765,10 @@ export type Database = {
           p_justification?: string
         }
         Returns: undefined
+      }
+      mask_sensitive_field: {
+        Args: { field_value: string; field_type?: string }
+        Returns: string
       }
       merge_cities: {
         Args: {
