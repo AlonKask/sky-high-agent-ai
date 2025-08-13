@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY'
 };
 
 serve(async (req) => {

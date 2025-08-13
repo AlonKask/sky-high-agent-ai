@@ -4,18 +4,19 @@
  */
 
 export const SECURITY_HEADERS = {
-  // Content Security Policy (Development - more permissive)
+  // Content Security Policy (Production - strict)
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com", // Development only
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "script-src 'self' https://accounts.google.com",
+    "style-src 'self' https://fonts.googleapis.com",
     "img-src 'self' data: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "report-uri /api/csp-report"
+    "upgrade-insecure-requests",
+    "report-uri https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/csp-report"
   ].join('; '),
 
   // Additional security headers
@@ -28,20 +29,19 @@ export const SECURITY_HEADERS = {
 };
 
 /**
- * Production CSP configuration (more restrictive)
+ * Development CSP configuration (more permissive for debugging)
  */
-export const PRODUCTION_CSP = [
+export const DEVELOPMENT_CSP = [
   "default-src 'self'",
-  "script-src 'self' https://accounts.google.com",
-  "style-src 'self' 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' https://fonts.googleapis.com", // Replace with actual hashes
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: https:",
   "font-src 'self' https://fonts.gstatic.com",
   "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "upgrade-insecure-requests",
-  "report-uri /api/csp-report"
+  "report-uri https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/csp-report"
 ].join('; ');
 
 /**

@@ -2,9 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY"
 };
 
 interface GmailPushNotification {

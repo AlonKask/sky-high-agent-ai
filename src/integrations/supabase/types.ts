@@ -2470,6 +2470,10 @@ export type Database = {
         }
         Returns: Json
       }
+      can_access_gmail_integration: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       can_manage_teams: {
         Args: { _user_id: string }
         Returns: boolean
@@ -2616,6 +2620,10 @@ export type Database = {
       is_team_manager: {
         Args: { _user_id: string; _team_id: string }
         Returns: boolean
+      }
+      log_failed_access_attempt: {
+        Args: { p_resource: string; p_attempted_user_id?: string }
+        Returns: undefined
       }
       log_security_event: {
         Args: {
