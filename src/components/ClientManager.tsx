@@ -209,7 +209,14 @@ const ClientManager = () => {
           .eq('user_id', user.id)
           .single();
           
-        if (syncStatus?.gmail_user_email && count < 500) {
+        // Check Gmail connection via credentials table instead
+        const { data: gmailCreds } = await supabase
+          .from('gmail_credentials')
+          .select('gmail_user_email')
+          .eq('user_id', user.id)
+          .maybeSingle();
+          
+        if (gmailCreds?.gmail_user_email && count < 500) {
           await performFullEmailSync();
         }
       }

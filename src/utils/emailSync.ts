@@ -44,13 +44,14 @@ export class EmailSyncManager {
       }
 
       // No longer fetch tokens client-side; only check basic connection status if needed
-      const { data: prefs, error: prefsError } = await supabase
-        .from('user_preferences')
+      // SECURITY FIX: Check Gmail connection via secure credentials table
+      const { data: gmailCreds, error: credsError } = await supabase
+        .from('gmail_credentials')
         .select('gmail_user_email')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (prefsError || !prefs?.gmail_user_email) {
+      if (credsError || !gmailCreds?.gmail_user_email) {
         throw new Error('Gmail not connected. Please connect your Gmail account first.');
       }
 
@@ -147,13 +148,14 @@ export class EmailSyncManager {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return false;
 
-      const { data: prefs } = await supabase
-        .from('user_preferences')
+      // SECURITY FIX: Check Gmail connection via secure credentials table
+      const { data: gmailCreds } = await supabase
+        .from('gmail_credentials')
         .select('gmail_user_email')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      return !!prefs?.gmail_user_email;
+      return !!gmailCreds?.gmail_user_email;
     } catch (error) {
       console.error('Error checking Gmail connection:', error);
       return false;
