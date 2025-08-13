@@ -2507,6 +2507,10 @@ export type Database = {
         Args: { p_client_user_id: string; p_accessing_user_id: string }
         Returns: boolean
       }
+      can_access_financial_data: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       can_access_gmail_integration: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -2699,6 +2703,10 @@ export type Database = {
           payment_status: string
         }[]
       }
+      get_security_dashboard_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_user_teams: {
         Args: { _user_id: string }
         Returns: {
@@ -2765,6 +2773,10 @@ export type Database = {
           target_country: string
         }
         Returns: number
+      }
+      rotate_gmail_tokens: {
+        Args: { p_user_id: string }
+        Returns: boolean
       }
       search_airlines: {
         Args: { search_term: string; page_limit?: number; page_offset?: number }
