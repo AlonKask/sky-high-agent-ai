@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { authSecurity } from "@/utils/authSecurity";
+import { configSecurity } from "@/utils/configSecurity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +15,8 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [showPasswordStrength, setShowPasswordStrength] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -38,37 +42,33 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Clean up auth state before signing in
-      cleanupAuthState();
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Use enhanced sign in with security features
+      const result = await authSecurity.enhancedSignIn(email, password);
 
-      if (error) {
-        let errorMessage = error.message;
-        if (error.message.includes("Invalid login credentials")) {
-          errorMessage = "Invalid email or password. Please check your credentials and try again.";
-        } else if (error.message.includes("Email not confirmed")) {
-          errorMessage = "Please check your email and click the confirmation link before signing in.";
-        }
-        
+      if (!result.success) {
         toast({
           title: "Sign In Error",
-          description: errorMessage,
+          description: result.error || "Sign in failed",
           variant: "destructive",
         });
         return;
       }
 
-      if (data.user) {
+      if (result.requiresMFA) {
         toast({
-          title: "Welcome back!",
-          description: "Successfully signed in.",
+          title: "MFA Required",
+          description: "Please complete multi-factor authentication.",
         });
-        navigate("/", { replace: true });
+        // TODO: Implement MFA flow
+        return;
       }
+
+      toast({
+        title: "Welcome back!",
+        description: "Successfully signed in with enhanced security.",
+      });
+      navigate("/", { replace: true });
+
     } catch (error) {
       toast({
         title: "Error",
@@ -84,6 +84,9 @@ const Auth = () => {
     setLoading(true);
     
     try {
+      // Get secure Google Client ID
+      const config = await configSecurity.initializeSecureConfig();
+      
       cleanupAuthState();
       
       try {
@@ -95,7 +98,11 @@ const Auth = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/`,
+          // Use secure client ID from configuration
+          queryParams: {
+            client_id: config.googleClientId
+          }
         }
       });
 
@@ -110,6 +117,19 @@ const Auth = () => {
         variant: "destructive",
       });
       setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = (newPassword: string) => {
+    setPassword(newPassword);
+    
+    if (newPassword.length > 0) {
+      const validation = authSecurity.validatePasswordStrength(newPassword);
+      setPasswordErrors(validation.errors);
+      setShowPasswordStrength(true);
+    } else {
+      setPasswordErrors([]);
+      setShowPasswordStrength(false);
     }
   };
 
@@ -175,10 +195,20 @@ const Auth = () => {
                   type="password"
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
                   className="pl-10"
                   required
                 />
+                {showPasswordStrength && passwordErrors.length > 0 && (
+                  <div className="mt-2 text-sm text-destructive">
+                    <p className="font-medium">Password requirements:</p>
+                    <ul className="mt-1 list-disc list-inside space-y-1">
+                      {passwordErrors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
