@@ -68,13 +68,32 @@ const handler = async (req: Request): Promise<Response> => {
     const toArray = Array.isArray(to) ? to : [to];
     const finalEmailType = email_type || emailType;
 
-    console.log('Sending email:', { to: toArray, subject, emailType: finalEmailType });
+    // Get user profile for dynamic sender configuration
+    const { data: userProfile } = await supabaseClient
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', user.id)
+      .single();
+
+    // Configure sender information
+    const senderDomain = Deno.env.get("SENDER_EMAIL_DOMAIN") || "selectbusinessclass.com";
+    const defaultSenderName = Deno.env.get("DEFAULT_SENDER_NAME") || "Select Business Class";
+    
+    // Create sender name from user profile or use default
+    const senderName = userProfile 
+      ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || defaultSenderName
+      : defaultSenderName;
+    
+    // Create sender email - use user's actual business email or default
+    const senderEmail = `${senderName} <noreply@${senderDomain}>`;
+
+    console.log('Sending email:', { to: toArray, subject, emailType: finalEmailType, from: senderEmail });
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
     // Send email via Resend
     const emailResponse = await resend.emails.send({
-      from: "Travel Agent <onboarding@resend.dev>",
+      from: senderEmail,
       to: toArray,
       cc,
       bcc,
@@ -94,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
         message_id: emailResponse.data?.id,
         subject,
         body,
-        sender_email: "Travel Agent <onboarding@resend.dev>",
+        sender_email: senderEmail,
         recipient_emails: toArray,
         cc_emails: cc || [],
         bcc_emails: bcc || [],
