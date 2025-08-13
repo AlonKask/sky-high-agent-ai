@@ -44,10 +44,10 @@ const ClientProfile = () => {
     try {
       setLoading(true);
       
-      // Fetch client data from safe view (read-only non-sensitive fields)
+      // Fetch client data from clients table
       const { data: clientData, error: clientError } = await supabase
-        .from('clients_public')
-        .select('*')
+        .from('clients')
+        .select('id, first_name, last_name, email, phone, company, date_of_birth, preferred_class, total_bookings, total_spent, last_trip_date, notes, created_at, updated_at')
         .eq('id', id)
         .maybeSingle();
 

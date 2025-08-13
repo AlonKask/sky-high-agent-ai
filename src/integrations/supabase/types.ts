@@ -592,13 +592,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "bookings_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "bookings_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
@@ -710,13 +703,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_memories_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1258,13 +1244,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "flight_options_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients_public"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "flight_options_quote_id_fkey"
             columns: ["quote_id"]
             isOneToOne: false
@@ -1567,6 +1546,33 @@ export type Database = {
           related_type?: string | null
           title?: string
           type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      oauth_state_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          state_token: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          state_token: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          state_token?: string
+          used?: boolean
           user_id?: string
         }
         Relationships: []
@@ -1990,13 +1996,6 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "requests_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       sales_memories: {
@@ -2054,13 +2053,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_memories_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients_public"
             referencedColumns: ["id"]
           },
           {
@@ -2424,63 +2416,6 @@ export type Database = {
       }
     }
     Views: {
-      clients_public: {
-        Row: {
-          client_type: string | null
-          company: string | null
-          created_at: string | null
-          data_classification: string | null
-          email: string | null
-          first_name: string | null
-          id: string | null
-          last_name: string | null
-          last_trip_date: string | null
-          notes: string | null
-          phone: string | null
-          preferred_class: string | null
-          total_bookings: number | null
-          total_spent: number | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          client_type?: string | null
-          company?: string | null
-          created_at?: string | null
-          data_classification?: string | null
-          email?: string | null
-          first_name?: string | null
-          id?: string | null
-          last_name?: string | null
-          last_trip_date?: string | null
-          notes?: string | null
-          phone?: string | null
-          preferred_class?: string | null
-          total_bookings?: number | null
-          total_spent?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          client_type?: string | null
-          company?: string | null
-          created_at?: string | null
-          data_classification?: string | null
-          email?: string | null
-          first_name?: string | null
-          id?: string | null
-          last_name?: string | null
-          last_trip_date?: string | null
-          notes?: string | null
-          phone?: string | null
-          preferred_class?: string | null
-          total_bookings?: number | null
-          total_spent?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       gmail_integration_status: {
         Row: {
           gmail_user_email: string | null
@@ -2543,6 +2478,10 @@ export type Database = {
         Args: { _user_id: string; _resource_user_id: string }
         Returns: boolean
       }
+      cleanup_expired_oauth_tokens: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_old_conversations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2568,6 +2507,10 @@ export type Database = {
           p_related_id?: string
           p_related_type?: string
         }
+        Returns: string
+      }
+      generate_oauth_state_token: {
+        Args: { p_user_id: string }
         Returns: string
       }
       get_airline_rbds: {
@@ -2779,6 +2722,10 @@ export type Database = {
           p_interaction_type?: string
         }
         Returns: undefined
+      }
+      validate_oauth_state_token: {
+        Args: { p_state_token: string }
+        Returns: string
       }
       validate_password_strength: {
         Args: { password: string }

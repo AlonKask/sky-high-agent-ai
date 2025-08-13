@@ -4,17 +4,18 @@
  */
 
 export const SECURITY_HEADERS = {
-  // Content Security Policy
+  // Content Security Policy (Development - more permissive)
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Note: Reduce in production
-    "style-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com", // Development only
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https:",
-    "font-src 'self' data:",
-    "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'"
+    "form-action 'self'",
+    "report-uri /api/csp-report"
   ].join('; '),
 
   // Additional security headers
@@ -31,15 +32,16 @@ export const SECURITY_HEADERS = {
  */
 export const PRODUCTION_CSP = [
   "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'", // May need hashes for specific inline styles
+  "script-src 'self' https://accounts.google.com",
+  "style-src 'self' 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' https://fonts.googleapis.com", // Replace with actual hashes
   "img-src 'self' data: https:",
-  "font-src 'self'",
-  "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co",
+  "font-src 'self' https://fonts.gstatic.com",
+  "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "upgrade-insecure-requests"
+  "upgrade-insecure-requests",
+  "report-uri /api/csp-report"
 ].join('; ');
 
 /**

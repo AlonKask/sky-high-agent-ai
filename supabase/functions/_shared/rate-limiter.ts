@@ -54,10 +54,10 @@ export class RateLimiter {
 
       if (fetchError) {
         console.error('Rate limit fetch error:', fetchError);
-        // Fail open - allow request if we can't check
+        // SECURITY: Fail closed - deny request if we can't check rate limits
         return {
-          allowed: true,
-          remaining: this.config.maxRequests - 1,
+          allowed: false,
+          remaining: 0,
           resetTime: new Date(now.getTime() + this.config.windowMs),
           total: this.config.maxRequests
         };
@@ -100,10 +100,10 @@ export class RateLimiter {
 
     } catch (error) {
       console.error('Rate limiting error:', error);
-      // Fail open - allow request if rate limiting fails
+      // SECURITY: Fail closed - deny request if rate limiting fails
       return {
-        allowed: true,
-        remaining: this.config.maxRequests - 1,
+        allowed: false,
+        remaining: 0,
         resetTime: new Date(now.getTime() + this.config.windowMs),
         total: this.config.maxRequests
       };
@@ -161,7 +161,7 @@ export async function withRateLimit(
   
   const headers = {
     ...limiter.createHeaders(result),
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 

@@ -3,8 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Credentials': 'true',
 };
 
 serve(async (req) => {
@@ -69,8 +71,47 @@ serve(async (req) => {
           }
         );
       }
-      userId = state;
-      console.log(`👤 User ID from state: ${userId}`);
+      
+      // Validate OAuth state token and get user ID
+      try {
+        const { data: validatedUserId, error: validationError } = await supabaseServiceClient
+          .rpc('validate_oauth_state_token', { p_state_token: state });
+        
+        if (validationError || !validatedUserId) {
+          console.error(`❌ Invalid OAuth state token:`, validationError);
+          return new Response(
+            `<html><body><h1>Security Error</h1><p>Invalid or expired authentication state. Please restart the authentication process.</p><script>
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: 'gmail_auth_error',
+                  success: false,
+                  error: 'Invalid authentication state'
+                }, '*');
+              }
+              window.close();
+            </script></body></html>`,
+            { headers: { 'Content-Type': 'text/html' } }
+          );
+        }
+        
+        userId = validatedUserId;
+        console.log(`👤 Validated user ID from secure state: ${userId}`);
+      } catch (error) {
+        console.error(`❌ State validation failed:`, error);
+        return new Response(
+          `<html><body><h1>Security Error</h1><p>Authentication state validation failed. Please try again.</p><script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'gmail_auth_error',
+                success: false,
+                error: 'State validation failed'
+              }, '*');
+            }
+            window.close();
+          </script></body></html>`,
+          { headers: { 'Content-Type': 'text/html' } }
+        );
+      }
     } else {
       // For start and exchange actions, require authentication
       const authHeader = req.headers.get('Authorization');
@@ -169,7 +210,21 @@ serve(async (req) => {
         'https://www.googleapis.com/auth/userinfo.email'
       ].join(' ');
 
-      // Include userId as state parameter
+      // Generate secure OAuth state token
+      const { data: stateToken, error: stateError } = await supabaseClient
+        .rpc('generate_oauth_state_token', { p_user_id: userId });
+      
+      if (stateError || !stateToken) {
+        console.error(`❌ Failed to generate OAuth state token:`, stateError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to generate secure state token' }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -177,7 +232,7 @@ serve(async (req) => {
         `response_type=code&` +
         `access_type=offline&` +
         `prompt=consent&` +
-        `state=${encodeURIComponent(userId)}`;
+        `state=${encodeURIComponent(stateToken)}`;
 
       console.log(`✅ Generated auth URL with state: ${userId}`);
 
