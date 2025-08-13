@@ -100,14 +100,11 @@ export const maskSensitiveData = (data: string, type: 'ssn' | 'passport' | 'emai
   }
 };
 
-// Get client IP (best effort in browser environment)
+// Get client IP (not collected on client to avoid third-party exposure)
 const getClientIP = async (): Promise<string | null> => {
   try {
-    // In a real production environment, you'd get this from your backend
-    // This is a simplified version for demonstration
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    return data.ip;
+    // Intentionally avoid external IP lookups from the browser
+    return null;
   } catch {
     return null;
   }
@@ -220,7 +217,7 @@ export const setSecurityHeaders = () => {
   // This would typically be done on the server side
   // Including here for documentation purposes
   const cspHeaders = {
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co https://api.ipify.org;",
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co;",
     'X-Frame-Options': 'DENY',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',

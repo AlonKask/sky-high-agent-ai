@@ -205,11 +205,11 @@ const ClientManager = () => {
         // If less than 1000 emails, sync all on first login
         const { data: syncStatus } = await supabase
           .from('user_preferences')
-          .select('gmail_access_token')
+          .select('gmail_user_email')
           .eq('user_id', user.id)
           .single();
-        
-        if (syncStatus?.gmail_access_token && count < 500) {
+          
+        if (syncStatus?.gmail_user_email && count < 500) {
           await performFullEmailSync();
         }
       }

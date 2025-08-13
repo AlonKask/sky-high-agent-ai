@@ -43,14 +43,14 @@ export class EmailSyncManager {
         throw new Error('User not authenticated');
       }
 
-      // Get user preferences with Gmail tokens
+      // No longer fetch tokens client-side; only check basic connection status if needed
       const { data: prefs, error: prefsError } = await supabase
         .from('user_preferences')
-        .select('gmail_access_token, gmail_refresh_token, gmail_user_email')
+        .select('gmail_user_email')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (prefsError || !prefs?.gmail_access_token) {
+      if (prefsError || !prefs?.gmail_user_email) {
         throw new Error('Gmail not connected. Please connect your Gmail account first.');
       }
 
@@ -60,13 +60,8 @@ export class EmailSyncManager {
 
       // Call unified email sync function
       console.log('🚀 Invoking unified email sync...');
-      const { data, error } = await supabase.functions.invoke('sync-gmail-inbox', {
+      const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
         body: {
-          trigger_type: 'manual',
-          userId: user.id,
-          userEmail: prefs.gmail_user_email,
-          accessToken: prefs.gmail_access_token,
-          refreshToken: prefs.gmail_refresh_token,
           includeAIProcessing: options.includeAIProcessing || false
         }
       });
@@ -154,11 +149,11 @@ export class EmailSyncManager {
 
       const { data: prefs } = await supabase
         .from('user_preferences')
-        .select('gmail_access_token, gmail_user_email')
+        .select('gmail_user_email')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      return !!(prefs?.gmail_access_token && prefs?.gmail_user_email);
+      return !!prefs?.gmail_user_email;
     } catch (error) {
       console.error('Error checking Gmail connection:', error);
       return false;
