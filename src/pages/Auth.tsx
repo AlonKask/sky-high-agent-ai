@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { authSecurity } from "@/utils/authSecurity";
@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Plane, Mail, Lock, ArrowRight, Shield } from "lucide-react";
+import { Plane, Mail, Lock, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -18,9 +17,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [showPasswordStrength, setShowPasswordStrength] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
-  const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -43,57 +40,36 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!captchaToken) {
-      toast({
-        title: "CAPTCHA Required",
-        description: "Please complete the CAPTCHA verification.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setLoading(true);
 
     try {
-      // Use enhanced sign in with CAPTCHA
-      const result = await authSecurity.enhancedSignIn(email, password, captchaToken);
-
-      if (!result.success) {
-        toast({
-          title: "Sign In Error",
-          description: result.error || "Sign in failed",
-          variant: "destructive",
-        });
-        // Reset CAPTCHA on failure
-        setCaptchaToken(null);
-        captchaRef.current?.resetCaptcha();
-        return;
+      cleanupAuthState();
+      
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
       }
 
-      if (result.requiresMFA) {
-        toast({
-          title: "MFA Required",
-          description: "Please complete multi-factor authentication.",
-        });
-        return;
-      }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
 
       toast({
         title: "Welcome back!",
-        description: "Successfully signed in with enhanced security.",
+        description: "Successfully signed in.",
       });
       navigate("/", { replace: true });
 
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Sign In Error",
+        description: error.message || "Sign in failed",
         variant: "destructive",
       });
-      // Reset CAPTCHA on error
-      setCaptchaToken(null);
-      captchaRef.current?.resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -101,16 +77,6 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!captchaToken) {
-      toast({
-        title: "CAPTCHA Required",
-        description: "Please complete the CAPTCHA verification.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setLoading(true);
 
     try {
@@ -121,7 +87,6 @@ const Auth = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
-          captchaToken
         }
       });
 
@@ -146,9 +111,6 @@ const Auth = () => {
         description: error.message || "An error occurred during sign up",
         variant: "destructive",
       });
-      // Reset CAPTCHA on error
-      setCaptchaToken(null);
-      captchaRef.current?.resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -194,18 +156,6 @@ const Auth = () => {
     }
   };
 
-  const onCaptchaChange = (token: string | null) => {
-    setCaptchaToken(token);
-  };
-
-  const onCaptchaExpire = () => {
-    setCaptchaToken(null);
-    toast({
-      title: "CAPTCHA Expired",
-      description: "Please complete the CAPTCHA verification again.",
-      variant: "destructive",
-    });
-  };
 
   const handlePasswordChange = (newPassword: string) => {
     setPassword(newPassword);
@@ -317,33 +267,10 @@ const Auth = () => {
                 )}
               </div>
             </div>
-            
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                Security Verification
-              </Label>
-              <div className="flex justify-center">
-                <HCaptcha
-                  ref={captchaRef}
-                  sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY || "10000000-ffff-ffff-ffff-000000000001"}
-                  onVerify={onCaptchaChange}
-                  onExpire={onCaptchaExpire}
-                  theme="dark"
-                />
-              </div>
-              
-              {!import.meta.env.VITE_HCAPTCHA_SITE_KEY && (
-                <p className="text-sm text-muted-foreground text-center mt-2">
-                  ⚠️ CAPTCHA using test key - set VITE_HCAPTCHA_SITE_KEY in production
-                </p>
-              )}
-            </div>
-            
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading || !captchaToken}
+              disabled={loading}
             >
               {loading ? (isSignUp ? "Creating Account..." : "Signing in...") : (
                 <>
