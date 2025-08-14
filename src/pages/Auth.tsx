@@ -17,7 +17,6 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [showPasswordStrength, setShowPasswordStrength] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -75,46 +74,6 @@ const Auth = () => {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      cleanupAuthState();
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.user && !data.session) {
-        toast({
-          title: "Check Your Email",
-          description: "We've sent you a confirmation link to complete your registration.",
-        });
-      } else if (data.session) {
-        toast({
-          title: "Welcome!",
-          description: "Your account has been created successfully.",
-        });
-        navigate("/", { replace: true });
-      }
-
-    } catch (error: any) {
-      toast({
-        title: "Sign Up Error",
-        description: error.message || "An error occurred during sign up",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -207,26 +166,7 @@ const Auth = () => {
             </div>
           </div>
 
-          <div className="flex justify-center space-x-4 mb-4">
-            <Button
-              type="button"
-              variant={!isSignUp ? "default" : "outline"}
-              onClick={() => setIsSignUp(false)}
-              className="flex-1"
-            >
-              Sign In
-            </Button>
-            <Button
-              type="button"
-              variant={isSignUp ? "default" : "outline"}
-              onClick={() => setIsSignUp(true)}
-              className="flex-1"
-            >
-              Sign Up
-            </Button>
-          </div>
-
-          <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+          <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="auth-email">Email</Label>
               <div className="relative">
@@ -272,9 +212,9 @@ const Auth = () => {
               className="w-full" 
               disabled={loading}
             >
-              {loading ? (isSignUp ? "Creating Account..." : "Signing in...") : (
+              {loading ? "Signing in..." : (
                 <>
-                  {isSignUp ? "Create Account" : "Sign In"}
+                  Sign In
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}
@@ -282,11 +222,7 @@ const Auth = () => {
           </form>
 
           <div className="text-center text-sm text-muted-foreground">
-            {isSignUp ? (
-              <>Already have an account? Switch to sign in above.</>
-            ) : (
-              <>Need an account? Use the sign up option above or contact your administrator.</>
-            )}
+            Need an account? Contact your administrator for access.
           </div>
         </CardContent>
       </Card>

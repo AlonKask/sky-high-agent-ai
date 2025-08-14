@@ -1,5 +1,7 @@
 project_id = "ekrwjfdypqzequovmvjn"
 
+[functions.update-user-password]
+verify_jwt = true
 
 [functions.advanced-ai-assistant]
 verify_jwt = true
