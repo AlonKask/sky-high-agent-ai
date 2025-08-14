@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -2483,28 +2483,28 @@ export type Database = {
       }
       audit_client_access: {
         Args: {
+          p_access_type: string
           p_client_id: string
           p_client_owner: string
-          p_access_type: string
         }
         Returns: undefined
       }
       calculate_passenger_totals: {
         Args: {
-          p_adults_count?: number
-          p_children_count?: number
-          p_infants_count?: number
-          p_adult_net_price?: number
-          p_child_net_price?: number
-          p_infant_net_price?: number
           p_adult_markup?: number
+          p_adult_net_price?: number
+          p_adults_count?: number
           p_child_markup?: number
+          p_child_net_price?: number
+          p_children_count?: number
           p_infant_markup?: number
+          p_infant_net_price?: number
+          p_infants_count?: number
         }
         Returns: Json
       }
       can_access_client: {
-        Args: { p_client_user_id: string; p_accessing_user_id: string }
+        Args: { p_accessing_user_id: string; p_client_user_id: string }
         Returns: boolean
       }
       can_access_client_data: {
@@ -2516,11 +2516,11 @@ export type Database = {
         Returns: boolean
       }
       can_access_client_data_ultra_strict: {
-        Args: { target_user_id: string; client_id: string }
+        Args: { client_id: string; target_user_id: string }
         Returns: boolean
       }
       can_access_communication_data: {
-        Args: { target_user_id: string; client_id?: string }
+        Args: { client_id?: string; target_user_id: string }
         Returns: boolean
       }
       can_access_financial_data: {
@@ -2544,13 +2544,13 @@ export type Database = {
         Returns: boolean
       }
       can_modify_data: {
-        Args: { _user_id: string; _resource_user_id: string }
+        Args: { _resource_user_id: string; _user_id: string }
         Returns: boolean
       }
       check_rate_limit: {
         Args: {
-          p_identifier: string
           p_endpoint: string
+          p_identifier: string
           p_max_requests?: number
           p_window_minutes?: number
         }
@@ -2574,40 +2574,40 @@ export type Database = {
       }
       create_audit_log: {
         Args: {
-          p_table_name: string
+          p_new_values?: Json
+          p_old_values?: Json
           p_operation: string
           p_record_id?: string
-          p_old_values?: Json
-          p_new_values?: Json
+          p_table_name: string
         }
         Returns: undefined
       }
       create_notification: {
         Args: {
-          p_user_id: string
-          p_title: string
-          p_message: string
-          p_type?: string
-          p_priority?: string
           p_action_url?: string
+          p_message: string
+          p_priority?: string
           p_related_id?: string
           p_related_type?: string
+          p_title: string
+          p_type?: string
+          p_user_id: string
         }
         Returns: string
       }
       emergency_client_access: {
         Args: {
           p_client_id: string
-          p_justification: string
           p_incident_id?: string
+          p_justification: string
         }
         Returns: {
-          id: string
-          first_name: string
-          last_name: string
           email: string
-          phone: string
           emergency_access_granted: boolean
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
         }[]
       }
       generate_oauth_state_token: {
@@ -2621,87 +2621,87 @@ export type Database = {
       get_airline_rbds: {
         Args: { airline_uuid: string }
         Returns: {
-          id: string
           booking_class_code: string
-          service_class: string
-          class_description: string
           booking_priority: number
-          is_active: boolean
+          class_description: string
+          created_at: string
           effective_from: string
           effective_until: string
-          created_at: string
+          id: string
+          is_active: boolean
+          service_class: string
           updated_at: string
         }[]
       }
       get_airline_with_logo: {
         Args: { p_iata_code: string }
         Returns: {
-          id: string
-          iata_code: string
-          name: string
-          logo_url: string
-          country: string
           alliance: string
+          country: string
+          iata_code: string
+          id: string
+          logo_url: string
+          name: string
         }[]
       }
       get_cities_with_airports: {
         Args: Record<PropertyKey, never>
         Returns: {
+          airport_count: number
           city: string
           country: string
-          airport_count: number
         }[]
       }
       get_city_suggestions: {
         Args: { partial_name: string; suggestion_limit?: number }
         Returns: {
+          airport_count: number
           city: string
           country: string
-          airport_count: number
         }[]
       }
       get_client_access_audit: {
         Args: { limit_records?: number; offset_records?: number }
         Returns: {
-          id: string
           accessing_user_id: string
           accessing_user_name: string
           accessing_user_role: Database["public"]["Enums"]["app_role"]
-          event_type: string
-          severity: string
           client_id: string
-          target_user_id: string
-          justification: string
           event_timestamp: string
+          event_type: string
+          id: string
+          justification: string
+          severity: string
+          target_user_id: string
         }[]
       }
       get_client_decrypted_preview: {
         Args: { p_client_id: string }
         Returns: {
           client_id: string
-          has_encrypted_ssn: boolean
+          data_classification: string
           has_encrypted_passport: boolean
           has_encrypted_payment: boolean
-          data_classification: string
+          has_encrypted_ssn: boolean
           last_sensitive_update: string
         }[]
       }
       get_client_sensitive: {
         Args: { p_client_id: string }
         Returns: {
-          id: string
+          encrypted_passport_number: string
           encrypted_payment_info: Json
           encrypted_ssn: string
-          encrypted_passport_number: string
+          id: string
         }[]
       }
       get_client_sensitive_data: {
         Args: { p_client_id: string }
         Returns: {
-          id: string
-          encrypted_ssn: string
           encrypted_passport_number: string
           encrypted_payment_info: Json
+          encrypted_ssn: string
+          id: string
         }[]
       }
       get_current_user_role: {
@@ -2711,12 +2711,12 @@ export type Database = {
       get_gmail_integration_status: {
         Args: { p_user_id?: string }
         Returns: {
-          user_id: string
-          gmail_user_email: string
-          token_expires_at: string
-          is_connected: boolean
           created_at: string
+          gmail_user_email: string
+          is_connected: boolean
+          token_expires_at: string
           updated_at: string
+          user_id: string
         }[]
       }
       get_option_reviews_by_token: {
@@ -2739,26 +2739,26 @@ export type Database = {
       get_secure_client_view: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          user_id: string
-          first_name: string
-          last_name: string
-          email_masked: string
-          phone_masked: string
-          company: string
-          preferred_class: string
           client_type: string
-          total_bookings: number
-          total_spent: number
-          last_trip_date: string
-          date_of_birth: string
-          notes: string
-          data_classification: string
+          company: string
           created_at: string
-          updated_at: string
-          ssn_status: string
+          data_classification: string
+          date_of_birth: string
+          email_masked: string
+          first_name: string
+          id: string
+          last_name: string
+          last_trip_date: string
+          notes: string
           passport_status: string
           payment_status: string
+          phone_masked: string
+          preferred_class: string
+          ssn_status: string
+          total_bookings: number
+          total_spent: number
+          updated_at: string
+          user_id: string
         }[]
       }
       get_security_dashboard_metrics: {
@@ -2773,17 +2773,17 @@ export type Database = {
       }
       handle_email_sync_status: {
         Args: {
-          p_user_id: string
           p_folder_name: string
           p_last_sync_at: string
           p_last_sync_count: number
+          p_user_id: string
         }
         Returns: undefined
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
@@ -2800,18 +2800,18 @@ export type Database = {
         Returns: boolean
       }
       is_team_manager: {
-        Args: { _user_id: string; _team_id: string }
+        Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
       log_failed_access_attempt: {
-        Args: { p_resource: string; p_attempted_user_id?: string }
+        Args: { p_attempted_user_id?: string; p_resource: string }
         Returns: undefined
       }
       log_security_event: {
         Args: {
+          p_details?: Json
           p_event_type: string
           p_severity: string
-          p_details?: Json
           p_user_id?: string
         }
         Returns: string
@@ -2825,7 +2825,7 @@ export type Database = {
         Returns: undefined
       }
       mask_sensitive_field: {
-        Args: { field_value: string; field_type?: string }
+        Args: { field_type?: string; field_value: string }
         Returns: string
       }
       merge_cities: {
@@ -2841,70 +2841,70 @@ export type Database = {
         Returns: boolean
       }
       search_airlines: {
-        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Args: { page_limit?: number; page_offset?: number; search_term: string }
         Returns: {
-          id: string
+          alliance: string
+          country: string
+          created_at: string
           iata_code: string
           icao_code: string
-          name: string
-          country: string
-          alliance: string
+          id: string
           logo_url: string
-          created_at: string
+          name: string
           rbd_count: number
           total_count: number
         }[]
       }
       search_airports: {
-        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Args: { page_limit?: number; page_offset?: number; search_term: string }
         Returns: {
-          id: string
-          iata_code: string
-          icao_code: string
-          name: string
           city: string
           country: string
+          created_at: string
+          iata_code: string
+          icao_code: string
+          id: string
           latitude: number
           longitude: number
-          timezone: string
+          name: string
           priority: number
-          created_at: string
+          timezone: string
           total_count: number
         }[]
       }
       search_airports_grouped: {
-        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Args: { page_limit?: number; page_offset?: number; search_term: string }
         Returns: {
-          id: string
+          city: string
+          city_airport_count: number
+          country: string
+          created_at: string
           iata_code: string
           icao_code: string
-          name: string
-          city: string
-          country: string
+          id: string
           latitude: number
           longitude: number
-          timezone: string
+          name: string
           priority: number
-          created_at: string
-          city_airport_count: number
+          timezone: string
           total_count: number
         }[]
       }
       search_booking_classes: {
-        Args: { search_term: string; page_limit?: number; page_offset?: number }
+        Args: { page_limit?: number; page_offset?: number; search_term: string }
         Returns: {
-          id: string
-          booking_class_code: string
-          service_class: string
-          class_description: string
-          booking_priority: number
           active: boolean
+          airline_iata: string
           airline_id: string
           airline_name: string
-          airline_iata: string
+          booking_class_code: string
+          booking_priority: number
+          class_description: string
           created_at: string
-          updated_at: string
+          id: string
+          service_class: string
           total_count: number
+          updated_at: string
         }[]
       }
       update_airline_logo: {
@@ -2914,26 +2914,26 @@ export type Database = {
       update_client_encrypted_field: {
         Args: {
           p_client_id: string
-          p_field_name: string
           p_encrypted_value: string
+          p_field_name: string
         }
         Returns: boolean
       }
       update_client_memory: {
         Args: {
-          p_user_id: string
           p_client_id: string
           p_interaction_summary: string
-          p_preferences?: Json
           p_pain_points?: Json
+          p_preferences?: Json
+          p_user_id: string
         }
         Returns: undefined
       }
       update_user_memory: {
         Args: {
-          p_user_id: string
-          p_new_context: string
           p_interaction_type?: string
+          p_new_context: string
+          p_user_id: string
         }
         Returns: undefined
       }

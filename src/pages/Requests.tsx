@@ -24,12 +24,14 @@ const Requests = () => {
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-3 text-muted-foreground">Loading...</span>
         </div>
       </div>
     );
   }
 
   if (!user) {
+    console.log('Requests page: No user, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 

@@ -9,6 +9,7 @@ import { SecurityProvider } from "@/components/SecurityProvider";
 import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
+import { AuthGuard } from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Emails from "./pages/Emails";
@@ -61,26 +62,26 @@ function App() {
                   <Route path="/book/:token" element={<BookOption />} />
                   <Route path="/public-request" element={<PublicRequest />} />
                   
-                  {/* Protected routes */}
-                  <Route path="/" element={<Layout><Index /></Layout>} />
-                  <Route path="/emails" element={<Layout><Emails /></Layout>} />
-                  <Route path="/clients" element={<Layout><Clients /></Layout>} />
-                  <Route path="/clients/:id" element={<Layout><ClientProfile /></Layout>} />
-                  <Route path="/bookings" element={<Layout><Bookings /></Layout>} />
-                  <Route path="/bookings/:id" element={<Layout><BookingDetail /></Layout>} />
-                  <Route path="/requests" element={<Layout><Requests /></Layout>} />
-                  <Route path="/request/:id" element={<Layout><RequestDetail /></Layout>} />
-                  <Route path="/calendar" element={<Layout><Calendar /></Layout>} />
-                  <Route path="/analytics" element={<Layout><Analytics /></Layout>} />
-                  <Route path="/messages" element={<Layout><Messages /></Layout>} />
-                  <Route path="/agent-statistics" element={<Layout><AgentStatistics /></Layout>} />
-                  <Route path="/reports" element={<Layout><Reports /></Layout>} />
-                  <Route path="/settings" element={<Layout><Settings /></Layout>} />
-            <Route path="/users" element={<Layout><Users /></Layout>} />
-            <Route path="/teams" element={<Layout><Teams /></Layout>} />
-            <Route path="/teams/:id" element={<Layout><TeamDetail /></Layout>} />
-            <Route path="/users/:id" element={<Layout><UserProfile /></Layout>} />
-            <Route path="/iata-management" element={<Layout><IATAManagement /></Layout>} />
+                   {/* Protected routes */}
+                   <Route path="/" element={<AuthGuard><Layout><Index /></Layout></AuthGuard>} />
+                   <Route path="/emails" element={<AuthGuard><Layout><Emails /></Layout></AuthGuard>} />
+                   <Route path="/clients" element={<AuthGuard><Layout><Clients /></Layout></AuthGuard>} />
+                   <Route path="/clients/:id" element={<AuthGuard><Layout><ClientProfile /></Layout></AuthGuard>} />
+                   <Route path="/bookings" element={<AuthGuard><Layout><Bookings /></Layout></AuthGuard>} />
+                   <Route path="/bookings/:id" element={<AuthGuard><Layout><BookingDetail /></Layout></AuthGuard>} />
+                   <Route path="/requests" element={<AuthGuard><Layout><Requests /></Layout></AuthGuard>} />
+                   <Route path="/request/:id" element={<AuthGuard><Layout><RequestDetail /></Layout></AuthGuard>} />
+                   <Route path="/calendar" element={<AuthGuard><Layout><Calendar /></Layout></AuthGuard>} />
+                   <Route path="/analytics" element={<AuthGuard><Layout><Analytics /></Layout></AuthGuard>} />
+                   <Route path="/messages" element={<AuthGuard><Layout><Messages /></Layout></AuthGuard>} />
+                   <Route path="/agent-statistics" element={<AuthGuard><Layout><AgentStatistics /></Layout></AuthGuard>} />
+                   <Route path="/reports" element={<AuthGuard><Layout><Reports /></Layout></AuthGuard>} />
+                   <Route path="/settings" element={<AuthGuard><Layout><Settings /></Layout></AuthGuard>} />
+             <Route path="/users" element={<AuthGuard><Layout><Users /></Layout></AuthGuard>} />
+             <Route path="/teams" element={<AuthGuard><Layout><Teams /></Layout></AuthGuard>} />
+             <Route path="/teams/:id" element={<AuthGuard><Layout><TeamDetail /></Layout></AuthGuard>} />
+             <Route path="/users/:id" element={<AuthGuard><Layout><UserProfile /></Layout></AuthGuard>} />
+             <Route path="/iata-management" element={<AuthGuard><Layout><IATAManagement /></Layout></AuthGuard>} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>

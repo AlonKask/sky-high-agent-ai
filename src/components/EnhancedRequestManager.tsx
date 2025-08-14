@@ -51,10 +51,15 @@ const EnhancedRequestManager = () => {
   }, [user]);
 
   const fetchRequests = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping request fetch');
+      setLoading(false);
+      return;
+    }
     
     try {
       setLoading(true);
+      console.log('Fetching requests for user:', user.id, 'role:', role);
 
       let query = supabase
         .from('requests')
@@ -64,12 +69,21 @@ const EnhancedRequestManager = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // Apply user filtering
+      // Apply user filtering based on role
       if (filterUserId) {
         query = query.eq('user_id', filterUserId);
+        console.log('Filtering by user_id:', filterUserId);
+      } else if (role === 'admin' || role === 'manager' || role === 'supervisor') {
+        // Admins, managers, and supervisors can see all requests
+        console.log('Admin/Manager/Supervisor - showing all requests');
       } else if (role === 'user' || role === 'agent' || role === 'gds_expert') {
         // For regular agents, only show available or assigned to them
         query = query.or(`assignment_status.eq.available,assigned_to.eq.${user.id}`);
+        console.log('Agent - showing available or assigned requests');
+      } else {
+        // Default: show user's own requests and available ones
+        query = query.or(`user_id.eq.${user.id},assignment_status.eq.available`);
+        console.log('Default - showing own and available requests');
       }
 
       const { data, error } = await query;
@@ -80,6 +94,7 @@ const EnhancedRequestManager = () => {
         return;
       }
 
+      console.log('Fetched requests:', data?.length || 0, 'requests');
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);

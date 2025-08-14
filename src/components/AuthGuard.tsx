@@ -13,7 +13,10 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   const location = useLocation();
 
   useEffect(() => {
+    console.log('AuthGuard: user:', !!user, 'loading:', loading, 'path:', location.pathname);
+    
     if (!loading && !user && location.pathname !== '/auth') {
+      console.log('AuthGuard: Redirecting to auth');
       // Store the attempted URL to redirect back after login
       const returnUrl = location.pathname;
       navigate('/auth', { 
@@ -24,12 +27,15 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   }, [user, loading, navigate, location.pathname]);
 
   if (loading) {
+    console.log('AuthGuard: Showing loading fallback');
     return <LoadingFallback />;
   }
 
   if (!user) {
+    console.log('AuthGuard: No user, returning null');
     return null; // Will redirect via useEffect
   }
 
+  console.log('AuthGuard: User authenticated, rendering children');
   return <>{children}</>;
 };
