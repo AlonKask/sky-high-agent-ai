@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Plane, Mail, Lock, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { testPasswordUpdateSystem } from "@/utils/testPasswordUpdate";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -224,6 +225,17 @@ const Auth = () => {
           <div className="text-center text-sm text-muted-foreground">
             Need an account? Contact your administrator for access.
           </div>
+          
+          {process.env.NODE_ENV === 'development' && (
+            <Button 
+              onClick={testPasswordUpdateSystem}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              Test Password Update System
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>

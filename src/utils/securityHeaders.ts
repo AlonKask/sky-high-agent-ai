@@ -50,7 +50,6 @@ export const DEVELOPMENT_CSP = [
 export const RATE_LIMITS = {
   // API endpoints
   '/api/auth/signin': { requests: 5, window: 900000 }, // 5 requests per 15 minutes
-  '/api/auth/signup': { requests: 3, window: 3600000 }, // 3 requests per hour
   '/api/email/send': { requests: 100, window: 3600000 }, // 100 emails per hour
   '/api/client/create': { requests: 50, window: 3600000 }, // 50 clients per hour
   
