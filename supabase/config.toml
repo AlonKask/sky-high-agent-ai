@@ -1,7 +1,5 @@
 project_id = "ekrwjfdypqzequovmvjn"
 
-[functions.validate-captcha]
-verify_jwt = false
 
 [functions.advanced-ai-assistant]
 verify_jwt = true

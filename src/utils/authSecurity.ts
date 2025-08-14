@@ -209,7 +209,7 @@ class AuthSecurityManager {
     };
   }
 
-  async enhancedSignIn(email: string, password: string, captchaToken?: string): Promise<{
+  async enhancedSignIn(email: string, password: string): Promise<{
     success: boolean;
     error?: string;
     requiresMFA?: boolean;
@@ -229,7 +229,6 @@ class AuthSecurityManager {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: captchaToken ? { captchaToken } : undefined,
       });
 
       if (error) {
