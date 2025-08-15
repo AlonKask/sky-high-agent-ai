@@ -2595,6 +2595,10 @@ export type Database = {
         }
         Returns: string
       }
+      decrypt_gmail_token: {
+        Args: { encrypted_token: string }
+        Returns: string
+      }
       emergency_client_access: {
         Args: {
           p_client_id: string
