@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { toastHelpers } from "@/utils/toastHelpers";
+import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown } from "lucide-react";
+import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown, Inbox } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { EmptyStateCard } from "@/components/EmptyStateCard";
 
 interface Request {
   id: string;
@@ -90,7 +91,7 @@ const EnhancedRequestManager = () => {
 
       if (error) {
         console.error('Error fetching requests:', error);
-        toastHelpers.error('Failed to load requests', error);
+        toast.error('Failed to load requests');
         return;
       }
 
@@ -98,7 +99,7 @@ const EnhancedRequestManager = () => {
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
-      toastHelpers.error('Failed to load requests', error);
+      toast.error('Failed to load requests');
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ const EnhancedRequestManager = () => {
 
       if (updateError) {
         console.error('Error taking request:', updateError);
-        toastHelpers.error('Failed to take request', updateError);
+        toast.error('Failed to take request');
         return;
       }
 
@@ -141,11 +142,11 @@ const EnhancedRequestManager = () => {
         // Don't show error for assignment record as the main update succeeded
       }
 
-      toastHelpers.success('Request assigned to you successfully');
+      toast.success('Request assigned to you successfully');
       await fetchRequests(); // Refresh the list
     } catch (error) {
       console.error('Error taking request:', error);
-      toastHelpers.error('Failed to take request', error);
+      toast.error('Failed to take request');
     } finally {
       setTakingRequest(null);
     }
@@ -340,8 +341,29 @@ const EnhancedRequestManager = () => {
         </div>
       )}
 
+      {/* Show empty state if no requests at all */}
+      {requests.length === 0 && !loading && (
+        <EmptyStateCard
+          title="No Travel Requests Found"
+          description={`No travel requests found for your account. ${role === 'agent' ? 'Available requests will appear here when they\'re submitted.' : 'Create your first request to get started.'}`}
+          actionLabel="Create Sample Data"
+          onAction={async () => {
+            const { seedSampleData } = await import('@/utils/sampleDataSeeder');
+            const success = await seedSampleData(user?.id || '');
+            if (success) {
+              toast.success('Sample data created successfully');
+              fetchRequests();
+            } else {
+              toast.error('Failed to create sample data');
+            }
+          }}
+          icon={<Inbox className="h-12 w-12 text-muted-foreground" />}
+        />
+      )}
+
       {/* Available Requests - Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {requests.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* New Clients Column */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -355,10 +377,11 @@ const EnhancedRequestManager = () => {
           </div>
           
           {newClientRequests.length === 0 ? (
-            <Card className="p-8 text-center">
-              <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No new client requests</p>
-            </Card>
+            <EmptyStateCard
+              title="No New Client Requests"
+              description="No requests from new clients at the moment. New client requests will appear here when they're submitted."
+              icon={<UserPlus className="h-8 w-8 text-muted-foreground" />}
+            />
           ) : (
             <div className="space-y-4">
               {newClientRequests.map((request) => (
@@ -381,10 +404,11 @@ const EnhancedRequestManager = () => {
           </div>
           
           {returnClientRequests.length === 0 ? (
-            <Card className="p-8 text-center">
-              <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No return client requests</p>
-            </Card>
+            <EmptyStateCard
+              title="No Return Client Requests"
+              description="No requests from existing clients at the moment. Return client requests will appear here when they're submitted."
+              icon={<User className="h-8 w-8 text-muted-foreground" />}
+            />
           ) : (
             <div className="space-y-4">
               {returnClientRequests.map((request) => (
@@ -393,7 +417,8 @@ const EnhancedRequestManager = () => {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };
