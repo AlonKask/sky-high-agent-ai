@@ -89,6 +89,54 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_performance_metrics: {
+        Row: {
+          agent_id: string
+          calls_made: number | null
+          commission_earned: number | null
+          conversion_rate: number | null
+          created_at: string | null
+          emails_sent: number | null
+          id: string
+          metric_date: string | null
+          response_time_avg: unknown | null
+          revenue_generated: number | null
+          satisfaction_score: number | null
+          target_achieved: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          calls_made?: number | null
+          commission_earned?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          emails_sent?: number | null
+          id?: string
+          metric_date?: string | null
+          response_time_avg?: unknown | null
+          revenue_generated?: number | null
+          satisfaction_score?: number | null
+          target_achieved?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          calls_made?: number | null
+          commission_earned?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          emails_sent?: number | null
+          id?: string
+          metric_date?: string | null
+          response_time_avg?: unknown | null
+          revenue_generated?: number | null
+          satisfaction_score?: number | null
+          target_achieved?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       agent_performance_reports: {
         Row: {
           agent_id: string
@@ -537,6 +585,53 @@ export type Database = {
           },
         ]
       }
+      booking_commissions: {
+        Row: {
+          agent_id: string
+          base_commission_rate: number
+          bonus_amount: number | null
+          booking_id: string
+          commission_amount: number
+          created_at: string | null
+          id: string
+          payment_date: string | null
+          payment_status: string | null
+          total_commission: number
+        }
+        Insert: {
+          agent_id: string
+          base_commission_rate: number
+          bonus_amount?: number | null
+          booking_id: string
+          commission_amount: number
+          created_at?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_status?: string | null
+          total_commission: number
+        }
+        Update: {
+          agent_id?: string
+          base_commission_rate?: number
+          bonus_amount?: number | null
+          booking_id?: string
+          commission_amount?: number
+          created_at?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_status?: string | null
+          total_commission?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_commissions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           airline: string
@@ -815,6 +910,44 @@ export type Database = {
         }
         Relationships: []
       }
+      client_satisfaction_scores: {
+        Row: {
+          agent_id: string
+          client_id: string
+          created_at: string | null
+          feedback_text: string | null
+          id: string
+          interaction_type: string
+          rating: number
+        }
+        Insert: {
+          agent_id: string
+          client_id: string
+          created_at?: string | null
+          feedback_text?: string | null
+          id?: string
+          interaction_type: string
+          rating: number
+        }
+        Update: {
+          agent_id?: string
+          client_id?: string
+          created_at?: string | null
+          feedback_text?: string | null
+          id?: string
+          interaction_type?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_satisfaction_scores_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           client_type: string | null
@@ -933,6 +1066,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      communication_logs: {
+        Row: {
+          agent_id: string
+          client_id: string | null
+          communication_type: string
+          created_at: string | null
+          duration_minutes: number | null
+          id: string
+          notes: string | null
+          outcome: string | null
+          response_time_minutes: number | null
+          satisfaction_rating: number | null
+        }
+        Insert: {
+          agent_id: string
+          client_id?: string | null
+          communication_type: string
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          response_time_minutes?: number | null
+          satisfaction_rating?: number | null
+        }
+        Update: {
+          agent_id?: string
+          client_id?: string | null
+          communication_type?: string
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          response_time_minutes?: number | null
+          satisfaction_rating?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       compliance_reports: {
         Row: {
@@ -2828,6 +3008,10 @@ export type Database = {
       generate_oauth_state_token: {
         Args: { p_user_id: string }
         Returns: string
+      }
+      generate_sample_dashboard_data: {
+        Args: { p_agent_id: string }
+        Returns: undefined
       }
       generate_secure_client_token: {
         Args: Record<PropertyKey, never>
