@@ -9,8 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Plane, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { TurnstileWrapper } from "@/components/TurnstileWrapper";
-import { signInWithEmailPassword, signInWithGoogle } from "@/utils/authHelpers";
-import { configSecurity } from "@/utils/configSecurity";
+import { SimpleAuth } from "@/utils/simpleAuth";
 import { toastHelpers } from '@/utils/toastHelpers';
 
 const Auth = () => {
@@ -21,19 +20,8 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [config, setConfig] = useState<any>(null);
 
   useEffect(() => {
-    const initializeConfig = async () => {
-      try {
-        const secureConfig = await configSecurity.initializeSecureConfig();
-        setConfig(secureConfig);
-      } catch (error) {
-        console.error('Failed to load configuration', { error });
-      }
-    };
-
-    initializeConfig();
 
     // Redirect if already logged in
     if (user) {
@@ -42,13 +30,6 @@ const Auth = () => {
     }
   }, [navigate, location.state, user]);
 
-  const cleanupAuthState = () => {
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        localStorage.removeItem(key);
-      }
-    });
-  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,28 +39,26 @@ const Auth = () => {
       return;
     }
 
-    // Validate CAPTCHA token if required
-    if (config?.turnstileSiteKey && !captchaToken) {
-      toastHelpers.error("CAPTCHA Required", "Please complete the CAPTCHA verification before signing in.");
-      return;
-    }
 
     setLoading(true);
 
     try {
-      const { user } = await signInWithEmailPassword(email, password, captchaToken);
+      const result = await SimpleAuth.signInWithEmail(email, password, captchaToken || undefined);
       
-      if (user) {
+      if (result.success && result.user) {
         toastHelpers.success("Welcome back!", { description: "You have been signed in successfully." });
         
         // Redirect to the intended page or dashboard
         const returnUrl = location.state?.returnUrl || '/';
         window.location.href = returnUrl;
+      } else {
+        toastHelpers.error("Sign In Error", result.error || "Authentication failed");
+        setCaptchaToken(null);
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
-      toastHelpers.error("Sign In Error", error.message);
-      setCaptchaToken(null); // Reset CAPTCHA on error
+      toastHelpers.error("Sign In Error", error.message || "Sign in failed");
+      setCaptchaToken(null);
     } finally {
       setLoading(false);
     }
@@ -90,8 +69,12 @@ const Auth = () => {
     setLoading(true);
     
     try {
-      const data = await signInWithGoogle();
-      // OAuth redirect will handle the rest
+      const result = await SimpleAuth.signInWithGoogle();
+      if (!result.success) {
+        toastHelpers.error("Google Sign In Error", result.error || "Google sign in failed");
+        setLoading(false);
+      }
+      // OAuth redirect will handle the rest if successful
     } catch (error: any) {
       console.error('Google OAuth error:', error);
       toastHelpers.error("Google Sign In Error", error.message);
@@ -179,20 +162,11 @@ const Auth = () => {
               </div>
             </div>
 
-            {config?.turnstileSiteKey && (
-              <TurnstileWrapper
-                siteKey={config.turnstileSiteKey}
-                onVerify={handleCaptchaVerify}
-                onError={handleCaptchaError}
-                onExpire={() => setCaptchaToken(null)}
-                disabled={loading}
-              />
-            )}
 
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading || (config?.turnstileSiteKey && !captchaToken)}
+              disabled={loading}
             >
               {loading ? (
                 <div className="flex items-center space-x-2">
