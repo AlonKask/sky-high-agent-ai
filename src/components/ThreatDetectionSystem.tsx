@@ -85,7 +85,7 @@ export const ThreatDetectionSystem: React.FC = () => {
             id: event.id,
             type: event.event_type || 'unknown',
             severity: event.severity as 'low' | 'medium' | 'high' | 'critical',
-            description: event.details?.description || `${event.event_type} detected`,
+            description: (event.details as any)?.description || `${event.event_type} detected`,
             timestamp: event.timestamp,
             automated_response: getAutomatedResponse(event.event_type, event.severity),
             confidence_score: 75 + Math.random() * 25
