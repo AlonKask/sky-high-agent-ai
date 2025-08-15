@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { authSecurity } from "@/utils/authSecurity";
 import { configSecurity } from "@/utils/configSecurity";
 import { enhancedSessionSecurity } from "@/utils/enhancedSessionSecurity";
+import { useSecurityFallback } from "@/hooks/useSecurityFallback";
 
 interface AuthContextType {
   user: User | null;
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { securityEnabled, reportSecurityFailure } = useSecurityFallback();
 
   useEffect(() => {
     // Initialize secure configuration and auth monitoring
@@ -47,10 +49,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Initialize enhanced session security on sign in
-        if (event === 'SIGNED_IN' && session) {
+        // Initialize enhanced session security on sign in (only if enabled)
+        if (event === 'SIGNED_IN' && session && securityEnabled) {
           setTimeout(() => {
-            enhancedSessionSecurity.initializeSecureSession();
+            try {
+              enhancedSessionSecurity.initializeSecureSession();
+            } catch (error) {
+              console.error('[Auth] Enhanced security initialization failed:', error);
+              reportSecurityFailure();
+            }
           }, 0);
         } else if (event === 'SIGNED_OUT') {
           enhancedSessionSecurity.cleanup();
@@ -58,15 +65,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Get initial session with security validation
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Get initial session with graceful security validation
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
       
-      // Validate existing session security
-      if (session && !enhancedSessionSecurity.validateSession()) {
-        enhancedSessionSecurity.secureSignOut();
+      // Gracefully validate existing session security with recovery (only if enabled)
+      if (session && securityEnabled) {
+        try {
+          const isValid = await enhancedSessionSecurity.validateSession();
+          if (!isValid) {
+            console.warn('[Auth] Enhanced security validation failed, falling back to standard auth');
+            reportSecurityFailure();
+          } else {
+            console.log('[Auth] Enhanced security validation passed');
+          }
+        } catch (error) {
+          console.error('[Auth] Enhanced security validation error:', error);
+          reportSecurityFailure();
+        }
       }
     });
 

@@ -27,23 +27,19 @@ class EnhancedSessionSecurity {
   }
 
   generateDeviceFingerprint(): string {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.textBaseline = 'top';
-      ctx.font = '14px Arial';
-      ctx.fillText('Device fingerprint', 2, 2);
-    }
-    
+    // Use more stable browser properties, avoid canvas that changes between loads
     const fingerprint = [
       navigator.userAgent,
       navigator.language,
       screen.width + 'x' + screen.height,
-      new Date().getTimezoneOffset(),
-      canvas.toDataURL()
+      new Date().getTimezoneOffset().toString(),
+      navigator.platform || 'unknown',
+      navigator.hardwareConcurrency || 'unknown'
     ].join('|');
     
-    return btoa(fingerprint).substring(0, 32);
+    const encoded = btoa(fingerprint).substring(0, 32);
+    console.log('[Enhanced Security] Generated stable device fingerprint:', encoded);
+    return encoded;
   }
 
   initializeSecureSession(): void {
@@ -57,33 +53,74 @@ class EnhancedSessionSecurity {
     this.startSessionMonitoring();
   }
 
-  validateSession(): boolean {
+  async validateSession(): Promise<boolean> {
     try {
       const stored = localStorage.getItem(this.sessionKey);
-      if (!stored) return false;
+      if (!stored) {
+        console.log('[Enhanced Security] No stored session metadata');
+        return await this.attemptSessionRecovery();
+      }
 
       const metadata: SessionMetadata = JSON.parse(stored);
       const currentFingerprint = this.generateDeviceFingerprint();
       
-      // Check device fingerprint
+      console.log('[Enhanced Security] Validating session:', {
+        storedFingerprint: metadata.deviceFingerprint,
+        currentFingerprint,
+        lastActivity: new Date(metadata.lastActivity),
+        inactivityPeriod: Date.now() - metadata.lastActivity
+      });
+      
+      // Check device fingerprint with grace period
       if (metadata.deviceFingerprint !== currentFingerprint) {
-        this.invalidateSession('Device fingerprint mismatch');
-        return false;
+        console.warn('[Enhanced Security] Device fingerprint mismatch, attempting recovery');
+        return await this.attemptSessionRecovery();
       }
 
       // Check inactivity timeout
       if (Date.now() - metadata.lastActivity > this.maxInactivity) {
-        this.invalidateSession('Session timeout');
-        return false;
+        console.warn('[Enhanced Security] Session timeout, attempting recovery');
+        return await this.attemptSessionRecovery();
       }
 
       // Update activity timestamp
       metadata.lastActivity = Date.now();
       localStorage.setItem(this.sessionKey, JSON.stringify(metadata));
       
+      console.log('[Enhanced Security] Session validation successful');
       return true;
     } catch (error) {
-      this.invalidateSession('Session validation error');
+      console.error('[Enhanced Security] Session validation error:', error);
+      return await this.attemptSessionRecovery();
+    }
+  }
+
+  private async attemptSessionRecovery(): Promise<boolean> {
+    try {
+      console.log('[Enhanced Security] Attempting session recovery...');
+      
+      // Check if Supabase session is still valid
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        console.log('[Enhanced Security] No valid Supabase session, session recovery failed');
+        return false;
+      }
+
+      console.log('[Enhanced Security] Valid Supabase session found, regenerating security metadata');
+      
+      // Regenerate session metadata with current fingerprint
+      const metadata: SessionMetadata = {
+        deviceFingerprint: this.generateDeviceFingerprint(),
+        lastActivity: Date.now(),
+        userAgent: navigator.userAgent
+      };
+      
+      localStorage.setItem(this.sessionKey, JSON.stringify(metadata));
+      console.log('[Enhanced Security] Session recovery successful');
+      return true;
+    } catch (error) {
+      console.error('[Enhanced Security] Session recovery failed:', error);
       return false;
     }
   }
@@ -102,6 +139,7 @@ class EnhancedSessionSecurity {
   }
 
   private invalidateSession(reason: string): void {
+    console.warn('[Enhanced Security] Invalidating session:', reason);
     localStorage.removeItem(this.sessionKey);
     this.cleanupAuthState();
     
@@ -129,10 +167,15 @@ class EnhancedSessionSecurity {
       clearInterval(this.monitoringInterval);
     }
 
-    // Monitor session every 60 seconds
-    this.monitoringInterval = setInterval(() => {
-      this.validateSession();
-    }, 60000);
+    console.log('[Enhanced Security] Starting session monitoring with recovery logic');
+
+    // Monitor session every 2 minutes (less aggressive)
+    this.monitoringInterval = setInterval(async () => {
+      const isValid = await this.validateSession();
+      if (!isValid) {
+        console.warn('[Enhanced Security] Session validation failed during monitoring');
+      }
+    }, 120000);
 
     // Set up activity tracking
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
