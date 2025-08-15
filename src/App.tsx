@@ -12,6 +12,7 @@ import { Layout } from "@/components/Layout";
 import { AuthGuard } from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import Emails from "./pages/Emails";
 import Clients from "./pages/Clients";
 import ClientProfile from "./pages/ClientProfile";
@@ -58,6 +59,7 @@ function App() {
                 <Routes>
                   {/* Public routes */}
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/options/:token" element={<OptionsRedirect />} />
                   <Route path="/view-option/:token" element={<ViewOption />} />
                   <Route path="/book/:token" element={<BookOption />} />

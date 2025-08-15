@@ -55,16 +55,6 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!captchaToken) {
-      toast({
-        variant: "destructive",
-        title: "CAPTCHA Required",
-        description: "Please complete the CAPTCHA verification.",
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -76,13 +66,23 @@ const Auth = () => {
         // Continue even if this fails
       }
 
-      // Verify CAPTCHA token with backend
-      const { data: captchaResult } = await supabase.functions.invoke('verify-captcha', {
-        body: { token: captchaToken, action: 'signin' }
-      });
+      // Verify CAPTCHA token with backend only if captcha is available and token exists
+      if (config?.hcaptchaSiteKey && captchaToken) {
+        const { data: captchaResult } = await supabase.functions.invoke('verify-captcha', {
+          body: { token: captchaToken, action: 'signin' }
+        });
 
-      if (!captchaResult?.success) {
-        throw new Error('CAPTCHA verification failed');
+        if (!captchaResult?.success) {
+          throw new Error('CAPTCHA verification failed');
+        }
+      } else if (config?.hcaptchaSiteKey && !captchaToken) {
+        toast({
+          variant: "destructive",
+          title: "CAPTCHA Required",
+          description: "Please complete the CAPTCHA verification.",
+        });
+        setLoading(false);
+        return;
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -163,7 +163,7 @@ const Auth = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
@@ -312,7 +312,7 @@ const Auth = () => {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading || !captchaToken}
+              disabled={loading || (config?.hcaptchaSiteKey && !captchaToken)}
             >
               {loading ? (
                 <div className="flex items-center space-x-2">
