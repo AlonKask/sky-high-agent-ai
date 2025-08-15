@@ -20,6 +20,7 @@ import Bookings from "./pages/Bookings";
 import BookingDetail from "./pages/BookingDetail";
 import Requests from "./pages/Requests";
 import RequestDetail from "./pages/RequestDetail";
+import NewRequest from "./pages/NewRequest";
 import Calendar from "./pages/Calendar";
 import Analytics from "./pages/Analytics";
 import Messages from "./pages/Messages";
@@ -73,6 +74,7 @@ function App() {
                    <Route path="/bookings" element={<AuthGuard><Layout><Bookings /></Layout></AuthGuard>} />
                    <Route path="/bookings/:id" element={<AuthGuard><Layout><BookingDetail /></Layout></AuthGuard>} />
                    <Route path="/requests" element={<AuthGuard><Layout><Requests /></Layout></AuthGuard>} />
+                   <Route path="/requests/new" element={<AuthGuard><Layout><NewRequest /></Layout></AuthGuard>} />
                    <Route path="/request/:id" element={<AuthGuard><Layout><RequestDetail /></Layout></AuthGuard>} />
                    <Route path="/calendar" element={<AuthGuard><Layout><Calendar /></Layout></AuthGuard>} />
                    <Route path="/analytics" element={<AuthGuard><Layout><Analytics /></Layout></AuthGuard>} />

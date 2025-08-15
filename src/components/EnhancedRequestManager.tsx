@@ -87,22 +87,8 @@ const EnhancedRequestManager = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // Apply user filtering based on role
-      if (filterUserId) {
-        query = query.eq('user_id', filterUserId);
-        console.log('Filtering by user_id:', filterUserId);
-      } else if (role === 'admin' || role === 'manager' || role === 'supervisor') {
-        // Admins, managers, and supervisors can see all requests
-        console.log('Admin/Manager/Supervisor - showing all requests');
-      } else if (role === 'user' || role === 'agent' || role === 'gds_expert') {
-        // For regular agents, only show available or assigned to them
-        query = query.or(`assignment_status.eq.available,assigned_to.eq.${user.id}`);
-        console.log('Agent - showing available or assigned requests');
-      } else {
-        // Default: show user's own requests and available ones
-        query = query.or(`user_id.eq.${user.id},assignment_status.eq.available`);
-        console.log('Default - showing own and available requests');
-      }
+      // Let RLS handle access control - remove complex OR queries
+      console.log('Fetching all accessible requests - RLS will filter based on role');
 
       const { data, error } = await query;
 
@@ -308,11 +294,20 @@ const EnhancedRequestManager = () => {
         </div>
         
         <div className="flex items-center gap-4">
+          {/* Create Request Button */}
+          <Button 
+            onClick={() => navigate('/requests/new')}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Create Request
+          </Button>
+
           {/* Take Request Button */}
           {availableRequests.length > 0 && (
             <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
               <DropdownMenuTrigger asChild>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button variant="outline">
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Take Request ({availableRequests.length})
                   <ChevronDown className="w-4 h-4 ml-2" />
