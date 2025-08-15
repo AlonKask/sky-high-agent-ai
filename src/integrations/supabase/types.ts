@@ -955,6 +955,60 @@ export type Database = {
         }
         Relationships: []
       }
+      data_access_audit: {
+        Row: {
+          access_denied: boolean | null
+          access_type: string
+          accessed_record_id: string | null
+          accessed_table: string
+          approved_by: string | null
+          business_justification: string | null
+          data_classification: string | null
+          denial_reason: string | null
+          id: string
+          ip_address: unknown | null
+          risk_score: number | null
+          session_id: string | null
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          access_denied?: boolean | null
+          access_type: string
+          accessed_record_id?: string | null
+          accessed_table: string
+          approved_by?: string | null
+          business_justification?: string | null
+          data_classification?: string | null
+          denial_reason?: string | null
+          id?: string
+          ip_address?: unknown | null
+          risk_score?: number | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          access_denied?: boolean | null
+          access_type?: string
+          accessed_record_id?: string | null
+          accessed_table?: string
+          approved_by?: string | null
+          business_justification?: string | null
+          data_classification?: string | null
+          denial_reason?: string | null
+          id?: string
+          ip_address?: unknown | null
+          risk_score?: number | null
+          session_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       data_export_requests: {
         Row: {
           admin_notes: string | null
@@ -2807,6 +2861,16 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      log_data_access_audit: {
+        Args: {
+          p_access_type?: string
+          p_classification?: string
+          p_justification?: string
+          p_record_id?: string
+          p_table_name: string
+        }
+        Returns: undefined
+      }
       log_failed_access_attempt: {
         Args: { p_attempted_user_id?: string; p_resource: string }
         Returns: undefined
@@ -2827,6 +2891,10 @@ export type Database = {
           p_justification?: string
         }
         Returns: undefined
+      }
+      mask_sensitive_data: {
+        Args: { p_data: string; p_field_type?: string }
+        Returns: string
       }
       mask_sensitive_field: {
         Args: { field_type?: string; field_value: string }
@@ -2951,6 +3019,10 @@ export type Database = {
       }
       validate_password_strength: {
         Args: { password: string }
+        Returns: boolean
+      }
+      validate_secure_session: {
+        Args: { p_device_fingerprint: string; p_session_token: string }
         Returns: boolean
       }
       validate_session_access: {
