@@ -1,10 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { authSecurity } from "@/utils/authSecurity";
-import { configSecurity } from "@/utils/configSecurity";
-import { secureLogger } from "@/utils/secureLogger";
-import { logSecurityEvent } from "@/utils/security";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Plane, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import TurnstileWrapper from "@/components/TurnstileWrapper";
+import { useAuth } from "@/hooks/useAuth";
+import { TurnstileWrapper } from "@/components/TurnstileWrapper";
+import { signInWithEmailPassword, signInWithGoogle } from "@/utils/authHelpers";
+import { configSecurity } from "@/utils/configSecurity";
+import { toastHelpers } from '@/utils/toastHelpers';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,21 +29,18 @@ const Auth = () => {
         const secureConfig = await configSecurity.initializeSecureConfig();
         setConfig(secureConfig);
       } catch (error) {
-        secureLogger.error('Failed to load configuration', { error });
+        console.error('Failed to load configuration', { error });
       }
     };
 
     initializeConfig();
 
-    // Check if user is already logged in
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/", { replace: true });
-      }
-    };
-    checkUser();
-  }, [navigate]);
+    // Redirect if already logged in
+    if (user) {
+      const returnUrl = location.state?.returnUrl || '/';
+      navigate(returnUrl, { replace: true });
+    }
+  }, [navigate, location.state, user]);
 
   const cleanupAuthState = () => {
     Object.keys(localStorage).forEach((key) => {
@@ -55,83 +52,34 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toastHelpers.error("Please fill in all fields");
+      return;
+    }
+
+    // Validate CAPTCHA token if required
+    if (config?.turnstileSiteKey && !captchaToken) {
+      toastHelpers.error("CAPTCHA Required", "Please complete the CAPTCHA verification before signing in.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      cleanupAuthState();
+      const { user } = await signInWithEmailPassword(email, password, captchaToken);
       
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
+      if (user) {
+        toastHelpers.success("Welcome back!", { description: "You have been signed in successfully." });
+        
+        // Redirect to the intended page or dashboard
+        const returnUrl = location.state?.returnUrl || '/';
+        window.location.href = returnUrl;
       }
-
-      // Validate CAPTCHA token if required
-      if (config?.turnstileSiteKey && !captchaToken) {
-        toast({
-          variant: "destructive",
-          title: "CAPTCHA Required",
-          description: "Please complete the CAPTCHA verification before signing in.",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Attempt to sign in with email and password using native CAPTCHA integration
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
-        options: {
-          ...(captchaToken && { captchaToken })
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      await logSecurityEvent({ 
-        event_type: 'login_success', 
-        severity: 'low', 
-        details: { email: email, method: 'email_password' }
-      });
-
-      toast({
-        title: "Welcome back!",
-        description: "Successfully signed in.",
-      });
-      
-      // Force a page refresh to ensure clean state
-      window.location.href = '/';
-
     } catch (error: any) {
+      console.error('Sign in error:', error);
+      toastHelpers.error("Sign In Error", error.message);
       setCaptchaToken(null); // Reset CAPTCHA on error
-      
-      await logSecurityEvent({ 
-        event_type: 'login_failure', 
-        severity: 'medium', 
-        details: { email: email, error: error.message, method: 'email_password' }
-      });
-      
-      // Provide more specific error messages
-      let errorMessage = "Sign in failed";
-      if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      } else if (error.message?.includes('Email not confirmed')) {
-        errorMessage = "Please confirm your email address before signing in.";
-      } else if (error.message?.includes('Too many requests')) {
-        errorMessage = "Too many sign in attempts. Please wait a moment before trying again.";
-      } else if (error.message?.includes('CAPTCHA')) {
-        errorMessage = "CAPTCHA verification failed. Please try again.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: "Sign In Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -142,75 +90,11 @@ const Auth = () => {
     setLoading(true);
     
     try {
-      await logSecurityEvent({ 
-        event_type: 'login_attempt', 
-        severity: 'low', 
-        details: { method: 'google_oauth', initiated: true }
-      });
-      
-      cleanupAuthState();
-      
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-      }
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
-
-      if (error) {
-        await logSecurityEvent({ 
-          event_type: 'login_failure', 
-          severity: 'medium', 
-          details: { method: 'google_oauth', error: error.message }
-        });
-        
-        // Provide more specific error messages for Google OAuth
-        let errorMessage = "Google sign in failed";
-        if (error.message?.includes('provider is not enabled')) {
-          errorMessage = "Google authentication is not enabled. Please contact your administrator.";
-        } else if (error.message?.includes('invalid_request')) {
-          errorMessage = "Invalid authentication request. Please try again.";
-        } else if (error.message?.includes('access_denied')) {
-          errorMessage = "Access was denied. Please check your Google account permissions.";
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        toast({
-          title: "Google Sign In Error",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-      
-      // OAuth redirect will handle the rest - success logging happens in auth state change
+      const data = await signInWithGoogle();
+      // OAuth redirect will handle the rest
     } catch (error: any) {
-      await logSecurityEvent({ 
-        event_type: 'login_failure', 
-        severity: 'medium', 
-        details: { method: 'google_oauth', error: error.message || 'Unknown OAuth error' }
-      });
-      
-      let errorMessage = "Google sign in failed";
-      if (error.message?.includes('provider is not enabled')) {
-        errorMessage = "Google authentication is not enabled. Please contact your administrator.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: "Google Sign In Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      console.error('Google OAuth error:', error);
+      toastHelpers.error("Google Sign In Error", error.message);
       setLoading(false);
     }
   };
