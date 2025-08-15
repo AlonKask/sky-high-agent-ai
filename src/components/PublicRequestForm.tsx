@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
+import HCaptchaWrapper from "@/components/HCaptchaWrapper";
+import { configSecurity } from "@/utils/configSecurity";
 
 interface RequestFormData {
   clientName: string;
@@ -57,6 +59,21 @@ const PublicRequestForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [config, setConfig] = useState<any>(null);
+
+  useEffect(() => {
+    const initializeConfig = async () => {
+      try {
+        const secureConfig = await configSecurity.initializeSecureConfig();
+        setConfig(secureConfig);
+      } catch (error) {
+        console.error('Failed to load configuration:', error);
+      }
+    };
+
+    initializeConfig();
+  }, []);
 
   const handleInputChange = (field: keyof RequestFormData, value: any) => {
     setFormData(prev => ({
@@ -95,8 +112,22 @@ const PublicRequestForm = () => {
       return;
     }
 
+    if (!captchaToken) {
+      toastHelpers.error('Please complete the CAPTCHA verification.');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
+
+      // Verify CAPTCHA first
+      const { data: captchaResult } = await supabase.functions.invoke('verify-captcha', {
+        body: { token: captchaToken, action: 'public_request' }
+      });
+
+      if (!captchaResult?.success) {
+        throw new Error('CAPTCHA verification failed');
+      }
 
       // Use the secure public request endpoint
       const { data, error } = await supabase.functions.invoke('secure-public-request', {
@@ -112,7 +143,8 @@ const PublicRequestForm = () => {
           passengers: formData.adultsCount + formData.childrenCount + formData.infantsCount,
           class_preference: formData.classPreference,
           special_requirements: formData.specialRequirements || null,
-          request_details: `Budget: ${formData.budgetRange || 'Not specified'}, Urgency: ${formData.urgency}`
+          request_details: `Budget: ${formData.budgetRange || 'Not specified'}, Urgency: ${formData.urgency}`,
+          captchaToken // Include for additional backend verification if needed
         }
       });
 
@@ -129,6 +161,8 @@ const PublicRequestForm = () => {
 
     } catch (error: any) {
       console.error('Error submitting request:', error);
+      setCaptchaToken(null); // Reset CAPTCHA on error
+      
       const errorMessage = error.message || 'Failed to submit request. Please try again.';
       
       // Handle rate limiting specifically
@@ -140,6 +174,14 @@ const PublicRequestForm = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+  };
+
+  const handleCaptchaError = () => {
+    setCaptchaToken(null);
   };
 
   const nextStep = () => {
@@ -449,6 +491,16 @@ const PublicRequestForm = () => {
                     rows={4}
                   />
                 </div>
+
+                {config?.hcaptchaSiteKey && (
+                  <HCaptchaWrapper
+                    siteKey={config.hcaptchaSiteKey}
+                    onVerify={handleCaptchaVerify}
+                    onError={handleCaptchaError}
+                    onExpire={() => setCaptchaToken(null)}
+                    disabled={isSubmitting}
+                  />
+                )}
               </div>
             )}
 
@@ -469,7 +521,7 @@ const PublicRequestForm = () => {
               ) : (
                 <Button 
                   onClick={handleSubmitRequest}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !captchaToken}
                   className="bg-primary"
                 >
                   {isSubmitting ? (
