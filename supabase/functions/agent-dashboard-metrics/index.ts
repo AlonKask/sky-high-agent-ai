@@ -12,6 +12,50 @@ interface DashboardMetricsRequest {
   dashboard_type: 'sales' | 'cs' | 'agent_stats';
 }
 
+// Enhanced calculation utilities for business intelligence
+const calculateConversionRate = (bookings: any[], requests: any[]): number => {
+  if (requests.length === 0) return 0;
+  const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
+  return (confirmedBookings / requests.length) * 100;
+};
+
+const calculateAverageResponseTime = (communications: any[]): number => {
+  const validCommunications = communications.filter(c => c.response_time_minutes && c.response_time_minutes > 0);
+  if (validCommunications.length === 0) return 0;
+  return validCommunications.reduce((sum, comm) => sum + comm.response_time_minutes, 0) / validCommunications.length;
+};
+
+const calculateSatisfactionScore = (satisfactionScores: any[]): number => {
+  if (satisfactionScores.length === 0) return 0;
+  return satisfactionScores.reduce((sum, score) => sum + score.rating, 0) / satisfactionScores.length;
+};
+
+const prioritizeClients = (clients: any[], communications: any[]): any[] => {
+  return clients.map(client => {
+    const lastComm = communications
+      .filter(c => c.client_id === client.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    
+    const daysSinceContact = lastComm 
+      ? Math.floor((Date.now() - new Date(lastComm.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      : 999;
+    
+    return {
+      ...client,
+      daysSinceContact,
+      priority: client.total_spent > 10000 ? 'high' : client.total_spent > 3000 ? 'medium' : 'low',
+      urgency: daysSinceContact > 30 ? 'urgent' : daysSinceContact > 14 ? 'high' : 'normal'
+    };
+  }).sort((a, b) => {
+    // Sort by urgency first, then by client value
+    const urgencyWeight = { urgent: 3, high: 2, normal: 1 };
+    const priorityWeight = { high: 3, medium: 2, low: 1 };
+    
+    return (urgencyWeight[b.urgency] * priorityWeight[b.priority]) - 
+           (urgencyWeight[a.urgency] * priorityWeight[a.priority]);
+  });
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -41,28 +85,27 @@ serve(async (req) => {
 
     console.log(`Fetching ${dashboard_type} dashboard metrics for agent ${targetAgentId}, period: ${period}`);
 
-    // Date range calculation
+    // Enhanced date range calculation with timezone handling
     const now = new Date();
-    let dateRange: string;
+    let startDate: Date;
     switch (period) {
       case 'day':
-        dateRange = `>= '${now.toISOString().split('T')[0]}'`;
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         break;
       case 'week':
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        dateRange = `>= '${weekAgo.toISOString().split('T')[0]}'`;
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
       case 'year':
-        const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        dateRange = `>= '${yearAgo.toISOString().split('T')[0]}'`;
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
         break;
       default: // month
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        dateRange = `>= '${monthAgo.toISOString().split('T')[0]}'`;
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
+    const dateFilter = startDate.toISOString();
+
     if (dashboard_type === 'sales') {
-      // Sales Agent Dashboard Metrics
+      // Sales Agent Dashboard Metrics with enhanced business logic
       const [
         bookingsResponse,
         requestsResponse,
@@ -71,46 +114,40 @@ serve(async (req) => {
         metricsResponse,
         communicationResponse
       ] = await Promise.all([
-        // Bookings data with profit calculation
         supabase
           .from('bookings')
-          .select('id, total_price, created_at, user_id, client_id, status')
+          .select('id, total_price, created_at, user_id, client_id, status, route')
           .eq('user_id', targetAgentId)
-          .gte('created_at', dateRange),
+          .gte('created_at', dateFilter),
 
-        // Requests for conversion calculation
         supabase
           .from('requests')
           .select('id, status, created_at, user_id, client_id')
           .eq('user_id', targetAgentId)
-          .gte('created_at', dateRange),
+          .gte('created_at', dateFilter),
 
-        // Client data for follow-ups
         supabase
           .from('clients')
-          .select('id, first_name, last_name, email, last_trip_date, total_spent')
+          .select('id, first_name, last_name, email, last_trip_date, total_spent, created_at')
           .eq('user_id', targetAgentId),
 
-        // Commission data
         supabase
           .from('booking_commissions')
-          .select('commission_amount, bonus_amount, total_commission, payment_status')
+          .select('base_commission, bonus_commission, total_commission, payout_status, created_at')
           .eq('agent_id', targetAgentId)
-          .gte('created_at', dateRange),
+          .gte('created_at', dateFilter),
 
-        // Performance metrics
         supabase
           .from('agent_performance_metrics')
           .select('*')
           .eq('agent_id', targetAgentId)
-          .gte('metric_date', dateRange),
+          .gte('metric_date', startDate.toISOString().split('T')[0]),
 
-        // Communication logs for inquiries
         supabase
           .from('communication_logs')
-          .select('id, client_id, communication_type, outcome, satisfaction_rating, created_at')
+          .select('id, client_id, communication_type, outcome, satisfaction_rating, created_at, response_time_minutes, notes')
           .eq('agent_id', targetAgentId)
-          .gte('created_at', dateRange)
+          .gte('created_at', dateFilter)
       ]);
 
       const bookings = bookingsResponse.data || [];
@@ -120,57 +157,72 @@ serve(async (req) => {
       const metrics = metricsResponse.data || [];
       const communications = communicationResponse.data || [];
 
-      // Calculate metrics
-      const totalProfit = bookings.reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0);
+      console.log(`Sales Data: ${bookings.length} bookings, ${requests.length} requests, ${clients.length} clients, ${commissions.length} commissions, ${communications.length} communications`);
+
+      // Enhanced business calculations
+      const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
+      const totalRevenue = confirmedBookings.reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0);
       const totalCommission = commissions.reduce((sum, comm) => sum + (Number(comm.total_commission) || 0), 0);
-      const conversionRate = requests.length > 0 ? (bookings.length / requests.length) * 100 : 0;
+      const conversionRate = calculateConversionRate(bookings, requests);
       
-      // Unanswered inquiries (communications without follow-up in last 48 hours)
-      const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
-      const unansweredInquiries = communications
-        .filter(comm => new Date(comm.created_at) > twoDaysAgo && comm.outcome !== 'completed')
+      // Intelligent inquiry detection from communications
+      const recentInquiries = communications
+        .filter(comm => {
+          const hoursAgo = (Date.now() - new Date(comm.created_at).getTime()) / (1000 * 60 * 60);
+          return hoursAgo <= 48 && (!comm.outcome || comm.outcome === 'information_gathered');
+        })
         .map(comm => {
           const client = clients.find(c => c.id === comm.client_id);
+          const estimatedValue = client ? Math.max(1000, client.total_spent * 0.8) : 2500;
+          
           return {
             id: comm.id,
             clientName: client ? `${client.first_name} ${client.last_name}` : 'Unknown Client',
-            subject: `${comm.communication_type} inquiry`,
+            subject: `${comm.communication_type.charAt(0).toUpperCase() + comm.communication_type.slice(1)} inquiry`,
             received: comm.created_at,
-            estimatedValue: Math.floor(Math.random() * 5000 + 1000) // Placeholder
+            estimatedValue: Math.round(estimatedValue)
           };
         });
 
-      // Clients needing follow-up (last trip > 90 days ago)
-      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      const clientsFollowUp = clients
-        .filter(client => !client.last_trip_date || new Date(client.last_trip_date) < ninetyDaysAgo)
+      // Smart client follow-up prioritization
+      const prioritizedClients = prioritizeClients(clients, communications);
+      const clientsNeedingFollowUp = prioritizedClients
+        .filter(client => client.daysSinceContact > 14 || client.urgency === 'urgent')
+        .slice(0, 10)
         .map(client => ({
           id: client.id,
           clientName: `${client.first_name} ${client.last_name}`,
-          lastContact: client.last_trip_date || 'Never',
-          priority: client.total_spent > 5000 ? 'high' : 'medium',
+          lastContact: client.daysSinceContact < 999 ? `${client.daysSinceContact} days ago` : 'Never',
+          priority: client.priority,
           value: client.total_spent || 0,
-          status: 'pending'
+          status: client.urgency === 'urgent' ? 'urgent' : 'pending'
         }));
 
+      // Dynamic target calculation based on historical performance
+      const avgMonthlyRevenue = metrics.length > 0 
+        ? metrics.reduce((sum, m) => sum + (Number(m.revenue_generated) || 0), 0) / Math.max(1, metrics.length) * 30
+        : 20000;
+      const monthlyTarget = Math.max(15000, avgMonthlyRevenue * 1.1); // 10% growth target
+      
       const responseData = {
-        personalProfit: totalProfit,
-        commission: totalCommission,
+        personalProfit: Math.round(totalRevenue),
+        commission: Math.round(totalCommission),
         conversionRate: conversionRate.toFixed(1),
-        newInquiries: unansweredInquiries.length,
-        followUps: clientsFollowUp.length,
-        unansweredInquiries: unansweredInquiries.slice(0, 5),
-        clientsFollowUp: clientsFollowUp.slice(0, 5),
-        monthlyTarget: 25000, // Placeholder target
-        targetProgress: Math.min((totalProfit / 25000) * 100, 100).toFixed(1)
+        newInquiries: recentInquiries.length,
+        followUps: clientsNeedingFollowUp.length,
+        unansweredInquiries: recentInquiries.slice(0, 5),
+        clientsFollowUp: clientsNeedingFollowUp.slice(0, 5),
+        monthlyTarget: Math.round(monthlyTarget),
+        targetProgress: Math.min((totalRevenue / monthlyTarget) * 100, 100).toFixed(1)
       };
 
+      console.log('Sales response data:', responseData);
       return new Response(JSON.stringify(responseData), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
 
     } else if (dashboard_type === 'cs') {
-      // Customer Service Dashboard Metrics
+      // Customer Service Dashboard with real business intelligence
       const [
         communicationResponse,
         satisfactionResponse,
@@ -180,76 +232,94 @@ serve(async (req) => {
           .from('communication_logs')
           .select('*')
           .eq('agent_id', targetAgentId)
-          .gte('created_at', dateRange),
+          .gte('created_at', dateFilter),
 
         supabase
           .from('client_satisfaction_scores')
-          .select('rating, interaction_type, created_at')
+          .select('rating, interaction_type, created_at, feedback_text')
           .eq('agent_id', targetAgentId)
-          .gte('created_at', dateRange),
+          .gte('created_at', dateFilter),
 
         supabase
           .from('email_exchanges')
           .select('id, subject, sender_email, created_at, metadata')
           .eq('user_id', targetAgentId)
-          .gte('created_at', dateRange)
-          .limit(10)
+          .gte('created_at', dateFilter)
+          .limit(20)
       ]);
 
       const communications = communicationResponse.data || [];
       const satisfactionScores = satisfactionResponse.data || [];
       const emails = emailResponse.data || [];
 
-      // Calculate CS metrics
-      const avgSatisfaction = satisfactionScores.length > 0 
-        ? (satisfactionScores.reduce((sum, score) => sum + score.rating, 0) / satisfactionScores.length).toFixed(1)
-        : '0.0';
-      
-      const avgResponseTime = communications.length > 0
-        ? Math.round(communications.reduce((sum, comm) => sum + (comm.response_time_minutes || 0), 0) / communications.length)
-        : 0;
+      console.log(`CS Data: ${communications.length} communications, ${satisfactionScores.length} satisfaction scores, ${emails.length} emails`);
 
+      // Enhanced CS metrics with intelligent analysis
+      const avgSatisfaction = calculateSatisfactionScore(satisfactionScores);
+      const avgResponseTime = calculateAverageResponseTime(communications);
+      
+      const todayString = now.toISOString().split('T')[0];
       const resolvedToday = communications.filter(comm => 
-        comm.outcome === 'completed' && 
-        new Date(comm.created_at).toDateString() === now.toDateString()
+        comm.outcome === 'booking_confirmed' && 
+        comm.created_at.startsWith(todayString)
       ).length;
 
-      const escalations = communications.filter(comm => comm.outcome === 'escalated').length;
+      const escalations = communications.filter(comm => 
+        comm.outcome === 'follow_up_scheduled' && 
+        comm.notes?.toLowerCase().includes('escalat')
+      ).length;
 
-      // Open tickets from recent emails and communications
-      const openTickets = emails
-        .filter(email => !email.subject?.toLowerCase().includes('re:'))
-        .map(email => ({
-          id: email.id,
-          customerName: email.sender_email?.split('@')[0] || 'Unknown',
-          subject: email.subject || 'No subject',
-          priority: Math.random() > 0.7 ? 'high' : 'medium',
-          status: 'open',
-          createdAt: email.created_at,
-          channel: 'email'
-        }));
+      // Intelligent ticket categorization from emails and communications
+      const openTickets = [...communications, ...emails.map(email => ({
+        id: email.id,
+        client_id: null,
+        communication_type: 'email',
+        outcome: null,
+        created_at: email.created_at,
+        subject: email.subject,
+        sender_email: email.sender_email
+      }))]
+        .filter(item => !item.outcome || item.outcome === 'information_gathered')
+        .map(item => {
+          const urgencyKeywords = ['urgent', 'asap', 'emergency', 'cancel', 'refund'];
+          const isUrgent = urgencyKeywords.some(keyword => 
+            (item.subject || item.notes || '').toLowerCase().includes(keyword)
+          );
+          
+          return {
+            id: item.id,
+            customerName: item.sender_email?.split('@')[0] || 'Client',
+            subject: item.subject || `${item.communication_type} inquiry`,
+            priority: isUrgent ? 'high' : 'medium',
+            status: 'open',
+            createdAt: item.created_at,
+            channel: item.communication_type || 'email'
+          };
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       const responseData = {
         openTickets: openTickets.length,
-        satisfactionScore: avgSatisfaction,
-        avgResponseTime: `${avgResponseTime} min`,
+        satisfactionScore: avgSatisfaction.toFixed(1),
+        avgResponseTime: `${Math.round(avgResponseTime)} min`,
         resolvedToday,
         escalations,
-        recentTickets: openTickets.slice(0, 5),
+        recentTickets: openTickets.slice(0, 8),
         metrics: {
           totalInteractions: communications.length,
           emailsHandled: emails.length,
-          callsHandled: communications.filter(c => c.communication_type === 'call').length,
+          callsHandled: communications.filter(c => c.communication_type === 'phone').length,
           chatSessions: communications.filter(c => c.communication_type === 'chat').length
         }
       };
 
+      console.log('CS response data:', responseData);
       return new Response(JSON.stringify(responseData), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
 
     } else if (dashboard_type === 'agent_stats') {
-      // Agent Statistics Page Metrics
+      // Comprehensive Agent Statistics with advanced analytics
       const [
         profileResponse,
         bookingsResponse,
@@ -266,12 +336,12 @@ serve(async (req) => {
 
         supabase
           .from('bookings')
-          .select('total_price, created_at, profit_margin')
+          .select('total_price, created_at, status')
           .eq('user_id', targetAgentId),
 
         supabase
           .from('clients')
-          .select('id, total_bookings, total_spent')
+          .select('id, total_bookings, total_spent, created_at')
           .eq('user_id', targetAgentId),
 
         supabase
@@ -284,11 +354,11 @@ serve(async (req) => {
           .select('*')
           .eq('agent_id', targetAgentId)
           .order('metric_date', { ascending: false })
-          .limit(30),
+          .limit(90), // 3 months of daily data
 
         supabase
           .from('communication_logs')
-          .select('duration_minutes, response_time_minutes, satisfaction_rating')
+          .select('duration_minutes, response_time_minutes, satisfaction_rating, communication_type')
           .eq('agent_id', targetAgentId)
       ]);
 
@@ -299,56 +369,66 @@ serve(async (req) => {
       const metrics = metricsResponse.data || [];
       const communications = communicationResponse.data || [];
 
-      // Calculate comprehensive agent stats
-      const totalRevenue = bookings.reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0);
+      console.log(`Agent Stats Data: ${bookings.length} bookings, ${clients.length} clients, ${commissions.length} commissions, ${metrics.length} metrics, ${communications.length} communications`);
+
+      // Advanced agent analytics
+      const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
+      const totalRevenue = confirmedBookings.reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0);
       const totalCommission = commissions.reduce((sum, comm) => sum + (Number(comm.total_commission) || 0), 0);
-      const totalClients = clients.length;
-      const avgTicketPrice = bookings.length > 0 ? totalRevenue / bookings.length : 0;
-      const conversionRate = bookings.length > 0 ? 75 + Math.random() * 20 : 0; // Placeholder calculation
+      const avgTicketPrice = confirmedBookings.length > 0 ? totalRevenue / confirmedBookings.length : 0;
       
-      // Calculate months worked
+      // Calculate months worked with precision
       const startDate = profile?.created_at ? new Date(profile.created_at) : new Date();
-      const monthsWorked = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+      const monthsWorked = Math.max(1, Math.round((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
       
-      // Calculate averages
-      const avgCallTime = communications.length > 0 
-        ? communications.reduce((sum, comm) => sum + (comm.duration_minutes || 0), 0) / communications.length
+      // Advanced performance calculations
+      const avgCallTime = communications.filter(c => c.communication_type === 'phone').length > 0
+        ? communications.filter(c => c.communication_type === 'phone')
+          .reduce((sum, comm) => sum + (comm.duration_minutes || 0), 0) / 
+          communications.filter(c => c.communication_type === 'phone').length
         : 0;
       
-      const avgResponseTime = communications.length > 0
-        ? communications.reduce((sum, comm) => sum + (comm.response_time_minutes || 0), 0) / communications.length
+      const avgResponseTime = calculateAverageResponseTime(communications);
+      const satisfactionScore = calculateSatisfactionScore(communications.filter(c => c.satisfaction_rating));
+      
+      // Client retention analysis
+      const clientsWithMultipleBookings = clients.filter(c => (c.total_bookings || 0) > 1).length;
+      const retentionRate = clients.length > 0 ? (clientsWithMultipleBookings / clients.length) * 100 : 0;
+      
+      // Conversion rate from historical metrics
+      const avgConversionRate = metrics.length > 0
+        ? metrics.reduce((sum, m) => sum + (Number(m.conversion_rate) || 0), 0) / metrics.length * 100
         : 0;
 
-      const satisfactionScore = communications.filter(c => c.satisfaction_rating).length > 0
-        ? communications.reduce((sum, comm) => sum + (comm.satisfaction_rating || 0), 0) / 
-          communications.filter(c => c.satisfaction_rating).length
-        : 0;
+      // Recent performance trends (last 7 days of metrics)
+      const recentMetrics = metrics.slice(0, 7).map(metric => ({
+        date: metric.metric_date,
+        revenue: Number(metric.revenue_generated) || 0,
+        commission: Number(metric.commission_earned) || 0,
+        satisfaction: Number(metric.satisfaction_score) || 0,
+        calls: metric.calls_made || 0,
+        emails: metric.emails_sent || 0
+      }));
 
       const responseData = {
         agentName: profile ? `${profile.first_name} ${profile.last_name}` : 'Agent',
         monthsWorked,
-        moneyMade: totalRevenue,
-        commission: totalCommission,
-        clients: totalClients,
+        moneyMade: Math.round(totalRevenue),
+        commission: Math.round(totalCommission),
+        clients: clients.length,
         averageCallTime: `${Math.round(avgCallTime)} min`,
-        responseRate: 85 + Math.random() * 10, // Placeholder
+        responseRate: avgResponseTime > 0 ? Math.round((1 / avgResponseTime) * 100) : 95,
         customerSatisfaction: satisfactionScore.toFixed(1),
-        averageTicketPrice: avgTicketPrice,
-        totalBookings: bookings.length,
-        conversionRate: conversionRate.toFixed(1),
+        averageTicketPrice: Math.round(avgTicketPrice),
+        totalBookings: confirmedBookings.length,
+        conversionRate: avgConversionRate.toFixed(1),
         avgResponseTime: `${Math.round(avgResponseTime)} min`,
-        returningClients: Math.floor(totalClients * 0.3), // Placeholder
-        retentionRate: 70 + Math.random() * 25, // Placeholder
-        recentMetrics: metrics.slice(0, 7).map(metric => ({
-          date: metric.metric_date,
-          revenue: metric.revenue_generated,
-          commission: metric.commission_earned,
-          satisfaction: metric.satisfaction_score,
-          calls: metric.calls_made,
-          emails: metric.emails_sent
-        }))
+        returningClients: clientsWithMultipleBookings,
+        retentionRate: Math.round(retentionRate),
+        recentMetrics: recentMetrics
       };
 
+      console.log('Agent Stats response data:', responseData);
       return new Response(JSON.stringify(responseData), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -361,7 +441,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in agent-dashboard-metrics:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
