@@ -24,10 +24,15 @@ export const TurnstileWrapper: React.FC<TurnstileWrapperProps> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   const handleVerify = useCallback((token: string) => {
+    if (!token || token.length === 0) {
+      setError('Invalid CAPTCHA token received');
+      onError?.('Invalid CAPTCHA token received');
+      return;
+    }
     setError(null);
     setIsLoading(false);
     onVerify(token);
-  }, [onVerify]);
+  }, [onVerify, onError]);
 
   const handleError = useCallback((err: any) => {
     setIsLoading(false);
@@ -38,6 +43,7 @@ export const TurnstileWrapper: React.FC<TurnstileWrapperProps> = ({
 
   const handleExpire = useCallback(() => {
     setError('CAPTCHA has expired. Please verify again.');
+    setIsLoading(true);
     onExpire?.();
   }, [onExpire]);
 
