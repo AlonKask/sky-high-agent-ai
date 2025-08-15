@@ -1,162 +1,17 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { DollarSign, Target, Users, Phone, Mail, TrendingUp } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-
-interface ClientFollowUp {
-  id: string;
-  client_name: string;
-  last_contact: string;
-  priority: 'high' | 'medium' | 'low';
-  value: number;
-  status: 'hot' | 'warm' | 'cold';
-}
-
-interface Inquiry {
-  id: string;
-  client_name: string;
-  subject: string;
-  received_at: string;
-  value_estimate: number;
-}
+import { useAgentMetrics, AgentMetrics } from "@/hooks/useAgentMetrics";
 
 export const SalesAgentDashboard = () => {
   const navigate = useNavigate();
-  const [metrics, setMetrics] = useState({
-    personal_profit: 0,
-    commission: 0,
-    monthly_target: 25000,
-    conversion_rate: 0
-  });
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [followUps, setFollowUps] = useState<ClientFollowUp[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: salesMetrics, loading, error } = useAgentMetrics('sales', 'month');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const user = (await supabase.auth.getUser()).data.user;
-        if (!user) return;
 
-        // Fetch personal bookings for profit calculation
-        const thisMonth = new Date();
-        thisMonth.setDate(1);
-        
-        const { data: bookings } = await supabase
-          .from('bookings')
-          .select('commission, total_price')
-          .eq('user_id', user.id)
-          .gte('created_at', thisMonth.toISOString());
-
-        const personalProfit = bookings?.reduce((sum, booking) => sum + (booking.commission || 0), 0) || 0;
-
-        // Fetch new inquiries from requests
-        const { data: newRequests } = await supabase
-          .from('requests')
-          .select('id, created_at, quoted_price, client_id')
-          .eq('assigned_to', user.id)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        // Fetch client names for requests
-        const { data: clients } = await supabase
-          .from('clients')
-          .select('id, first_name, last_name');
-
-        const inquiries: Inquiry[] = newRequests?.map(req => {
-          const client = clients?.find(c => c.id === req.client_id);
-          
-          return {
-            id: req.id,
-            client_name: client ? 
-              `${client.first_name} ${client.last_name}` : 
-              'Unknown Client',
-            subject: 'Travel Request',
-            received_at: req.created_at,
-            value_estimate: req.quoted_price || 5000
-          };
-        }) || [];
-
-        // Fetch follow-up clients from recent email exchanges
-        const { data: recentEmails } = await supabase
-          .from('email_exchanges')
-          .select('client_id, created_at, sender_email')
-          .eq('user_id', user.id)
-          .eq('direction', 'outbound')
-          .gte('created_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
-          .order('created_at', { ascending: false });
-
-        // Group by client and get latest contact
-        const clientContactMap = new Map();
-        recentEmails?.forEach(email => {
-          if (!clientContactMap.has(email.client_id)) {
-            clientContactMap.set(email.client_id, {
-              client_name: email.sender_email?.split('@')[0] || 'Unknown Client',
-              last_contact: email.created_at,
-              client_id: email.client_id
-            });
-          }
-        });
-
-        // Get client quotes for value estimation
-        const { data: clientQuotes } = await supabase
-          .from('quotes')
-          .select('client_id, total_price')
-          .eq('user_id', user.id)
-          .in('client_id', Array.from(clientContactMap.keys()));
-
-        const followUps: ClientFollowUp[] = Array.from(clientContactMap.values()).map(contact => {
-          const clientQuote = clientQuotes?.find(q => q.client_id === contact.client_id);
-          const daysSinceContact = Math.floor((Date.now() - new Date(contact.last_contact).getTime()) / (24 * 60 * 60 * 1000));
-          
-          return {
-            id: contact.client_id,
-            client_name: contact.client_name,
-            last_contact: contact.last_contact,
-            priority: daysSinceContact > 7 ? 'high' : daysSinceContact > 3 ? 'medium' : 'low',
-            value: clientQuote?.total_price || 8000,
-            status: daysSinceContact > 7 ? 'cold' : daysSinceContact > 3 ? 'warm' : 'hot'
-          };
-        });
-
-        // Calculate conversion rate
-        const { data: allRequests } = await supabase
-          .from('requests')
-          .select('status')
-          .eq('assigned_to', user.id)
-          .gte('created_at', thisMonth.toISOString());
-
-        const totalRequests = allRequests?.length || 0;
-        const completedRequests = allRequests?.filter(r => r.status === 'completed').length || 0;
-        const conversionRate = totalRequests > 0 ? (completedRequests / totalRequests) * 100 : 0;
-
-        setMetrics({
-          personal_profit: personalProfit,
-          commission: personalProfit * 0.08,
-          monthly_target: 25000,
-          conversion_rate: Math.round(conversionRate)
-        });
-        setInquiries(inquiries);
-        setFollowUps(followUps);
-      } catch (error) {
-        console.error('Error fetching sales agent data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 300000); // Refresh every 5 minutes
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) {
+  if (loading || !salesMetrics) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Sales Agent Dashboard</h1>
@@ -174,7 +29,21 @@ export const SalesAgentDashboard = () => {
     );
   }
 
-  const targetProgress = (metrics.personal_profit / metrics.monthly_target) * 100;
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Sales Agent Dashboard</h1>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-destructive">Error loading dashboard data: {error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const metrics = salesMetrics as AgentMetrics;
+  const targetProgress = (metrics.personalProfit / metrics.monthlyTarget) * 100;
 
   return (
     <div className="space-y-6">
@@ -195,8 +64,8 @@ export const SalesAgentDashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${metrics.personal_profit.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">of ${metrics.monthly_target.toLocaleString()} target</p>
+            <div className="text-2xl font-bold">${metrics.personalProfit.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">of ${metrics.monthlyTarget.toLocaleString()} target</p>
             <Progress value={targetProgress} className="mt-2" />
           </CardContent>
         </Card>
@@ -228,10 +97,10 @@ export const SalesAgentDashboard = () => {
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{inquiries.length}</div>
+            <div className="text-2xl font-bold">{metrics.newInquiries}</div>
             <p className="text-xs text-muted-foreground">awaiting response</p>
-            <Badge variant={inquiries.length > 2 ? "destructive" : "default"} className="mt-2">
-              {inquiries.length > 2 ? "High Volume" : "Normal"}
+            <Badge variant={metrics.newInquiries > 2 ? "destructive" : "default"} className="mt-2">
+              {metrics.newInquiries > 2 ? "High Volume" : "Normal"}
             </Badge>
           </CardContent>
         </Card>
@@ -245,10 +114,10 @@ export const SalesAgentDashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{followUps.length}</div>
+            <div className="text-2xl font-bold">{metrics.followUps}</div>
             <p className="text-xs text-muted-foreground">clients need attention</p>
             <Badge variant="default" className="mt-2">
-              {followUps.filter(f => f.status === 'hot').length} Hot Leads
+              {metrics.clientsFollowUp.filter(f => f.priority === 'high').length} Hot Leads
             </Badge>
           </CardContent>
         </Card>
@@ -261,16 +130,16 @@ export const SalesAgentDashboard = () => {
             <CardDescription>New client inquiries requiring response</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {inquiries.map((inquiry, index) => (
+            {metrics.unansweredInquiries.map((inquiry, index) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
-                  <p className="text-sm font-medium">{inquiry.client_name}</p>
+                  <p className="text-sm font-medium">{inquiry.clientName}</p>
                   <p className="text-xs text-muted-foreground">{inquiry.subject}</p>
                   <p className="text-xs text-muted-foreground">
-                    Est. Value: ${inquiry.value_estimate.toLocaleString()}
+                    Est. Value: ${inquiry.estimatedValue.toLocaleString()}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(inquiry.received_at).toLocaleString()}
+                    {new Date(inquiry.received).toLocaleString()}
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -294,7 +163,7 @@ export const SalesAgentDashboard = () => {
             <CardDescription>Existing prospects requiring attention</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {followUps.map((client, index) => (
+            {metrics.clientsFollowUp.map((client, index) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className={`w-3 h-3 rounded-full ${
@@ -302,12 +171,12 @@ export const SalesAgentDashboard = () => {
                     client.status === 'warm' ? 'bg-yellow-500' : 'bg-blue-500'
                   }`} />
                   <div>
-                    <p className="text-sm font-medium">{client.client_name}</p>
+                    <p className="text-sm font-medium">{client.clientName}</p>
                     <p className="text-xs text-muted-foreground">
                       Value: ${client.value.toLocaleString()}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Last contact: {new Date(client.last_contact).toLocaleDateString()}
+                      Last contact: {new Date(client.lastContact).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -334,24 +203,24 @@ export const SalesAgentDashboard = () => {
           <div className="flex items-center justify-between">
             <span className="text-sm">Monthly Target</span>
             <span className="text-sm font-medium">
-              ${metrics.personal_profit.toLocaleString()} / ${metrics.monthly_target.toLocaleString()}
+              ${metrics.personalProfit.toLocaleString()} / ${metrics.monthlyTarget.toLocaleString()}
             </span>
           </div>
           <Progress value={targetProgress} />
 
           <div className="flex items-center justify-between">
             <span className="text-sm">Conversion Rate</span>
-            <span className="text-sm font-medium">{metrics.conversion_rate}%</span>
+            <span className="text-sm font-medium">{metrics.conversionRate}%</span>
           </div>
-          <Progress value={metrics.conversion_rate} />
+          <Progress value={parseFloat(metrics.conversionRate)} />
 
           <div className="grid gap-2 md:grid-cols-3 mt-4">
             <div className="text-center p-3 bg-muted rounded-lg">
-              <p className="text-2xl font-bold text-green-600">${(metrics.monthly_target - metrics.personal_profit).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600">${(metrics.monthlyTarget - metrics.personalProfit).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">Remaining to Target</p>
             </div>
             <div className="text-center p-3 bg-muted rounded-lg">
-              <p className="text-2xl font-bold text-blue-600">{Math.ceil((metrics.monthly_target - metrics.personal_profit) / 5000)}</p>
+              <p className="text-2xl font-bold text-blue-600">{Math.ceil((metrics.monthlyTarget - metrics.personalProfit) / 5000)}</p>
               <p className="text-xs text-muted-foreground">Deals Needed (avg $5K)</p>
             </div>
             <div className="text-center p-3 bg-muted rounded-lg">

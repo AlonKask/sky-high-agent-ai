@@ -1,119 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, TrendingUp, Users, DollarSign, Clock, Phone, MessageSquare, Target, Award, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-
-interface AgentStats {
-  monthsWorked: number;
-  moneyMade: number;
-  salaryReceived: number;
-  clients: number;
-  returnClients: number;
-  averageCallTime: string;
-  averageResponseRate: number;
-  averageTicketPrice: number;
-  averageProfitPerSale: number;
-  totalBookings: number;
-  conversionRate: number;
-  customerSatisfaction: number;
-}
+import { useAgentMetrics, AgentStatsMetrics } from '@/hooks/useAgentMetrics';
 
 const AgentStatistics = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<AgentStats>({
-    monthsWorked: 0,
-    moneyMade: 0,
-    salaryReceived: 0,
-    clients: 0,
-    returnClients: 0,
-    averageCallTime: "0:00",
-    averageResponseRate: 0,
-    averageTicketPrice: 0,
-    averageProfitPerSale: 0,
-    totalBookings: 0,
-    conversionRate: 0,
-    customerSatisfaction: 0
-  });
-  const [loading, setLoading] = useState(true);
+  const { data: agentStats, loading, error } = useAgentMetrics('agent_stats', 'month');
 
-  useEffect(() => {
-    if (user) {
-      fetchAgentStats();
-    }
-  }, [user]);
-
-  const fetchAgentStats = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch user creation date for months worked
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('created_at')
-        .eq('id', user?.id)
-        .single();
-      
-      // Fetch bookings for revenue calculations
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('total_price, commission, created_at')
-        .eq('user_id', user?.id);
-      
-      // Fetch clients
-      const { data: clients } = await supabase
-        .from('clients')
-        .select('id, created_at, total_bookings')
-        .eq('user_id', user?.id);
-      
-      // Fetch requests for conversion calculations
-      const { data: requests } = await supabase
-        .from('requests')
-        .select('id, status')
-        .eq('user_id', user?.id);
-      
-      // Calculate stats
-      const monthsWorked = profile?.created_at 
-        ? Math.max(1, Math.floor((new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30)))
-        : 1;
-      
-      const totalRevenue = bookings?.reduce((sum, booking) => sum + (booking.total_price || 0), 0) || 0;
-      const totalCommission = bookings?.reduce((sum, booking) => sum + (booking.commission || 0), 0) || 0;
-      const totalBookings = bookings?.length || 0;
-      const totalClients = clients?.length || 0;
-      const returnClients = clients?.filter(client => (client.total_bookings || 0) > 1).length || 0;
-      
-      const totalRequests = requests?.length || 0;
-      const convertedRequests = requests?.filter(req => req.status === 'confirmed').length || 0;
-      const conversionRate = totalRequests > 0 ? (convertedRequests / totalRequests) * 100 : 0;
-      
-      const averageTicketPrice = totalBookings > 0 ? totalRevenue / totalBookings : 0;
-      const averageProfitPerSale = totalBookings > 0 ? totalCommission / totalBookings : 0;
-      
-      setStats({
-        monthsWorked,
-        moneyMade: totalRevenue,
-        salaryReceived: totalCommission,
-        clients: totalClients,
-        returnClients,
-        averageCallTime: "N/A", // Would need call data
-        averageResponseRate: 85, // Default placeholder
-        averageTicketPrice,
-        averageProfitPerSale,
-        totalBookings,
-        conversionRate,
-        customerSatisfaction: 4.5 // Default placeholder
-      });
-    } catch (error) {
-      console.error('Error fetching agent stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getDisplayName = () => {
     if (user?.user_metadata?.full_name) {
@@ -159,7 +57,7 @@ const AgentStatistics = () => {
     </Card>
   );
 
-  if (loading) {
+  if (loading || !agentStats) {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
@@ -168,6 +66,20 @@ const AgentStatistics = () => {
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-destructive">Error loading agent statistics: {error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const stats = agentStats as AgentStatsMetrics;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -199,8 +111,8 @@ const AgentStatistics = () => {
           trend="up"
         />
         <StatCard
-          title="Salary Received"
-          value={formatCurrency(stats.salaryReceived)}
+          title="Commission Earned"
+          value={formatCurrency(stats.commission)}
           icon={Award}
           subtitle="Base + commissions"
         />
@@ -208,11 +120,11 @@ const AgentStatistics = () => {
           title="Total Clients"
           value={stats.clients}
           icon={Users}
-          subtitle={`${stats.returnClients} returning clients`}
+          subtitle={`${stats.returningClients} returning clients`}
         />
         <StatCard
           title="Conversion Rate"
-          value={`${stats.conversionRate}%`}
+          value={stats.conversionRate}
           icon={Target}
           subtitle="+5.2% from last month"
           trend="up"
@@ -233,7 +145,7 @@ const AgentStatistics = () => {
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Average Profit/Sale</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.averageProfitPerSale)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.commission / Math.max(stats.totalBookings, 1))}</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -258,7 +170,7 @@ const AgentStatistics = () => {
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Response Rate</p>
-                <p className="text-2xl font-bold text-green-600">{stats.averageResponseRate}%</p>
+                <p className="text-2xl font-bold text-green-600">{stats.responseRate}%</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -284,13 +196,11 @@ const AgentStatistics = () => {
               <p className="text-sm text-muted-foreground">Total Clients</p>
             </div>
             <div className="text-center space-y-2">
-              <div className="text-3xl font-bold text-green-600">{stats.returnClients}</div>
+              <div className="text-3xl font-bold text-green-600">{stats.returningClients}</div>
               <p className="text-sm text-muted-foreground">Returning Clients</p>
             </div>
             <div className="text-center space-y-2">
-              <div className="text-3xl font-bold text-purple-600">
-                {Math.round((stats.returnClients / stats.clients) * 100)}%
-              </div>
+              <div className="text-3xl font-bold text-purple-600">{stats.retentionRate}%</div>
               <p className="text-sm text-muted-foreground">Client Retention Rate</p>
             </div>
           </div>
