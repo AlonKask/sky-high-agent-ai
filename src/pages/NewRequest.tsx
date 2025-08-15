@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { LoadingFallback } from "@/components/LoadingFallback";
-import RequestManager from "@/components/RequestManager";
+import RequestCreationForm from "@/components/RequestCreationForm";
 
 const NewRequest = () => {
   const { user, loading } = useAuth();
@@ -14,11 +14,7 @@ const NewRequest = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  return (
-    <div className="container mx-auto p-6">
-      <RequestManager />
-    </div>
-  );
+  return <RequestCreationForm />;
 };
 
 export default NewRequest;
