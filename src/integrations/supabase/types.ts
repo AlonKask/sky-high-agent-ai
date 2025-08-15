@@ -20,6 +20,7 @@ export type Database = {
           endpoint: string
           id: string
           identifier: string
+          ip_address: unknown | null
           request_count: number | null
           window_start: string | null
         }
@@ -28,6 +29,7 @@ export type Database = {
           endpoint: string
           id?: string
           identifier: string
+          ip_address?: unknown | null
           request_count?: number | null
           window_start?: string | null
         }
@@ -36,6 +38,7 @@ export type Database = {
           endpoint?: string
           id?: string
           identifier?: string
+          ip_address?: unknown | null
           request_count?: number | null
           window_start?: string | null
         }
@@ -2658,6 +2661,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      can_access_client_data_enhanced: {
+        Args: { client_id?: string; target_user_id: string }
+        Returns: boolean
+      }
       can_access_client_data_secure: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -2692,6 +2699,16 @@ export type Database = {
       }
       can_modify_data: {
         Args: { _resource_user_id: string; _user_id: string }
+        Returns: boolean
+      }
+      check_advanced_rate_limit: {
+        Args: {
+          p_endpoint: string
+          p_identifier: string
+          p_ip_address?: unknown
+          p_max_requests?: number
+          p_window_minutes?: number
+        }
         Returns: boolean
       }
       check_rate_limit: {
