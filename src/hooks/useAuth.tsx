@@ -133,6 +133,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await SimpleAuth.signOut();
   };
 
+  // Session health monitoring
+  useEffect(() => {
+    if (user && session) {
+      const monitorSession = async () => {
+        try {
+          const health = await AuthCleanup.validateSessionHealth();
+          if (!health.isHealthy) {
+            console.warn('⚠️ Session health monitoring detected issues:', health);
+            if (!health.authUidValid) {
+              console.error('❌ auth.uid() is null - forcing session recovery');
+              const recovered = await AuthCleanup.attemptSessionRecovery();
+              if (!recovered) {
+                console.error('❌ Session recovery failed - signing out');
+                await SimpleAuth.signOut();
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Session health monitoring failed:', error);
+        }
+      };
+
+      // Monitor every 30 seconds
+      const interval = setInterval(monitorSession, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, session]);
+
   const value = {
     user,
     session,

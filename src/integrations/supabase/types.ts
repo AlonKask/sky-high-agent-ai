@@ -2834,7 +2834,7 @@ export type Database = {
         Returns: undefined
       }
       assign_request_to_agent: {
-        Args: { p_agent_id: string; p_request_id: string }
+        Args: { agent_id: string; request_id: string }
         Returns: undefined
       }
       audit_client_access: {
@@ -3167,6 +3167,29 @@ export type Database = {
       get_security_dashboard_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      get_user_requests: {
+        Args: { target_user_id?: string }
+        Returns: {
+          assigned_to: string
+          assignment_status: string
+          client_email: string
+          client_first_name: string
+          client_id: string
+          client_last_name: string
+          client_type: string
+          created_at: string
+          departure_date: string
+          destination: string
+          id: string
+          origin: string
+          passengers_count: number
+          priority: string
+          return_date: string
+          status: string
+          updated_at: string
+          user_id: string
+        }[]
       }
       get_user_teams: {
         Args: { _user_id: string }

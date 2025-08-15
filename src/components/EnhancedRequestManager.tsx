@@ -78,20 +78,12 @@ const EnhancedRequestManager = () => {
     
     try {
       setLoading(true);
-      console.log('Fetching requests for user:', user.id, 'role:', role);
+      console.log('Fetching requests using secure function for user:', user.id, 'role:', role);
 
-      let query = supabase
-        .from('requests')
-        .select(`
-          *,
-          clients(first_name, last_name, email, client_type)
-        `)
-        .order('created_at', { ascending: false });
-
-      // Let RLS handle access control - remove complex OR queries
-      console.log('Fetching all accessible requests - RLS will filter based on role');
-
-      const { data, error } = await query;
+      // Use the secure RPC function that bypasses RLS issues
+      const { data, error } = await supabase.rpc('get_user_requests', {
+        target_user_id: user.id
+      });
 
       if (error) {
         console.error('Error fetching requests:', error);
@@ -103,8 +95,21 @@ const EnhancedRequestManager = () => {
         return;
       }
 
-      console.log('Fetched requests:', data?.length || 0, 'requests');
-      setRequests(data || []);
+      console.log('Fetched requests via RPC:', data?.length || 0, 'requests');
+      
+      // Transform the data to match the expected format
+      const transformedRequests = data?.map(request => ({
+        ...request,
+        passengers: request.passengers_count,
+        clients: {
+          first_name: request.client_first_name,
+          last_name: request.client_last_name,
+          email: request.client_email,
+          client_type: request.client_type
+        }
+      })) || [];
+      
+      setRequests(transformedRequests);
     } catch (error) {
       console.error('Error fetching requests:', error);
       toast({
@@ -123,8 +128,8 @@ const EnhancedRequestManager = () => {
     try {
       // Use the assign_request_to_agent function for proper assignment
       const { error } = await supabase.rpc('assign_request_to_agent', {
-        p_request_id: requestId,
-        p_agent_id: user.id
+        request_id: requestId,
+        agent_id: user.id
       });
 
       if (error) {
