@@ -63,9 +63,17 @@ class ConfigSecurityManager {
 
   private async getSecureValue(key: string): Promise<string | null> {
     try {
-      // In a production environment, this would fetch from Supabase secrets
-      // For now, we'll use environment variables if available
-      return null;
+      // Try to fetch from Supabase secrets via edge function
+      const { data, error } = await supabase.functions.invoke('user-preferences', {
+        body: { action: 'get_secret', key }
+      });
+      
+      if (error) {
+        console.warn(`Could not retrieve secure value for ${key}:`, error);
+        return null;
+      }
+      
+      return data?.value || null;
     } catch (error) {
       console.warn(`Could not retrieve secure value for ${key}:`, error);
       return null;
