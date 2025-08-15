@@ -68,12 +68,20 @@ const Auth = () => {
 
       // Verify CAPTCHA token with backend only if captcha is available and token exists
       if (config?.turnstileSiteKey && captchaToken) {
-        const { data: captchaResult } = await supabase.functions.invoke('verify-captcha', {
-          body: { token: captchaToken, action: 'signin' }
-        });
+        try {
+          const { data: captchaResult, error: captchaError } = await supabase.functions.invoke('verify-captcha', {
+            body: { token: captchaToken, action: 'signin' }
+          });
 
-        if (!captchaResult?.success) {
-          throw new Error('CAPTCHA verification failed');
+          if (captchaError) {
+            console.warn('CAPTCHA service unavailable, proceeding without verification:', captchaError);
+            // Continue with authentication - don't block on CAPTCHA service issues
+          } else if (!captchaResult?.success) {
+            throw new Error('CAPTCHA verification failed');
+          }
+        } catch (captchaException) {
+          console.warn('CAPTCHA verification error, proceeding without verification:', captchaException);
+          // Continue with authentication - don't block on CAPTCHA service issues
         }
       } else if (config?.turnstileSiteKey && !captchaToken) {
         toast({

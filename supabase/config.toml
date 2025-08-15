@@ -1,5 +1,8 @@
 project_id = "ekrwjfdypqzequovmvjn"
 
+[functions.verify-captcha]
+verify_jwt = false
+
 [functions.update-user-password]
 verify_jwt = true
 
