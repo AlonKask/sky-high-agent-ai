@@ -18,7 +18,8 @@ import {
   Bot,
   Sparkles,
   Shield,
-  Database
+  Database,
+  ShieldCheck
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NavLink, useLocation } from "react-router-dom";
@@ -239,25 +240,44 @@ export function AppSidebar() {
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                       <NavLink 
-                         to="/iata-management" 
-                         className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/iata-management")}`}
-                         title={isCollapsed ? "IATA Management" : ""}
-                       >
-                         <Database className="h-5 w-5" />
-                        {!isCollapsed && (
-                          <div className="flex flex-col">
-                            <span>IATA Codes</span>
-                            <span className="text-xs text-muted-foreground">Airline & airport data</span>
-                          </div>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                 {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
+                   <SidebarMenuItem>
+                     <SidebarMenuButton asChild>
+                        <NavLink 
+                          to="/iata-management" 
+                          className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/iata-management")}`}
+                          title={isCollapsed ? "IATA Management" : ""}
+                        >
+                          <Database className="h-5 w-5" />
+                         {!isCollapsed && (
+                           <div className="flex flex-col">
+                             <span>IATA Codes</span>
+                             <span className="text-xs text-muted-foreground">Airline & airport data</span>
+                           </div>
+                         )}
+                       </NavLink>
+                     </SidebarMenuButton>
+                   </SidebarMenuItem>
+                 )}
+                 {(selectedViewRole === 'admin' || selectedViewRole === 'manager' || selectedViewRole === 'supervisor') && (
+                   <SidebarMenuItem>
+                     <SidebarMenuButton asChild>
+                        <NavLink 
+                          to="/security" 
+                          className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/security")}`}
+                          title={isCollapsed ? "Security Center" : ""}
+                        >
+                          <ShieldCheck className="h-5 w-5" />
+                         {!isCollapsed && (
+                           <div className="flex flex-col">
+                             <span>Security Center</span>
+                             <span className="text-xs text-muted-foreground">Zero Trust & compliance</span>
+                           </div>
+                         )}
+                       </NavLink>
+                     </SidebarMenuButton>
+                   </SidebarMenuItem>
+                 )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

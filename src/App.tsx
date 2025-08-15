@@ -34,6 +34,7 @@ import { Teams } from "./pages/Teams";
 import TeamDetail from "./pages/TeamDetail";
 import UserProfile from "./pages/UserProfile";
 import IATAManagement from "./pages/IATAManagement";
+import Security from "./pages/Security";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -82,6 +83,7 @@ function App() {
              <Route path="/teams/:id" element={<AuthGuard><Layout><TeamDetail /></Layout></AuthGuard>} />
              <Route path="/users/:id" element={<AuthGuard><Layout><UserProfile /></Layout></AuthGuard>} />
              <Route path="/iata-management" element={<AuthGuard><Layout><IATAManagement /></Layout></AuthGuard>} />
+             <Route path="/security" element={<AuthGuard><Layout><Security /></Layout></AuthGuard>} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>
