@@ -630,6 +630,36 @@ export type Database = {
           },
         ]
       }
+      captcha_verifications: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_email: string | null
+          verification_result: boolean
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_email?: string | null
+          verification_result: boolean
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_email?: string | null
+          verification_result?: boolean
+        }
+        Relationships: []
+      }
       client_intelligence: {
         Row: {
           avg_ticket_price: number | null
@@ -2987,6 +3017,16 @@ export type Database = {
       is_team_manager: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
+      }
+      log_captcha_verification: {
+        Args: {
+          p_error_message?: string
+          p_ip_address?: unknown
+          p_result: boolean
+          p_user_agent?: string
+          p_user_email: string
+        }
+        Returns: undefined
       }
       log_data_access_audit: {
         Args: {
