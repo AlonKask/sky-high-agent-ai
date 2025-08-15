@@ -102,7 +102,7 @@ export class AdvancedInputSanitizer {
     
     // SQL injection patterns
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
-    /(--|;|\\/\\*|\\*\\/|xp_|sp_)/gi,
+    /(--|;|\/\*|\*\/|xp_|sp_)/gi,
     
     // Command injection patterns
     /(\\||&|;|`|\$\(|$\{)/g,
@@ -438,11 +438,4 @@ export const initializeProductionSecurity = () => {
   }, 'low');
 };
 
-// Export for use in production deployment
-export {
-  PRODUCTION_CSP,
-  AdvancedInputSanitizer,
-  ProductionSecurityMonitor,
-  SecurePerformanceOptimizer,
-  SecureErrorHandler
-};
+// All exports are already declared above with export keyword
