@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { authSecurity } from "@/utils/authSecurity";
 import { configSecurity } from "@/utils/configSecurity";
 import { secureLogger } from "@/utils/secureLogger";
+import { logSecurityEvent } from "@/utils/security";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,7 @@ const Auth = () => {
         const secureConfig = await configSecurity.initializeSecureConfig();
         setConfig(secureConfig);
       } catch (error) {
-        secureLogger.logError('Failed to load configuration', { error });
+        secureLogger.error('Failed to load configuration', { error });
       }
     };
 
@@ -170,7 +171,7 @@ const Auth = () => {
       }
 
       if (data.user) {
-        secureLogger.logSecurityEvent('auth_signup_success', 'low', { userId: data.user.id });
+        await logSecurityEvent({ event_type: 'login_success', severity: 'low', details: { userId: data.user.id, action: 'signup' } });
         toast({
           title: "Account Created",
           description: "Please check your email to verify your account.",
@@ -178,9 +179,10 @@ const Auth = () => {
         setShowSignUp(false);
       }
     } catch (error: any) {
-      secureLogger.logSecurityEvent('auth_signup_failed', 'medium', { 
-        email: email, 
-        error: error.message 
+      await logSecurityEvent({ 
+        event_type: 'login_failure', 
+        severity: 'medium', 
+        details: { email: email, error: error.message, action: 'signup' }
       });
       
       setCaptchaToken(null); // Reset CAPTCHA on error
