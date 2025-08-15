@@ -2966,6 +2966,51 @@ export type Database = {
         | "gds_expert"
         | "agent"
         | "user"
+      security_event_type:
+        | "login_attempt"
+        | "login_success"
+        | "login_failure"
+        | "logout"
+        | "password_change"
+        | "account_locked"
+        | "account_unlocked"
+        | "mfa_enabled"
+        | "mfa_disabled"
+        | "permission_granted"
+        | "permission_denied"
+        | "data_access"
+        | "data_modification"
+        | "data_deletion"
+        | "export_request"
+        | "api_key_created"
+        | "api_key_revoked"
+        | "session_expired"
+        | "suspicious_activity"
+        | "brute_force_attempt"
+        | "rate_limit_exceeded"
+        | "unauthorized_access_attempt"
+        | "sensitive_data_access"
+        | "encryption_failure"
+        | "decryption_failure"
+        | "backup_created"
+        | "backup_restored"
+        | "system_configuration_changed"
+        | "user_role_changed"
+        | "client_data_accessed"
+        | "client_data_modified"
+        | "communication_accessed"
+        | "gmail_oauth_initiated"
+        | "gmail_oauth_success"
+        | "gmail_oauth_failure"
+        | "email_sync_started"
+        | "email_sync_completed"
+        | "email_sync_failed"
+        | "captcha_verified"
+        | "captcha_failed"
+        | "admin_action"
+        | "emergency_access"
+        | "gdpr_request"
+        | "audit_log_accessed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3100,6 +3145,52 @@ export const Constants = {
         "gds_expert",
         "agent",
         "user",
+      ],
+      security_event_type: [
+        "login_attempt",
+        "login_success",
+        "login_failure",
+        "logout",
+        "password_change",
+        "account_locked",
+        "account_unlocked",
+        "mfa_enabled",
+        "mfa_disabled",
+        "permission_granted",
+        "permission_denied",
+        "data_access",
+        "data_modification",
+        "data_deletion",
+        "export_request",
+        "api_key_created",
+        "api_key_revoked",
+        "session_expired",
+        "suspicious_activity",
+        "brute_force_attempt",
+        "rate_limit_exceeded",
+        "unauthorized_access_attempt",
+        "sensitive_data_access",
+        "encryption_failure",
+        "decryption_failure",
+        "backup_created",
+        "backup_restored",
+        "system_configuration_changed",
+        "user_role_changed",
+        "client_data_accessed",
+        "client_data_modified",
+        "communication_accessed",
+        "gmail_oauth_initiated",
+        "gmail_oauth_success",
+        "gmail_oauth_failure",
+        "email_sync_started",
+        "email_sync_completed",
+        "email_sync_failed",
+        "captcha_verified",
+        "captcha_failed",
+        "admin_action",
+        "emergency_access",
+        "gdpr_request",
+        "audit_log_accessed",
       ],
     },
   },
