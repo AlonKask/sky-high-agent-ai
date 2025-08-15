@@ -20,10 +20,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
-  const [showPasswordStrength, setShowPasswordStrength] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [showSignUp, setShowSignUp] = useState(false);
   const [config, setConfig] = useState<any>(null);
 
   useEffect(() => {
@@ -97,6 +94,12 @@ const Auth = () => {
         throw error;
       }
 
+      await logSecurityEvent({ 
+        event_type: 'login_success', 
+        severity: 'low', 
+        details: { email: email, method: 'email_password' }
+      });
+
       toast({
         title: "Welcome back!",
         description: "Successfully signed in.",
@@ -107,6 +110,12 @@ const Auth = () => {
 
     } catch (error: any) {
       setCaptchaToken(null); // Reset CAPTCHA on error
+      
+      await logSecurityEvent({ 
+        event_type: 'login_failure', 
+        severity: 'medium', 
+        details: { email: email, error: error.message, method: 'email_password' }
+      });
       
       // Provide more specific error messages
       let errorMessage = "Sign in failed";
@@ -132,77 +141,16 @@ const Auth = () => {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!captchaToken) {
-      toast({
-        variant: "destructive",
-        title: "CAPTCHA Required",
-        description: "Please complete the CAPTCHA verification.",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Verify CAPTCHA token with backend
-      const { data: captchaResult } = await supabase.functions.invoke('verify-captcha', {
-        body: { token: captchaToken, action: 'signup' }
-      });
-
-      if (!captchaResult?.success) {
-        throw new Error('CAPTCHA verification failed');
-      }
-
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.user) {
-        await logSecurityEvent({ event_type: 'login_success', severity: 'low', details: { userId: data.user.id, action: 'signup' } });
-        toast({
-          title: "Account Created",
-          description: "Please check your email to verify your account.",
-        });
-        setShowSignUp(false);
-      }
-    } catch (error: any) {
-      await logSecurityEvent({ 
-        event_type: 'login_failure', 
-        severity: 'medium', 
-        details: { email: email, error: error.message, action: 'signup' }
-      });
-      
-      setCaptchaToken(null); // Reset CAPTCHA on error
-      
-      toast({
-        variant: "destructive",
-        title: "Sign Up Failed",
-        description: error.message || "Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     
     try {
-      // Get secure Google Client ID
-      const config = await configSecurity.initializeSecureConfig();
+      await logSecurityEvent({ 
+        event_type: 'login_attempt', 
+        severity: 'low', 
+        details: { method: 'google_oauth', initiated: true }
+      });
       
       cleanupAuthState();
       
@@ -215,20 +163,29 @@ const Auth = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
-          // Use secure client ID from configuration
-          queryParams: {
-            client_id: config.googleClientId
-          }
+          redirectTo: `${window.location.origin}/`
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        await logSecurityEvent({ 
+          event_type: 'login_failure', 
+          severity: 'medium', 
+          details: { method: 'google_oauth', error: error.message }
+        });
+        throw error;
+      }
       
-      // OAuth redirect will handle the rest
+      // OAuth redirect will handle the rest - success logging happens in auth state change
     } catch (error: any) {
+      await logSecurityEvent({ 
+        event_type: 'login_failure', 
+        severity: 'medium', 
+        details: { method: 'google_oauth', error: error.message || 'Unknown OAuth error' }
+      });
+      
       toast({
-        title: "Error",
+        title: "Google Sign In Error",
         description: error.message || "An error occurred during Google sign in",
         variant: "destructive",
       });
@@ -236,18 +193,6 @@ const Auth = () => {
     }
   };
 
-  const handlePasswordChange = (newPassword: string) => {
-    setPassword(newPassword);
-    
-    if (newPassword.length > 0) {
-      const validation = authSecurity.validatePasswordStrength(newPassword);
-      setPasswordErrors(validation.errors);
-      setShowPasswordStrength(true);
-    } else {
-      setPasswordErrors([]);
-      setShowPasswordStrength(false);
-    }
-  };
 
   const handleCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
@@ -286,12 +231,12 @@ const Auth = () => {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or {showSignUp ? 'sign up' : 'sign in'} with email
+                Or sign in with email
               </span>
             </div>
           </div>
 
-          <form onSubmit={showSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+          <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="auth-email">Email</Label>
               <div className="relative">
@@ -316,23 +261,10 @@ const Auth = () => {
                   type="password"
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
                 />
-                {showPasswordStrength && passwordErrors.length > 0 && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <p className="font-medium">Password requirements:</p>
-                      <ul className="mt-1 list-disc list-inside space-y-1">
-                        {passwordErrors.map((error, index) => (
-                          <li key={index} className="text-sm">{error}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
             </div>
 
@@ -354,33 +286,20 @@ const Auth = () => {
               {loading ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>{showSignUp ? 'Creating account...' : 'Signing in...'}</span>
+                  <span>Signing in...</span>
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <span>{showSignUp ? 'Create Account' : 'Sign In'}</span>
+                  <span>Sign In</span>
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </div>
               )}
             </Button>
 
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSignUp(!showSignUp);
-                  setCaptchaToken(null);
-                }}
-                className="text-sm text-muted-foreground hover:text-primary underline"
-                disabled={loading}
-              >
-                {showSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
-              </button>
-            </div>
           </form>
 
           <div className="text-center text-sm text-muted-foreground">
-            {!showSignUp && "Need an account? Contact your administrator for access."}
+            Need an account? Contact your administrator for access.
           </div>
           
         </CardContent>
