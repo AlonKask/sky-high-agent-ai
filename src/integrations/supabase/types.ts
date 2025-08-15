@@ -901,6 +901,36 @@ export type Database = {
         }
         Relationships: []
       }
+      compliance_reports: {
+        Row: {
+          created_at: string | null
+          generated_by: string
+          id: string
+          period_end: string
+          period_start: string
+          report_data: Json
+          report_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          generated_by: string
+          id?: string
+          period_end: string
+          period_start: string
+          report_data: Json
+          report_type: string
+        }
+        Update: {
+          created_at?: string | null
+          generated_by?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          report_data?: Json
+          report_type?: string
+        }
+        Relationships: []
+      }
       credential_access_audit: {
         Row: {
           accessor_id: string
@@ -2184,6 +2214,51 @@ export type Database = {
           },
         ]
       }
+      security_alerts: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          auto_resolved: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          resolved_at: string | null
+          severity: string
+          title: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          auto_resolved?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          severity?: string
+          title: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          auto_resolved?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          severity?: string
+          title?: string
+        }
+        Relationships: []
+      }
       security_events: {
         Row: {
           details: Json | null
@@ -2527,6 +2602,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      advanced_rate_limit_check: {
+        Args: {
+          p_endpoint: string
+          p_identifier: string
+          p_ip_address?: unknown
+          p_max_requests?: number
+          p_window_minutes?: number
+        }
+        Returns: Json
+      }
       archive_old_communications: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2543,6 +2628,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      automated_data_retention_cleanup: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       calculate_passenger_totals: {
         Args: {
           p_adult_markup?: number
@@ -2555,6 +2644,10 @@ export type Database = {
           p_infant_net_price?: number
           p_infants_count?: number
         }
+        Returns: Json
+      }
+      calculate_security_metrics: {
+        Args: { p_time_window_hours?: number }
         Returns: Json
       }
       can_access_client: {
@@ -2653,6 +2746,15 @@ export type Database = {
         Args: { encrypted_token: string }
         Returns: string
       }
+      detect_session_anomaly: {
+        Args: {
+          p_current_fingerprint: string
+          p_ip_address?: unknown
+          p_user_agent?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       emergency_client_access: {
         Args: {
           p_client_id: string
@@ -2667,6 +2769,14 @@ export type Database = {
           last_name: string
           phone: string
         }[]
+      }
+      generate_compliance_report: {
+        Args: {
+          p_end_date?: string
+          p_report_type?: string
+          p_start_date?: string
+        }
+        Returns: Json
       }
       generate_oauth_state_token: {
         Args: { p_user_id: string }
