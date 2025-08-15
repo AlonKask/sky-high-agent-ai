@@ -34,8 +34,8 @@ interface Request {
 }
 
 const EnhancedRequestManager = () => {
-  const { user } = useAuth();
-  const { role } = useUserRole();
+  const { user, loading: authLoading } = useAuth();
+  const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [requests, setRequests] = useState<Request[]>([]);
@@ -45,11 +45,28 @@ const EnhancedRequestManager = () => {
   const [showTakeRequestDropdown, setShowTakeRequestDropdown] = useState(false);
   const filterUserId = searchParams.get('user');
 
+  const isLoading = authLoading || roleLoading;
+
+  // Debug logging
   useEffect(() => {
-    if (user) {
+    console.log('EnhancedRequestManager state:', {
+      user: user?.id,
+      role,
+      authLoading,
+      roleLoading,
+      isLoading
+    });
+  }, [user, role, authLoading, roleLoading, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      console.log('Fetching requests for user:', user.id, 'with role:', role);
       fetchRequests();
+    } else if (!isLoading && !user) {
+      console.log('No user authenticated, skipping fetch');
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, role, isLoading]);
 
   const fetchRequests = async () => {
     if (!user) {
@@ -243,7 +260,7 @@ const EnhancedRequestManager = () => {
     </Card>
   );
 
-  if (loading) {
+  if (isLoading || loading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -251,6 +268,27 @@ const EnhancedRequestManager = () => {
         </div>
         <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-3 text-muted-foreground">Loading requests...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Request Management</h1>
+        </div>
+        <div className="text-center py-8">
+          <h2 className="text-xl font-semibold text-muted-foreground">Authentication Required</h2>
+          <p className="text-muted-foreground mt-2">Please sign in to access the request management system.</p>
+          <Button 
+            onClick={() => window.location.href = '/auth'}
+            className="mt-4"
+          >
+            Go to Sign In
+          </Button>
         </div>
       </div>
     );
