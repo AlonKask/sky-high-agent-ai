@@ -9,8 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Plane, Mail, Lock, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { testPasswordUpdateSystem } from "@/utils/testPasswordUpdate";
-import { testLoginWithNewPassword } from "@/utils/adminPasswordReset";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -52,19 +50,14 @@ const Auth = () => {
         // Continue even if this fails
       }
 
-      console.log('Attempting sign in for:', email);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Auth error:', error);
         throw error;
       }
-
-      console.log('Sign in successful:', data);
 
       toast({
         title: "Welcome back!",
@@ -75,7 +68,6 @@ const Auth = () => {
       window.location.href = '/';
 
     } catch (error: any) {
-      console.error('Sign in error:', error);
       
       // Provide more specific error messages
       let errorMessage = "Sign in failed";
@@ -130,7 +122,6 @@ const Auth = () => {
       
       // OAuth redirect will handle the rest
     } catch (error: any) {
-      console.error("Google sign in error:", error);
       toast({
         title: "Error",
         description: error.message || "An error occurred during Google sign in",
@@ -250,26 +241,6 @@ const Auth = () => {
             Need an account? Contact your administrator for access.
           </div>
           
-          {process.env.NODE_ENV === 'development' && (
-            <div className="space-y-2">
-              <Button 
-                onClick={testPasswordUpdateSystem}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                Test Password Update System
-              </Button>
-              <Button 
-                onClick={testLoginWithNewPassword}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                Test Login with New Password
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

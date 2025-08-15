@@ -3,6 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { authSecurity } from "@/utils/authSecurity";
 import { configSecurity } from "@/utils/configSecurity";
+import { enhancedSessionSecurity } from "@/utils/enhancedSessionSecurity";
 
 interface AuthContextType {
   user: User | null;
@@ -33,7 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await configSecurity.initializeSecureConfig();
         authSecurity.initializeSessionMonitoring();
       } catch (error) {
-        console.error('Security initialization failed:', error);
+        // Silent fail for security initialization
       }
     };
 
@@ -46,42 +47,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Update session activity on auth state change
-        if (session) {
+        // Initialize enhanced session security on sign in
+        if (event === 'SIGNED_IN' && session) {
           setTimeout(() => {
-            authSecurity.initializeSessionMonitoring();
+            enhancedSessionSecurity.initializeSecureSession();
           }, 0);
-        } else {
-          authSecurity.cleanup();
+        } else if (event === 'SIGNED_OUT') {
+          enhancedSessionSecurity.cleanup();
         }
       }
     );
 
-    // Get initial session
+    // Get initial session with security validation
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Validate existing session security
+      if (session && !enhancedSessionSecurity.validateSession()) {
+        enhancedSessionSecurity.secureSignOut();
+      }
     });
 
     return () => {
       subscription.unsubscribe();
       authSecurity.destroy();
+      enhancedSessionSecurity.cleanup();
     };
   }, []);
 
   const signOut = async () => {
     try {
-      // Clean up any auth-related storage
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      await supabase.auth.signOut({ scope: 'global' });
+      enhancedSessionSecurity.secureSignOut();
     } catch (error) {
-      console.error("Error signing out:", error);
+      // Use enhanced security signout on error
+      enhancedSessionSecurity.secureSignOut();
     }
   };
 
