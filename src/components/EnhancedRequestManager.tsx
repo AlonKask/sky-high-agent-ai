@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown, Inbox } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -34,6 +34,7 @@ interface Request {
 }
 
 const EnhancedRequestManager = () => {
+  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
@@ -94,7 +95,11 @@ const EnhancedRequestManager = () => {
 
       if (error) {
         console.error('Error fetching requests:', error);
-        toast.error('Failed to load requests');
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load requests"
+        });
         return;
       }
 
@@ -102,7 +107,11 @@ const EnhancedRequestManager = () => {
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
-      toast.error('Failed to load requests');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load requests"
+      });
     } finally {
       setLoading(false);
     }
@@ -110,48 +119,38 @@ const EnhancedRequestManager = () => {
 
   const handleTakeRequest = async (requestId: string) => {
     if (!user) return;
-
+    
     try {
-      setTakingRequest(requestId);
+      // Use the assign_request_to_agent function for proper assignment
+      const { error } = await supabase.rpc('assign_request_to_agent', {
+        p_request_id: requestId,
+        p_agent_id: user.id
+      });
 
-      // Update the request assignment
-      const { error: updateError } = await supabase
-        .from('requests')
-        .update({
-          assigned_to: user.id,
-          assignment_status: 'assigned',
-          status: 'in_progress'
-        })
-        .eq('id', requestId);
-
-      if (updateError) {
-        console.error('Error taking request:', updateError);
-        toast.error('Failed to take request');
+      if (error) {
+        console.error('Error taking request:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Failed to take request"
+        });
         return;
       }
 
-      // Create assignment record
-      const { error: assignmentError } = await supabase
-        .from('request_assignments')
-        .insert({
-          request_id: requestId,
-          assigned_to: user.id,
-          assigned_by: user.id,
-          status: 'active'
-        });
-
-      if (assignmentError) {
-        console.error('Error creating assignment:', assignmentError);
-        // Don't show error for assignment record as the main update succeeded
-      }
-
-      toast.success('Request assigned to you successfully');
+      toast({
+        title: "Success",
+        description: "Request assigned successfully"
+      });
+      
       await fetchRequests(); // Refresh the list
+      setShowTakeRequestDropdown(false);
     } catch (error) {
       console.error('Error taking request:', error);
-      toast.error('Failed to take request');
-    } finally {
-      setTakingRequest(null);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to take request"
+      });
     }
   };
 
@@ -384,10 +383,17 @@ const EnhancedRequestManager = () => {
             const { seedSampleData } = await import('@/utils/sampleDataSeeder');
             const success = await seedSampleData(user?.id || '');
             if (success) {
-              toast.success('Sample data created successfully');
+              toast({
+                title: "Success",
+                description: "Sample data created successfully"
+              });
               fetchRequests();
             } else {
-              toast.error('Failed to create sample data');
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to create sample data"
+              });
             }
           }}
           icon={<Inbox className="h-12 w-12 text-muted-foreground" />}

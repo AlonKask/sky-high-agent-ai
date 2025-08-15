@@ -2833,6 +2833,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      assign_request_to_agent: {
+        Args: { p_agent_id: string; p_request_id: string }
+        Returns: undefined
+      }
       audit_client_access: {
         Args: {
           p_access_type: string
