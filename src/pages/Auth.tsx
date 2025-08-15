@@ -66,36 +66,24 @@ const Auth = () => {
         // Continue even if this fails
       }
 
-      // Verify CAPTCHA token with backend only if captcha is available and token exists
-      if (config?.turnstileSiteKey && captchaToken) {
-        try {
-          const { data: captchaResult, error: captchaError } = await supabase.functions.invoke('verify-captcha', {
-            body: { token: captchaToken, action: 'signin' }
-          });
-
-          if (captchaError) {
-            console.warn('CAPTCHA service unavailable, proceeding without verification:', captchaError);
-            // Continue with authentication - don't block on CAPTCHA service issues
-          } else if (!captchaResult?.success) {
-            throw new Error('CAPTCHA verification failed');
-          }
-        } catch (captchaException) {
-          console.warn('CAPTCHA verification error, proceeding without verification:', captchaException);
-          // Continue with authentication - don't block on CAPTCHA service issues
-        }
-      } else if (config?.turnstileSiteKey && !captchaToken) {
+      // Validate CAPTCHA token if required
+      if (config?.turnstileSiteKey && !captchaToken) {
         toast({
           variant: "destructive",
           title: "CAPTCHA Required",
-          description: "Please complete the CAPTCHA verification.",
+          description: "Please complete the CAPTCHA verification before signing in.",
         });
         setLoading(false);
         return;
       }
 
+      // Attempt to sign in with email and password using native CAPTCHA integration
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email.trim(),
+        password: password.trim(),
+        options: {
+          ...(captchaToken && { captchaToken })
+        }
       });
 
       if (error) {
