@@ -378,24 +378,6 @@ const EnhancedRequestManager = () => {
         <EmptyStateCard
           title="No Travel Requests Found"
           description={`No travel requests found for your account. ${role === 'agent' ? 'Available requests will appear here when they\'re submitted.' : 'Create your first request to get started.'}`}
-          actionLabel="Create Sample Data"
-          onAction={async () => {
-            const { seedSampleData } = await import('@/utils/sampleDataSeeder');
-            const success = await seedSampleData(user?.id || '');
-            if (success) {
-              toast({
-                title: "Success",
-                description: "Sample data created successfully"
-              });
-              fetchRequests();
-            } else {
-              toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to create sample data"
-              });
-            }
-          }}
           icon={<Inbox className="h-12 w-12 text-muted-foreground" />}
         />
       )}
