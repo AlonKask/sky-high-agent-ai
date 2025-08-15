@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Plane, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import HCaptchaWrapper from "@/components/HCaptchaWrapper";
+import TurnstileWrapper from "@/components/TurnstileWrapper";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ const Auth = () => {
       }
 
       // Verify CAPTCHA token with backend only if captcha is available and token exists
-      if (config?.hcaptchaSiteKey && captchaToken) {
+      if (config?.turnstileSiteKey && captchaToken) {
         const { data: captchaResult } = await supabase.functions.invoke('verify-captcha', {
           body: { token: captchaToken, action: 'signin' }
         });
@@ -75,7 +75,7 @@ const Auth = () => {
         if (!captchaResult?.success) {
           throw new Error('CAPTCHA verification failed');
         }
-      } else if (config?.hcaptchaSiteKey && !captchaToken) {
+      } else if (config?.turnstileSiteKey && !captchaToken) {
         toast({
           variant: "destructive",
           title: "CAPTCHA Required",
@@ -299,9 +299,9 @@ const Auth = () => {
               </div>
             </div>
 
-            {config?.hcaptchaSiteKey && (
-              <HCaptchaWrapper
-                siteKey={config.hcaptchaSiteKey}
+            {config?.turnstileSiteKey && (
+              <TurnstileWrapper
+                siteKey={config.turnstileSiteKey}
                 onVerify={handleCaptchaVerify}
                 onError={handleCaptchaError}
                 onExpire={() => setCaptchaToken(null)}
@@ -312,7 +312,7 @@ const Auth = () => {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading || (config?.hcaptchaSiteKey && !captchaToken)}
+              disabled={loading || (config?.turnstileSiteKey && !captchaToken)}
             >
               {loading ? (
                 <div className="flex items-center space-x-2">

@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
-import HCaptchaWrapper from "@/components/HCaptchaWrapper";
+import TurnstileWrapper from "@/components/TurnstileWrapper";
 import { configSecurity } from "@/utils/configSecurity";
 
 interface RequestFormData {
@@ -492,9 +492,9 @@ const PublicRequestForm = () => {
                   />
                 </div>
 
-                {config?.hcaptchaSiteKey && (
-                  <HCaptchaWrapper
-                    siteKey={config.hcaptchaSiteKey}
+                {config?.turnstileSiteKey && (
+                  <TurnstileWrapper
+                    siteKey={config.turnstileSiteKey}
                     onVerify={handleCaptchaVerify}
                     onError={handleCaptchaError}
                     onExpire={() => setCaptchaToken(null)}

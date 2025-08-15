@@ -10,14 +10,13 @@ interface CaptchaRequest {
   action?: string;
 }
 
-interface HCaptchaResponse {
+interface TurnstileResponse {
   success: boolean;
   challenge_ts?: string;
   hostname?: string;
-  credit?: boolean;
   'error-codes'?: string[];
-  score?: number;
-  score_reason?: string[];
+  action?: string;
+  cdata?: string;
 }
 
 serve(async (req) => {
@@ -49,9 +48,9 @@ serve(async (req) => {
       );
     }
 
-    const secretKey = Deno.env.get('HCAPTCHA_SECRET_KEY');
+    const secretKey = Deno.env.get('TURNSTILE_SECRET_KEY');
     if (!secretKey) {
-      console.error('HCAPTCHA_SECRET_KEY environment variable is not set');
+      console.error('TURNSTILE_SECRET_KEY environment variable is not set');
       return new Response(
         JSON.stringify({ success: false, error: 'CAPTCHA service unavailable' }),
         { 
@@ -61,8 +60,8 @@ serve(async (req) => {
       );
     }
 
-    // Verify CAPTCHA with hCaptcha API
-    const verifyUrl = 'https://hcaptcha.com/siteverify';
+    // Verify CAPTCHA with Cloudflare Turnstile API
+    const verifyUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
     const formData = new FormData();
     formData.append('secret', secretKey);
     formData.append('response', token);
@@ -73,7 +72,7 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      console.error('hCaptcha API request failed:', response.status, response.statusText);
+      console.error('Turnstile API request failed:', response.status, response.statusText);
       return new Response(
         JSON.stringify({ success: false, error: 'CAPTCHA verification failed' }),
         { 
@@ -83,7 +82,7 @@ serve(async (req) => {
       );
     }
 
-    const result: HCaptchaResponse = await response.json();
+    const result: TurnstileResponse = await response.json();
 
     // Log verification attempt for security monitoring
     console.log(`CAPTCHA verification for action '${action}':`, {

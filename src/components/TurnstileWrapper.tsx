@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { useState, useCallback } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
-interface HCaptchaWrapperProps {
+interface TurnstileWrapperProps {
   siteKey: string;
   onVerify: (token: string) => void;
   onError?: (error: string) => void;
@@ -12,7 +12,7 @@ interface HCaptchaWrapperProps {
   disabled?: boolean;
 }
 
-export const HCaptchaWrapper: React.FC<HCaptchaWrapperProps> = ({
+export const TurnstileWrapper: React.FC<TurnstileWrapperProps> = ({
   siteKey,
   onVerify,
   onError,
@@ -21,8 +21,7 @@ export const HCaptchaWrapper: React.FC<HCaptchaWrapperProps> = ({
   disabled = false,
 }) => {
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const captchaRef = useRef<HCaptcha>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleVerify = useCallback((token: string) => {
     setError(null);
@@ -47,9 +46,9 @@ export const HCaptchaWrapper: React.FC<HCaptchaWrapperProps> = ({
   }, []);
 
   const resetCaptcha = useCallback(() => {
-    captchaRef.current?.resetCaptcha();
     setError(null);
     setIsLoading(true);
+    // Turnstile will automatically reset when re-rendered
   }, []);
 
   if (!siteKey) {
@@ -66,15 +65,16 @@ export const HCaptchaWrapper: React.FC<HCaptchaWrapperProps> = ({
   return (
     <div className={`space-y-2 ${className}`}>
       <div className="flex justify-center">
-        <HCaptcha
-          ref={captchaRef}
-          sitekey={siteKey}
-          onVerify={handleVerify}
+        <Turnstile
+          siteKey={siteKey}
+          onSuccess={handleVerify}
           onError={handleError}
           onExpire={handleExpire}
           onLoad={handleLoad}
-          size="normal"
-          theme="light"
+          options={{
+            theme: 'light',
+            size: 'normal',
+          }}
         />
       </div>
       
@@ -101,4 +101,4 @@ export const HCaptchaWrapper: React.FC<HCaptchaWrapperProps> = ({
   );
 };
 
-export default HCaptchaWrapper;
+export default TurnstileWrapper;
