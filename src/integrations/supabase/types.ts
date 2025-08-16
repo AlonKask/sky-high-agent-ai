@@ -2987,11 +2987,13 @@ export type Database = {
         Returns: Json
       }
       emergency_client_access: {
-        Args: {
-          p_client_id: string
-          p_incident_id?: string
-          p_justification: string
-        }
+        Args:
+          | {
+              p_client_id: string
+              p_incident_id?: string
+              p_justification: string
+            }
+          | { p_client_id: string; p_justification: string }
         Returns: {
           email: string
           emergency_access_granted: boolean
@@ -3077,6 +3079,10 @@ export type Database = {
           severity: string
           target_user_id: string
         }[]
+      }
+      get_client_data_secure: {
+        Args: { p_client_id: string; p_include_sensitive?: boolean }
+        Returns: Json
       }
       get_client_decrypted_preview: {
         Args: { p_client_id: string }
@@ -3270,6 +3276,13 @@ export type Database = {
           p_justification?: string
         }
         Returns: undefined
+      }
+      mask_client_data: {
+        Args: {
+          p_client_data: Json
+          p_user_role?: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: Json
       }
       mask_sensitive_data: {
         Args: { p_data: string; p_field_type?: string }
