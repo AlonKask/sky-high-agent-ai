@@ -183,18 +183,33 @@ export class SimpleAuth {
     try {
       console.log('🔓 Starting simple sign-out...');
       
-      // 1. Emergency cleanup (includes Supabase signout)
-      await AuthCleanup.emergencyAuthCleanup();
+      // 1. Sign out of Supabase gracefully
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (error) {
+        console.warn('Sign out error (continuing anyway):', error);
+      }
       
-      console.log('✅ Sign-out completed');
+      // 2. Light cleanup of auth state
+      try {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.includes('supabase') || key.includes('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (error) {
+        console.warn('Storage cleanup error (non-critical):', error);
+      }
       
-      // 2. Force page refresh to clear any remaining state
+      console.log('✅ Graceful sign-out completed');
+      
+      // 3. Navigate without forced reload
       window.location.href = '/auth';
       
     } catch (error) {
       console.error('❌ Sign-out failed:', error);
-      // Force cleanup anyway
-      await AuthCleanup.emergencyAuthCleanup();
+      // Fallback: still navigate to auth
       window.location.href = '/auth';
     }
   }
