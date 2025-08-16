@@ -1,10 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 
-// Enhanced security logging and monitoring functions
+// Enhanced security logging and monitoring functions with retry mechanism
 export const logSecurityEvent = async (
   eventType: string,
   severity: 'low' | 'medium' | 'high' | 'critical',
-  details: Record<string, any> = {}
+  details: Record<string, any> = {},
+  retryCount: number = 0
 ) => {
   try {
     const { error } = await supabase
@@ -16,15 +17,57 @@ export const logSecurityEvent = async (
           ...details,
           timestamp: new Date().toISOString(),
           user_agent: navigator.userAgent,
-          url: window.location.href
+          url: window.location.href,
+          retry_count: retryCount
         }
       });
     
     if (error) {
       console.error('Failed to log security event:', error);
+      
+      // Retry mechanism for critical events
+      if (severity === 'critical' && retryCount < 2) {
+        setTimeout(() => {
+          logSecurityEvent(eventType, severity, details, retryCount + 1);
+        }, 1000 * (retryCount + 1));
+      } else {
+        // Store in local storage for later retry if possible
+        if (typeof localStorage !== 'undefined') {
+          try {
+            const failedEvents = JSON.parse(localStorage.getItem('failed_security_events') || '[]');
+            failedEvents.push({
+              eventType,
+              severity,
+              details,
+              failedAt: new Date().toISOString()
+            });
+            // Keep only last 10 failed events
+            localStorage.setItem('failed_security_events', JSON.stringify(failedEvents.slice(-10)));
+          } catch (storageError) {
+            console.error('Failed to store failed security event:', storageError);
+          }
+        }
+      }
     }
   } catch (error) {
     console.error('Security logging error:', error);
+    
+    // For critical events, try localStorage backup
+    if (severity === 'critical' && typeof localStorage !== 'undefined') {
+      try {
+        const failedEvents = JSON.parse(localStorage.getItem('failed_security_events') || '[]');
+        failedEvents.push({
+          eventType,
+          severity,
+          details,
+          failedAt: new Date().toISOString(),
+          errorMessage: error instanceof Error ? error.message : String(error)
+        });
+        localStorage.setItem('failed_security_events', JSON.stringify(failedEvents.slice(-10)));
+      } catch (storageError) {
+        console.error('Failed to store critical security event in localStorage:', storageError);
+      }
+    }
   }
 };
 

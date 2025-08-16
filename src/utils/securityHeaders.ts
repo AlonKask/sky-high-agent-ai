@@ -7,16 +7,17 @@ export const SECURITY_HEADERS = {
   // Content Security Policy (Production - strict)
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' https://accounts.google.com",
-    "style-src 'self' https://fonts.googleapis.com",
+    "script-src 'self' https://accounts.google.com https://challenges.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' https://your-project-ref.supabase.co wss://your-project-ref.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://challenges.cloudflare.com",
+    "frame-src 'self' https://challenges.cloudflare.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "upgrade-insecure-requests",
-    "report-uri https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/csp-report"
+    "report-uri /api/csp-report"
   ].join('; '),
 
   // Additional security headers
@@ -24,7 +25,7 @@ export const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'
 };
 

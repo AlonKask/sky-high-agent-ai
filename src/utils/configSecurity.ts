@@ -30,7 +30,7 @@ class ConfigSecurityManager {
     }
 
     try {
-      // Get configuration from environment variables with secure fallbacks
+      // Get configuration from environment variables with enhanced error handling
       const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 
                             await this.getSecureValue('GOOGLE_CLIENT_ID') || 
                             "your-google-client-id";
@@ -50,15 +50,27 @@ class ConfigSecurityManager {
       // Log configuration initialization (without sensitive data)
       console.log('✅ Secure configuration initialized', {
         environment: this.config.environment,
-        hasGoogleClientId: !!this.config.googleClientId,
-        hasTurnstileSiteKey: !!this.config.turnstileSiteKey,
+        hasGoogleClientId: !!this.config.googleClientId && this.config.googleClientId !== "your-google-client-id",
+        hasTurnstileSiteKey: !!this.config.turnstileSiteKey && this.config.turnstileSiteKey !== "your-turnstile-site-key",
         version: this.config.appVersion
       });
 
       return this.config;
     } catch (error) {
       console.error('❌ Configuration security initialization failed:', error);
-      throw new Error('Failed to initialize secure configuration');
+      
+      // Provide fallback configuration to prevent app crash
+      this.config = {
+        googleClientId: "your-google-client-id",
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL || "https://your-project-ref.supabase.co",
+        supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || "your-anon-key",
+        turnstileSiteKey: "1x00000000000000000000AA", // Cloudflare test key
+        appVersion: '1.0.0',
+        environment: this.detectEnvironment()
+      };
+      
+      console.warn('⚠️ Using fallback configuration due to initialization failure');
+      return this.config;
     }
   }
 
@@ -101,34 +113,55 @@ class ConfigSecurityManager {
     const validationChecks = [
       {
         name: 'Google Client ID',
-        test: () => config.googleClientId && config.googleClientId.length > 10,
+        test: () => config.googleClientId && 
+                   config.googleClientId.length > 10 && 
+                   config.googleClientId !== "your-google-client-id",
         severity: 'warning'
       },
       {
         name: 'Supabase URL',
-        test: () => config.supabaseUrl && config.supabaseUrl.startsWith('https://'),
+        test: () => config.supabaseUrl && 
+                   config.supabaseUrl.startsWith('https://') &&
+                   config.supabaseUrl !== "https://your-project-ref.supabase.co",
         severity: 'critical'
       },
       {
         name: 'Supabase Anon Key',
-        test: () => config.supabaseAnonKey && config.supabaseAnonKey.length > 100,
+        test: () => config.supabaseAnonKey && 
+                   config.supabaseAnonKey.length > 100 &&
+                   config.supabaseAnonKey !== "your-anon-key",
         severity: 'critical'
       },
       {
         name: 'Turnstile Site Key',
-        test: () => config.turnstileSiteKey && config.turnstileSiteKey.length > 10,
+        test: () => config.turnstileSiteKey && 
+                   config.turnstileSiteKey.length > 10 &&
+                   config.turnstileSiteKey !== "your-turnstile-site-key",
         severity: 'warning'
       }
     ];
 
     const failures = validationChecks.filter(check => !check.test());
     
-    if (failures.some(f => f.severity === 'critical')) {
+    // Only throw for critical failures if we're not in development
+    if (failures.some(f => f.severity === 'critical') && config.environment === 'production') {
       throw new Error(`Critical configuration validation failed: ${failures.map(f => f.name).join(', ')}`);
     }
 
     if (failures.length > 0) {
       console.warn('⚠️ Configuration validation warnings:', failures.map(f => f.name));
+      
+      // Log detailed security event for audit
+      if (typeof window !== 'undefined') {
+        import('@/utils/enhancedSecurity').then(({ logSecurityEvent }) => {
+          logSecurityEvent('configuration_validation_failed', 'medium', {
+            failed_checks: failures.map(f => f.name),
+            environment: config.environment
+          }).catch(() => {
+            // Silently fail to avoid infinite loops
+          });
+        });
+      }
     }
   }
 

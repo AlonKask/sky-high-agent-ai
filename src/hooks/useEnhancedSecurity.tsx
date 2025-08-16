@@ -142,7 +142,7 @@ export const useEnhancedSecurity = () => {
     }
   }, [user, deviceFingerprint]);
 
-  // Log security events
+  // Enhanced security event logging with fallback
   const logSecurityEvent = useCallback(async (
     eventType: string,
     severity: 'low' | 'medium' | 'high' | 'critical',
@@ -151,13 +151,50 @@ export const useEnhancedSecurity = () => {
     try {
       const sanitizedDetails = sanitizeLogData(details);
       
-      await supabase.rpc('log_security_event', {
+      // Try using RPC function first
+      const { error: rpcError } = await supabase.rpc('log_security_event', {
         p_event_type: eventType,
         p_severity: severity,
         p_details: sanitizedDetails
       });
+      
+      if (rpcError) {
+        // Fallback to direct table insert
+        const { error: insertError } = await supabase
+          .from('security_events')
+          .insert({
+            event_type: eventType,
+            severity,
+            details: {
+              ...sanitizedDetails,
+              fallback_insert: true,
+              rpc_error: rpcError.message
+            }
+          });
+          
+        if (insertError) {
+          throw insertError;
+        }
+      }
     } catch (error) {
       console.error('Error logging security event:', error);
+      
+      // Store in localStorage as last resort for critical events
+      if (severity === 'critical' && typeof localStorage !== 'undefined') {
+        try {
+          const failedEvents = JSON.parse(localStorage.getItem('failed_security_events') || '[]');
+          failedEvents.push({
+            eventType,
+            severity,
+            details,
+            failedAt: new Date().toISOString(),
+            errorMessage: error instanceof Error ? error.message : String(error)
+          });
+          localStorage.setItem('failed_security_events', JSON.stringify(failedEvents.slice(-10)));
+        } catch (storageError) {
+          console.error('Failed to store critical security event:', storageError);
+        }
+      }
     }
   }, []);
 

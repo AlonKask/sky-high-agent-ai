@@ -7,9 +7,11 @@ import App from "./App.tsx";
 import "./index.css";
 import { initSecurityMonitoring } from "./utils/enhancedSecurity";
 import { performanceMonitor } from "./utils/performanceOptimizations";
+import { securityService } from "./utils/securityEnhancementService";
 
-// Initialize security monitoring and performance tracking
+// Initialize security monitoring and enhanced security services
 initSecurityMonitoring();
+securityService.init();
 
 // Cleanup performance monitoring on page unload
 window.addEventListener('beforeunload', () => {
