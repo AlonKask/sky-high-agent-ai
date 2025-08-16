@@ -30,14 +30,15 @@ class ConfigSecurityManager {
     }
 
     try {
-      // Get Google Client ID from Supabase secrets or fallback to environment
-      const googleClientId = await this.getSecureValue('GOOGLE_CLIENT_ID') || 
-                            "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com";
+      // Get configuration from environment variables with secure fallbacks
+      const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 
+                            await this.getSecureValue('GOOGLE_CLIENT_ID') || 
+                            "your-google-client-id";
 
       this.config = {
         googleClientId,
-        supabaseUrl: "https://ekrwjfdypqzequovmvjn.supabase.co",
-        supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcndqZmR5cHF6ZXF1b3ZtdmpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA4MzEsImV4cCI6MjA2ODY3NjgzMX0.r2Y4sVUM_0ofU1G8QGDDqSR7-LatBkWXa8pWSwniXdE",
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL || "https://your-project-ref.supabase.co",
+        supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || "your-anon-key",
         turnstileSiteKey: await this.getTurnstileSiteKey(),
         appVersion: '1.0.0',
         environment: this.detectEnvironment()
@@ -63,14 +64,19 @@ class ConfigSecurityManager {
 
   private async getSecureValue(key: string): Promise<string | null> {
     try {
-      // Simplified secure value retrieval - fallback to hardcoded values for critical auth
-      // In production, this would connect to proper secret management
+      // Secure value retrieval from environment variables first, then Supabase secrets
+      // Environment variables take precedence for public deployment safety
+      const envValue = import.meta.env[`VITE_${key}`];
+      if (envValue && envValue !== `your-${key.toLowerCase().replace('_', '-')}`) {
+        return envValue;
+      }
+      
+      // Fallback to secure defaults - no hardcoded production values
       if (key === 'GOOGLE_CLIENT_ID') {
-        return "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com";
+        return null; // Will use environment variable or default placeholder
       }
       if (key === 'TURNSTILE_SITE_KEY') {
-        // Return the actual Turnstile site key if available
-        return null; // This will fallback to provided key
+        return null; // Will use environment variable or default placeholder  
       }
       return null;
     } catch (error) {
@@ -127,11 +133,18 @@ class ConfigSecurityManager {
   }
 
   private async getTurnstileSiteKey(): Promise<string> {
-    // Use the production site key provided by user
+    // Use environment variable first, then fallback to environment-specific defaults
+    const envSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    if (envSiteKey && envSiteKey !== 'your-turnstile-site-key') {
+      return envSiteKey;
+    }
+    
     const environment = this.detectEnvironment();
     
     if (environment === 'production') {
-      return "0x4AAAAAABr-hIuawnDu2ms3";
+      // In production, require explicit configuration
+      console.warn('⚠️ Production detected but no VITE_TURNSTILE_SITE_KEY configured');
+      return "your-turnstile-site-key"; // Placeholder to prevent app crash
     }
     
     // For development and staging, use Cloudflare test key
