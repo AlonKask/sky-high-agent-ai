@@ -35,7 +35,7 @@ export class AIAssistantAPI {
     try {
       const token = await this.getAuthToken();
       
-      const response = await fetch(`https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/ai-assistant-chat`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

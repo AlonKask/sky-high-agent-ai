@@ -1,4 +1,4 @@
-project_id = "ekrwjfdypqzequovmvjn"
+project_id = "YOUR_PROJECT_ID"
 
 [functions.verify-captcha]
 verify_jwt = false

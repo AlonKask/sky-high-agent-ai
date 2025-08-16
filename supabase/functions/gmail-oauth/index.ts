@@ -187,7 +187,7 @@ serve(async (req) => {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/gmail-oauth?action=callback`;
       
       console.log(`🚀 Starting OAuth flow for user: ${userId}`);
       console.log(`🔐 Environment check - Client ID: ${!!clientId}, Client Secret: ${!!clientSecret}`);
@@ -310,7 +310,7 @@ serve(async (req) => {
       // Exchange code for tokens
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/gmail-oauth?action=callback`;
       
       if (!clientId || !clientSecret) {
         console.error(`❌ Missing OAuth credentials in callback`);
@@ -518,7 +518,7 @@ serve(async (req) => {
 
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/gmail-oauth?action=callback`;
 
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',

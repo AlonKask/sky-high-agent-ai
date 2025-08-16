@@ -32,8 +32,8 @@ export const PRODUCTION_CSP = {
   ],
   'connect-src': [
     "'self'",
-    "https://ekrwjfdypqzequovmvjn.supabase.co",
-    "wss://ekrwjfdypqzequovmvjn.supabase.co",
+    "https://your-project-ref.supabase.co",
+    "wss://your-project-ref.supabase.co",
     "https://accounts.google.com",
     "https://oauth2.googleapis.com"
   ],
@@ -315,7 +315,7 @@ export class SecurePerformanceOptimizer {
     this.addResourceHint('dns-prefetch', 'https://fonts.googleapis.com');
     
     // Preconnect to critical resources
-    this.addResourceHint('preconnect', 'https://ekrwjfdypqzequovmvjn.supabase.co');
+    this.addResourceHint('preconnect', 'https://your-project-ref.supabase.co');
     
     // Preload critical resources
     this.addResourceHint('preload', '/fonts/inter.woff2', { as: 'font', type: 'font/woff2', crossorigin: 'anonymous' });

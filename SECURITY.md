@@ -122,7 +122,7 @@ const securityHeaders = {
     script-src 'self' 'unsafe-inline' https://trusted-domains.com;
     style-src 'self' 'unsafe-inline';
     img-src 'self' data: https:;
-    connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co;
+    connect-src 'self' https://your-project-ref.supabase.co;
     frame-ancestors 'none';
   `,
   'X-Frame-Options': 'DENY',

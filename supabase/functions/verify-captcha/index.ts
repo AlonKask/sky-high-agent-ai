@@ -159,9 +159,9 @@ serve(async (req) => {
     if (result.success) {
       // Additional security checks
       const isValidHostname = result.hostname && (
-        result.hostname === 'selectbc.online' ||
+        result.hostname === 'example.com' ||
         result.hostname === 'localhost' ||
-        result.hostname?.includes('lovable.app') ||
+        result.hostname?.includes('yourdomain.com') ||
         result.hostname?.includes('preview')
       );
 

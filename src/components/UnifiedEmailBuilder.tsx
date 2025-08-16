@@ -431,8 +431,8 @@ export default function UnifiedEmailBuilder({
     const cardsHtml = selectedQuoteData.map(q => buildOptionCard(q)).join('\n');
 
     const signatureName = `${agentProfile?.first_name || ''} ${agentProfile?.last_name || ''}`.trim();
-    const signatureCompany = agentProfile?.company || 'Select Business Class';
-    const signatureEmail = agentProfile?.email || (await supabase.auth.getUser()).data.user?.email || 'support@selectbc.online';
+    const signatureCompany = agentProfile?.company || 'Travel Agency';
+    const signatureEmail = agentProfile?.email || (await supabase.auth.getUser()).data.user?.email || 'support@example.com';
     const signaturePhone = agentProfile?.phone || '';
 
     return `<!doctype html>
@@ -465,11 +465,11 @@ export default function UnifiedEmailBuilder({
               <table role="presentation" width="100%">
                 <tr>
                   <td style="vertical-align:middle;">
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-weight:800;font-size:20px;letter-spacing:.2px;color:#0B1220;">SELECT <span style="color:#0B5FFF;">BUSINESS</span> CLASS</div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:4px;">Premium airfare • Blue / Black / White palette</div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-weight:800;font-size:20px;letter-spacing:.2px;color:#0B1220;">TRAVEL <span style="color:#0B5FFF;">AGENCY</span></div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:4px;">Premium travel services • Professional palette</div>
                   </td>
                   <td align="right" class="hide-sm" style="vertical-align:middle;">
-                    <a href="https://selectbc.online" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;text-decoration:none;">selectbc.online</a>
+                    <a href="https://example.com" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;text-decoration:none;">example.com</a>
                   </td>
                 </tr>
               </table>
@@ -488,7 +488,7 @@ export default function UnifiedEmailBuilder({
                 <tr>
                   <td>
                     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#263244;">Questions or a different date/cabin? Reply to this email or contact our concierge.</div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:6px;">Select Business Class • +1 (000) 000-0000 • support@selectbc.online</div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:6px;">Travel Agency • +1 (000) 000-0000 • support@example.com</div>
                   </td>
                   <td align="right">
                     <a href="{{UnsubscribeLink}}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;text-decoration:none;">Unsubscribe</a>
@@ -710,7 +710,7 @@ export default function UnifiedEmailBuilder({
         .replace(/\{\{ViewLink\}\}/g, reviewUrl)
         .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
         .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
-        .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbc.online?subject=Unsubscribe');
+        .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@example.com?subject=Unsubscribe');
 
       const bookUrlBase = `${window.location.origin}/book/${clientToken}`;
       selectedQuotes.forEach((qid) => {
@@ -789,7 +789,7 @@ export default function UnifiedEmailBuilder({
           .replace(/\{\{ViewLink\}\}/g, reviewUrl)
           .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
           .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
-          .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbc.online?subject=Unsubscribe');
+          .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@example.com?subject=Unsubscribe');
 
         selectedQuotes.forEach((qid) => {
           const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
