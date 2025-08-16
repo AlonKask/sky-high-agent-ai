@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import SafeEmailRenderer from '@/components/SafeEmailRenderer';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
 import { EmailSyncManager } from '@/utils/emailSync';

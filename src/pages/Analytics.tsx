@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ComprehensiveAnalytics } from "@/components/analytics/ComprehensiveAnalytics";

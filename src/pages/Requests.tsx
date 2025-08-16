@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import EnhancedRequestManager from "@/components/EnhancedRequestManager";

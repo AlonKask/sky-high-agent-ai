@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { Navigate } from "react-router-dom";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import RequestCreationForm from "@/components/RequestCreationForm";

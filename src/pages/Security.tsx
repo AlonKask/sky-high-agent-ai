@@ -6,7 +6,7 @@ import { ZeroTrustDashboard } from "@/components/ZeroTrustDashboard";
 import { EnhancedAuthSecurity } from "@/components/EnhancedAuthSecurity";
 import { ThreatIntelligenceCenter } from "@/components/ThreatIntelligenceCenter";
 import { ComplianceGovernance } from "@/components/ComplianceGovernance";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Security() {
