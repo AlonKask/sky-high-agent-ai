@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plane, MapPin, Calendar, User, DollarSign, Filter, Plus, Mail, FileText, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { toastHelpers } from "@/utils/toastHelpers";
 
 interface Booking {

@@ -19,7 +19,7 @@ import {
   BarChart3,
   Settings
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 import { useEnhancedSecurityMonitoring } from '@/hooks/useEnhancedSecurityMonitoring';
 
 interface ComplianceFramework {

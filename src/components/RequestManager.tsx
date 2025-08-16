@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Search, Plus, MapPin, Users, Clock, Plane, ArrowRight, X, ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 

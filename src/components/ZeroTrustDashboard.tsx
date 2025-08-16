@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 
 interface ZeroTrustMetrics {
   deviceTrustScore: number;

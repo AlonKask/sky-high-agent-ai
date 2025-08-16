@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AlertTriangle, Shield, Eye, Brain, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 import { toastHelpers } from '@/utils/toastHelpers';
 
 interface ThreatMetrics {

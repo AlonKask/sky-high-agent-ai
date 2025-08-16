@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, Check, Plus, X, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { useToast } from "@/hooks/use-toast";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
 

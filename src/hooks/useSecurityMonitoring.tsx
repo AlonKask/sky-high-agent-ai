@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from './useAuthOptimized';
 import { supabase } from '@/integrations/supabase/client';
 import { logSecurityEvent } from '@/utils/security';
 

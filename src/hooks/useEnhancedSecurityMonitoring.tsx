@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from './useAuthOptimized';
 import { supabase } from '@/integrations/supabase/client';
 import { toastHelpers } from '@/utils/toastHelpers';
 
