@@ -3024,7 +3024,7 @@ export type Database = {
       }
       generate_sample_dashboard_data: {
         Args: { p_agent_id: string }
-        Returns: undefined
+        Returns: Json
       }
       generate_secure_client_token: {
         Args: Record<PropertyKey, never>
@@ -3379,6 +3379,10 @@ export type Database = {
           total_count: number
           updated_at: string
         }[]
+      }
+      update_agent_performance_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       update_airline_logo: {
         Args: { p_airline_id: string; p_logo_url: string }
