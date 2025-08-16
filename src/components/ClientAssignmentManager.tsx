@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,12 +37,19 @@ interface Agent {
   role: string;
 }
 
+interface Client {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
 export const ClientAssignmentManager: React.FC<{ clientId?: string }> = ({ clientId }) => {
   const { user } = useAuth();
   const { canAccess } = usePermissions();
   const [assignments, setAssignments] = useState<ClientAssignment[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,58 +76,69 @@ export const ClientAssignmentManager: React.FC<{ clientId?: string }> = ({ clien
 
   const fetchAssignments = async () => {
     try {
-      const { data, error } = await supabase
+      // First fetch the basic assignments
+      const { data: assignmentsData, error: assignmentsError } = await supabase
         .from('client_assignments')
-        .select(`
-          id,
-          client_id,
-          agent_id,
-          assigned_by,
-          assignment_reason,
-          assigned_at,
-          expires_at,
-          is_active
-        `)
+        .select('*')
         .eq('is_active', true)
         .order('assigned_at', { ascending: false });
 
-      if (error) throw error;
+      if (assignmentsError) throw assignmentsError;
 
-      // Fetch related data separately to avoid complex join issues
-      const assignmentData = data || [];
-      const formattedAssignments = await Promise.all(
-        assignmentData.map(async (assignment) => {
-          // Get client info
-          const { data: clientData } = await supabase
-            .from('clients')
-            .select('first_name, last_name, email')
-            .eq('id', assignment.client_id)
-            .single();
+      if (!assignmentsData || assignmentsData.length === 0) {
+        setAssignments([]);
+        return;
+      }
 
-          // Get agent info
-          const { data: agentData } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', assignment.agent_id)
-            .single();
+      // Get unique IDs for batch fetching
+      const clientIds = [...new Set(assignmentsData.map(a => a.client_id))];
+      const profileIds = [...new Set([
+        ...assignmentsData.map(a => a.agent_id),
+        ...assignmentsData.map(a => a.assigned_by)
+      ])];
 
-          // Get assigner info
-          const { data: assignerData } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', assignment.assigned_by)
-            .single();
+      // Fetch clients data
+      const { data: clientsData } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name, email')
+        .in('id', clientIds);
 
-          return {
-            ...assignment,
-            client_name: clientData ? `${clientData.first_name} ${clientData.last_name}` : 'Unknown',
-            agent_name: agentData ? `${agentData.first_name} ${agentData.last_name}` : 'Unknown',
-            assigner_name: assignerData ? `${assignerData.first_name} ${assignerData.last_name}` : 'Unknown'
-          };
-        })
-      );
+      // Fetch profiles data
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', profileIds);
 
-      setAssignments(formattedAssignments);
+      // Create lookup maps
+      const clientsMap = new Map();
+      if (clientsData) {
+        clientsData.forEach(client => {
+          clientsMap.set(client.id, client);
+        });
+      }
+
+      const profilesMap = new Map();
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          profilesMap.set(profile.id, profile);
+        });
+      }
+
+      // Combine the data
+      const enrichedAssignments = assignmentsData.map(assignment => {
+        const client = clientsMap.get(assignment.client_id);
+        const agent = profilesMap.get(assignment.agent_id);
+        const assigner = profilesMap.get(assignment.assigned_by);
+
+        return {
+          ...assignment,
+          client_name: client ? `${client.first_name} ${client.last_name}` : 'Unknown Client',
+          agent_name: agent ? `${agent.first_name} ${agent.last_name}` : 'Unknown Agent',
+          assigner_name: assigner ? `${assigner.first_name} ${assigner.last_name}` : 'Unknown'
+        };
+      });
+
+      setAssignments(enrichedAssignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       toastHelpers.error('Failed to load client assignments');
@@ -144,18 +163,27 @@ export const ClientAssignmentManager: React.FC<{ clientId?: string }> = ({ clien
 
       if (rolesError) throw rolesError;
 
-      // Combine the data
-      const formattedAgents = profilesData?.map(profile => {
-        const userRole = rolesData?.find(role => role.user_id === profile.id);
-        return {
-          ...profile,
-          role: userRole?.role || 'user'
-        };
-      }) || [];
+      // Create role lookup map
+      const rolesMap = new Map();
+      if (rolesData) {
+        rolesData.forEach(roleEntry => {
+          rolesMap.set(roleEntry.user_id, roleEntry.role);
+        });
+      }
+
+      // Combine profiles with roles
+      const formattedAgents: Agent[] = (profilesData || []).map(profile => ({
+        id: profile.id,
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        email: profile.email || '',
+        role: rolesMap.get(profile.id) || 'user'
+      }));
 
       setAgents(formattedAgents);
     } catch (error) {
       console.error('Error fetching agents:', error);
+      toastHelpers.error('Failed to load agents');
     }
   };
 
@@ -170,6 +198,7 @@ export const ClientAssignmentManager: React.FC<{ clientId?: string }> = ({ clien
       setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
+      toastHelpers.error('Failed to load clients');
     }
   };
 
