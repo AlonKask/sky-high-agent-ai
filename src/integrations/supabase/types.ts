@@ -3001,14 +3001,7 @@ export type Database = {
               p_justification: string
             }
           | { p_client_id: string; p_justification: string }
-        Returns: {
-          email: string
-          emergency_access_granted: boolean
-          first_name: string
-          id: string
-          last_name: string
-          phone: string
-        }[]
+        Returns: Json
       }
       generate_compliance_report: {
         Args: {
@@ -3385,11 +3378,7 @@ export type Database = {
         Returns: undefined
       }
       update_client_encrypted_field: {
-        Args: {
-          p_client_id: string
-          p_encrypted_value: string
-          p_field_name: string
-        }
+        Args: { p_client_id: string; p_field_name: string; p_new_value: string }
         Returns: boolean
       }
       update_client_memory: {
