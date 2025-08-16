@@ -755,6 +755,45 @@ export type Database = {
         }
         Relationships: []
       }
+      client_assignments: {
+        Row: {
+          agent_id: string
+          assigned_at: string | null
+          assigned_by: string
+          assignment_reason: string | null
+          client_id: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          assigned_at?: string | null
+          assigned_by: string
+          assignment_reason?: string | null
+          client_id: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          assigned_at?: string | null
+          assigned_by?: string
+          assignment_reason?: string | null
+          client_id?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       client_intelligence: {
         Row: {
           avg_ticket_price: number | null
@@ -2838,6 +2877,14 @@ export type Database = {
       }
       archive_old_emails: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      assign_client_to_agent: {
+        Args: {
+          p_agent_id: string
+          p_assignment_reason?: string
+          p_client_id: string
+        }
         Returns: undefined
       }
       assign_request_to_agent: {
