@@ -171,19 +171,20 @@ export class AuthCleanup {
   }
 
   /**
-   * Attempt session recovery
-   * Tries to restore a working session state
+   * Phase 2: Enhanced session recovery with forced refresh
+   * Tries to restore a working session state and fix auth.uid() desync
    */
   static async attemptSessionRecovery(): Promise<boolean> {
-    console.log('🔄 Attempting session recovery...');
+    console.log('🔄 Attempting enhanced session recovery...');
     
     try {
       // First, refresh the current session
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error || !data.session) {
-        console.log('❌ Session refresh failed, attempting re-authentication');
-        return false;
+        console.log('❌ Session refresh failed, attempting forced recovery');
+        // Try to force a complete re-authentication
+        return await this.forceSessionRecovery();
       }
 
       // Validate the refreshed session works with database
@@ -194,11 +195,83 @@ export class AuthCleanup {
         return true;
       } else {
         console.log('❌ Session recovery failed - database issues:', health.error);
-        return false;
+        return await this.forceSessionRecovery();
       }
 
     } catch (error) {
       console.error('❌ Session recovery failed:', error);
+      return await this.forceSessionRecovery();
+    }
+  }
+
+  /**
+   * Phase 2: Force session recovery when normal refresh fails
+   * Performs complete cleanup and attempts to restore from local session
+   */
+  static async forceSessionRecovery(): Promise<boolean> {
+    console.log('🚨 Attempting forced session recovery...');
+    
+    try {
+      // Get current session data before cleanup
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.log('❌ No session to recover from');
+        return false;
+      }
+
+      // Perform emergency cleanup
+      await this.emergencyAuthCleanup();
+      
+      // Try to restore session with explicit token refresh
+      const { error: setError } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      });
+
+      if (setError) {
+        console.error('❌ Failed to restore session:', setError);
+        return false;
+      }
+
+      // Validate restored session
+      const health = await this.validateSessionHealth();
+      if (health.isHealthy) {
+        console.log('✅ Forced session recovery successful');
+        return true;
+      }
+
+      console.log('❌ Forced session recovery failed');
+      return false;
+
+    } catch (error) {
+      console.error('❌ Forced session recovery failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Phase 2: Check if session is desynced (frontend has user but auth.uid() is NULL)
+   */
+  static async detectSessionDesync(): Promise<boolean> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        return false; // No session, so no desync
+      }
+
+      // Check if auth.uid() works in database
+      const health = await this.validateSessionHealth();
+      
+      if (health.hasSession && health.hasUser && !health.authUidValid) {
+        console.warn('🚨 Session desync detected: Frontend has user but auth.uid() is NULL');
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('❌ Failed to detect session desync:', error);
       return false;
     }
   }

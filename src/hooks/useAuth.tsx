@@ -155,9 +155,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       };
 
-      // Monitor every 30 seconds
-      const interval = setInterval(monitorSession, 30000);
-      return () => clearInterval(interval);
+      // Phase 3: Enhanced session health monitoring with desync detection
+      const healthInterval = setInterval(async () => {
+        // Check for session desynchronization
+        const isDesynced = await AuthCleanup.detectSessionDesync();
+        if (isDesynced) {
+          console.warn('🚨 Session desync detected - attempting automatic recovery');
+          setSessionHealthy(false);
+          
+          // Attempt immediate recovery
+          const recovered = await AuthCleanup.attemptSessionRecovery();
+          if (recovered) {
+            console.log('✅ Session desync resolved');
+            setSessionHealthy(true);
+            // Force a page refresh to ensure clean state
+            window.location.reload();
+          } else {
+            console.error('❌ Failed to resolve session desync - forcing sign out');
+            await SimpleAuth.signOut();
+          }
+          return;
+        }
+
+        // Regular session health check
+        await monitorSession();
+      }, 15000); // Check every 15 seconds for faster detection
+      
+      return () => clearInterval(healthInterval);
     }
   }, [user, session]);
 

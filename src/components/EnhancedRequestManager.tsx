@@ -11,15 +11,18 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown, Inbox } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyStateCard } from "@/components/EmptyStateCard";
+import { AuthCleanup } from "@/utils/authCleanup";
 
 interface Request {
   id: string;
   client_id: string;
-  origin: string;
-  destination: string;
+  origin_airport: string;
+  destination_airport: string;
   departure_date: string;
   return_date?: string;
-  passengers: number;
+  adults_count: number;
+  children_count: number;
+  infants_count: number;
   priority: string;
   status: string;
   assignment_status: string;
@@ -31,6 +34,10 @@ interface Request {
     email: string;
     client_type: string;
   };
+  // Computed properties for backward compatibility
+  origin: string;
+  destination: string;
+  passengers: number;
 }
 
 const EnhancedRequestManager = () => {
@@ -97,15 +104,18 @@ const EnhancedRequestManager = () => {
 
       console.log('Fetched requests via RPC:', data?.length || 0, 'requests');
       
-      // Transform the data to match the expected format
+      // Phase 3: Transform the data to match the expected format with session recovery
       const transformedRequests = data?.map(request => ({
         ...request,
-        passengers: request.passengers_count,
+        // Backward compatibility mappings
+        origin: request.origin_airport,
+        destination: request.destination_airport,
+        passengers: (request.adults_count || 0) + (request.children_count || 0) + (request.infants_count || 0),
         clients: {
           first_name: request.client_first_name,
           last_name: request.client_last_name,
           email: request.client_email,
-          client_type: request.client_type
+          client_type: 'new' // Default since client_type not in RPC response
         }
       })) || [];
       

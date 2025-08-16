@@ -3171,19 +3171,20 @@ export type Database = {
       get_user_requests: {
         Args: { target_user_id?: string }
         Returns: {
+          adults_count: number
           assigned_to: string
           assignment_status: string
+          children_count: number
           client_email: string
           client_first_name: string
           client_id: string
           client_last_name: string
-          client_type: string
           created_at: string
           departure_date: string
-          destination: string
+          destination_airport: string
           id: string
-          origin: string
-          passengers_count: number
+          infants_count: number
+          origin_airport: string
           priority: string
           return_date: string
           status: string
