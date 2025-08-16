@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface EncryptionService {
@@ -96,11 +97,11 @@ export const updateClientEncryptedField = async (
     
     const encryptedValue = await encryptionService.encryptField(value, fieldType, clientId);
     
-    // Then update using the secure database function
+    // Then update using the secure database function - fix parameter name
     const { data, error } = await supabase.rpc('update_client_encrypted_field', {
       p_client_id: clientId,
       p_field_name: fieldName,
-      p_encrypted_value: encryptedValue
+      p_new_value: encryptedValue // Fixed: was p_encrypted_value, should be p_new_value
     });
 
     if (error) {
