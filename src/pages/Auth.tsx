@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Plane, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
+import { Plane, Mail, Lock, ArrowRight, AlertCircle, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { TurnstileWrapper } from "@/components/TurnstileWrapper";
 import { SimpleAuth } from "@/utils/simpleAuth";
 import { toastHelpers } from '@/utils/toastHelpers';
+import { configSecurity } from "@/utils/configSecurity";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -20,8 +21,34 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [config, setConfig] = useState<any>(null);
+  const [captchaError, setCaptchaError] = useState<string | null>(null);
+  const [captchaRequired, setCaptchaRequired] = useState(true);
+  const [captchaRetryCount, setCaptchaRetryCount] = useState(0);
 
   useEffect(() => {
+    // Initialize secure configuration
+    const initConfig = async () => {
+      try {
+        const secureConfig = await configSecurity.initializeSecureConfig();
+        setConfig(secureConfig);
+        
+        // Determine if CAPTCHA is required based on environment
+        const isDev = secureConfig.environment === 'development';
+        setCaptchaRequired(!isDev);
+        
+        console.log('✅ Auth page config loaded:', {
+          environment: secureConfig.environment,
+          captchaRequired: !isDev,
+          turnstileKey: secureConfig.turnstileSiteKey ? 'Present' : 'Missing'
+        });
+      } catch (error) {
+        console.error('❌ Failed to load auth config:', error);
+        toastHelpers.error("Configuration Error", "Failed to load authentication settings");
+      }
+    };
+
+    initConfig();
 
     // Redirect if already logged in
     if (user) {
@@ -39,26 +66,66 @@ const Auth = () => {
       return;
     }
 
+    // CAPTCHA validation for production
+    if (captchaRequired && !captchaToken) {
+      setCaptchaError("Please complete the CAPTCHA verification");
+      toastHelpers.error("CAPTCHA Required", "Please complete the security verification");
+      return;
+    }
 
     setLoading(true);
+    setCaptchaError(null);
 
     try {
+      console.log('🔐 Attempting sign-in with CAPTCHA:', {
+        email,
+        hasCaptcha: !!captchaToken,
+        environment: config?.environment
+      });
+
       const result = await SimpleAuth.signInWithEmail(email, password, captchaToken || undefined);
       
       if (result.success && result.user) {
         toastHelpers.success("Welcome back!", { description: "You have been signed in successfully." });
         
+        // Reset CAPTCHA state on success
+        setCaptchaToken(null);
+        setCaptchaRetryCount(0);
+        
         // Redirect to the intended page or dashboard
         const returnUrl = location.state?.returnUrl || '/';
         window.location.href = returnUrl;
       } else {
-        toastHelpers.error("Sign In Error", result.error || "Authentication failed");
-        setCaptchaToken(null);
+        // Handle authentication failure
+        const errorMsg = result.error || "Authentication failed";
+        console.error('❌ Authentication failed:', errorMsg);
+        
+        toastHelpers.error("Sign In Error", errorMsg);
+        
+        // Reset CAPTCHA on failed auth
+        handleCaptchaReset();
+        
+        // Increment retry count for progressive security
+        setCaptchaRetryCount(prev => prev + 1);
+        
+        // After 3 failed attempts, force CAPTCHA regardless of environment
+        if (captchaRetryCount >= 2) {
+          setCaptchaRequired(true);
+          toastHelpers.error("Security Check", "Additional verification required due to multiple failed attempts");
+        }
       }
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      console.error('❌ Sign in error:', error);
       toastHelpers.error("Sign In Error", error.message || "Sign in failed");
-      setCaptchaToken(null);
+      
+      // Reset CAPTCHA on error
+      handleCaptchaReset();
+      setCaptchaRetryCount(prev => prev + 1);
+      
+      // Force CAPTCHA after errors
+      if (captchaRetryCount >= 1) {
+        setCaptchaRequired(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -84,11 +151,27 @@ const Auth = () => {
 
 
   const handleCaptchaVerify = (token: string) => {
+    console.log('✅ CAPTCHA verified successfully');
     setCaptchaToken(token);
+    setCaptchaError(null);
   };
 
-  const handleCaptchaError = () => {
+  const handleCaptchaError = (error?: string) => {
+    console.error('❌ CAPTCHA error:', error);
     setCaptchaToken(null);
+    setCaptchaError(error || "CAPTCHA verification failed");
+    toastHelpers.error("CAPTCHA Error", error || "Please try the security verification again");
+  };
+
+  const handleCaptchaExpire = () => {
+    console.warn('⏰ CAPTCHA expired');
+    setCaptchaToken(null);
+    setCaptchaError("CAPTCHA verification expired");
+  };
+
+  const handleCaptchaReset = () => {
+    setCaptchaToken(null);
+    setCaptchaError(null);
   };
 
   return (
@@ -162,11 +245,43 @@ const Auth = () => {
               </div>
             </div>
 
+            {/* CAPTCHA Security Verification */}
+            {captchaRequired && config?.turnstileSiteKey && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm text-muted-foreground">Security Verification</Label>
+                </div>
+                <TurnstileWrapper
+                  siteKey={config.turnstileSiteKey}
+                  onVerify={handleCaptchaVerify}
+                  onError={handleCaptchaError}
+                  onExpire={handleCaptchaExpire}
+                  disabled={loading}
+                />
+                {captchaError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{captchaError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            {/* Progressive security notice */}
+            {captchaRetryCount >= 2 && (
+              <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  Enhanced security verification is now required due to multiple sign-in attempts.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading}
+              disabled={loading || (captchaRequired && !captchaToken)}
             >
               {loading ? (
                 <div className="flex items-center space-x-2">
