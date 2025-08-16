@@ -46,11 +46,12 @@ export class SimpleAuth {
         }
       }
       
-      // 2. Emergency cleanup first
-      await AuthCleanup.emergencyAuthCleanup();
-      
-      // Wait a moment for cleanup to settle
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // 2. Clean up any stale tokens (less aggressive approach)
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch (err) {
+        // Continue if this fails - not critical
+      }
 
       // 3. Attempt sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
