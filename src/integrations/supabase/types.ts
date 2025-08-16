@@ -3001,7 +3001,14 @@ export type Database = {
               p_justification: string
             }
           | { p_client_id: string; p_justification: string }
-        Returns: Json
+        Returns: {
+          email: string
+          emergency_access_granted: boolean
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+        }[]
       }
       generate_compliance_report: {
         Args: {
