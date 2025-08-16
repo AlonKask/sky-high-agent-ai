@@ -71,22 +71,53 @@ export const ClientAssignmentManager: React.FC<{ clientId?: string }> = ({ clien
       const { data, error } = await supabase
         .from('client_assignments')
         .select(`
-          *,
-          clients!client_assignments_client_id_fkey(first_name, last_name, email),
-          agent:profiles!client_assignments_agent_id_fkey(first_name, last_name),
-          assigner:profiles!client_assignments_assigned_by_fkey(first_name, last_name)
+          id,
+          client_id,
+          agent_id,
+          assigned_by,
+          assignment_reason,
+          assigned_at,
+          expires_at,
+          is_active
         `)
         .eq('is_active', true)
         .order('assigned_at', { ascending: false });
 
       if (error) throw error;
 
-      const formattedAssignments = data?.map(assignment => ({
-        ...assignment,
-        client_name: assignment.clients ? `${assignment.clients.first_name} ${assignment.clients.last_name}` : 'Unknown',
-        agent_name: assignment.agent ? `${assignment.agent.first_name} ${assignment.agent.last_name}` : 'Unknown',
-        assigner_name: assignment.assigner ? `${assignment.assigner.first_name} ${assignment.assigner.last_name}` : 'Unknown'
-      })) || [];
+      // Fetch related data separately to avoid complex join issues
+      const assignmentData = data || [];
+      const formattedAssignments = await Promise.all(
+        assignmentData.map(async (assignment) => {
+          // Get client info
+          const { data: clientData } = await supabase
+            .from('clients')
+            .select('first_name, last_name, email')
+            .eq('id', assignment.client_id)
+            .single();
+
+          // Get agent info
+          const { data: agentData } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', assignment.agent_id)
+            .single();
+
+          // Get assigner info
+          const { data: assignerData } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', assignment.assigned_by)
+            .single();
+
+          return {
+            ...assignment,
+            client_name: clientData ? `${clientData.first_name} ${clientData.last_name}` : 'Unknown',
+            agent_name: agentData ? `${agentData.first_name} ${agentData.last_name}` : 'Unknown',
+            assigner_name: assignerData ? `${assignerData.first_name} ${assignerData.last_name}` : 'Unknown'
+          };
+        })
+      );
 
       setAssignments(formattedAssignments);
     } catch (error) {
@@ -99,20 +130,28 @@ export const ClientAssignmentManager: React.FC<{ clientId?: string }> = ({ clien
 
   const fetchAgents = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch profiles first
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id, first_name, last_name, email,
-          user_roles(role)
-        `)
-        .not('user_roles', 'is', null);
+        .select('id, first_name, last_name, email');
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
 
-      const formattedAgents = data?.map(profile => ({
-        ...profile,
-        role: profile.user_roles?.[0]?.role || 'user'
-      })) || [];
+      // Fetch user roles separately
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      // Combine the data
+      const formattedAgents = profilesData?.map(profile => {
+        const userRole = rolesData?.find(role => role.user_id === profile.id);
+        return {
+          ...profile,
+          role: userRole?.role || 'user'
+        };
+      }) || [];
 
       setAgents(formattedAgents);
     } catch (error) {
