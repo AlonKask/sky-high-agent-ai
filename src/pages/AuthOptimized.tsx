@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
+import { TurnstileWrapper } from '@/components/TurnstileWrapper';
+import { configSecurity } from '@/utils/configSecurity';
 
 export default function AuthOptimized() {
   const { user, loading } = useAuth();
@@ -19,6 +21,7 @@ export default function AuthOptimized() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string>('');
 
   // Form states
   const [signInData, setSignInData] = useState({ email: '', password: '' });
@@ -31,6 +34,21 @@ export default function AuthOptimized() {
       navigate(returnUrl, { replace: true });
     }
   }, [user, loading, navigate, location.state]);
+
+  useEffect(() => {
+    const initializeConfig = async () => {
+      try {
+        const config = await configSecurity.initializeSecureConfig();
+        setTurnstileSiteKey(config.turnstileSiteKey);
+      } catch (error) {
+        console.warn('⚠️ Configuration initialization failed:', error);
+        // Use fallback for development
+        setTurnstileSiteKey('1x00000000000000000000AA');
+      }
+    };
+    
+    initializeConfig();
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,10 +213,28 @@ export default function AuthOptimized() {
                       disabled={isLoading}
                     />
                   </div>
-                </div>
+                 </div>
 
-                
-                <Button 
+                 {turnstileSiteKey && (
+                   <div className="space-y-2">
+                     <Label>Security Verification</Label>
+                     <TurnstileWrapper
+                       siteKey={turnstileSiteKey}
+                       onVerify={setCaptchaToken}
+                       onError={(error) => {
+                         console.error('CAPTCHA error:', error);
+                         setError('Security verification failed. Please try again.');
+                         setCaptchaToken(null);
+                       }}
+                       onExpire={() => {
+                         setCaptchaToken(null);
+                         setError('Security verification expired. Please verify again.');
+                       }}
+                     />
+                   </div>
+                 )}
+                 
+                 <Button
                   type="submit" 
                   className="w-full" 
                   disabled={isLoading}
@@ -305,10 +341,28 @@ export default function AuthOptimized() {
                       disabled={isLoading}
                     />
                   </div>
-                </div>
+                 </div>
 
-                
-                <Button 
+                 {turnstileSiteKey && (
+                   <div className="space-y-2">
+                     <Label>Security Verification</Label>
+                     <TurnstileWrapper
+                       siteKey={turnstileSiteKey}
+                       onVerify={setCaptchaToken}
+                       onError={(error) => {
+                         console.error('CAPTCHA error:', error);
+                         setError('Security verification failed. Please try again.');
+                         setCaptchaToken(null);
+                       }}
+                       onExpire={() => {
+                         setCaptchaToken(null);
+                         setError('Security verification expired. Please verify again.');
+                       }}
+                     />
+                   </div>
+                 )}
+                 
+                 <Button
                   type="submit" 
                   className="w-full" 
                   disabled={isLoading}
