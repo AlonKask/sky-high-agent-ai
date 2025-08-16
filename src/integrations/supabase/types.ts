@@ -2816,13 +2816,20 @@ export type Database = {
     }
     Functions: {
       advanced_rate_limit_check: {
-        Args: {
-          p_endpoint: string
-          p_identifier: string
-          p_ip_address?: unknown
-          p_max_requests?: number
-          p_window_minutes?: number
-        }
+        Args:
+          | {
+              p_endpoint: string
+              p_identifier: string
+              p_ip_address?: unknown
+              p_max_requests?: number
+              p_window_minutes?: number
+            }
+          | {
+              p_endpoint: string
+              p_max_requests?: number
+              p_user_id: string
+              p_window_minutes?: number
+            }
         Returns: Json
       }
       archive_old_communications: {
@@ -2888,7 +2895,7 @@ export type Database = {
         Returns: boolean
       }
       can_access_communication_data: {
-        Args: { client_id?: string; target_user_id: string }
+        Args: { target_client_id: string; target_user_id: string }
         Returns: boolean
       }
       can_access_financial_data: {
@@ -3261,13 +3268,15 @@ export type Database = {
         Returns: undefined
       }
       log_security_event: {
-        Args: {
-          p_details?: Json
-          p_event_type: string
-          p_severity: string
-          p_user_id?: string
-        }
-        Returns: string
+        Args:
+          | { p_details?: Json; p_event_type: string; p_severity: string }
+          | {
+              p_details?: Json
+              p_event_type: string
+              p_severity: string
+              p_user_id?: string
+            }
+        Returns: undefined
       }
       log_sensitive_data_access: {
         Args: {
@@ -3400,6 +3409,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      validate_audit_integrity: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       validate_field_encryption: {
         Args: { encrypted_data: string; field_name: string }
