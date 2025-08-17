@@ -3301,6 +3301,15 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      log_client_access: {
+        Args: {
+          p_access_type: string
+          p_business_justification?: string
+          p_client_id: string
+          p_fields_accessed?: string[]
+        }
+        Returns: undefined
+      }
       log_data_access_audit: {
         Args: {
           p_access_type?: string
