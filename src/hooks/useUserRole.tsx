@@ -1,47 +1,54 @@
 import { useState, useEffect } from 'react';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
 
-export type UserRole = 'admin' | 'manager' | 'supervisor' | 'gds_expert' | 'agent' | 'user';
+export type UserRole = 'admin' | 'manager' | 'supervisor' | 'agent' | 'user' | 'gds_expert' | null;
 
-export const useUserRole = () => {
-  const { user } = useAuth();
-  const [role, setRole] = useState<UserRole | null>(null);
+interface UserRoleData {
+  role: UserRole;
+  loading: boolean;
+  error: string | null;
+}
+
+export const useUserRole = (): UserRoleData => {
+  const { user } = useSimpleAuth();
+  const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      fetchUserRole();
-    } else {
-      setRole(null);
-      setLoading(false);
-    }
+    const fetchUserRole = async () => {
+      if (!user) {
+        setRole(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user role:', error);
+          setError('Failed to fetch user role');
+          setRole(null);
+        } else {
+          setRole(data?.role || null);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('Unexpected error occurred');
+        setRole(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserRole();
   }, [user]);
 
-  const fetchUserRole = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user role:', error);
-        // SECURITY: Do not default to any role if none found - deny access
-        setRole(null);
-      } else {
-        setRole(data.role as UserRole);
-      }
-    } catch (error) {
-      console.error('Error in fetchUserRole:', error);
-      // SECURITY: Do not default to any role on error - deny access
-      setRole(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { role, loading, fetchUserRole };
+  return { role, loading, error };
 };

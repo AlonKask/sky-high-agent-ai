@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,8 +95,10 @@ const PublicRequestForm = () => {
       return;
     }
 
+
     try {
       setIsSubmitting(true);
+
 
       // Use the secure public request endpoint
       const { data, error } = await supabase.functions.invoke('secure-public-request', {
@@ -128,7 +130,7 @@ const PublicRequestForm = () => {
       toastHelpers.success(data.message || 'Request submitted successfully! We will contact you shortly.');
 
     } catch (error: any) {
-      console.error('Error submitting request:', error);
+      
       const errorMessage = error.message || 'Failed to submit request. Please try again.';
       
       // Handle rate limiting specifically
@@ -141,6 +143,7 @@ const PublicRequestForm = () => {
       setIsSubmitting(false);
     }
   };
+
 
   const nextStep = () => {
     if (currentStep < 3) {

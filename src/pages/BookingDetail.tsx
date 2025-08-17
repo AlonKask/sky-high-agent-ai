@@ -8,8 +8,7 @@ const BookingDetail = () => {
   const { bookingId } = useParams();
   const navigate = useNavigate();
 
-  // TODO: Fetch booking data from API/database
-  const booking = null;
+  const booking = null; // Implement booking data fetch
 
   if (!booking) {
     return (
