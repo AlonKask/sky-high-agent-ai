@@ -54,6 +54,16 @@ export const useSecurityCleanup = () => {
   // Secure sign in function
   const secureSignIn = async (email: string, password: string) => {
     try {
+      // Clean up existing state
+      cleanupAuthState();
+      
+      // Attempt global sign out first
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+      }
+      
       // Sign in with email/password
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -62,9 +72,15 @@ export const useSecurityCleanup = () => {
       
       if (error) throw error;
       
-      return { success: true, user: data.user };
-    } catch (error: any) {
-      throw new Error(error.message || 'Authentication failed');
+      if (data.user) {
+        // Force page reload for clean state
+        window.location.href = '/';
+        return { success: true };
+      }
+      
+      return { success: false, error: 'No user returned' };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   };
 

@@ -267,6 +267,7 @@ const AIReplyGenerator = ({
       toastHelpers.success("AI Reply Generated", { description: `Generated with ${Math.round(result.averageConfidence * 100)}% confidence` });
 
     } catch (error) {
+      console.error('Error generating AI reply:', error);
       toastHelpers.error("Failed to generate AI reply", error);
     } finally {
       setProcessing(false);
@@ -298,6 +299,7 @@ const AIReplyGenerator = ({
       onClose();
 
     } catch (error) {
+      console.error('Error sending reply:', error);
       toastHelpers.error("Failed to send reply", error);
     }
   };

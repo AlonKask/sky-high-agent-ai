@@ -144,6 +144,7 @@ export const AIAssistantChat: React.FC<AIAssistantChatProps> = ({
         });
       }
     } catch (error) {
+      console.error('Error sending message:', error);
       toastHelpers.error("Failed to send message. Please try again.", error);
     } finally {
       setIsLoading(false);
