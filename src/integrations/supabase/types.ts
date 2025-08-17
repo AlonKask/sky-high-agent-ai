@@ -3052,7 +3052,7 @@ export type Database = {
         Returns: boolean
       }
       can_access_client_data: {
-        Args: { target_user_id: string }
+        Args: { target_client_id: string }
         Returns: boolean
       }
       can_access_client_data_enhanced: {
@@ -3081,6 +3081,10 @@ export type Database = {
       }
       can_access_profile_ultra_strict: {
         Args: { profile_user_id: string }
+        Returns: boolean
+      }
+      can_access_satisfaction_scores: {
+        Args: { target_agent_id: string; target_client_id: string }
         Returns: boolean
       }
       can_access_sensitive_client_fields: {
