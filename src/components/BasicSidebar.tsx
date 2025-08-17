@@ -8,6 +8,7 @@ import {
   FileText,
   PlusCircle,
   UserCog,
+  Quote,
 } from "lucide-react"
 
 import {
@@ -45,6 +46,11 @@ const items = [
     title: "Emails",
     url: "/emails",
     icon: Inbox,
+  },
+  {
+    title: "Quote Builder",
+    url: "/quote-builder",
+    icon: Quote,
   },
   {
     title: "Management",
