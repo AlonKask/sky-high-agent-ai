@@ -1,8 +1,7 @@
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useAuth } from "@/hooks/useAuth";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import EnhancedRequestManager from "@/components/EnhancedRequestManager";
-import { LoadingFallback } from "@/components/LoadingFallback";
 
 const Requests = () => {
   const { user, loading } = useAuth();
@@ -21,11 +20,16 @@ const Requests = () => {
   }, [searchParams]);
 
   if (loading) {
-    return <LoadingFallback />;
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
-    console.log('Requests page: No user, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 

@@ -6,15 +6,9 @@ import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
 import { initSecurityMonitoring } from "./utils/enhancedSecurity";
-import { performanceMonitor } from "./utils/performanceOptimizations";
 
-// Initialize security monitoring and performance tracking
+// Initialize security monitoring
 initSecurityMonitoring();
-
-// Cleanup performance monitoring on page unload
-window.addEventListener('beforeunload', () => {
-  performanceMonitor.cleanup();
-});
 
 // Create a client with optimized settings
 const queryClient = new QueryClient({

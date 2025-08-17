@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { useAuth } from './useAuthOptimized';
+import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useThemeSync = () => {

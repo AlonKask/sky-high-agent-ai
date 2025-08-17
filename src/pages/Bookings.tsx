@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import EnhancedBookingManager from "@/components/EnhancedBookingManager";
 

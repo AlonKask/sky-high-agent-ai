@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useAuth } from "@/hooks/useAuth";
 import { LoadingFallback } from "./LoadingFallback";
 
 interface AuthGuardProps {
@@ -14,21 +14,22 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
   useEffect(() => {
     if (!loading && !user && location.pathname !== '/auth') {
-      // Store the full URL including search params to redirect back after login
-      const returnUrl = location.pathname + location.search;
+      // Store the attempted URL to redirect back after login
+      const returnUrl = location.pathname;
       navigate('/auth', { 
         replace: true,
         state: { returnUrl }
       });
     }
-  }, [user, loading, navigate, location.pathname, location.search]);
+  }, [user, loading, navigate, location.pathname]);
 
   if (loading) {
     return <LoadingFallback />;
   }
 
   if (!user) {
-    return <LoadingFallback />; // Show loading instead of null
+    return null; // Will redirect via useEffect
   }
+
   return <>{children}</>;
 };

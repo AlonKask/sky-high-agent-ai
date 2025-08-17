@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -20,7 +20,6 @@ export type Database = {
           endpoint: string
           id: string
           identifier: string
-          ip_address: unknown | null
           request_count: number | null
           window_start: string | null
         }
@@ -29,7 +28,6 @@ export type Database = {
           endpoint: string
           id?: string
           identifier: string
-          ip_address?: unknown | null
           request_count?: number | null
           window_start?: string | null
         }
@@ -38,7 +36,6 @@ export type Database = {
           endpoint?: string
           id?: string
           identifier?: string
-          ip_address?: unknown | null
           request_count?: number | null
           window_start?: string | null
         }
@@ -86,54 +83,6 @@ export type Database = {
           review_id?: string
           sender_type?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      agent_performance_metrics: {
-        Row: {
-          agent_id: string
-          calls_made: number | null
-          commission_earned: number | null
-          conversion_rate: number | null
-          created_at: string | null
-          emails_sent: number | null
-          id: string
-          metric_date: string | null
-          response_time_avg: unknown | null
-          revenue_generated: number | null
-          satisfaction_score: number | null
-          target_achieved: boolean | null
-          updated_at: string | null
-        }
-        Insert: {
-          agent_id: string
-          calls_made?: number | null
-          commission_earned?: number | null
-          conversion_rate?: number | null
-          created_at?: string | null
-          emails_sent?: number | null
-          id?: string
-          metric_date?: string | null
-          response_time_avg?: unknown | null
-          revenue_generated?: number | null
-          satisfaction_score?: number | null
-          target_achieved?: boolean | null
-          updated_at?: string | null
-        }
-        Update: {
-          agent_id?: string
-          calls_made?: number | null
-          commission_earned?: number | null
-          conversion_rate?: number | null
-          created_at?: string | null
-          emails_sent?: number | null
-          id?: string
-          metric_date?: string | null
-          response_time_avg?: unknown | null
-          revenue_generated?: number | null
-          satisfaction_score?: number | null
-          target_achieved?: boolean | null
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -585,53 +534,6 @@ export type Database = {
           },
         ]
       }
-      booking_commissions: {
-        Row: {
-          agent_id: string
-          base_commission_rate: number
-          bonus_amount: number | null
-          booking_id: string
-          commission_amount: number
-          created_at: string | null
-          id: string
-          payment_date: string | null
-          payment_status: string | null
-          total_commission: number
-        }
-        Insert: {
-          agent_id: string
-          base_commission_rate: number
-          bonus_amount?: number | null
-          booking_id: string
-          commission_amount: number
-          created_at?: string | null
-          id?: string
-          payment_date?: string | null
-          payment_status?: string | null
-          total_commission: number
-        }
-        Update: {
-          agent_id?: string
-          base_commission_rate?: number
-          bonus_amount?: number | null
-          booking_id?: string
-          commission_amount?: number
-          created_at?: string | null
-          id?: string
-          payment_date?: string | null
-          payment_status?: string | null
-          total_commission?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "booking_commissions_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       bookings: {
         Row: {
           airline: string
@@ -721,97 +623,6 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      captcha_verifications: {
-        Row: {
-          created_at: string
-          error_message: string | null
-          id: string
-          ip_address: unknown | null
-          user_agent: string | null
-          user_email: string | null
-          verification_result: boolean
-        }
-        Insert: {
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          ip_address?: unknown | null
-          user_agent?: string | null
-          user_email?: string | null
-          verification_result: boolean
-        }
-        Update: {
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          ip_address?: unknown | null
-          user_agent?: string | null
-          user_email?: string | null
-          verification_result?: boolean
-        }
-        Relationships: []
-      }
-      client_assignments: {
-        Row: {
-          agent_id: string
-          assigned_at: string | null
-          assigned_by: string
-          assignment_reason: string | null
-          client_id: string
-          created_at: string | null
-          expires_at: string | null
-          id: string
-          is_active: boolean | null
-          updated_at: string | null
-        }
-        Insert: {
-          agent_id: string
-          assigned_at?: string | null
-          assigned_by: string
-          assignment_reason?: string | null
-          client_id: string
-          created_at?: string | null
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          updated_at?: string | null
-        }
-        Update: {
-          agent_id?: string
-          assigned_at?: string | null
-          assigned_by?: string
-          assignment_reason?: string | null
-          client_id?: string
-          created_at?: string | null
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_client_assignments_agent_id"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_client_assignments_assigned_by"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_client_assignments_client_id"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -971,44 +782,6 @@ export type Database = {
         }
         Relationships: []
       }
-      client_satisfaction_scores: {
-        Row: {
-          agent_id: string
-          client_id: string
-          created_at: string | null
-          feedback_text: string | null
-          id: string
-          interaction_type: string
-          rating: number
-        }
-        Insert: {
-          agent_id: string
-          client_id: string
-          created_at?: string | null
-          feedback_text?: string | null
-          id?: string
-          interaction_type: string
-          rating: number
-        }
-        Update: {
-          agent_id?: string
-          client_id?: string
-          created_at?: string | null
-          feedback_text?: string | null
-          id?: string
-          interaction_type?: string
-          rating?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_satisfaction_scores_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       clients: {
         Row: {
           client_type: string | null
@@ -1128,83 +901,6 @@ export type Database = {
         }
         Relationships: []
       }
-      communication_logs: {
-        Row: {
-          agent_id: string
-          client_id: string | null
-          communication_type: string
-          created_at: string | null
-          duration_minutes: number | null
-          id: string
-          notes: string | null
-          outcome: string | null
-          response_time_minutes: number | null
-          satisfaction_rating: number | null
-        }
-        Insert: {
-          agent_id: string
-          client_id?: string | null
-          communication_type: string
-          created_at?: string | null
-          duration_minutes?: number | null
-          id?: string
-          notes?: string | null
-          outcome?: string | null
-          response_time_minutes?: number | null
-          satisfaction_rating?: number | null
-        }
-        Update: {
-          agent_id?: string
-          client_id?: string | null
-          communication_type?: string
-          created_at?: string | null
-          duration_minutes?: number | null
-          id?: string
-          notes?: string | null
-          outcome?: string | null
-          response_time_minutes?: number | null
-          satisfaction_rating?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "communication_logs_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      compliance_reports: {
-        Row: {
-          created_at: string | null
-          generated_by: string
-          id: string
-          period_end: string
-          period_start: string
-          report_data: Json
-          report_type: string
-        }
-        Insert: {
-          created_at?: string | null
-          generated_by: string
-          id?: string
-          period_end: string
-          period_start: string
-          report_data: Json
-          report_type: string
-        }
-        Update: {
-          created_at?: string | null
-          generated_by?: string
-          id?: string
-          period_end?: string
-          period_start?: string
-          report_data?: Json
-          report_type?: string
-        }
-        Relationships: []
-      }
       credential_access_audit: {
         Row: {
           accessor_id: string
@@ -1256,60 +952,6 @@ export type Database = {
           user_agent?: string | null
           user_id?: string | null
           violation_data?: Json
-        }
-        Relationships: []
-      }
-      data_access_audit: {
-        Row: {
-          access_denied: boolean | null
-          access_type: string
-          accessed_record_id: string | null
-          accessed_table: string
-          approved_by: string | null
-          business_justification: string | null
-          data_classification: string | null
-          denial_reason: string | null
-          id: string
-          ip_address: unknown | null
-          risk_score: number | null
-          session_id: string | null
-          timestamp: string | null
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          access_denied?: boolean | null
-          access_type: string
-          accessed_record_id?: string | null
-          accessed_table: string
-          approved_by?: string | null
-          business_justification?: string | null
-          data_classification?: string | null
-          denial_reason?: string | null
-          id?: string
-          ip_address?: unknown | null
-          risk_score?: number | null
-          session_id?: string | null
-          timestamp?: string | null
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          access_denied?: boolean | null
-          access_type?: string
-          accessed_record_id?: string | null
-          accessed_table?: string
-          approved_by?: string | null
-          business_justification?: string | null
-          data_classification?: string | null
-          denial_reason?: string | null
-          id?: string
-          ip_address?: unknown | null
-          risk_score?: number | null
-          session_id?: string | null
-          timestamp?: string | null
-          user_agent?: string | null
-          user_id?: string
         }
         Relationships: []
       }
@@ -2488,51 +2130,6 @@ export type Database = {
           },
         ]
       }
-      security_alerts: {
-        Row: {
-          acknowledged: boolean | null
-          acknowledged_at: string | null
-          acknowledged_by: string | null
-          alert_type: string
-          auto_resolved: boolean | null
-          created_at: string | null
-          description: string | null
-          id: string
-          metadata: Json | null
-          resolved_at: string | null
-          severity: string
-          title: string
-        }
-        Insert: {
-          acknowledged?: boolean | null
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          alert_type: string
-          auto_resolved?: boolean | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          resolved_at?: string | null
-          severity?: string
-          title: string
-        }
-        Update: {
-          acknowledged?: boolean | null
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          alert_type?: string
-          auto_resolved?: boolean | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          resolved_at?: string | null
-          severity?: string
-          title?: string
-        }
-        Relationships: []
-      }
       security_events: {
         Row: {
           details: Json | null
@@ -2876,23 +2473,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      advanced_rate_limit_check: {
-        Args:
-          | {
-              p_endpoint: string
-              p_identifier: string
-              p_ip_address?: unknown
-              p_max_requests?: number
-              p_window_minutes?: number
-            }
-          | {
-              p_endpoint: string
-              p_max_requests?: number
-              p_user_id: string
-              p_window_minutes?: number
-            }
-        Returns: Json
-      }
       archive_old_communications: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2901,58 +2481,34 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      assign_client_to_agent: {
-        Args: {
-          p_agent_id: string
-          p_assignment_reason?: string
-          p_client_id: string
-        }
-        Returns: undefined
-      }
-      assign_request_to_agent: {
-        Args: { agent_id: string; request_id: string }
-        Returns: undefined
-      }
       audit_client_access: {
         Args: {
-          p_access_type: string
           p_client_id: string
           p_client_owner: string
+          p_access_type: string
         }
         Returns: undefined
-      }
-      automated_data_retention_cleanup: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
       }
       calculate_passenger_totals: {
         Args: {
-          p_adult_markup?: number
-          p_adult_net_price?: number
           p_adults_count?: number
-          p_child_markup?: number
-          p_child_net_price?: number
           p_children_count?: number
-          p_infant_markup?: number
-          p_infant_net_price?: number
           p_infants_count?: number
+          p_adult_net_price?: number
+          p_child_net_price?: number
+          p_infant_net_price?: number
+          p_adult_markup?: number
+          p_child_markup?: number
+          p_infant_markup?: number
         }
         Returns: Json
       }
-      calculate_security_metrics: {
-        Args: { p_time_window_hours?: number }
-        Returns: Json
-      }
       can_access_client: {
-        Args: { p_accessing_user_id: string; p_client_user_id: string }
+        Args: { p_client_user_id: string; p_accessing_user_id: string }
         Returns: boolean
       }
       can_access_client_data: {
         Args: { target_user_id: string }
-        Returns: boolean
-      }
-      can_access_client_data_enhanced: {
-        Args: { client_id?: string; target_user_id: string }
         Returns: boolean
       }
       can_access_client_data_secure: {
@@ -2960,11 +2516,11 @@ export type Database = {
         Returns: boolean
       }
       can_access_client_data_ultra_strict: {
-        Args: { target_client_id: string; target_user_id: string }
+        Args: { target_user_id: string; client_id: string }
         Returns: boolean
       }
       can_access_communication_data: {
-        Args: { target_client_id: string; target_user_id: string }
+        Args: { target_user_id: string; client_id?: string }
         Returns: boolean
       }
       can_access_financial_data: {
@@ -2988,23 +2544,13 @@ export type Database = {
         Returns: boolean
       }
       can_modify_data: {
-        Args: { _resource_user_id: string; _user_id: string }
-        Returns: boolean
-      }
-      check_advanced_rate_limit: {
-        Args: {
-          p_endpoint: string
-          p_identifier: string
-          p_ip_address?: unknown
-          p_max_requests?: number
-          p_window_minutes?: number
-        }
+        Args: { _user_id: string; _resource_user_id: string }
         Returns: boolean
       }
       check_rate_limit: {
         Args: {
-          p_endpoint: string
           p_identifier: string
+          p_endpoint: string
           p_max_requests?: number
           p_window_minutes?: number
         }
@@ -3028,72 +2574,45 @@ export type Database = {
       }
       create_audit_log: {
         Args: {
-          p_new_values?: Json
-          p_old_values?: Json
+          p_table_name: string
           p_operation: string
           p_record_id?: string
-          p_table_name: string
+          p_old_values?: Json
+          p_new_values?: Json
         }
         Returns: undefined
       }
       create_notification: {
         Args: {
-          p_action_url?: string
+          p_user_id: string
+          p_title: string
           p_message: string
+          p_type?: string
           p_priority?: string
+          p_action_url?: string
           p_related_id?: string
           p_related_type?: string
-          p_title: string
-          p_type?: string
-          p_user_id: string
         }
         Returns: string
-      }
-      decrypt_gmail_token: {
-        Args: { encrypted_token: string }
-        Returns: string
-      }
-      detect_session_anomaly: {
-        Args: {
-          p_current_fingerprint: string
-          p_ip_address?: unknown
-          p_user_agent?: string
-          p_user_id: string
-        }
-        Returns: Json
       }
       emergency_client_access: {
-        Args:
-          | {
-              p_client_id: string
-              p_incident_id?: string
-              p_justification: string
-            }
-          | { p_client_id: string; p_justification: string }
-        Returns: {
-          email: string
-          emergency_access_granted: boolean
-          first_name: string
-          id: string
-          last_name: string
-          phone: string
-        }[]
-      }
-      generate_compliance_report: {
         Args: {
-          p_end_date?: string
-          p_report_type?: string
-          p_start_date?: string
+          p_client_id: string
+          p_justification: string
+          p_incident_id?: string
         }
-        Returns: Json
+        Returns: {
+          id: string
+          first_name: string
+          last_name: string
+          email: string
+          phone: string
+          emergency_access_granted: boolean
+        }[]
       }
       generate_oauth_state_token: {
         Args: { p_user_id: string }
         Returns: string
-      }
-      generate_sample_dashboard_data: {
-        Args: { p_agent_id: string }
-        Returns: Json
       }
       generate_secure_client_token: {
         Args: Record<PropertyKey, never>
@@ -3102,91 +2621,87 @@ export type Database = {
       get_airline_rbds: {
         Args: { airline_uuid: string }
         Returns: {
+          id: string
           booking_class_code: string
-          booking_priority: number
+          service_class: string
           class_description: string
-          created_at: string
+          booking_priority: number
+          is_active: boolean
           effective_from: string
           effective_until: string
-          id: string
-          is_active: boolean
-          service_class: string
+          created_at: string
           updated_at: string
         }[]
       }
       get_airline_with_logo: {
         Args: { p_iata_code: string }
         Returns: {
-          alliance: string
-          country: string
-          iata_code: string
           id: string
-          logo_url: string
+          iata_code: string
           name: string
+          logo_url: string
+          country: string
+          alliance: string
         }[]
       }
       get_cities_with_airports: {
         Args: Record<PropertyKey, never>
         Returns: {
-          airport_count: number
           city: string
           country: string
+          airport_count: number
         }[]
       }
       get_city_suggestions: {
         Args: { partial_name: string; suggestion_limit?: number }
         Returns: {
-          airport_count: number
           city: string
           country: string
+          airport_count: number
         }[]
       }
       get_client_access_audit: {
         Args: { limit_records?: number; offset_records?: number }
         Returns: {
+          id: string
           accessing_user_id: string
           accessing_user_name: string
           accessing_user_role: Database["public"]["Enums"]["app_role"]
-          client_id: string
-          event_timestamp: string
           event_type: string
-          id: string
-          justification: string
           severity: string
+          client_id: string
           target_user_id: string
+          justification: string
+          event_timestamp: string
         }[]
-      }
-      get_client_data_secure: {
-        Args: { p_client_id: string; p_include_sensitive?: boolean }
-        Returns: Json
       }
       get_client_decrypted_preview: {
         Args: { p_client_id: string }
         Returns: {
           client_id: string
-          data_classification: string
+          has_encrypted_ssn: boolean
           has_encrypted_passport: boolean
           has_encrypted_payment: boolean
-          has_encrypted_ssn: boolean
+          data_classification: string
           last_sensitive_update: string
         }[]
       }
       get_client_sensitive: {
         Args: { p_client_id: string }
         Returns: {
-          encrypted_passport_number: string
+          id: string
           encrypted_payment_info: Json
           encrypted_ssn: string
-          id: string
+          encrypted_passport_number: string
         }[]
       }
       get_client_sensitive_data: {
         Args: { p_client_id: string }
         Returns: {
+          id: string
+          encrypted_ssn: string
           encrypted_passport_number: string
           encrypted_payment_info: Json
-          encrypted_ssn: string
-          id: string
         }[]
       }
       get_current_user_role: {
@@ -3196,12 +2711,12 @@ export type Database = {
       get_gmail_integration_status: {
         Args: { p_user_id?: string }
         Returns: {
-          created_at: string
-          gmail_user_email: string
-          is_connected: boolean
-          token_expires_at: string
-          updated_at: string
           user_id: string
+          gmail_user_email: string
+          token_expires_at: string
+          is_connected: boolean
+          created_at: string
+          updated_at: string
         }[]
       }
       get_option_reviews_by_token: {
@@ -3224,55 +2739,31 @@ export type Database = {
       get_secure_client_view: {
         Args: Record<PropertyKey, never>
         Returns: {
-          client_type: string
-          company: string
-          created_at: string
-          data_classification: string
-          date_of_birth: string
-          email_masked: string
-          first_name: string
           id: string
+          user_id: string
+          first_name: string
           last_name: string
-          last_trip_date: string
-          notes: string
-          passport_status: string
-          payment_status: string
+          email_masked: string
           phone_masked: string
+          company: string
           preferred_class: string
-          ssn_status: string
+          client_type: string
           total_bookings: number
           total_spent: number
+          last_trip_date: string
+          date_of_birth: string
+          notes: string
+          data_classification: string
+          created_at: string
           updated_at: string
-          user_id: string
+          ssn_status: string
+          passport_status: string
+          payment_status: string
         }[]
       }
       get_security_dashboard_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json
-      }
-      get_user_requests: {
-        Args: { target_user_id?: string }
-        Returns: {
-          adults_count: number
-          assigned_to: string
-          assignment_status: string
-          children_count: number
-          client_email: string
-          client_first_name: string
-          client_id: string
-          client_last_name: string
-          created_at: string
-          departure_date: string
-          destination_airport: string
-          id: string
-          infants_count: number
-          origin_airport: string
-          priority: string
-          return_date: string
-          status: string
-          updated_at: string
-          user_id: string
-        }[]
       }
       get_user_teams: {
         Args: { _user_id: string }
@@ -3282,17 +2773,17 @@ export type Database = {
       }
       handle_email_sync_status: {
         Args: {
+          p_user_id: string
           p_folder_name: string
           p_last_sync_at: string
           p_last_sync_count: number
-          p_user_id: string
         }
         Returns: undefined
       }
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
       }
@@ -3309,43 +2800,21 @@ export type Database = {
         Returns: boolean
       }
       is_team_manager: {
-        Args: { _team_id: string; _user_id: string }
+        Args: { _user_id: string; _team_id: string }
         Returns: boolean
       }
-      log_captcha_verification: {
-        Args: {
-          p_error_message?: string
-          p_ip_address?: unknown
-          p_result: boolean
-          p_user_agent?: string
-          p_user_email: string
-        }
-        Returns: undefined
-      }
-      log_data_access_audit: {
-        Args: {
-          p_access_type?: string
-          p_classification?: string
-          p_justification?: string
-          p_record_id?: string
-          p_table_name: string
-        }
-        Returns: undefined
-      }
       log_failed_access_attempt: {
-        Args: { p_attempted_user_id?: string; p_resource: string }
+        Args: { p_resource: string; p_attempted_user_id?: string }
         Returns: undefined
       }
       log_security_event: {
-        Args:
-          | { p_details?: Json; p_event_type: string; p_severity: string }
-          | {
-              p_details?: Json
-              p_event_type: string
-              p_severity: string
-              p_user_id?: string
-            }
-        Returns: undefined
+        Args: {
+          p_event_type: string
+          p_severity: string
+          p_details?: Json
+          p_user_id?: string
+        }
+        Returns: string
       }
       log_sensitive_data_access: {
         Args: {
@@ -3355,19 +2824,8 @@ export type Database = {
         }
         Returns: undefined
       }
-      mask_client_data: {
-        Args: {
-          p_client_data: Json
-          p_user_role?: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: Json
-      }
-      mask_sensitive_data: {
-        Args: { p_data: Json } | { p_data: string; p_field_type?: string }
-        Returns: string
-      }
       mask_sensitive_field: {
-        Args: { field_type?: string; field_value: string }
+        Args: { field_value: string; field_type?: string }
         Returns: string
       }
       merge_cities: {
@@ -3383,105 +2841,101 @@ export type Database = {
         Returns: boolean
       }
       search_airlines: {
-        Args: { page_limit?: number; page_offset?: number; search_term: string }
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
         Returns: {
-          alliance: string
-          country: string
-          created_at: string
+          id: string
           iata_code: string
           icao_code: string
-          id: string
-          logo_url: string
           name: string
+          country: string
+          alliance: string
+          logo_url: string
+          created_at: string
           rbd_count: number
           total_count: number
         }[]
       }
       search_airports: {
-        Args: { page_limit?: number; page_offset?: number; search_term: string }
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
         Returns: {
-          city: string
-          country: string
-          created_at: string
+          id: string
           iata_code: string
           icao_code: string
-          id: string
+          name: string
+          city: string
+          country: string
           latitude: number
           longitude: number
-          name: string
-          priority: number
           timezone: string
+          priority: number
+          created_at: string
           total_count: number
         }[]
       }
       search_airports_grouped: {
-        Args: { page_limit?: number; page_offset?: number; search_term: string }
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
         Returns: {
-          city: string
-          city_airport_count: number
-          country: string
-          created_at: string
+          id: string
           iata_code: string
           icao_code: string
-          id: string
+          name: string
+          city: string
+          country: string
           latitude: number
           longitude: number
-          name: string
-          priority: number
           timezone: string
+          priority: number
+          created_at: string
+          city_airport_count: number
           total_count: number
         }[]
       }
       search_booking_classes: {
-        Args: { page_limit?: number; page_offset?: number; search_term: string }
+        Args: { search_term: string; page_limit?: number; page_offset?: number }
         Returns: {
+          id: string
+          booking_class_code: string
+          service_class: string
+          class_description: string
+          booking_priority: number
           active: boolean
-          airline_iata: string
           airline_id: string
           airline_name: string
-          booking_class_code: string
-          booking_priority: number
-          class_description: string
+          airline_iata: string
           created_at: string
-          id: string
-          service_class: string
-          total_count: number
           updated_at: string
+          total_count: number
         }[]
-      }
-      update_agent_performance_metrics: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       update_airline_logo: {
         Args: { p_airline_id: string; p_logo_url: string }
         Returns: undefined
       }
       update_client_encrypted_field: {
-        Args: { p_client_id: string; p_field_name: string; p_new_value: string }
+        Args: {
+          p_client_id: string
+          p_field_name: string
+          p_encrypted_value: string
+        }
         Returns: boolean
       }
       update_client_memory: {
         Args: {
+          p_user_id: string
           p_client_id: string
           p_interaction_summary: string
-          p_pain_points?: Json
           p_preferences?: Json
-          p_user_id: string
+          p_pain_points?: Json
         }
         Returns: undefined
       }
       update_user_memory: {
         Args: {
-          p_interaction_type?: string
-          p_new_context: string
           p_user_id: string
+          p_new_context: string
+          p_interaction_type?: string
         }
         Returns: undefined
-      }
-      validate_audit_integrity: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
       }
       validate_field_encryption: {
         Args: { encrypted_data: string; field_name: string }
@@ -3493,10 +2947,6 @@ export type Database = {
       }
       validate_password_strength: {
         Args: { password: string }
-        Returns: boolean
-      }
-      validate_secure_session: {
-        Args: { p_device_fingerprint: string; p_session_token: string }
         Returns: boolean
       }
       validate_session_access: {
@@ -3512,51 +2962,6 @@ export type Database = {
         | "gds_expert"
         | "agent"
         | "user"
-      security_event_type:
-        | "login_attempt"
-        | "login_success"
-        | "login_failure"
-        | "logout"
-        | "password_change"
-        | "account_locked"
-        | "account_unlocked"
-        | "mfa_enabled"
-        | "mfa_disabled"
-        | "permission_granted"
-        | "permission_denied"
-        | "data_access"
-        | "data_modification"
-        | "data_deletion"
-        | "export_request"
-        | "api_key_created"
-        | "api_key_revoked"
-        | "session_expired"
-        | "suspicious_activity"
-        | "brute_force_attempt"
-        | "rate_limit_exceeded"
-        | "unauthorized_access_attempt"
-        | "sensitive_data_access"
-        | "encryption_failure"
-        | "decryption_failure"
-        | "backup_created"
-        | "backup_restored"
-        | "system_configuration_changed"
-        | "user_role_changed"
-        | "client_data_accessed"
-        | "client_data_modified"
-        | "communication_accessed"
-        | "gmail_oauth_initiated"
-        | "gmail_oauth_success"
-        | "gmail_oauth_failure"
-        | "email_sync_started"
-        | "email_sync_completed"
-        | "email_sync_failed"
-        | "captcha_verified"
-        | "captcha_failed"
-        | "admin_action"
-        | "emergency_access"
-        | "gdpr_request"
-        | "audit_log_accessed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3691,52 +3096,6 @@ export const Constants = {
         "gds_expert",
         "agent",
         "user",
-      ],
-      security_event_type: [
-        "login_attempt",
-        "login_success",
-        "login_failure",
-        "logout",
-        "password_change",
-        "account_locked",
-        "account_unlocked",
-        "mfa_enabled",
-        "mfa_disabled",
-        "permission_granted",
-        "permission_denied",
-        "data_access",
-        "data_modification",
-        "data_deletion",
-        "export_request",
-        "api_key_created",
-        "api_key_revoked",
-        "session_expired",
-        "suspicious_activity",
-        "brute_force_attempt",
-        "rate_limit_exceeded",
-        "unauthorized_access_attempt",
-        "sensitive_data_access",
-        "encryption_failure",
-        "decryption_failure",
-        "backup_created",
-        "backup_restored",
-        "system_configuration_changed",
-        "user_role_changed",
-        "client_data_accessed",
-        "client_data_modified",
-        "communication_accessed",
-        "gmail_oauth_initiated",
-        "gmail_oauth_success",
-        "gmail_oauth_failure",
-        "email_sync_started",
-        "email_sync_completed",
-        "email_sync_failed",
-        "captcha_verified",
-        "captcha_failed",
-        "admin_action",
-        "emergency_access",
-        "gdpr_request",
-        "audit_log_accessed",
       ],
     },
   },
