@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import EnhancedClientManager from "@/components/EnhancedClientManager";

@@ -24,7 +24,7 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NavLink, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useRoleView } from "@/contexts/RoleViewContext";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 
 import {
   Sidebar,

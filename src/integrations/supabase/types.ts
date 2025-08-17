@@ -3067,10 +3067,6 @@ export type Database = {
         Args: { p_client_id: string; p_target_user_id: string }
         Returns: boolean
       }
-      can_access_communication_data: {
-        Args: { target_client_id: string; target_user_id: string }
-        Returns: boolean
-      }
       can_access_financial_data: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -3630,10 +3626,6 @@ export type Database = {
           p_record_id: string
           p_table_name: string
         }
-        Returns: boolean
-      }
-      secure_token_access: {
-        Args: { p_target_user_id: string; p_token_type?: string }
         Returns: boolean
       }
       update_agent_performance_metrics: {

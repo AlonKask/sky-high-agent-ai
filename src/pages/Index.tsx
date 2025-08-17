@@ -2,7 +2,7 @@
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { RoleDashboard } from "@/components/RoleDashboard";
+import { SimpleDashboard } from "@/components/SimpleDashboard";
 
 const Index = () => {
   const { user, loading } = useSimpleAuth();
@@ -32,7 +32,7 @@ const Index = () => {
     return null;
   }
 
-  return <RoleDashboard />;
+  return <SimpleDashboard />;
 };
 
 export default Index;
