@@ -1,12 +1,10 @@
 
 import { Toaster } from "@/components/ui/sonner";
-import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SimpleAuthProvider } from "@/hooks/useSimpleAuth";
 import { SimpleAuthGuard } from "@/components/SimpleAuthGuard";
-import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import { Suspense, lazy } from "react";
@@ -59,8 +57,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <SimpleAuthProvider>
-            <RoleViewProvider>
-              <ErrorBoundary>
+            <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     {/* Public routes */}
@@ -99,9 +96,7 @@ function App() {
                   </Routes>
                 </Suspense>
                 <Toaster />
-                <RadixToaster />
               </ErrorBoundary>
-            </RoleViewProvider>
           </SimpleAuthProvider>
         </TooltipProvider>
       </QueryClientProvider>
