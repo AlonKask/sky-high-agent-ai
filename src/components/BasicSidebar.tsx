@@ -22,50 +22,87 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useSimpleAuth } from "@/hooks/useSimpleAuth"
+import { useUserRole } from "@/hooks/useUserRole"
 import { Button } from "@/components/ui/button"
 import { useNavigate } from "react-router-dom"
 
-// Menu items
-const items = [
-  {
-    title: "Home",
-    url: "/",
-    icon: Home,
-  },
-  {
-    title: "Clients",
-    url: "/clients",
-    icon: Users,
-  },
-  {
-    title: "Requests",
-    url: "/requests",
-    icon: FileText,
-  },
-  {
-    title: "Emails",
-    url: "/emails",
-    icon: Inbox,
-  },
-  {
-    title: "Quote Builder",
-    url: "/quote-builder",
-    icon: Quote,
-  },
-  {
-    title: "Management",
-    url: "/management",
-    icon: UserCog,
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-  },
-]
+// Get role-specific menu items
+const getMenuItems = (role: string | null) => {
+  const baseItems = [
+    {
+      title: "Home",
+      url: "/",
+      icon: Home,
+    },
+    {
+      title: "Clients", 
+      url: "/clients",
+      icon: Users,
+    },
+    {
+      title: "Requests",
+      url: "/requests", 
+      icon: FileText,
+    },
+    {
+      title: "Emails",
+      url: "/emails",
+      icon: Inbox,
+    },
+    {
+      title: "Quote Builder",
+      url: "/quote-builder",
+      icon: Quote,
+    }
+  ];
+
+  const adminItems = [
+    {
+      title: "User Management",
+      url: "/admin/users",
+      icon: UserCog,
+    },
+    {
+      title: "Management",
+      url: "/management", 
+      icon: UserCog,
+    }
+  ];
+
+  const managerItems = [
+    {
+      title: "Team Management",
+      url: "/manager/team",
+      icon: UserCog,
+    }
+  ];
+
+  switch (role) {
+    case 'admin':
+      return [...baseItems, ...adminItems, {
+        title: "Settings",
+        url: "/settings",
+        icon: Settings,
+      }];
+    case 'manager':
+    case 'supervisor':
+      return [...baseItems, ...managerItems, {
+        title: "Settings", 
+        url: "/settings",
+        icon: Settings,
+      }];
+    default:
+      return [...baseItems, {
+        title: "Settings",
+        url: "/settings", 
+        icon: Settings,
+      }];
+  }
+}
 
 export function BasicSidebar() {
   const { signOut } = useSimpleAuth()
+  const { role } = useUserRole()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -80,7 +117,7 @@ export function BasicSidebar() {
           <SidebarGroupLabel>Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {getMenuItems(role).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <a href={item.url}>
