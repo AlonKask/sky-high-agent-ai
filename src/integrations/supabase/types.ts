@@ -3270,6 +3270,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      has_admin_role: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       has_role: {
         Args: {
           p_role: Database["public"]["Enums"]["app_role"]
@@ -3287,6 +3291,10 @@ export type Database = {
       }
       is_base64: {
         Args: { p_text: string }
+        Returns: boolean
+      }
+      is_business_user: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       is_team_manager: {
