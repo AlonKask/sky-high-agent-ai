@@ -71,8 +71,22 @@ const EnhancedRequestManager = () => {
       console.log('Fetching requests for user:', user.id, 'with role:', role);
       fetchRequests();
     } else if (!isLoading && !user) {
-      console.log('No user authenticated, skipping fetch');
-      setLoading(false);
+      console.log('No user authenticated, attempting session recovery...');
+      // Try to recover session before giving up
+      const attemptSessionRecovery = async () => {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session) {
+            console.log('Session recovery successful, user found');
+            // Let the auth provider handle the state update
+            return;
+          }
+        } catch (error) {
+          console.error('Session recovery failed:', error);
+        }
+        setLoading(false);
+      };
+      attemptSessionRecovery();
     }
   }, [user, role, isLoading]);
 
@@ -87,6 +101,18 @@ const EnhancedRequestManager = () => {
       setLoading(true);
       console.log('Fetching requests using secure function for user:', user.id, 'role:', role);
 
+      // First validate session health before making requests
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        console.error('Session validation failed:', sessionError);
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Please sign in again to continue"
+        });
+        return;
+      }
+
       // Use the secure RPC function that bypasses RLS issues
       const { data, error } = await supabase.rpc('get_user_requests', {
         target_user_id: user.id
@@ -94,17 +120,33 @@ const EnhancedRequestManager = () => {
 
       if (error) {
         console.error('Error fetching requests:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load requests"
-        });
+        
+        // Enhanced error handling for specific scenarios
+        if (error.message?.includes('permission denied') || error.message?.includes('access denied')) {
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "You don't have permission to view these requests. Please contact your administrator."
+          });
+        } else if (error.message?.includes('function') && error.message?.includes('does not exist')) {
+          toast({
+            variant: "destructive",
+            title: "System Error",
+            description: "Database function not found. Please contact technical support."
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error Loading Requests",
+            description: error.message || "Failed to load requests. Please try again."
+          });
+        }
         return;
       }
 
       console.log('Fetched requests via RPC:', data?.length || 0, 'requests');
       
-      // Phase 3: Transform the data to match the expected format with session recovery
+      // Transform the data to match the expected format
       const transformedRequests = data?.map(request => ({
         ...request,
         // Backward compatibility mappings
@@ -112,21 +154,35 @@ const EnhancedRequestManager = () => {
         destination: request.destination_airport,
         passengers: (request.adults_count || 0) + (request.children_count || 0) + (request.infants_count || 0),
         clients: {
-          first_name: request.client_first_name,
-          last_name: request.client_last_name,
-          email: request.client_email,
+          first_name: request.client_first_name || 'Unknown',
+          last_name: request.client_last_name || 'Client',
+          email: request.client_email || 'No email',
           client_type: 'new' // Default since client_type not in RPC response
         }
       })) || [];
       
       setRequests(transformedRequests);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load requests"
-      });
+      
+      // Log successful data load for debugging
+      console.log('Successfully loaded', transformedRequests.length, 'requests');
+      
+    } catch (error: any) {
+      console.error('Unexpected error fetching requests:', error);
+      
+      // Check if it's a network error
+      if (error.name === 'TypeError' && error.message?.includes('fetch')) {
+        toast({
+          variant: "destructive",
+          title: "Network Error",
+          description: "Please check your internet connection and try again."
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Unexpected Error",
+          description: "An unexpected error occurred. Please refresh the page and try again."
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -138,8 +194,8 @@ const EnhancedRequestManager = () => {
     try {
       // Use the assign_request_to_agent function for proper assignment
       const { error } = await supabase.rpc('assign_request_to_agent', {
-        request_id: requestId,
-        agent_id: user.id
+        p_request_id: requestId,
+        p_agent_id: user.id
       });
 
       if (error) {

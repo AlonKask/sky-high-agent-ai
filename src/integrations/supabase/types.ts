@@ -3327,8 +3327,8 @@ export type Database = {
         Returns: Json
       }
       mask_sensitive_data: {
-        Args: { p_data: Json } | { p_data: string; p_field_type?: string }
-        Returns: string
+        Args: { data: string; mask_type?: string } | { p_data: Json }
+        Returns: Json
       }
       mask_sensitive_field: {
         Args: { field_type?: string; field_value: string }
