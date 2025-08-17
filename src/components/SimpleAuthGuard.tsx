@@ -14,7 +14,6 @@ export const SimpleAuthGuard = ({ children }: SimpleAuthGuardProps) => {
 
   useEffect(() => {
     if (!loading && !user && location.pathname !== '/auth') {
-      console.log('🔒 SimpleAuthGuard: Redirecting to auth');
       const returnUrl = location.pathname + location.search;
       navigate('/auth', { 
         replace: true,

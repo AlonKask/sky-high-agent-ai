@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { AuthCore } from '@/utils/authCore';
+import { useSecurityCleanup } from '@/hooks/useSecurityCleanup';
 
 interface AuthContextType {
   user: User | null;
@@ -24,15 +24,12 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { secureSignOut } = useSecurityCleanup();
 
   useEffect(() => {
-    console.log('🔄 SimpleAuthProvider: Initializing...');
-
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('🔄 Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user });
-        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -40,14 +37,9 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('❌ Initial session check failed:', error);
-      } else {
-        console.log('🔍 Initial session:', { hasSession: !!session, hasUser: !!session?.user });
-        setSession(session);
-        setUser(session?.user ?? null);
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
     });
 
@@ -57,8 +49,7 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
   }, []);
 
   const signOut = async () => {
-    console.log('🔓 Auth context signOut called');
-    await AuthCore.signOut();
+    await secureSignOut();
   };
 
   return (

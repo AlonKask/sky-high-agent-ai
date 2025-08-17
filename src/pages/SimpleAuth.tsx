@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
-import { AuthCore } from '@/utils/authCore';
+import { useSecurityCleanup } from '@/hooks/useSecurityCleanup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,11 +17,11 @@ export default function SimpleAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [signInData, setSignInData] = useState({ email: '', password: '' });
+  const { secureSignIn } = useSecurityCleanup();
 
   useEffect(() => {
     if (!loading && user) {
       const returnUrl = location.state?.returnUrl || '/';
-      console.log('✅ User authenticated, redirecting to:', returnUrl);
       navigate(returnUrl, { replace: true });
     }
   }, [user, loading, navigate, location.state]);
@@ -32,15 +32,9 @@ export default function SimpleAuth() {
     setError('');
     
     try {
-      const result = await AuthCore.signInWithEmail(signInData.email, signInData.password);
-      
-      if (result.success) {
-        console.log('✅ Sign in successful, redirecting...');
-        const returnUrl = location.state?.returnUrl || '/';
-        navigate(returnUrl, { replace: true });
-      } else {
-        setError(result.error || 'Sign in failed');
-      }
+      await secureSignIn(signInData.email, signInData.password);
+      const returnUrl = location.state?.returnUrl || '/';
+      navigate(returnUrl, { replace: true });
     } catch (error: any) {
       const errorMessage = error?.message || 'An unexpected error occurred. Please try again.';
       setError(errorMessage);
@@ -54,10 +48,8 @@ export default function SimpleAuth() {
     setError('');
     
     try {
-      const result = await AuthCore.signInWithGoogle();
-      if (!result.success) {
-        setError(result.error || 'Google sign in failed');
-      }
+      // For now, disable Google OAuth until properly configured
+      setError('Google sign-in is currently unavailable. Please use email/password.');
     } catch (error: any) {
       const errorMessage = error?.message || 'Google sign in failed. Please try again.';
       setError(errorMessage);

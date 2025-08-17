@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, RotateCw, Search, Filter, Plus, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
-import { EmailSyncManager } from "@/utils/emailSync";
+// Email sync functionality removed during cleanup
 import ExpandableEmailCard from "@/components/ExpandableEmailCard";
 import { toast } from "sonner";
 import { handleError, handleSupabaseError } from "@/utils/globalErrorHandler";
@@ -44,8 +44,6 @@ const BasicEmails = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [syncing, setSyncing] = useState(false);
 
-  const emailSyncManager = EmailSyncManager.getInstance();
-
   useEffect(() => {
     if (user) {
       checkGmailConnection();
@@ -54,13 +52,8 @@ const BasicEmails = () => {
   }, [user]);
 
   const checkGmailConnection = async () => {
-    try {
-      const connected = await emailSyncManager.checkGmailConnection();
-      setGmailConnected(connected);
-    } catch (error) {
-      handleError(error, { operation: 'check Gmail connection', component: 'BasicEmails' }, { showToast: false });
-      setGmailConnected(false);
-    }
+    // Gmail connection disabled during cleanup - implement when needed
+    setGmailConnected(false);
   };
 
   const loadEmails = async () => {
@@ -87,14 +80,9 @@ const BasicEmails = () => {
   const syncEmails = async () => {
     setSyncing(true);
     try {
-      const result = await emailSyncManager.syncEmails({ 
-        includeAIProcessing: true, 
-        showProgress: true 
-      });
-      
-      if (result.success) {
-        await loadEmails(); // Reload emails after sync
-      }
+      // Email sync disabled during cleanup - implement when needed
+      toast.info("Email sync functionality temporarily disabled");
+      await loadEmails(); // Reload emails from database
     } catch (error) {
       handleError(error, { operation: 'sync emails', component: 'BasicEmails' });
     } finally {

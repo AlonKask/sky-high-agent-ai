@@ -107,20 +107,16 @@ export default function UnifiedEmailBuilder({
   }, [quotes]);
 
   const processQuotes = async () => {
-    console.log("🔄 Starting quote processing for enhanced email generation");
     setIsProcessing(true);
     setProcessingProgress(0);
     setErrors([]);
     
     try {
       const processPromises = quotes.map(async (quote, index) => {
-        console.log(`📝 Processing quote ${index + 1}/${quotes.length}: ${quote.id}`);
-        
         try {
           if (quote.content && quote.content.trim()) {
             // Detect format and parse accordingly
             const format = EnhancedSabreParser.detectFormat(quote.content);
-            console.log(`🔍 Detected format for quote ${quote.id}: ${format}`);
             
             let parsedResult;
             if (format === "VI") {
@@ -130,11 +126,7 @@ export default function UnifiedEmailBuilder({
             }
             
             if (parsedResult && parsedResult.segments && parsedResult.segments.length > 0) {
-              console.log(`✅ Successfully parsed ${parsedResult.segments.length} segments for quote ${quote.id}`);
-              
-              // Save to database for future use
               // Save to database for future use - will be implemented with full flight data
-              
               const updatedQuote = {
                 ...quote,
                 parsedItinerary: parsedResult
@@ -143,12 +135,10 @@ export default function UnifiedEmailBuilder({
               setProcessingProgress(((index + 1) / quotes.length) * 100);
               return updatedQuote;
             } else {
-              console.warn(`⚠️ No segments found for quote ${quote.id}`);
               setProcessingProgress(((index + 1) / quotes.length) * 100);
               return quote;
             }
           } else {
-            console.warn(`⚠️ No content to parse for quote ${quote.id}`);
             setProcessingProgress(((index + 1) / quotes.length) * 100);
             return quote;
           }
@@ -168,8 +158,6 @@ export default function UnifiedEmailBuilder({
       if (selectedQuotes.length === 0 && results.length > 0) {
         setSelectedQuotes([results[0].id]);
       }
-      
-      console.log("✅ Quote processing completed");
       
     } catch (error) {
       handleError(error, { operation: 'process AI generation', component: 'UnifiedEmailBuilder' });
@@ -749,7 +737,7 @@ export default function UnifiedEmailBuilder({
         throw new Error("Failed to send email");
       }
 
-      console.log("✅ Email sent successfully:", emailResult);
+      
 
       toast({
         title: "Email sent successfully!",
