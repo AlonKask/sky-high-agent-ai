@@ -2953,6 +2953,10 @@ export type Database = {
         Args: { profile_user_id: string }
         Returns: boolean
       }
+      can_access_sensitive_client_fields: {
+        Args: { target_client_id: string }
+        Returns: boolean
+      }
       can_manage_teams: {
         Args: { _user_id: string }
         Returns: boolean
