@@ -130,7 +130,6 @@ const PublicRequestForm = () => {
       toastHelpers.success(data.message || 'Request submitted successfully! We will contact you shortly.');
 
     } catch (error: any) {
-      console.error('Error submitting request:', error);
       
       const errorMessage = error.message || 'Failed to submit request. Please try again.';
       
