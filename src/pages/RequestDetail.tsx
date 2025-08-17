@@ -107,45 +107,137 @@ const RequestDetail = () => {
 
   const fetchRequestDetails = async () => {
     try {
-      // Fetch request details
+      console.log('🔍 RequestDetail: Starting fetch for request ID:', id);
+      
+      // Get current user for debugging
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('🔍 RequestDetail: Current user:', user?.id, user?.email);
+      
+      if (userError) {
+        console.error('❌ RequestDetail: Auth error:', userError);
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!user) {
+        console.error('❌ RequestDetail: No authenticated user');
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to view this request",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Fetch request details with maybeSingle to handle RLS issues
+      console.log('🔍 RequestDetail: Fetching request data...');
       const { data: requestData, error: requestError } = await supabase
         .from('requests')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (requestError) throw requestError;
+      console.log('🔍 RequestDetail: Request query result:', { requestData, requestError });
+
+      if (requestError) {
+        console.error('❌ RequestDetail: Request fetch error:', requestError);
+        throw requestError;
+      }
+
+      if (!requestData) {
+        console.warn('⚠️ RequestDetail: No request data found - possible RLS issue');
+        toast({
+          title: "Request Not Found",
+          description: "You don't have permission to view this request or it doesn't exist",
+          variant: "destructive"
+        });
+        return;
+      }
+
       setRequest(requestData);
+      console.log('✅ RequestDetail: Request data loaded:', requestData.id);
 
-      // Fetch client details
+      // Fetch client details with maybeSingle
+      console.log('🔍 RequestDetail: Fetching client data for ID:', requestData.client_id);
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('*')
         .eq('id', requestData.client_id)
-        .single();
+        .maybeSingle();
 
-      if (clientError) throw clientError;
+      console.log('🔍 RequestDetail: Client query result:', { clientData, clientError });
+
+      if (clientError) {
+        console.error('❌ RequestDetail: Client fetch error:', clientError);
+        throw clientError;
+      }
+
+      if (!clientData) {
+        console.warn('⚠️ RequestDetail: No client data found - possible RLS issue');
+        toast({
+          title: "Client Data Unavailable",
+          description: "You don't have permission to view this client's information",
+          variant: "destructive"
+        });
+        return;
+      }
+
       setClient(clientData);
+      console.log('✅ RequestDetail: Client data loaded:', clientData.id);
 
       // Fetch quotes
+      console.log('🔍 RequestDetail: Fetching quotes...');
       const { data: quotesData, error: quotesError } = await supabase
         .from('quotes')
         .select('*')
         .eq('request_id', id)
         .order('created_at', { ascending: false });
 
-      if (quotesError) throw quotesError;
-      setQuotes(quotesData || []);
+      console.log('🔍 RequestDetail: Quotes query result:', { quotesData, quotesError });
+
+      if (quotesError) {
+        console.error('❌ RequestDetail: Quotes fetch error:', quotesError);
+        // Don't throw here - quotes are not critical for displaying the request
+        toast({
+          title: "Warning",
+          description: "Could not load quotes for this request",
+          variant: "destructive"
+        });
+      } else {
+        setQuotes(quotesData || []);
+        console.log('✅ RequestDetail: Quotes loaded:', quotesData?.length || 0, 'quotes');
+      }
 
     } catch (error) {
-      console.error('Error fetching request details:', error);
+      console.error('❌ RequestDetail: Unexpected error in fetchRequestDetails:', error);
+      
+      // Provide specific error messages based on error type
+      let errorMessage = "Failed to load request details";
+      let errorTitle = "Error";
+      
+      if (error?.message?.includes('JWT')) {
+        errorMessage = "Your session has expired. Please log in again.";
+        errorTitle = "Session Expired";
+      } else if (error?.message?.includes('permission')) {
+        errorMessage = "You don't have permission to view this request.";
+        errorTitle = "Access Denied";
+      } else if (error?.message?.includes('network')) {
+        errorMessage = "Network connection issue. Please check your internet connection.";
+        errorTitle = "Connection Error";
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to load request details",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
       setLoading(false);
+      console.log('✅ RequestDetail: Loading complete');
     }
   };
 
