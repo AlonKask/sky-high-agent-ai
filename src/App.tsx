@@ -18,6 +18,7 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const BasicEmails = lazy(() => import("./pages/BasicEmails"));
 const BasicClients = lazy(() => import("./pages/BasicClients"));
 const BasicRequests = lazy(() => import("./pages/BasicRequests"));
+const BasicNewRequest = lazy(() => import("./pages/BasicNewRequest"));
 const BasicSettings = lazy(() => import("./pages/BasicSettings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -48,6 +49,7 @@ function App() {
                     <Route path="/emails" element={<SimpleAuthGuard><Layout><BasicEmails /></Layout></SimpleAuthGuard>} />
                     <Route path="/clients" element={<SimpleAuthGuard><Layout><BasicClients /></Layout></SimpleAuthGuard>} />
                     <Route path="/requests" element={<SimpleAuthGuard><Layout><BasicRequests /></Layout></SimpleAuthGuard>} />
+                    <Route path="/requests/new" element={<SimpleAuthGuard><Layout><BasicNewRequest /></Layout></SimpleAuthGuard>} />
                     <Route path="/settings" element={<SimpleAuthGuard><Layout><BasicSettings /></Layout></SimpleAuthGuard>} />
                      
                     <Route path="*" element={<NotFound />} />
