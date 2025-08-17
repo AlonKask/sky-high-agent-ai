@@ -21,9 +21,11 @@ export default function AuthOptimized() {
   const [signInData, setSignInData] = useState({ email: '', password: '' });
 
   useEffect(() => {
+    console.log('🔍 AuthOptimized: Auth state check', { loading, hasUser: !!user, email: user?.email });
+    
     if (!loading && user) {
       const returnUrl = location.state?.returnUrl || '/';
-      console.log('✅ User authenticated, redirecting to:', returnUrl);
+      console.log('✅ AuthOptimized: User authenticated, redirecting to:', returnUrl);
       navigate(returnUrl, { replace: true });
     }
   }, [user, loading, navigate, location.state]);

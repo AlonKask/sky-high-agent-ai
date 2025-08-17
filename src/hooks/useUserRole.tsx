@@ -20,6 +20,7 @@ export const useUserRole = () => {
 
   const fetchUserRole = async () => {
     try {
+      console.log('🔍 UserRole: Fetching role for user:', user?.id);
       setLoading(true);
       const { data, error } = await supabase
         .from('user_roles')
@@ -28,18 +29,20 @@ export const useUserRole = () => {
         .single();
 
       if (error) {
-        console.error('Error fetching user role:', error);
+        console.error('❌ UserRole: Error fetching user role:', error);
         // SECURITY: Do not default to any role if none found - deny access
         setRole(null);
       } else {
+        console.log('✅ UserRole: Role fetched successfully:', data.role);
         setRole(data.role as UserRole);
       }
     } catch (error) {
-      console.error('Error in fetchUserRole:', error);
+      console.error('❌ UserRole: Error in fetchUserRole:', error);
       // SECURITY: Do not default to any role on error - deny access
       setRole(null);
     } finally {
       setLoading(false);
+      console.log('✅ UserRole: Loading complete, role:', role);
     }
   };
 

@@ -29,16 +29,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessionHealthy, setSessionHealthy] = useState(true);
 
   useEffect(() => {
-    console.log('🔄 AuthProvider initializing...');
+    console.log('🔄 AuthProvider: Starting initialization...');
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔄 Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user });
+        console.log('🔄 AuthProvider: Auth state change:', { 
+          event, 
+          hasSession: !!session, 
+          hasUser: !!session?.user,
+          email: session?.user?.email,
+          userId: session?.user?.id
+        });
         
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        console.log('✅ AuthProvider: State updated - loading set to false');
 
         // Light session validation on sign-in (no aggressive health checks)
         if (event === 'SIGNED_IN' && session) {
@@ -59,22 +66,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     // Check for existing session
+    console.log('🔍 AuthProvider: Checking for existing session...');
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error('❌ Initial session check failed:', error);
+        console.error('❌ AuthProvider: Initial session check failed:', error);
         setLoading(false);
         return;
       }
 
-      console.log('🔍 Initial session check:', { 
+      console.log('🔍 AuthProvider: Initial session check result:', { 
         hasSession: !!session, 
         hasUser: !!session?.user,
-        userId: session?.user?.id 
+        userId: session?.user?.id,
+        email: session?.user?.email
       });
 
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      console.log('✅ AuthProvider: Initial check complete - loading set to false');
     });
 
     return () => {
