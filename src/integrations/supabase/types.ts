@@ -3703,11 +3703,13 @@ export type Database = {
         Returns: boolean
       }
       zero_trust_client_access: {
-        Args: {
-          p_client_id: string
-          p_justification?: string
-          p_operation: string
-        }
+        Args:
+          | {
+              p_client_id: string
+              p_justification?: string
+              p_operation: string
+            }
+          | { p_client_id: string; p_operation: string }
         Returns: boolean
       }
     }
