@@ -181,20 +181,87 @@ export const FlightOptionsBuilder = () => {
   };
 
   const sendQuoteEmail = async () => {
-    if (!selectedRequest) return;
-
-    try {
-      toast({
-        title: "Email Sending",
-        description: "Quote email functionality will be available soon"
-      });
-    } catch (error) {
+    if (!selectedRequest) {
       toast({
         title: "Error",
-        description: "Failed to send email",
+        description: "Please select a request first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const request = requests.find(r => r.id === selectedRequest);
+      if (!request) throw new Error('Request not found');
+
+      // Send via Gmail API
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: [request.client.email],
+          subject: `Flight Quote: ${quote.route}`,
+          body: generateQuoteEmailHTML(quote, request.client),
+          clientId: request.client.id,
+          requestId: selectedRequest,
+          emailType: 'quote'
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email Sent",
+        description: `Quote sent successfully to ${request.client.email}`
+      });
+    } catch (error) {
+      console.error('Error sending quote email:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send quote email. Please check your Gmail connection.",
         variant: "destructive"
       });
     }
+  };
+
+  const generateQuoteEmailHTML = (quote: FlightQuote, client: { first_name: string; last_name: string }) => {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f9fa;">
+        <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h1 style="color: #1e40af; margin-bottom: 20px;">Flight Quote</h1>
+          
+          <p>Dear ${client.first_name} ${client.last_name},</p>
+          
+          <p>Thank you for your flight inquiry. We're pleased to provide you with the following quote:</p>
+          
+          <div style="background: #f0f4ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h2 style="color: #1e40af; margin-top: 0;">Flight Details</h2>
+            <p><strong>Route:</strong> ${quote.route}</p>
+            <p><strong>Departure Date:</strong> ${quote.departure_date}</p>
+            ${quote.return_date ? `<p><strong>Return Date:</strong> ${quote.return_date}</p>` : ''}
+            <p><strong>Passengers:</strong> ${quote.adults_count + quote.children_count + quote.infants_count}</p>
+            <p><strong>Class:</strong> ${quote.fare_type.toUpperCase()}</p>
+          </div>
+          
+          <div style="background: #dcfce7; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <h2 style="color: #16a34a; margin-top: 0;">Total Price</h2>
+            <div style="font-size: 32px; font-weight: bold; color: #16a34a;">$${quote.total_price.toFixed(2)}</div>
+          </div>
+          
+          ${quote.notes ? `
+            <div style="margin: 20px 0;">
+              <h3 style="color: #374151;">Additional Notes:</h3>
+              <p style="background: #f9fafb; padding: 15px; border-radius: 6px;">${quote.notes}</p>
+            </div>
+          ` : ''}
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p>This quote is valid for 48 hours. To proceed with booking, please reply to this email or contact us directly.</p>
+            <p>We look forward to helping you with your travel plans!</p>
+            <p><strong>Select Business Class Travel</strong><br>
+            Your Luxury Travel Specialists</p>
+          </div>
+        </div>
+      </div>
+    `;
   };
 
   return (

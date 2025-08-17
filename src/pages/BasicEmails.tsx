@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, RotateCw, Search, Filter, Plus, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
-// Email sync functionality removed during cleanup
+import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import ExpandableEmailCard from "@/components/ExpandableEmailCard";
 import { toast } from "sonner";
 import { handleError, handleSupabaseError } from "@/utils/globalErrorHandler";
@@ -36,9 +36,9 @@ interface EmailExchange {
 
 const BasicEmails = () => {
   const { user } = useSimpleAuth();
+  const { gmailStatus, connectGmail, syncEmails } = useGmailIntegration();
   const [emails, setEmails] = useState<EmailExchange[]>([]);
   const [loading, setLoading] = useState(true);
-  const [gmailConnected, setGmailConnected] = useState(false);
   const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -46,15 +46,9 @@ const BasicEmails = () => {
 
   useEffect(() => {
     if (user) {
-      checkGmailConnection();
       loadEmails();
     }
   }, [user]);
-
-  const checkGmailConnection = async () => {
-    // Gmail connection disabled during cleanup - implement when needed
-    setGmailConnected(false);
-  };
 
   const loadEmails = async () => {
     if (!user) return;
@@ -77,12 +71,16 @@ const BasicEmails = () => {
     }
   };
 
-  const syncEmails = async () => {
+  const handleSyncEmails = async () => {
     setSyncing(true);
     try {
-      // Email sync disabled during cleanup - implement when needed
-      toast.info("Email sync functionality temporarily disabled");
-      await loadEmails(); // Reload emails from database
+      const result = await syncEmails();
+      if (result.success) {
+        toast.success(`Synced ${result.count || 0} emails successfully`);
+        await loadEmails(); // Reload emails from database
+      } else {
+        toast.error(result.error || "Failed to sync emails");
+      }
     } catch (error) {
       handleError(error, { operation: 'sync emails', component: 'BasicEmails' });
     } finally {
@@ -104,7 +102,7 @@ const BasicEmails = () => {
     return matchesSearch && matchesTab;
   });
 
-  if (!gmailConnected) {
+  if (!gmailStatus.isConnected) {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -124,11 +122,12 @@ const BasicEmails = () => {
               Connect your Gmail account to view and manage emails directly from the CRM.
             </p>
             <Button 
-              onClick={() => toast.info("Gmail OAuth integration coming soon")}
+              onClick={connectGmail}
+              disabled={gmailStatus.loading}
               className="gap-2"
             >
               <Mail className="h-4 w-4" />
-              Connect Gmail
+              {gmailStatus.loading ? 'Connecting...' : 'Connect Gmail'}
             </Button>
           </CardContent>
         </Card>
@@ -146,7 +145,7 @@ const BasicEmails = () => {
             {emails.length} Total
           </Badge>
           <Button 
-            onClick={syncEmails}
+            onClick={handleSyncEmails}
             disabled={syncing}
             size="sm"
             variant="outline"
@@ -217,7 +216,7 @@ const BasicEmails = () => {
                 </p>
                 {!searchTerm && (
                   <Button 
-                    onClick={syncEmails}
+                    onClick={handleSyncEmails}
                     className="mt-4 gap-2"
                     variant="outline"
                   >
