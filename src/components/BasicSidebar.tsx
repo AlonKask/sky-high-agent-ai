@@ -7,6 +7,7 @@ import {
   Users,
   FileText,
   PlusCircle,
+  UserCog,
 } from "lucide-react"
 
 import {
@@ -44,6 +45,11 @@ const items = [
     title: "Emails",
     url: "/emails",
     icon: Inbox,
+  },
+  {
+    title: "Management",
+    url: "/management",
+    icon: UserCog,
   },
   {
     title: "Settings",

@@ -3442,6 +3442,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      has_elevated_role: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      has_management_role: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       has_role: {
         Args: {
           p_role: Database["public"]["Enums"]["app_role"]
@@ -3493,15 +3501,13 @@ export type Database = {
         Returns: undefined
       }
       log_security_event: {
-        Args:
-          | {
-              p_details?: Json
-              p_event_type: string
-              p_severity: string
-              p_user_id?: string
-            }
-          | { p_details?: Json; p_event_type: string; p_severity?: string }
-        Returns: undefined
+        Args: {
+          p_details?: Json
+          p_event_type: string
+          p_severity: string
+          p_user_id?: string
+        }
+        Returns: string
       }
       log_security_monitoring: {
         Args: {

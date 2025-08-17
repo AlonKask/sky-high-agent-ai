@@ -20,6 +20,7 @@ const BasicClients = lazy(() => import("./pages/BasicClients"));
 const BasicRequests = lazy(() => import("./pages/BasicRequests"));
 const BasicNewRequest = lazy(() => import("./pages/BasicNewRequest"));
 const BasicSettings = lazy(() => import("./pages/BasicSettings"));
+const Management = lazy(() => import("./pages/Management"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -50,7 +51,8 @@ function App() {
                     <Route path="/clients" element={<SimpleAuthGuard><Layout><BasicClients /></Layout></SimpleAuthGuard>} />
                     <Route path="/requests" element={<SimpleAuthGuard><Layout><BasicRequests /></Layout></SimpleAuthGuard>} />
                     <Route path="/requests/new" element={<SimpleAuthGuard><Layout><BasicNewRequest /></Layout></SimpleAuthGuard>} />
-                    <Route path="/settings" element={<SimpleAuthGuard><Layout><BasicSettings /></Layout></SimpleAuthGuard>} />
+                     <Route path="/management" element={<SimpleAuthGuard><Layout><Management /></Layout></SimpleAuthGuard>} />
+                     <Route path="/settings" element={<SimpleAuthGuard><Layout><BasicSettings /></Layout></SimpleAuthGuard>} />
                      
                     <Route path="*" element={<NotFound />} />
                   </Routes>
