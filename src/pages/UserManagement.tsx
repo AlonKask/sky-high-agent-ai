@@ -19,7 +19,7 @@ interface UserData {
   created_at: string;
 }
 
-export const UserManagement = () => {
+const UserManagement = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -294,3 +294,5 @@ export const UserManagement = () => {
     </div>
   );
 };
+
+export default UserManagement;
