@@ -2930,7 +2930,7 @@ export type Database = {
         Returns: boolean
       }
       can_access_client_data_ultra_strict: {
-        Args: { target_client_id: string; target_user_id: string }
+        Args: { p_client_id: string; p_target_user_id: string }
         Returns: boolean
       }
       can_access_communication_data: {
@@ -2942,7 +2942,7 @@ export type Database = {
         Returns: boolean
       }
       can_access_gmail_credentials_enhanced: {
-        Args: { target_user_id: string }
+        Args: { p_target_user_id: string }
         Returns: boolean
       }
       can_access_gmail_integration: {
@@ -2966,13 +2966,20 @@ export type Database = {
         Returns: boolean
       }
       check_advanced_rate_limit: {
-        Args: {
-          p_endpoint: string
-          p_identifier: string
-          p_ip_address?: unknown
-          p_max_requests?: number
-          p_window_minutes?: number
-        }
+        Args:
+          | {
+              p_endpoint: string
+              p_identifier: string
+              p_ip_address?: unknown
+              p_max_requests?: number
+              p_window_minutes?: number
+            }
+          | {
+              p_identifier: string
+              p_max_requests?: number
+              p_operation: string
+              p_window_minutes?: number
+            }
         Returns: boolean
       }
       check_rate_limit: {
@@ -3265,8 +3272,8 @@ export type Database = {
       }
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_user_id: string
         }
         Returns: boolean
       }
@@ -3327,7 +3334,7 @@ export type Database = {
         Returns: Json
       }
       mask_sensitive_data: {
-        Args: { data: string; mask_type?: string } | { p_data: Json }
+        Args: { p_data: Json } | { p_data: string; p_field_type?: string }
         Returns: Json
       }
       mask_sensitive_field: {
@@ -3451,6 +3458,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      validate_encryption_format: {
+        Args: { p_encrypted_data: string; p_field_name: string }
+        Returns: boolean
+      }
       validate_field_encryption: {
         Args: { encrypted_data: string; field_name: string }
         Returns: boolean
@@ -3469,6 +3480,10 @@ export type Database = {
       }
       validate_session_access: {
         Args: { target_user_id: string }
+        Returns: boolean
+      }
+      validate_session_security: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
     }
