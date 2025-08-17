@@ -786,6 +786,47 @@ export type Database = {
           },
         ]
       }
+      client_encryption_keys: {
+        Row: {
+          client_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_fingerprint: string
+          key_version: number
+          rotation_reason: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_fingerprint: string
+          key_version?: number
+          rotation_reason?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_fingerprint?: string
+          key_version?: number
+          rotation_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_encryption_keys_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_intelligence: {
         Row: {
           avg_ticket_price: number | null
@@ -3138,7 +3179,13 @@ export type Database = {
         }[]
       }
       get_client_data_secure: {
-        Args: { p_client_id: string; p_include_sensitive?: boolean }
+        Args:
+          | {
+              p_business_justification?: string
+              p_client_id: string
+              p_fields?: string[]
+            }
+          | { p_client_id: string; p_include_sensitive?: boolean }
         Returns: Json
       }
       get_client_decrypted_preview: {
