@@ -2880,8 +2880,8 @@ export type Database = {
         Returns: undefined
       }
       assign_request_to_agent: {
-        Args: { agent_id: string; request_id: string }
-        Returns: undefined
+        Args: { p_agent_id?: string; p_request_id: string }
+        Returns: boolean
       }
       audit_client_access: {
         Args: {
