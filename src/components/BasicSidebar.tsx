@@ -24,7 +24,7 @@ import {
 import { useSimpleAuth } from "@/hooks/useSimpleAuth"
 import { useUserRole } from "@/hooks/useUserRole"
 import { Button } from "@/components/ui/button"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 
 // Get role-specific menu items
 const getMenuItems = (role: string | null) => {
@@ -70,6 +70,11 @@ const getMenuItems = (role: string | null) => {
   ];
 
   const managerItems = [
+    {
+      title: "Client Assignment",
+      url: "/manager/assign-clients",
+      icon: Users,
+    },
     {
       title: "Team Management",
       url: "/manager/team",
@@ -120,10 +125,10 @@ export function BasicSidebar() {
               {getMenuItems(role).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

@@ -23,6 +23,8 @@ const BasicSettings = lazy(() => import("./pages/BasicSettings"));
 const Management = lazy(() => import("./pages/Management"));
 const UnifiedQuoteBuilder = lazy(() => import("./pages/UnifiedQuoteBuilder"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
+const ClientAssignment = lazy(() => import("./pages/ClientAssignment"));
+const TeamManagement = lazy(() => import("./pages/TeamManagement"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -55,10 +57,12 @@ function App() {
                      <Route path="/requests/new" element={<SimpleAuthGuard><Layout><BasicNewRequest /></Layout></SimpleAuthGuard>} />
                       <Route path="/management" element={<SimpleAuthGuard><Layout><Management /></Layout></SimpleAuthGuard>} />
                       <Route path="/quote-builder" element={<SimpleAuthGuard><Layout><UnifiedQuoteBuilder /></Layout></SimpleAuthGuard>} />
-                      <Route path="/admin/users" element={<SimpleAuthGuard><Layout><UserManagement /></Layout></SimpleAuthGuard>} />
-                      <Route path="/settings" element={<SimpleAuthGuard><Layout><BasicSettings /></Layout></SimpleAuthGuard>} />
-                     
-                    <Route path="*" element={<NotFound />} />
+                       <Route path="/admin/users" element={<SimpleAuthGuard><Layout><UserManagement /></Layout></SimpleAuthGuard>} />
+                       <Route path="/manager/assign-clients" element={<SimpleAuthGuard><Layout><ClientAssignment /></Layout></SimpleAuthGuard>} />
+                       <Route path="/manager/team" element={<SimpleAuthGuard><Layout><TeamManagement /></Layout></SimpleAuthGuard>} />
+                       <Route path="/settings" element={<SimpleAuthGuard><Layout><BasicSettings /></Layout></SimpleAuthGuard>} />
+                      
+                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
                 <Toaster />
