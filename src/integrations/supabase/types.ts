@@ -2904,6 +2904,10 @@ export type Database = {
             }
         Returns: Json
       }
+      anonymize_client_data: {
+        Args: { p_client_id: string; p_reason?: string }
+        Returns: boolean
+      }
       archive_old_communications: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -3100,6 +3104,15 @@ export type Database = {
           last_name: string
           phone: string
         }[]
+      }
+      emergency_client_access_with_approval: {
+        Args: {
+          p_approver_id: string
+          p_client_id: string
+          p_emergency_reason: string
+          p_incident_reference?: string
+        }
+        Returns: Json
       }
       generate_compliance_report: {
         Args: {
