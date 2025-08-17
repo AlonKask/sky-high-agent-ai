@@ -10,6 +10,7 @@ import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { EmailSyncManager } from "@/utils/emailSync";
 import ExpandableEmailCard from "@/components/ExpandableEmailCard";
 import { toast } from "sonner";
+import { handleError, handleSupabaseError } from "@/utils/globalErrorHandler";
 
 interface EmailExchange {
   id: string;
@@ -57,7 +58,7 @@ const BasicEmails = () => {
       const connected = await emailSyncManager.checkGmailConnection();
       setGmailConnected(connected);
     } catch (error) {
-      console.error('Error checking Gmail connection:', error);
+      handleError(error, { operation: 'check Gmail connection', component: 'BasicEmails' }, { showToast: false });
       setGmailConnected(false);
     }
   };
@@ -77,8 +78,7 @@ const BasicEmails = () => {
       if (error) throw error;
       setEmails((data || []) as EmailExchange[]);
     } catch (error) {
-      console.error('Error loading emails:', error);
-      toast.error('Failed to load emails');
+      handleSupabaseError(error, 'load emails');
     } finally {
       setLoading(false);
     }
@@ -96,8 +96,7 @@ const BasicEmails = () => {
         await loadEmails(); // Reload emails after sync
       }
     } catch (error) {
-      console.error('Sync error:', error);
-      toast.error('Email sync failed');
+      handleError(error, { operation: 'sync emails', component: 'BasicEmails' });
     } finally {
       setSyncing(false);
     }

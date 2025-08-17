@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 export interface EmailSyncOptions {
   includeAIProcessing?: boolean;
@@ -106,7 +107,7 @@ export class EmailSyncManager {
       return result;
 
     } catch (error) {
-      console.error('Email sync error:', error);
+      logger.error('Email sync error', { error: error.message });
       
       if (options.showProgress) {
         toast.dismiss('email-sync');
@@ -130,7 +131,7 @@ export class EmailSyncManager {
       try {
         await this.syncEmails({ includeAIProcessing: true, showProgress: false });
       } catch (error) {
-        console.error('Periodic sync error:', error);
+        logger.error('Periodic sync error', { error: error.message });
       }
     }, intervalMinutes * 60 * 1000);
   }
@@ -157,7 +158,7 @@ export class EmailSyncManager {
 
       return !!gmailCreds?.gmail_user_email;
     } catch (error) {
-      console.error('Error checking Gmail connection:', error);
+      logger.error('Error checking Gmail connection', { error: error.message });
       return false;
     }
   }

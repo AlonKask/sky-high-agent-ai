@@ -42,8 +42,8 @@ export default function SimpleAuth() {
         setError(result.error || 'Sign in failed');
       }
     } catch (error: any) {
-      console.error('❌ Sign in error:', error);
-      setError('An unexpected error occurred. Please try again.');
+      const errorMessage = error?.message || 'An unexpected error occurred. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -59,8 +59,8 @@ export default function SimpleAuth() {
         setError(result.error || 'Google sign in failed');
       }
     } catch (error: any) {
-      console.error('❌ Google sign in error:', error);
-      setError('Google sign in failed. Please try again.');
+      const errorMessage = error?.message || 'Google sign in failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

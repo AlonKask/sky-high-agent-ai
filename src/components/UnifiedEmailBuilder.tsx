@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError, handleSupabaseError } from '@/utils/globalErrorHandler';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,7 +95,7 @@ export default function UnifiedEmailBuilder({
         if (!prefsRes.error) setUserPrefs(prefsRes.data as any);
         if (!reqRes.error) setRequestInfo(reqRes.data as any);
       } catch (e) {
-        console.error('Failed to load email context', e);
+        handleError(e, { operation: 'load email context', component: 'UnifiedEmailBuilder' }, { showToast: false });
       }
     })();
   }, [requestId]);
@@ -153,7 +154,7 @@ export default function UnifiedEmailBuilder({
           }
         } catch (error) {
           const errorMsg = `Failed to process quote ${quote.id}: ${error.message}`;
-          console.error("❌", errorMsg);
+          handleError(new Error(errorMsg), { operation: 'AI generation', component: 'UnifiedEmailBuilder' });
           setErrors(prev => [...prev, errorMsg]);
           setProcessingProgress(((index + 1) / quotes.length) * 100);
           return quote;
@@ -171,7 +172,7 @@ export default function UnifiedEmailBuilder({
       console.log("✅ Quote processing completed");
       
     } catch (error) {
-      console.error("❌ Processing failed:", error);
+      handleError(error, { operation: 'process AI generation', component: 'UnifiedEmailBuilder' });
       setErrors(prev => [...prev, "Failed to process quotes for enhanced display"]);
       setProcessedQuotes(quotes);
     } finally {
@@ -696,7 +697,7 @@ export default function UnifiedEmailBuilder({
         .single();
 
       if (reviewError) {
-        console.error("❌ Failed to create option review:", reviewError);
+        handleSupabaseError(reviewError, 'create option review');
         throw new Error("Failed to create option review");
       }
 
@@ -744,7 +745,7 @@ export default function UnifiedEmailBuilder({
       });
 
       if (emailError) {
-        console.error("❌ Email sending failed:", emailError);
+        handleError(emailError, { operation: 'send email', component: 'UnifiedEmailBuilder' });
         throw new Error("Failed to send email");
       }
 
@@ -758,7 +759,7 @@ export default function UnifiedEmailBuilder({
       onEmailSent();
       onClose();
     } catch (error) {
-      console.error("❌ Send email error:", error);
+      handleError(error, { operation: 'send email', component: 'UnifiedEmailBuilder' });
       toast({
         title: "Failed to send email",
         description: error.message || "There was an error sending the email. Please try again.",
