@@ -1031,7 +1031,6 @@ export type Database = {
           encrypted_passport_number: string | null
           encrypted_payment_info: Json | null
           encrypted_ssn: string | null
-          encryption_key_id: string | null
           first_name: string
           id: string
           last_name: string
@@ -1054,7 +1053,6 @@ export type Database = {
           encrypted_passport_number?: string | null
           encrypted_payment_info?: Json | null
           encrypted_ssn?: string | null
-          encryption_key_id?: string | null
           first_name: string
           id?: string
           last_name: string
@@ -1077,7 +1075,6 @@ export type Database = {
           encrypted_passport_number?: string | null
           encrypted_payment_info?: Json | null
           encrypted_ssn?: string | null
-          encryption_key_id?: string | null
           first_name?: string
           id?: string
           last_name?: string
@@ -1090,15 +1087,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "clients_encryption_key_id_fkey"
-            columns: ["encryption_key_id"]
-            isOneToOne: false
-            referencedRelation: "encryption_keys"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       communication_archive: {
         Row: {
@@ -3233,6 +3222,10 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_encryption_status: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_gmail_integration_status: {
         Args: { p_user_id?: string }
