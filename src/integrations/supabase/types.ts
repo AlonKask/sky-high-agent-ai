@@ -1517,6 +1517,48 @@ export type Database = {
         }
         Relationships: []
       }
+      emergency_access_log: {
+        Row: {
+          access_duration: unknown | null
+          access_granted: boolean | null
+          accessing_user_id: string
+          authorized_by: string | null
+          created_at: string | null
+          emergency_type: string
+          expires_at: string | null
+          id: string
+          justification: string
+          revoked_at: string | null
+          target_client_id: string
+        }
+        Insert: {
+          access_duration?: unknown | null
+          access_granted?: boolean | null
+          accessing_user_id: string
+          authorized_by?: string | null
+          created_at?: string | null
+          emergency_type: string
+          expires_at?: string | null
+          id?: string
+          justification: string
+          revoked_at?: string | null
+          target_client_id: string
+        }
+        Update: {
+          access_duration?: unknown | null
+          access_granted?: boolean | null
+          accessing_user_id?: string
+          authorized_by?: string | null
+          created_at?: string | null
+          emergency_type?: string
+          expires_at?: string | null
+          id?: string
+          justification?: string
+          revoked_at?: string | null
+          target_client_id?: string
+        }
+        Relationships: []
+      }
       encryption_audit_log: {
         Row: {
           action: string
@@ -2569,6 +2611,57 @@ export type Database = {
         }
         Relationships: []
       }
+      security_monitoring: {
+        Row: {
+          client_id: string | null
+          details: Json | null
+          event_type: string
+          id: string
+          investigated_by: string | null
+          investigation_notes: string | null
+          ip_address: unknown | null
+          requires_investigation: boolean | null
+          resolved: boolean | null
+          session_fingerprint: string | null
+          severity: string
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          details?: Json | null
+          event_type: string
+          id?: string
+          investigated_by?: string | null
+          investigation_notes?: string | null
+          ip_address?: unknown | null
+          requires_investigation?: boolean | null
+          resolved?: boolean | null
+          session_fingerprint?: string | null
+          severity?: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          details?: Json | null
+          event_type?: string
+          id?: string
+          investigated_by?: string | null
+          investigation_notes?: string | null
+          ip_address?: unknown | null
+          requires_investigation?: boolean | null
+          resolved?: boolean | null
+          session_fingerprint?: string | null
+          severity?: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       sensitive_data_access: {
         Row: {
           access_reason: string | null
@@ -3075,6 +3168,10 @@ export type Database = {
         Args: { encrypted_token: string }
         Returns: string
       }
+      detect_security_anomalies: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       detect_session_anomaly: {
         Args:
           | {
@@ -3327,6 +3424,15 @@ export type Database = {
           team_id: string
         }[]
       }
+      grant_emergency_access: {
+        Args: {
+          p_client_id: string
+          p_duration?: unknown
+          p_emergency_type?: string
+          p_justification: string
+        }
+        Returns: string
+      }
       handle_email_sync_status: {
         Args: {
           p_folder_name: string
@@ -3399,6 +3505,16 @@ export type Database = {
               p_user_id?: string
             }
           | { p_details?: Json; p_event_type: string; p_severity?: string }
+        Returns: undefined
+      }
+      log_security_monitoring: {
+        Args: {
+          p_client_id: string
+          p_details?: Json
+          p_event_type: string
+          p_severity?: string
+          p_user_id: string
+        }
         Returns: undefined
       }
       log_sensitive_data_access: {
@@ -3567,6 +3683,14 @@ export type Database = {
       }
       validate_session_security: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      zero_trust_client_access: {
+        Args: {
+          p_client_id: string
+          p_justification?: string
+          p_operation: string
+        }
         Returns: boolean
       }
     }
