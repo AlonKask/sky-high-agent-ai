@@ -12,7 +12,7 @@ import { Layout } from "@/components/Layout";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Suspense, lazy } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
-import { DebugAuthStatus } from "@/components/DebugAuthStatus";
+
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -62,7 +62,6 @@ function App() {
             <RoleViewProvider>
               <SecurityProvider>
                 <ErrorBoundary>
-                <DebugAuthStatus />
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     {/* Public routes */}

@@ -35,6 +35,7 @@ import {
   Code,
   Settings as SettingsIcon
 } from 'lucide-react';
+import { AuthDebugCard } from '@/components/AuthDebugCard';
 
 interface UserPreferences {
   email_notifications: boolean;
@@ -633,6 +634,11 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Auth Debug Section */}
+        {role === 'admin' && (
+          <AuthDebugCard />
+        )}
       </div>
     </div>
   );

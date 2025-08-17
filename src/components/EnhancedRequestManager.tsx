@@ -146,12 +146,12 @@ const EnhancedRequestManager = () => {
 
       console.log('Fetched requests via RPC:', data?.length || 0, 'requests');
       
-      // Transform the data to match the expected format
+      // Transform the data to match the expected format with proper field mapping
       const transformedRequests = data?.map(request => ({
         ...request,
-        // Backward compatibility mappings
-        origin: request.origin_airport,
-        destination: request.destination_airport,
+        // Backward compatibility mappings for UI
+        origin: request.origin_airport || '',
+        destination: request.destination_airport || '',
         passengers: (request.adults_count || 0) + (request.children_count || 0) + (request.infants_count || 0),
         clients: {
           first_name: request.client_first_name || 'Unknown',

@@ -109,6 +109,17 @@ const RequestDetail = () => {
     try {
       console.log('🔍 RequestDetail: Starting fetch for request ID:', id);
       
+      // Validate UUID format first
+      if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        console.error('❌ RequestDetail: Invalid request ID format:', id);
+        toast({
+          title: "Invalid Request ID",
+          description: "The request ID format is invalid",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       // Get current user for debugging
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       console.log('🔍 RequestDetail: Current user:', user?.id, user?.email);
