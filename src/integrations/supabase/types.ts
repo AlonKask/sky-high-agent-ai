@@ -3447,6 +3447,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      validate_business_hours_access: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       validate_field_encryption: {
         Args: { encrypted_data: string; field_name: string }
         Returns: boolean
