@@ -14,8 +14,6 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
-import TurnstileWrapper from "@/components/TurnstileWrapper";
-import { configSecurity } from "@/utils/configSecurity";
 
 interface RequestFormData {
   clientName: string;
@@ -59,21 +57,6 @@ const PublicRequestForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [config, setConfig] = useState<any>(null);
-
-  useEffect(() => {
-    const initializeConfig = async () => {
-      try {
-        const secureConfig = await configSecurity.initializeSecureConfig();
-        setConfig(secureConfig);
-      } catch (error) {
-        console.error('Failed to load configuration:', error);
-      }
-    };
-
-    initializeConfig();
-  }, []);
 
   const handleInputChange = (field: keyof RequestFormData, value: any) => {
     setFormData(prev => ({
@@ -112,22 +95,10 @@ const PublicRequestForm = () => {
       return;
     }
 
-    if (!captchaToken) {
-      toastHelpers.error('Please complete the CAPTCHA verification.');
-      return;
-    }
 
     try {
       setIsSubmitting(true);
 
-      // Verify CAPTCHA first
-      const { data: captchaResult } = await supabase.functions.invoke('verify-captcha', {
-        body: { token: captchaToken, action: 'public_request' }
-      });
-
-      if (!captchaResult?.success) {
-        throw new Error('CAPTCHA verification failed');
-      }
 
       // Use the secure public request endpoint
       const { data, error } = await supabase.functions.invoke('secure-public-request', {
@@ -143,8 +114,7 @@ const PublicRequestForm = () => {
           passengers: formData.adultsCount + formData.childrenCount + formData.infantsCount,
           class_preference: formData.classPreference,
           special_requirements: formData.specialRequirements || null,
-          request_details: `Budget: ${formData.budgetRange || 'Not specified'}, Urgency: ${formData.urgency}`,
-          captchaToken // Include for additional backend verification if needed
+          request_details: `Budget: ${formData.budgetRange || 'Not specified'}, Urgency: ${formData.urgency}`
         }
       });
 
@@ -161,7 +131,6 @@ const PublicRequestForm = () => {
 
     } catch (error: any) {
       console.error('Error submitting request:', error);
-      setCaptchaToken(null); // Reset CAPTCHA on error
       
       const errorMessage = error.message || 'Failed to submit request. Please try again.';
       
@@ -176,13 +145,6 @@ const PublicRequestForm = () => {
     }
   };
 
-  const handleCaptchaVerify = (token: string) => {
-    setCaptchaToken(token);
-  };
-
-  const handleCaptchaError = () => {
-    setCaptchaToken(null);
-  };
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -491,16 +453,6 @@ const PublicRequestForm = () => {
                     rows={4}
                   />
                 </div>
-
-                {config?.turnstileSiteKey && (
-                  <TurnstileWrapper
-                    siteKey={config.turnstileSiteKey}
-                    onVerify={handleCaptchaVerify}
-                    onError={handleCaptchaError}
-                    onExpire={() => setCaptchaToken(null)}
-                    disabled={isSubmitting}
-                  />
-                )}
               </div>
             )}
 
@@ -521,7 +473,7 @@ const PublicRequestForm = () => {
               ) : (
                 <Button 
                   onClick={handleSubmitRequest}
-                  disabled={isSubmitting || !captchaToken}
+                  disabled={isSubmitting}
                   className="bg-primary"
                 >
                   {isSubmitting ? (

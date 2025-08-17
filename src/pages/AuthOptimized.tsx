@@ -9,8 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
-import { TurnstileWrapper } from '@/components/TurnstileWrapper';
-import { configSecurity } from '@/utils/configSecurity';
 
 export default function AuthOptimized() {
   const { user, loading } = useAuth();
@@ -18,9 +16,6 @@ export default function AuthOptimized() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string>('');
-  const [captchaEnabled, setCaptchaEnabled] = useState(false);
 
   // Form state
   const [signInData, setSignInData] = useState({ email: '', password: '' });
@@ -33,27 +28,6 @@ export default function AuthOptimized() {
     }
   }, [user, loading, navigate, location.state]);
 
-  useEffect(() => {
-    const initializeConfig = async () => {
-      try {
-        const config = await configSecurity.initializeSecureConfig();
-        setTurnstileSiteKey(config.turnstileSiteKey);
-        setCaptchaEnabled(config.environment === 'production');
-        console.log('🔧 Auth config initialized:', {
-          environment: config.environment,
-          captchaEnabled: config.environment === 'production',
-          hasSiteKey: !!config.turnstileSiteKey
-        });
-      } catch (error) {
-        console.warn('⚠️ Configuration initialization failed, using development mode:', error);
-        // Development fallback - disable CAPTCHA
-        setTurnstileSiteKey('1x00000000000000000000AA');
-        setCaptchaEnabled(false);
-      }
-    };
-    
-    initializeConfig();
-  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,20 +35,13 @@ export default function AuthOptimized() {
     setError('');
     
     try {
-      // Only require CAPTCHA if enabled and token is available
-      const shouldUseCaptcha = captchaEnabled && captchaToken;
-      
       console.log('🔐 Sign in attempt:', {
-        email: signInData.email,
-        captchaEnabled,
-        hasCaptchaToken: !!captchaToken,
-        willUseCaptcha: shouldUseCaptcha
+        email: signInData.email
       });
       
       const result = await SimpleAuth.signInWithEmail(
         signInData.email, 
-        signInData.password, 
-        shouldUseCaptcha ? captchaToken : undefined
+        signInData.password
       );
       
       if (result.success) {
@@ -84,23 +51,11 @@ export default function AuthOptimized() {
       } else {
         console.error('❌ Sign in failed:', result.error);
         
-        // Enhanced error handling
-        let errorMessage = result.error || 'Sign in failed';
-        
-        // Don't show CAPTCHA errors if CAPTCHA is disabled
-        if (errorMessage.includes('captcha') || errorMessage.includes('Security verification')) {
-          if (!captchaEnabled) {
-            errorMessage = 'Invalid email or password. Please check your credentials.';
-          }
-        }
-        
-        setError(errorMessage);
-        setCaptchaToken(null); // Reset CAPTCHA
+        setError(result.error || 'Sign in failed');
       }
     } catch (error: any) {
       console.error('❌ Sign in error:', error);
       setError('An unexpected error occurred. Please try again.');
-      setCaptchaToken(null);
     } finally {
       setIsLoading(false);
     }
@@ -187,24 +142,6 @@ export default function AuthOptimized() {
               </div>
             </div>
 
-            {captchaEnabled && turnstileSiteKey && (
-              <div className="space-y-2">
-                <Label>Security Verification</Label>
-                <TurnstileWrapper
-                  siteKey={turnstileSiteKey}
-                  onVerify={setCaptchaToken}
-                  onError={(error) => {
-                    console.error('CAPTCHA error:', error);
-                    setError('Security verification failed. Please try again.');
-                    setCaptchaToken(null);
-                  }}
-                  onExpire={() => {
-                    setCaptchaToken(null);
-                    setError('Security verification expired. Please verify again.');
-                  }}
-                />
-              </div>
-            )}
             
             <Button
               type="submit" 
