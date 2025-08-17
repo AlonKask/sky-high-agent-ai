@@ -41,6 +41,7 @@ const TeamDetail = lazy(() => import("./pages/TeamDetail"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const IATAManagement = lazy(() => import("./pages/IATAManagement"));
 const Security = lazy(() => import("./pages/Security"));
+const UnifiedSecurityDashboard = lazy(() => import("./components/UnifiedSecurityDashboard").then(module => ({ default: module.UnifiedSecurityDashboard })));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -92,6 +93,7 @@ function App() {
                      <Route path="/users/:id" element={<SimpleAuthGuard><Layout><UserProfile /></Layout></SimpleAuthGuard>} />
                      <Route path="/iata-management" element={<SimpleAuthGuard><Layout><IATAManagement /></Layout></SimpleAuthGuard>} />
                      <Route path="/security" element={<SimpleAuthGuard><Layout><Security /></Layout></SimpleAuthGuard>} />
+                     <Route path="/security-dashboard" element={<SimpleAuthGuard><Layout><UnifiedSecurityDashboard /></Layout></SimpleAuthGuard>} />
                     
                     <Route path="*" element={<NotFound />} />
                   </Routes>

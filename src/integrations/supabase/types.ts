@@ -3619,6 +3619,23 @@ export type Database = {
           updated_at: string
         }[]
       }
+      secure_communication_access: {
+        Args: { p_client_id?: string; p_operation?: string; p_user_id: string }
+        Returns: boolean
+      }
+      secure_financial_data_access: {
+        Args: {
+          p_justification?: string
+          p_operation: string
+          p_record_id: string
+          p_table_name: string
+        }
+        Returns: boolean
+      }
+      secure_token_access: {
+        Args: { p_target_user_id: string; p_token_type?: string }
+        Returns: boolean
+      }
       update_agent_performance_metrics: {
         Args: Record<PropertyKey, never>
         Returns: undefined
