@@ -33,8 +33,7 @@ export default function SimpleAuth() {
     
     try {
       await secureSignIn(signInData.email, signInData.password);
-      const returnUrl = location.state?.returnUrl || '/';
-      navigate(returnUrl, { replace: true });
+      // Navigation will be handled by useSimpleAuth hook
     } catch (error: any) {
       const errorMessage = error?.message || 'An unexpected error occurred. Please try again.';
       setError(errorMessage);
