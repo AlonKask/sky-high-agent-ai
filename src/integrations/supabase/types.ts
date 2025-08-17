@@ -2881,6 +2881,13 @@ export type Database = {
           | {
               p_endpoint: string
               p_identifier: string
+              p_ip_address?: string
+              p_max_requests?: number
+              p_window_minutes?: number
+            }
+          | {
+              p_endpoint: string
+              p_identifier: string
               p_ip_address?: unknown
               p_max_requests?: number
               p_window_minutes?: number
@@ -2891,7 +2898,7 @@ export type Database = {
               p_user_id: string
               p_window_minutes?: number
             }
-        Returns: Json
+        Returns: boolean
       }
       anonymize_client_data: {
         Args: { p_client_id: string; p_reason?: string }
@@ -3069,12 +3076,18 @@ export type Database = {
         Returns: string
       }
       detect_session_anomaly: {
-        Args: {
-          p_current_fingerprint: string
-          p_ip_address?: unknown
-          p_user_agent?: string
-          p_user_id: string
-        }
+        Args:
+          | {
+              p_current_fingerprint: string
+              p_ip_address?: unknown
+              p_user_agent?: string
+              p_user_id: string
+            }
+          | {
+              p_current_fingerprint?: string
+              p_ip_address?: string
+              p_user_agent?: string
+            }
         Returns: Json
       }
       emergency_client_access: {
@@ -3379,13 +3392,13 @@ export type Database = {
       }
       log_security_event: {
         Args:
-          | { p_details?: Json; p_event_type: string; p_severity: string }
           | {
               p_details?: Json
               p_event_type: string
               p_severity: string
               p_user_id?: string
             }
+          | { p_details?: Json; p_event_type: string; p_severity?: string }
         Returns: undefined
       }
       log_sensitive_data_access: {

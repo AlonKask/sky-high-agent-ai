@@ -4,19 +4,18 @@ import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuthOptimized";
-import { SecurityProvider } from "@/components/SecurityProvider";
+import { SimpleAuthProvider } from "@/hooks/useSimpleAuth";
+import { SimpleAuthGuard } from "@/components/SimpleAuthGuard";
 import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
-import { AuthGuard } from "@/components/AuthGuard";
 import { Suspense, lazy } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
-const AuthOptimized = lazy(() => import("./pages/AuthOptimized"));
+const SimpleAuth = lazy(() => import("./pages/SimpleAuth"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Emails = lazy(() => import("./pages/Emails"));
 const Clients = lazy(() => import("./pages/Clients"));
@@ -58,14 +57,13 @@ function App() {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <AuthProvider>
+          <SimpleAuthProvider>
             <RoleViewProvider>
-              <SecurityProvider>
-                <ErrorBoundary>
+              <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     {/* Public routes */}
-                    <Route path="/auth" element={<AuthOptimized />} />
+                    <Route path="/auth" element={<SimpleAuth />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
                     <Route path="/options/:token" element={<OptionsRedirect />} />
                     <Route path="/view-option/:token" element={<ViewOption />} />
@@ -73,37 +71,36 @@ function App() {
                     <Route path="/public-request" element={<PublicRequest />} />
                     
                      {/* Protected routes */}
-                     <Route path="/" element={<AuthGuard><Layout><Index /></Layout></AuthGuard>} />
-                     <Route path="/emails" element={<AuthGuard><Layout><Emails /></Layout></AuthGuard>} />
-                     <Route path="/clients" element={<AuthGuard><Layout><Clients /></Layout></AuthGuard>} />
-                     <Route path="/clients/:id" element={<AuthGuard><Layout><ClientProfile /></Layout></AuthGuard>} />
-                     <Route path="/bookings" element={<AuthGuard><Layout><Bookings /></Layout></AuthGuard>} />
-                     <Route path="/bookings/:id" element={<AuthGuard><Layout><BookingDetail /></Layout></AuthGuard>} />
-                     <Route path="/requests" element={<AuthGuard><Layout><Requests /></Layout></AuthGuard>} />
-                     <Route path="/requests/new" element={<AuthGuard><Layout><NewRequest /></Layout></AuthGuard>} />
-                     <Route path="/request/:id" element={<AuthGuard><Layout><RequestDetail /></Layout></AuthGuard>} />
-                     <Route path="/calendar" element={<AuthGuard><Layout><Calendar /></Layout></AuthGuard>} />
-                     <Route path="/analytics" element={<AuthGuard><Layout><Analytics /></Layout></AuthGuard>} />
-                     <Route path="/messages" element={<AuthGuard><Layout><Messages /></Layout></AuthGuard>} />
-                     <Route path="/agent-statistics" element={<AuthGuard><Layout><AgentStatistics /></Layout></AuthGuard>} />
-                     <Route path="/reports" element={<AuthGuard><Layout><Reports /></Layout></AuthGuard>} />
-                     <Route path="/settings" element={<AuthGuard><Layout><Settings /></Layout></AuthGuard>} />
-               <Route path="/users" element={<AuthGuard><Layout><Users /></Layout></AuthGuard>} />
-               <Route path="/teams" element={<AuthGuard><Layout><Teams /></Layout></AuthGuard>} />
-               <Route path="/teams/:id" element={<AuthGuard><Layout><TeamDetail /></Layout></AuthGuard>} />
-               <Route path="/users/:id" element={<AuthGuard><Layout><UserProfile /></Layout></AuthGuard>} />
-               <Route path="/iata-management" element={<AuthGuard><Layout><IATAManagement /></Layout></AuthGuard>} />
-               <Route path="/security" element={<AuthGuard><Layout><Security /></Layout></AuthGuard>} />
+                     <Route path="/" element={<SimpleAuthGuard><Layout><Index /></Layout></SimpleAuthGuard>} />
+                     <Route path="/emails" element={<SimpleAuthGuard><Layout><Emails /></Layout></SimpleAuthGuard>} />
+                     <Route path="/clients" element={<SimpleAuthGuard><Layout><Clients /></Layout></SimpleAuthGuard>} />
+                     <Route path="/clients/:id" element={<SimpleAuthGuard><Layout><ClientProfile /></Layout></SimpleAuthGuard>} />
+                     <Route path="/bookings" element={<SimpleAuthGuard><Layout><Bookings /></Layout></SimpleAuthGuard>} />
+                     <Route path="/bookings/:id" element={<SimpleAuthGuard><Layout><BookingDetail /></Layout></SimpleAuthGuard>} />
+                     <Route path="/requests" element={<SimpleAuthGuard><Layout><Requests /></Layout></SimpleAuthGuard>} />
+                     <Route path="/requests/new" element={<SimpleAuthGuard><Layout><NewRequest /></Layout></SimpleAuthGuard>} />
+                     <Route path="/request/:id" element={<SimpleAuthGuard><Layout><RequestDetail /></Layout></SimpleAuthGuard>} />
+                     <Route path="/calendar" element={<SimpleAuthGuard><Layout><Calendar /></Layout></SimpleAuthGuard>} />
+                     <Route path="/analytics" element={<SimpleAuthGuard><Layout><Analytics /></Layout></SimpleAuthGuard>} />
+                     <Route path="/messages" element={<SimpleAuthGuard><Layout><Messages /></Layout></SimpleAuthGuard>} />
+                     <Route path="/agent-statistics" element={<SimpleAuthGuard><Layout><AgentStatistics /></Layout></SimpleAuthGuard>} />
+                     <Route path="/reports" element={<SimpleAuthGuard><Layout><Reports /></Layout></SimpleAuthGuard>} />
+                     <Route path="/settings" element={<SimpleAuthGuard><Layout><Settings /></Layout></SimpleAuthGuard>} />
+                     <Route path="/users" element={<SimpleAuthGuard><Layout><Users /></Layout></SimpleAuthGuard>} />
+                     <Route path="/teams" element={<SimpleAuthGuard><Layout><Teams /></Layout></SimpleAuthGuard>} />
+                     <Route path="/teams/:id" element={<SimpleAuthGuard><Layout><TeamDetail /></Layout></SimpleAuthGuard>} />
+                     <Route path="/users/:id" element={<SimpleAuthGuard><Layout><UserProfile /></Layout></SimpleAuthGuard>} />
+                     <Route path="/iata-management" element={<SimpleAuthGuard><Layout><IATAManagement /></Layout></SimpleAuthGuard>} />
+                     <Route path="/security" element={<SimpleAuthGuard><Layout><Security /></Layout></SimpleAuthGuard>} />
                     
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
                 <Toaster />
                 <RadixToaster />
-                </ErrorBoundary>
-              </SecurityProvider>
+              </ErrorBoundary>
             </RoleViewProvider>
-          </AuthProvider>
+          </SimpleAuthProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </BrowserRouter>
