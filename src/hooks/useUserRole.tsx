@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuthOptimized';
+import { useAuth } from './useAuth';
 
 export type UserRole = 'admin' | 'manager' | 'supervisor' | 'gds_expert' | 'agent' | 'user';
 

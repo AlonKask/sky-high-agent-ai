@@ -1,28 +1,24 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toastHelpers } from "@/utils/toastHelpers";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown, Inbox } from "lucide-react";
+import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { EmptyStateCard } from "@/components/EmptyStateCard";
-import { AuthCleanup } from "@/utils/authCleanup";
 
 interface Request {
   id: string;
   client_id: string;
-  origin_airport: string;
-  destination_airport: string;
+  origin: string;
+  destination: string;
   departure_date: string;
   return_date?: string;
-  adults_count: number;
-  children_count: number;
-  infants_count: number;
+  passengers: number;
   priority: string;
   status: string;
   assignment_status: string;
@@ -34,16 +30,11 @@ interface Request {
     email: string;
     client_type: string;
   };
-  // Computed properties for backward compatibility
-  origin: string;
-  destination: string;
-  passengers: number;
 }
 
 const EnhancedRequestManager = () => {
-  const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
-  const { role, loading: roleLoading } = useUserRole();
+  const { user } = useAuth();
+  const { role } = useUserRole();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [requests, setRequests] = useState<Request[]>([]);
@@ -53,28 +44,11 @@ const EnhancedRequestManager = () => {
   const [showTakeRequestDropdown, setShowTakeRequestDropdown] = useState(false);
   const filterUserId = searchParams.get('user');
 
-  const isLoading = authLoading || roleLoading;
-
-  // Debug logging
   useEffect(() => {
-    console.log('EnhancedRequestManager state:', {
-      user: user?.id,
-      role,
-      authLoading,
-      roleLoading,
-      isLoading
-    });
-  }, [user, role, authLoading, roleLoading, isLoading]);
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      console.log('Fetching requests for user:', user.id, 'with role:', role);
+    if (user) {
       fetchRequests();
-    } else if (!isLoading && !user) {
-      console.log('No user authenticated, skipping fetch');
-      setLoading(false);
     }
-  }, [user, role, isLoading]);
+  }, [user]);
 
   const fetchRequests = async () => {
     if (!user) {
@@ -85,48 +59,46 @@ const EnhancedRequestManager = () => {
     
     try {
       setLoading(true);
-      console.log('Fetching requests using secure function for user:', user.id, 'role:', role);
+      console.log('Fetching requests for user:', user.id, 'role:', role);
 
-      // Use the secure RPC function that bypasses RLS issues
-      const { data, error } = await supabase.rpc('get_user_requests', {
-        target_user_id: user.id
-      });
+      let query = supabase
+        .from('requests')
+        .select(`
+          *,
+          clients(first_name, last_name, email, client_type)
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply user filtering based on role
+      if (filterUserId) {
+        query = query.eq('user_id', filterUserId);
+        console.log('Filtering by user_id:', filterUserId);
+      } else if (role === 'admin' || role === 'manager' || role === 'supervisor') {
+        // Admins, managers, and supervisors can see all requests
+        console.log('Admin/Manager/Supervisor - showing all requests');
+      } else if (role === 'user' || role === 'agent' || role === 'gds_expert') {
+        // For regular agents, only show available or assigned to them
+        query = query.or(`assignment_status.eq.available,assigned_to.eq.${user.id}`);
+        console.log('Agent - showing available or assigned requests');
+      } else {
+        // Default: show user's own requests and available ones
+        query = query.or(`user_id.eq.${user.id},assignment_status.eq.available`);
+        console.log('Default - showing own and available requests');
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching requests:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load requests"
-        });
+        toastHelpers.error('Failed to load requests', error);
         return;
       }
 
-      console.log('Fetched requests via RPC:', data?.length || 0, 'requests');
-      
-      // Phase 3: Transform the data to match the expected format with session recovery
-      const transformedRequests = data?.map(request => ({
-        ...request,
-        // Backward compatibility mappings
-        origin: request.origin_airport,
-        destination: request.destination_airport,
-        passengers: (request.adults_count || 0) + (request.children_count || 0) + (request.infants_count || 0),
-        clients: {
-          first_name: request.client_first_name,
-          last_name: request.client_last_name,
-          email: request.client_email,
-          client_type: 'new' // Default since client_type not in RPC response
-        }
-      })) || [];
-      
-      setRequests(transformedRequests);
+      console.log('Fetched requests:', data?.length || 0, 'requests');
+      setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load requests"
-      });
+      toastHelpers.error('Failed to load requests', error);
     } finally {
       setLoading(false);
     }
@@ -134,38 +106,48 @@ const EnhancedRequestManager = () => {
 
   const handleTakeRequest = async (requestId: string) => {
     if (!user) return;
-    
-    try {
-      // Use the assign_request_to_agent function for proper assignment
-      const { error } = await supabase.rpc('assign_request_to_agent', {
-        request_id: requestId,
-        agent_id: user.id
-      });
 
-      if (error) {
-        console.error('Error taking request:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: error.message || "Failed to take request"
-        });
+    try {
+      setTakingRequest(requestId);
+
+      // Update the request assignment
+      const { error: updateError } = await supabase
+        .from('requests')
+        .update({
+          assigned_to: user.id,
+          assignment_status: 'assigned',
+          status: 'in_progress'
+        })
+        .eq('id', requestId);
+
+      if (updateError) {
+        console.error('Error taking request:', updateError);
+        toastHelpers.error('Failed to take request', updateError);
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Request assigned successfully"
-      });
-      
+      // Create assignment record
+      const { error: assignmentError } = await supabase
+        .from('request_assignments')
+        .insert({
+          request_id: requestId,
+          assigned_to: user.id,
+          assigned_by: user.id,
+          status: 'active'
+        });
+
+      if (assignmentError) {
+        console.error('Error creating assignment:', assignmentError);
+        // Don't show error for assignment record as the main update succeeded
+      }
+
+      toastHelpers.success('Request assigned to you successfully');
       await fetchRequests(); // Refresh the list
-      setShowTakeRequestDropdown(false);
     } catch (error) {
       console.error('Error taking request:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to take request"
-      });
+      toastHelpers.error('Failed to take request', error);
+    } finally {
+      setTakingRequest(null);
     }
   };
 
@@ -260,7 +242,7 @@ const EnhancedRequestManager = () => {
     </Card>
   );
 
-  if (isLoading || loading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -268,27 +250,6 @@ const EnhancedRequestManager = () => {
         </div>
         <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-3 text-muted-foreground">Loading requests...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Request Management</h1>
-        </div>
-        <div className="text-center py-8">
-          <h2 className="text-xl font-semibold text-muted-foreground">Authentication Required</h2>
-          <p className="text-muted-foreground mt-2">Please sign in to access the request management system.</p>
-          <Button 
-            onClick={() => window.location.href = '/auth'}
-            className="mt-4"
-          >
-            Go to Sign In
-          </Button>
         </div>
       </div>
     );
@@ -308,20 +269,11 @@ const EnhancedRequestManager = () => {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Create Request Button */}
-          <Button 
-            onClick={() => navigate('/requests/new')}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Create Request
-          </Button>
-
           {/* Take Request Button */}
           {availableRequests.length > 0 && (
             <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Take Request ({availableRequests.length})
                   <ChevronDown className="w-4 h-4 ml-2" />
@@ -388,18 +340,8 @@ const EnhancedRequestManager = () => {
         </div>
       )}
 
-      {/* Show empty state if no requests at all */}
-      {requests.length === 0 && !loading && (
-        <EmptyStateCard
-          title="No Travel Requests Found"
-          description={`No travel requests found for your account. ${role === 'agent' ? 'Available requests will appear here when they\'re submitted.' : 'Create your first request to get started.'}`}
-          icon={<Inbox className="h-12 w-12 text-muted-foreground" />}
-        />
-      )}
-
       {/* Available Requests - Two Column Layout */}
-      {requests.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* New Clients Column */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -413,11 +355,10 @@ const EnhancedRequestManager = () => {
           </div>
           
           {newClientRequests.length === 0 ? (
-            <EmptyStateCard
-              title="No New Client Requests"
-              description="No requests from new clients at the moment. New client requests will appear here when they're submitted."
-              icon={<UserPlus className="h-8 w-8 text-muted-foreground" />}
-            />
+            <Card className="p-8 text-center">
+              <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No new client requests</p>
+            </Card>
           ) : (
             <div className="space-y-4">
               {newClientRequests.map((request) => (
@@ -440,11 +381,10 @@ const EnhancedRequestManager = () => {
           </div>
           
           {returnClientRequests.length === 0 ? (
-            <EmptyStateCard
-              title="No Return Client Requests"
-              description="No requests from existing clients at the moment. Return client requests will appear here when they're submitted."
-              icon={<User className="h-8 w-8 text-muted-foreground" />}
-            />
+            <Card className="p-8 text-center">
+              <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No return client requests</p>
+            </Card>
           ) : (
             <div className="space-y-4">
               {returnClientRequests.map((request) => (
@@ -453,8 +393,7 @@ const EnhancedRequestManager = () => {
             </div>
           )}
         </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

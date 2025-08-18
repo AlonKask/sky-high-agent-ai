@@ -17,7 +17,7 @@ import {
   Minus
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useAuth } from "@/hooks/useAuth";
 import { toastHelpers } from "@/utils/toastHelpers";
 
 interface LeadScore {
