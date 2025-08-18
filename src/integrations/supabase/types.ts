@@ -3777,6 +3777,10 @@ export type Database = {
             }
         Returns: boolean
       }
+      simple_session_check: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       update_agent_performance_metrics: {
         Args: Record<PropertyKey, never>
         Returns: undefined
