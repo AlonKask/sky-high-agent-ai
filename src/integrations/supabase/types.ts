@@ -2966,7 +2966,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      security_dashboard: {
+        Row: {
+          auth_events_24h: number | null
+          critical_events: number | null
+          events_last_24h: number | null
+          high_events: number | null
+          last_security_event: string | null
+          low_events: number | null
+          medium_events: number | null
+          unauthorized_attempts_24h: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       advanced_rate_limit_check: {
@@ -3394,6 +3406,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_security_status: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_user_requests: {
         Args: { target_user_id?: string }
         Returns: {
@@ -3459,6 +3475,10 @@ export type Database = {
           p_role: Database["public"]["Enums"]["app_role"]
           p_user_id: string
         }
+        Returns: boolean
+      }
+      has_security_admin_role: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       health_check: {
