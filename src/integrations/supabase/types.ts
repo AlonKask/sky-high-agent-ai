@@ -3554,6 +3554,14 @@ export type Database = {
         }
         Returns: number
       }
+      monitor_sensitive_access: {
+        Args: {
+          p_access_type: string
+          p_record_id?: string
+          p_table_name: string
+        }
+        Returns: undefined
+      }
       rotate_gmail_tokens: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -3707,6 +3715,10 @@ export type Database = {
       validate_session_security: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      verify_security_configuration: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       zero_trust_client_access: {
         Args:
