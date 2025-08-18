@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toastHelpers } from "@/utils/toastHelpers";
-import { useUserRole } from "@/hooks/useUserRole";
-import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
+// Simplified Request interface
 interface Request {
   id: string;
   client_id: string;
@@ -18,13 +18,18 @@ interface Request {
   destination: string;
   departure_date: string;
   return_date?: string;
-  passengers: number;
-  priority: string;
+  request_type: string;
   status: string;
+  priority: string;
   assignment_status: string;
   assigned_to?: string;
+  adults_count: number;
+  children_count: number;
+  infants_count: number;
+  class_preference: string;
   created_at: string;
-  clients: {
+  clients?: {
+    id: string;
     first_name: string;
     last_name: string;
     email: string;
@@ -33,67 +38,76 @@ interface Request {
 }
 
 const EnhancedRequestManager = () => {
-  const { user } = useAuth();
-  const { role } = useUserRole();
+  const { user, loading: authLoading } = useAuth();
+  const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [takingRequest, setTakingRequest] = useState<string | null>(null);
-  const [showTakeRequestDropdown, setShowTakeRequestDropdown] = useState(false);
-  const filterUserId = searchParams.get('user');
 
   useEffect(() => {
-    if (user) {
+    if (!authLoading && !roleLoading && user) {
       fetchRequests();
     }
-  }, [user]);
+  }, [user, authLoading, roleLoading]);
 
   const fetchRequests = async () => {
-    if (!user) return;
+    if (!user) {
+      setError("You must be logged in to view requests");
+      setLoading(false);
+      return;
+    }
     
     try {
       setLoading(true);
+      setError(null);
+      
+      console.log("Fetching requests for user:", user.id, "with role:", role);
 
-      let query = supabase
+      // Simplified query - just get all requests the user can see
+      const { data, error: fetchError } = await supabase
         .from('requests')
         .select(`
           *,
-          clients(first_name, last_name, email, client_type)
+          clients!inner(
+            id,
+            first_name,
+            last_name,
+            email,
+            client_type
+          )
         `)
         .order('created_at', { ascending: false });
 
-      // Apply user filtering
-      if (filterUserId) {
-        query = query.eq('user_id', filterUserId);
-      } else if (role === 'user' || role === 'agent' || role === 'gds_expert') {
-        // For regular agents, only show available or assigned to them
-        query = query.or(`assignment_status.eq.available,assigned_to.eq.${user.id}`);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching requests:', error);
-        toastHelpers.error('Failed to load requests', error);
+      if (fetchError) {
+        console.error('Error fetching requests:', fetchError);
+        setError(`Failed to load requests: ${fetchError.message}`);
+        toastHelpers.error(`Failed to load requests: ${fetchError.message}`);
         return;
       }
 
+      console.log("Fetched requests:", data?.length || 0);
       setRequests(data || []);
     } catch (error) {
-      console.error('Error fetching requests:', error);
-      toastHelpers.error('Failed to load requests', error);
+      console.error('Unexpected error fetching requests:', error);
+      setError('An unexpected error occurred while loading requests');
+      toastHelpers.error('An unexpected error occurred while loading requests');
     } finally {
       setLoading(false);
     }
   };
 
   const handleTakeRequest = async (requestId: string) => {
-    if (!user) return;
+    if (!user) {
+      toastHelpers.error("You must be logged in to take requests");
+      return;
+    }
 
     try {
       setTakingRequest(requestId);
+      console.log("Taking request:", requestId, "for user:", user.id);
 
       // Update the request assignment
       const { error: updateError } = await supabase
@@ -107,50 +121,42 @@ const EnhancedRequestManager = () => {
 
       if (updateError) {
         console.error('Error taking request:', updateError);
-        toastHelpers.error('Failed to take request', updateError);
+        toastHelpers.error(`Failed to take request: ${updateError.message}`);
         return;
-      }
-
-      // Create assignment record
-      const { error: assignmentError } = await supabase
-        .from('request_assignments')
-        .insert({
-          request_id: requestId,
-          assigned_to: user.id,
-          assigned_by: user.id,
-          status: 'active'
-        });
-
-      if (assignmentError) {
-        console.error('Error creating assignment:', assignmentError);
-        // Don't show error for assignment record as the main update succeeded
       }
 
       toastHelpers.success('Request assigned to you successfully');
       await fetchRequests(); // Refresh the list
     } catch (error) {
-      console.error('Error taking request:', error);
-      toastHelpers.error('Failed to take request', error);
+      console.error('Unexpected error taking request:', error);
+      toastHelpers.error('An unexpected error occurred while taking the request');
     } finally {
       setTakingRequest(null);
     }
   };
 
+  // Filter requests based on search term
   const filteredRequests = requests.filter(request => {
-    const searchString = `${request.clients?.first_name} ${request.clients?.last_name} ${request.origin} ${request.destination}`.toLowerCase();
+    if (!searchTerm) return true;
+    const searchString = `${request.clients?.first_name || ''} ${request.clients?.last_name || ''} ${request.origin} ${request.destination}`.toLowerCase();
     return searchString.includes(searchTerm.toLowerCase());
   });
 
-  const newClientRequests = filteredRequests.filter(request => 
-    request.clients?.client_type === 'new' && request.assignment_status === 'available'
-  );
-
-  const returnClientRequests = filteredRequests.filter(request => 
-    request.clients?.client_type === 'return' && request.assignment_status === 'available'
-  );
-
+  // Categorize requests
   const myAssignedRequests = filteredRequests.filter(request => 
     request.assigned_to === user?.id
+  );
+
+  const availableRequests = filteredRequests.filter(request => 
+    request.assignment_status === 'available'
+  );
+
+  const newClientRequests = availableRequests.filter(request => 
+    request.clients?.client_type === 'new'
+  );
+
+  const returnClientRequests = availableRequests.filter(request => 
+    request.clients?.client_type === 'return'
   );
 
   const getStatusColor = (status: string) => {
@@ -206,7 +212,7 @@ const EnhancedRequestManager = () => {
       <CardContent className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="w-4 h-4" />
-          <span>{request.origin} -&gt; {request.destination}</span>
+          <span>{request.origin} → {request.destination}</span>
         </div>
         
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -216,31 +222,71 @@ const EnhancedRequestManager = () => {
           </div>
           <div className="flex items-center gap-1">
             <Users className="w-4 h-4" />
-            <span>{request.passengers} passengers</span>
+            <span>{request.adults_count + request.children_count + request.infants_count} passengers</span>
           </div>
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
             <span>{new Date(request.created_at).toLocaleDateString()}</span>
           </div>
         </div>
+
+        {/* Show Take Request button for available requests */}
+        {request.assignment_status === 'available' && (
+          <div className="pt-2">
+            <Button
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTakeRequest(request.id);
+              }}
+              disabled={takingRequest === request.id}
+              className="w-full"
+            >
+              {takingRequest === request.id ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-2" />
+              )}
+              Take Request
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 
-  if (loading) {
+  // Loading state
+  if (authLoading || roleLoading || loading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Request Management</h1>
         </div>
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       </div>
     );
   }
 
-  const availableRequests = newClientRequests.concat(returnClientRequests);
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Request Management</h1>
+        </div>
+        <Card className="p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Error Loading Requests</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchRequests} variant="outline">
+            Try Again
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -253,49 +299,7 @@ const EnhancedRequestManager = () => {
           </p>
         </div>
         
-        <div className="flex items-center gap-4">
-          {/* Take Request Button */}
-          {availableRequests.length > 0 && (
-            <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
-              <DropdownMenuTrigger asChild>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Take Request ({availableRequests.length})
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 max-h-60 overflow-y-auto">
-                {availableRequests.map((request) => (
-                  <DropdownMenuItem
-                    key={request.id}
-                    className="p-3 cursor-pointer"
-                    onClick={() => {
-                      handleTakeRequest(request.id);
-                      setShowTakeRequestDropdown(false);
-                    }}
-                  >
-                    <div className="flex flex-col w-full">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">
-                          {request.clients?.first_name} {request.clients?.last_name}
-                        </span>
-                        <Badge variant="outline" className={request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' : 'border-green-200 text-green-600'}>
-                          {request.clients?.client_type}
-                        </Badge>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {request.origin} -&gt; {request.destination}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(request.departure_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          
+        <div className="flex items-center gap-4">          
           {/* Search */}
           <div className="relative w-full lg:w-96">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -307,6 +311,54 @@ const EnhancedRequestManager = () => {
             />
           </div>
         </div>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">My Assigned</p>
+                <p className="text-2xl font-bold">{myAssignedRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-blue-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">New Clients</p>
+                <p className="text-2xl font-bold">{newClientRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Return Clients</p>
+                <p className="text-2xl font-bold">{returnClientRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-orange-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Available</p>
+                <p className="text-2xl font-bold">{availableRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* My Assigned Requests (if any) */}
