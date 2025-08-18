@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import { toast } from "@/hooks/use-toast";
-import { handleAuthError } from "@/utils/globalErrorHandler";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -14,7 +13,7 @@ const AuthCallback = () => {
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          handleAuthError(error, 'auth callback');
+          console.error('Auth callback error:', error);
           toast({
             title: "Authentication Error",
             description: "Failed to complete sign in. Please try again.",
@@ -34,7 +33,7 @@ const AuthCallback = () => {
           navigate('/auth', { replace: true });
         }
       } catch (error) {
-        handleAuthError(error, 'unexpected auth callback');
+        console.error('Unexpected auth callback error:', error);
         navigate('/auth', { replace: true });
       }
     };

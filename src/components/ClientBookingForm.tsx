@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { PaymentForm } from "@/components/PaymentForm";
-import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,11 +22,6 @@ interface Quote {
   created_at: string;
   notes?: string;
   client_id: string;
-  adults_count: number;
-  children_count: number;
-  infants_count: number;
-  departure_date?: string;
-  return_date?: string;
 }
 
 interface Client {
@@ -58,7 +51,6 @@ interface Passenger {
 
 const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBookingFormProps) => {
   const [currentStep, setCurrentStep] = useState(initialStep ?? 1);
-  const [paymentId, setPaymentId] = useState<string>('');
   const [passengers, setPassengers] = useState<Passenger[]>([
     {
       id: '1',
@@ -514,34 +506,6 @@ const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBooking
     </div>
   );
 
-  // Handle payment and booking completion
-  if (currentStep === 4) {
-    return (
-      <PaymentForm
-        quote={quote}
-        onBack={() => setCurrentStep(3)}
-        onSuccess={(paymentIdReceived) => {
-          setPaymentId(paymentIdReceived);
-          setCurrentStep(5);
-        }}
-      />
-    );
-  }
-
-  if (currentStep === 5) {
-    return (
-      <BookingConfirmation
-        paymentId={paymentId}
-        quote={quote}
-        client={client}
-        onNewBooking={() => {
-          setCurrentStep(1);
-          setPaymentId('');
-        }}
-      />
-    );
-  }
-
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       {/* Header */}
@@ -556,8 +520,8 @@ const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBooking
         </Button>
         <h1 className="text-3xl font-bold mb-2">Complete Your Booking</h1>
         <div className="flex items-center gap-4 mb-4">
-          <Progress value={(currentStep / 5) * 100} className="flex-1" />
-          <span className="text-sm text-muted-foreground">Step {currentStep} of 5</span>
+          <Progress value={(currentStep / 3) * 100} className="flex-1" />
+          <span className="text-sm text-muted-foreground">Step {currentStep} of 3</span>
         </div>
       </div>
 
@@ -578,13 +542,14 @@ const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBooking
         <Button 
           onClick={() => {
             if (currentStep === 3) {
-              setCurrentStep(4); // Go to payment
+              // Handle booking submission
+              // Booking submitted successfully
             } else {
               setCurrentStep(Math.min(3, currentStep + 1));
             }
           }}
         >
-          {currentStep === 3 ? 'Proceed to Payment' : 'Next'}
+          {currentStep === 3 ? 'Complete Booking' : 'Next'}
         </Button>
       </div>
     </div>

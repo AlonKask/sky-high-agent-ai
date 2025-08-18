@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Plane, MapPin, Clock, Info, DollarSign } from 'lucide-react';
+import { Loader2, Plane, MapPin, Clock, Info } from 'lucide-react';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { toast } from '@/hooks/use-toast';
 
@@ -15,18 +15,14 @@ interface ParsedFlightInfo {
   isRoundTrip: boolean;
   totalDuration?: string;
   layoverInfo?: any;
-  sabreData?: string;
-  parsedDate?: string;
 }
 
 interface EnhancedFlightParserProps {
   onParsedData: (data: ParsedFlightInfo) => void;
-  onCreateQuote?: (data: ParsedFlightInfo) => void;
   initialData?: string;
-  showQuoteButton?: boolean;
 }
 
-export function EnhancedFlightParser({ onParsedData, onCreateQuote, initialData = '', showQuoteButton = false }: EnhancedFlightParserProps) {
+export function EnhancedFlightParser({ onParsedData, initialData = '' }: EnhancedFlightParserProps) {
   const [sabreData, setSabreData] = useState(initialData);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedInfo, setParsedInfo] = useState<ParsedFlightInfo | null>(null);
@@ -52,15 +48,10 @@ export function EnhancedFlightParser({ onParsedData, onCreateQuote, initialData 
         result = await EnhancedSabreParser.parseIFormatWithDatabase(sabreData);
       }
       
-      // Check for parsing errors and enhance with metadata
+      // Check for parsing errors (Phase 1: Fix UI Error Handling)
       if (result && result.totalSegments > 0) {
-        const enrichedResult = {
-          ...result,
-          sabreData: sabreData,
-          parsedDate: new Date().toISOString()
-        };
-        setParsedInfo(enrichedResult);
-        onParsedData(enrichedResult);
+        setParsedInfo(result);
+        onParsedData(result);
         toast({
           title: "Success",
           description: `Parsed ${result.totalSegments} flight segment${result.totalSegments > 1 ? 's' : ''} (${format} format)`
@@ -131,17 +122,6 @@ export function EnhancedFlightParser({ onParsedData, onCreateQuote, initialData 
             )}
             {isProcessing ? 'Parsing...' : 'Parse Flight Data'}
           </Button>
-          
-          {showQuoteButton && parsedInfo && onCreateQuote && (
-            <Button
-              onClick={() => onCreateQuote(parsedInfo)}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <DollarSign className="h-4 w-4" />
-              Create Quote
-            </Button>
-          )}
           
           {parsedInfo && (
             <Badge variant="secondary" className="flex items-center gap-1">

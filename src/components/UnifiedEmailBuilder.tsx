@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError, handleSupabaseError } from '@/utils/globalErrorHandler';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -95,7 +94,7 @@ export default function UnifiedEmailBuilder({
         if (!prefsRes.error) setUserPrefs(prefsRes.data as any);
         if (!reqRes.error) setRequestInfo(reqRes.data as any);
       } catch (e) {
-        handleError(e, { operation: 'load email context', component: 'UnifiedEmailBuilder' }, { showToast: false });
+        console.error('Failed to load email context', e);
       }
     })();
   }, [requestId]);
@@ -107,16 +106,20 @@ export default function UnifiedEmailBuilder({
   }, [quotes]);
 
   const processQuotes = async () => {
+    console.log("🔄 Starting quote processing for enhanced email generation");
     setIsProcessing(true);
     setProcessingProgress(0);
     setErrors([]);
     
     try {
       const processPromises = quotes.map(async (quote, index) => {
+        console.log(`📝 Processing quote ${index + 1}/${quotes.length}: ${quote.id}`);
+        
         try {
           if (quote.content && quote.content.trim()) {
             // Detect format and parse accordingly
             const format = EnhancedSabreParser.detectFormat(quote.content);
+            console.log(`🔍 Detected format for quote ${quote.id}: ${format}`);
             
             let parsedResult;
             if (format === "VI") {
@@ -126,7 +129,11 @@ export default function UnifiedEmailBuilder({
             }
             
             if (parsedResult && parsedResult.segments && parsedResult.segments.length > 0) {
+              console.log(`✅ Successfully parsed ${parsedResult.segments.length} segments for quote ${quote.id}`);
+              
+              // Save to database for future use
               // Save to database for future use - will be implemented with full flight data
+              
               const updatedQuote = {
                 ...quote,
                 parsedItinerary: parsedResult
@@ -135,16 +142,18 @@ export default function UnifiedEmailBuilder({
               setProcessingProgress(((index + 1) / quotes.length) * 100);
               return updatedQuote;
             } else {
+              console.warn(`⚠️ No segments found for quote ${quote.id}`);
               setProcessingProgress(((index + 1) / quotes.length) * 100);
               return quote;
             }
           } else {
+            console.warn(`⚠️ No content to parse for quote ${quote.id}`);
             setProcessingProgress(((index + 1) / quotes.length) * 100);
             return quote;
           }
         } catch (error) {
           const errorMsg = `Failed to process quote ${quote.id}: ${error.message}`;
-          handleError(new Error(errorMsg), { operation: 'AI generation', component: 'UnifiedEmailBuilder' });
+          console.error("❌", errorMsg);
           setErrors(prev => [...prev, errorMsg]);
           setProcessingProgress(((index + 1) / quotes.length) * 100);
           return quote;
@@ -159,8 +168,10 @@ export default function UnifiedEmailBuilder({
         setSelectedQuotes([results[0].id]);
       }
       
+      console.log("✅ Quote processing completed");
+      
     } catch (error) {
-      handleError(error, { operation: 'process AI generation', component: 'UnifiedEmailBuilder' });
+      console.error("❌ Processing failed:", error);
       setErrors(prev => [...prev, "Failed to process quotes for enhanced display"]);
       setProcessedQuotes(quotes);
     } finally {
@@ -685,7 +696,7 @@ export default function UnifiedEmailBuilder({
         .single();
 
       if (reviewError) {
-        handleSupabaseError(reviewError, 'create option review');
+        console.error("❌ Failed to create option review:", reviewError);
         throw new Error("Failed to create option review");
       }
 
@@ -733,11 +744,11 @@ export default function UnifiedEmailBuilder({
       });
 
       if (emailError) {
-        handleError(emailError, { operation: 'send email', component: 'UnifiedEmailBuilder' });
+        console.error("❌ Email sending failed:", emailError);
         throw new Error("Failed to send email");
       }
 
-      
+      console.log("✅ Email sent successfully:", emailResult);
 
       toast({
         title: "Email sent successfully!",
@@ -747,7 +758,7 @@ export default function UnifiedEmailBuilder({
       onEmailSent();
       onClose();
     } catch (error) {
-      handleError(error, { operation: 'send email', component: 'UnifiedEmailBuilder' });
+      console.error("❌ Send email error:", error);
       toast({
         title: "Failed to send email",
         description: error.message || "There was an error sending the email. Please try again.",

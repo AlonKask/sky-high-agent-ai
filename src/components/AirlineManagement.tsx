@@ -82,6 +82,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
+      console.error('Error saving airline:', error);
       // Error handling is done in the mutation hooks
     }
   };
@@ -105,6 +106,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
     try {
       await deleteAirline.mutateAsync(id);
     } catch (error) {
+      console.error('Error deleting airline:', error);
       // Error handling is done in the mutation hook
     }
   };
