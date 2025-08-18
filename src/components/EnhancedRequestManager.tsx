@@ -66,7 +66,10 @@ const EnhancedRequestManager = () => {
       
       console.log("Fetching requests for user:", user.id, "with role:", role);
 
-      // Simplified query - just get all requests the user can see
+      // Secure query - users can now only see:
+      // 1. Their own requests  
+      // 2. Requests assigned to them
+      // 3. Requests from their team members (if manager/supervisor)
       const { data, error: fetchError } = await supabase
         .from('requests')
         .select(`
