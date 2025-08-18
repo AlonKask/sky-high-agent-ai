@@ -228,7 +228,7 @@ class AuthSecurityManager {
       // Attempt sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
       });
 
       if (error) {

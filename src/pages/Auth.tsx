@@ -9,8 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Plane, Mail, Lock, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { testPasswordUpdateSystem } from "@/utils/testPasswordUpdate";
-import { testLoginWithNewPassword } from "@/utils/adminPasswordReset";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -44,61 +42,43 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      cleanupAuthState();
-      
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
+      // Use enhanced sign in with security features
+      const result = await authSecurity.enhancedSignIn(email, password);
+
+      if (!result.success) {
+        toast({
+          title: "Sign In Error",
+          description: result.error || "Sign in failed",
+          variant: "destructive",
+        });
+        return;
       }
 
-      console.log('Attempting sign in for:', email);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Auth error:', error);
-        throw error;
+      if (result.requiresMFA) {
+        toast({
+          title: "MFA Required",
+          description: "Please complete multi-factor authentication.",
+        });
+        // TODO: Implement MFA flow
+        return;
       }
-
-      console.log('Sign in successful:', data);
 
       toast({
         title: "Welcome back!",
-        description: "Successfully signed in.",
+        description: "Successfully signed in with enhanced security.",
       });
-      
-      // Force a page refresh to ensure clean state
-      window.location.href = '/';
+      navigate("/", { replace: true });
 
-    } catch (error: any) {
-      console.error('Sign in error:', error);
-      
-      // Provide more specific error messages
-      let errorMessage = "Sign in failed";
-      if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      } else if (error.message?.includes('Email not confirmed')) {
-        errorMessage = "Please confirm your email address before signing in.";
-      } else if (error.message?.includes('Too many requests')) {
-        errorMessage = "Too many sign in attempts. Please wait a moment before trying again.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+    } catch (error) {
       toast({
-        title: "Sign In Error",
-        description: errorMessage,
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
-
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -139,7 +119,6 @@ const Auth = () => {
       setLoading(false);
     }
   };
-
 
   const handlePasswordChange = (newPassword: string) => {
     setPassword(newPassword);
@@ -193,11 +172,11 @@ const Auth = () => {
 
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="auth-email">Email</Label>
+              <Label htmlFor="signin-email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="auth-email"
+                  id="signin-email"
                   type="email"
                   placeholder="Enter your email"
                   value={email}
@@ -208,11 +187,11 @@ const Auth = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="auth-password">Password</Label>
+              <Label htmlFor="signin-password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="auth-password"
+                  id="signin-password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
@@ -232,11 +211,7 @@ const Auth = () => {
                 )}
               </div>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : (
                 <>
                   Sign In
@@ -249,27 +224,6 @@ const Auth = () => {
           <div className="text-center text-sm text-muted-foreground">
             Need an account? Contact your administrator for access.
           </div>
-          
-          {process.env.NODE_ENV === 'development' && (
-            <div className="space-y-2">
-              <Button 
-                onClick={testPasswordUpdateSystem}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                Test Password Update System
-              </Button>
-              <Button 
-                onClick={testLoginWithNewPassword}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                Test Login with New Password
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
