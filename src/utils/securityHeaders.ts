@@ -12,7 +12,7 @@ export const SECURITY_HEADERS = {
     "img-src 'self' data: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
-    "frame-ancestors 'none'",
+    "frame-ancestors https://*.lovable.dev https://*.lovableproject.com https://lovable.dev",
     "base-uri 'self'",
     "form-action 'self'",
     "upgrade-insecure-requests",
@@ -21,7 +21,7 @@ export const SECURITY_HEADERS = {
 
   // Additional security headers
   'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
+  'X-Frame-Options': 'ALLOWALL',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
@@ -38,7 +38,7 @@ export const DEVELOPMENT_CSP = [
   "img-src 'self' data: https:",
   "font-src 'self' https://fonts.gstatic.com",
   "connect-src 'self' https://ekrwjfdypqzequovmvjn.supabase.co wss://ekrwjfdypqzequovmvjn.supabase.co https://accounts.google.com https://oauth2.googleapis.com",
-  "frame-ancestors 'none'",
+  "frame-ancestors https://*.lovable.dev https://*.lovableproject.com https://lovable.dev",
   "base-uri 'self'",
   "form-action 'self'",
   "report-uri https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/csp-report"
