@@ -1022,6 +1022,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          access_restricted: boolean | null
           client_type: string | null
           company: string | null
           created_at: string | null
@@ -1044,6 +1045,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          access_restricted?: boolean | null
           client_type?: string | null
           company?: string | null
           created_at?: string | null
@@ -1066,6 +1068,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          access_restricted?: boolean | null
           client_type?: string | null
           company?: string | null
           created_at?: string | null
@@ -1228,6 +1231,57 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      critical_audit_trail: {
+        Row: {
+          business_justification: string | null
+          id: string
+          integrity_hash: string
+          ip_address: unknown | null
+          new_values: Json | null
+          old_values: Json | null
+          operation_type: string
+          record_id: string | null
+          risk_assessment: string
+          session_id: string | null
+          table_name: string
+          timestamp: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          business_justification?: string | null
+          id?: string
+          integrity_hash: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          operation_type: string
+          record_id?: string | null
+          risk_assessment?: string
+          session_id?: string | null
+          table_name: string
+          timestamp?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          business_justification?: string | null
+          id?: string
+          integrity_hash?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          operation_type?: string
+          record_id?: string | null
+          risk_assessment?: string
+          session_id?: string | null
+          table_name?: string
+          timestamp?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1423,6 +1477,7 @@ export type Database = {
           cc_emails: string[] | null
           client_id: string | null
           created_at: string
+          data_classification: string | null
           direction: string
           email_type: string | null
           id: string
@@ -1445,6 +1500,7 @@ export type Database = {
           cc_emails?: string[] | null
           client_id?: string | null
           created_at?: string
+          data_classification?: string | null
           direction: string
           email_type?: string | null
           id?: string
@@ -1467,6 +1523,7 @@ export type Database = {
           cc_emails?: string[] | null
           client_id?: string | null
           created_at?: string
+          data_classification?: string | null
           direction?: string
           email_type?: string | null
           id?: string
@@ -2182,6 +2239,7 @@ export type Database = {
           created_at: string
           detailed_passenger_breakdown: Json | null
           fare_type: string
+          financial_sensitivity: string | null
           format: string | null
           id: string
           infant_markup: number | null
@@ -2229,6 +2287,7 @@ export type Database = {
           created_at?: string
           detailed_passenger_breakdown?: Json | null
           fare_type: string
+          financial_sensitivity?: string | null
           format?: string | null
           id?: string
           infant_markup?: number | null
@@ -2276,6 +2335,7 @@ export type Database = {
           created_at?: string
           detailed_passenger_breakdown?: Json | null
           fare_type?: string
+          financial_sensitivity?: string | null
           format?: string | null
           id?: string
           infant_markup?: number | null
@@ -2662,6 +2722,45 @@ export type Database = {
         }
         Relationships: []
       }
+      security_threat_analysis: {
+        Row: {
+          automated_response: string | null
+          created_at: string
+          id: string
+          investigation_status: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          severity_score: number
+          threat_indicators: Json
+          threat_type: string
+          user_id: string | null
+        }
+        Insert: {
+          automated_response?: string | null
+          created_at?: string
+          id?: string
+          investigation_status?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          severity_score?: number
+          threat_indicators?: Json
+          threat_type: string
+          user_id?: string | null
+        }
+        Update: {
+          automated_response?: string | null
+          created_at?: string
+          id?: string
+          investigation_status?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          severity_score?: number
+          threat_indicators?: Json
+          threat_type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       sensitive_data_access: {
         Row: {
           access_reason: string | null
@@ -3041,6 +3140,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      automated_security_cleanup: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       calculate_passenger_totals: {
         Args: {
           p_adult_markup?: number
@@ -3183,6 +3286,10 @@ export type Database = {
       detect_security_anomalies: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      detect_security_threats: {
+        Args: { p_user_id: string }
+        Returns: Json
       }
       detect_session_anomaly: {
         Args:
@@ -3706,6 +3813,13 @@ export type Database = {
       }
       validate_business_hours_access: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      validate_data_classification_access: {
+        Args: {
+          p_data_classification: string
+          p_required_role?: Database["public"]["Enums"]["app_role"]
+        }
         Returns: boolean
       }
       validate_encryption_format: {
