@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { authSecurity } from "@/utils/authSecurity";
-import { configSecurity } from "@/utils/configSecurity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +13,6 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
-  const [showPasswordStrength, setShowPasswordStrength] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -42,37 +38,40 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Use enhanced sign in with security features
-      const result = await authSecurity.enhancedSignIn(email, password);
+      cleanupAuthState();
+      
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+      }
 
-      if (!result.success) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
         toast({
           title: "Sign In Error",
-          description: result.error || "Sign in failed",
+          description: error.message,
           variant: "destructive",
         });
         return;
       }
 
-      if (result.requiresMFA) {
+      if (data.user) {
         toast({
-          title: "MFA Required",
-          description: "Please complete multi-factor authentication.",
+          title: "Welcome back!",
+          description: "Successfully signed in.",
         });
-        // TODO: Implement MFA flow
-        return;
+        navigate("/", { replace: true });
       }
 
-      toast({
-        title: "Welcome back!",
-        description: "Successfully signed in with enhanced security.",
-      });
-      navigate("/", { replace: true });
-
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -84,9 +83,6 @@ const Auth = () => {
     setLoading(true);
     
     try {
-      // Get secure Google Client ID
-      const config = await configSecurity.initializeSecureConfig();
-      
       cleanupAuthState();
       
       try {
@@ -99,10 +95,6 @@ const Auth = () => {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`,
-          // Use secure client ID from configuration
-          queryParams: {
-            client_id: config.googleClientId
-          }
         }
       });
 
@@ -117,19 +109,6 @@ const Auth = () => {
         variant: "destructive",
       });
       setLoading(false);
-    }
-  };
-
-  const handlePasswordChange = (newPassword: string) => {
-    setPassword(newPassword);
-    
-    if (newPassword.length > 0) {
-      const validation = authSecurity.validatePasswordStrength(newPassword);
-      setPasswordErrors(validation.errors);
-      setShowPasswordStrength(true);
-    } else {
-      setPasswordErrors([]);
-      setShowPasswordStrength(false);
     }
   };
 
@@ -195,20 +174,10 @@ const Auth = () => {
                   type="password"
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
                   required
                 />
-                {showPasswordStrength && passwordErrors.length > 0 && (
-                  <div className="mt-2 text-sm text-destructive">
-                    <p className="font-medium">Password requirements:</p>
-                    <ul className="mt-1 list-disc list-inside space-y-1">
-                      {passwordErrors.map((error, index) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

@@ -100,7 +100,7 @@ export const updateClientEncryptedField = async (
     const { data, error } = await supabase.rpc('update_client_encrypted_field', {
       p_client_id: clientId,
       p_field_name: fieldName,
-      p_encrypted_value: encryptedValue
+      p_new_value: encryptedValue
     });
 
     if (error) {

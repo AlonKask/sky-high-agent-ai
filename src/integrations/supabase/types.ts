@@ -3052,7 +3052,7 @@ export type Database = {
         Returns: boolean
       }
       can_access_client_data: {
-        Args: { target_client_id: string }
+        Args: { client_id: string }
         Returns: boolean
       }
       can_access_client_data_enhanced: {

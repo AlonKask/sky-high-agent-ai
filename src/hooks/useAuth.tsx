@@ -1,8 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { authSecurity } from "@/utils/authSecurity";
-import { configSecurity } from "@/utils/configSecurity";
 
 interface AuthContextType {
   user: User | null;
@@ -27,33 +25,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize secure configuration and auth monitoring
-    const initSecurity = async () => {
-      try {
-        await configSecurity.initializeSecureConfig();
-        authSecurity.initializeSessionMonitoring();
-      } catch (error) {
-        console.error('Security initialization failed:', error);
-      }
-    };
-
-    initSecurity();
-
-    // Set up auth state listener with enhanced security
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        // Update session activity on auth state change
-        if (session) {
-          setTimeout(() => {
-            authSecurity.initializeSessionMonitoring();
-          }, 0);
-        } else {
-          authSecurity.cleanup();
-        }
       }
     );
 
@@ -66,7 +43,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       subscription.unsubscribe();
-      authSecurity.destroy();
     };
   }, []);
 
