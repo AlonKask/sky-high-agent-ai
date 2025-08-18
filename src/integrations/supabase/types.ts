@@ -3626,16 +3626,20 @@ export type Database = {
         }[]
       }
       secure_communication_access: {
-        Args: { p_client_id?: string; p_operation?: string; p_user_id: string }
+        Args:
+          | { email_id: string }
+          | { p_client_id?: string; p_operation?: string; p_user_id: string }
         Returns: boolean
       }
       secure_financial_data_access: {
-        Args: {
-          p_justification?: string
-          p_operation: string
-          p_record_id: string
-          p_table_name: string
-        }
+        Args:
+          | { booking_id: string }
+          | {
+              p_justification?: string
+              p_operation: string
+              p_record_id: string
+              p_table_name: string
+            }
         Returns: boolean
       }
       update_agent_performance_metrics: {
