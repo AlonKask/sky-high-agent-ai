@@ -7,10 +7,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toastHelpers } from "@/utils/toastHelpers";
-import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { 
+  Search, 
+  Users, 
+  Clock, 
+  MapPin, 
+  User, 
+  UserPlus, 
+  Calendar, 
+  CheckCircle, 
+  AlertCircle, 
+  Loader2,
+  Plus,
+  Filter,
+  RotateCcw,
+  Star
+} from "lucide-react";
 
-// Simplified Request interface
+// Enhanced Request interface with status field
 interface Request {
   id: string;
   client_id: string;
@@ -45,6 +61,8 @@ const EnhancedRequestManager = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [clientTypeFilter, setClientTypeFilter] = useState("all");
   const [takingRequest, setTakingRequest] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,10 +84,6 @@ const EnhancedRequestManager = () => {
       
       console.log("Fetching requests for user:", user.id, "with role:", role);
 
-      // Secure query - users can now only see:
-      // 1. Their own requests  
-      // 2. Requests assigned to them
-      // 3. Requests from their team members (if manager/supervisor)
       const { data, error: fetchError } = await supabase
         .from('requests')
         .select(`
@@ -112,7 +126,6 @@ const EnhancedRequestManager = () => {
       setTakingRequest(requestId);
       console.log("Taking request:", requestId, "for user:", user.id);
 
-      // Update the request assignment
       const { error: updateError } = await supabase
         .from('requests')
         .update({
@@ -129,7 +142,7 @@ const EnhancedRequestManager = () => {
       }
 
       toastHelpers.success('Request assigned to you successfully');
-      await fetchRequests(); // Refresh the list
+      await fetchRequests();
     } catch (error) {
       console.error('Unexpected error taking request:', error);
       toastHelpers.error('An unexpected error occurred while taking the request');
@@ -138,20 +151,30 @@ const EnhancedRequestManager = () => {
     }
   };
 
-  // Filter requests based on search term
+  // Enhanced filtering
   const filteredRequests = requests.filter(request => {
-    if (!searchTerm) return true;
-    const searchString = `${request.clients?.first_name || ''} ${request.clients?.last_name || ''} ${request.origin} ${request.destination}`.toLowerCase();
-    return searchString.includes(searchTerm.toLowerCase());
+    // Search filter
+    if (searchTerm) {
+      const searchString = `${request.clients?.first_name || ''} ${request.clients?.last_name || ''} ${request.origin} ${request.destination}`.toLowerCase();
+      if (!searchString.includes(searchTerm.toLowerCase())) return false;
+    }
+    
+    // Status filter
+    if (statusFilter !== "all" && request.status !== statusFilter) return false;
+    
+    // Client type filter
+    if (clientTypeFilter !== "all" && request.clients?.client_type !== clientTypeFilter) return false;
+    
+    return true;
   });
 
-  // Categorize requests
+  // Categorize requests with enhanced color coding
   const myAssignedRequests = filteredRequests.filter(request => 
     request.assigned_to === user?.id
   );
 
   const availableRequests = filteredRequests.filter(request => 
-    request.assignment_status === 'available'
+    request.assignment_status === 'available' || !request.assigned_to
   );
 
   const newClientRequests = availableRequests.filter(request => 
@@ -162,12 +185,20 @@ const EnhancedRequestManager = () => {
     request.clients?.client_type === 'return'
   );
 
+  const referralClientRequests = availableRequests.filter(request => 
+    request.clients?.client_type === 'referral'
+  );
+
+  const repeatClientRequests = availableRequests.filter(request => 
+    request.clients?.client_type === 'repeat'
+  );
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending": return "bg-orange-500 text-white";
+      case "new": return "bg-green-500 text-white";
       case "in_progress": return "bg-blue-500 text-white";
       case "quote_sent": return "bg-purple-500 text-white";
-      case "confirmed": return "bg-green-500 text-white";
+      case "sold": return "bg-emerald-500 text-white";
       case "cancelled": return "bg-red-500 text-white";
       default: return "bg-gray-500 text-white";
     }
@@ -182,23 +213,39 @@ const EnhancedRequestManager = () => {
     }
   };
 
+  const getClientTypeColor = (clientType: string) => {
+    switch (clientType) {
+      case "new": return "border-l-4 border-l-green-500 bg-green-50/50";
+      case "return": return "border-l-4 border-l-blue-500 bg-blue-50/50";
+      case "referral": return "border-l-4 border-l-purple-500 bg-purple-50/50";
+      case "repeat": return "border-l-4 border-l-orange-500 bg-orange-50/50";
+      default: return "border-l-4 border-l-gray-500 bg-gray-50/50";
+    }
+  };
+
   const RequestCard = ({ request }: { request: Request }) => (
     <Card 
-      className="card-elevated hover:shadow-large transition-all duration-200 cursor-pointer"
+      className={`transition-all duration-200 cursor-pointer hover:shadow-lg ${getClientTypeColor(request.clients?.client_type || 'new')}`}
       onClick={() => navigate(`/request/${request.id}`)}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-5 h-5 text-primary" />
+              {request.clients?.client_type === 'repeat' && <Star className="w-5 h-5 text-orange-600" />}
+              {request.clients?.client_type === 'referral' && <UserPlus className="w-5 h-5 text-purple-600" />}
+              {request.clients?.client_type === 'return' && <RotateCcw className="w-5 h-5 text-blue-600" />}
+              {request.clients?.client_type === 'new' && <User className="w-5 h-5 text-green-600" />}
             </div>
             <div>
               <CardTitle className="text-lg">
                 {request.clients?.first_name} {request.clients?.last_name}
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-sm flex items-center gap-2">
                 {request.clients?.email}
+                <Badge variant="outline" className="text-xs">
+                  {request.clients?.client_type}
+                </Badge>
               </CardDescription>
             </div>
           </div>
@@ -234,7 +281,7 @@ const EnhancedRequestManager = () => {
         </div>
 
         {/* Show Take Request button for available requests */}
-        {request.assignment_status === 'available' && (
+        {(request.assignment_status === 'available' || !request.assigned_to) && (
           <div className="pt-2">
             <Button
               size="sm"
@@ -293,7 +340,7 @@ const EnhancedRequestManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Take Request Button in Top Right */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Request Management</h1>
@@ -302,22 +349,86 @@ const EnhancedRequestManager = () => {
           </p>
         </div>
         
-        <div className="flex items-center gap-4">          
-          {/* Search */}
-          <div className="relative w-full lg:w-96">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search requests..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+        <div className="flex items-center gap-4">
+          {/* Add New Request Button for supervisors and above */}
+          {(role === 'supervisor' || role === 'manager' || role === 'admin') && (
+            <Button onClick={() => navigate('/request/new')} className="shrink-0">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Request
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            Search
+          </label>
+          <Input
+            placeholder="Search clients, routes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Status
+          </label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="quote_sent">Quote Sent</SelectItem>
+              <SelectItem value="sold">Sold</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Client Type
+          </label>
+          <Select value={clientTypeFilter} onValueChange={setClientTypeFilter}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="new">New Clients</SelectItem>
+              <SelectItem value="return">Return Clients</SelectItem>
+              <SelectItem value="referral">Referral Clients</SelectItem>
+              <SelectItem value="repeat">Repeat Clients</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-end">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setSearchTerm("");
+              setStatusFilter("all");
+              setClientTypeFilter("all");
+            }}
+            className="w-full"
+          >
+            Clear Filters
+          </Button>
         </div>
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -329,10 +440,11 @@ const EnhancedRequestManager = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        
+        <Card className="border-l-4 border-l-green-500">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-blue-600" />
+              <User className="w-5 h-5 text-green-600" />
               <div>
                 <p className="text-sm text-muted-foreground">New Clients</p>
                 <p className="text-2xl font-bold">{newClientRequests.length}</p>
@@ -340,10 +452,11 @@ const EnhancedRequestManager = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        
+        <Card className="border-l-4 border-l-blue-500">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <User className="w-5 h-5 text-green-600" />
+              <RotateCcw className="w-5 h-5 text-blue-600" />
               <div>
                 <p className="text-sm text-muted-foreground">Return Clients</p>
                 <p className="text-2xl font-bold">{returnClientRequests.length}</p>
@@ -351,13 +464,26 @@ const EnhancedRequestManager = () => {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        
+        <Card className="border-l-4 border-l-purple-500">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-orange-600" />
+              <UserPlus className="w-5 h-5 text-purple-600" />
               <div>
-                <p className="text-sm text-muted-foreground">Total Available</p>
-                <p className="text-2xl font-bold">{availableRequests.length}</p>
+                <p className="text-sm text-muted-foreground">Referrals</p>
+                <p className="text-2xl font-bold">{referralClientRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-l-4 border-l-orange-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-orange-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">Repeat Clients</p>
+                <p className="text-2xl font-bold">{repeatClientRequests.length}</p>
               </div>
             </div>
           </CardContent>
@@ -380,23 +506,23 @@ const EnhancedRequestManager = () => {
         </div>
       )}
 
-      {/* Available Requests - Two Column Layout */}
+      {/* Available Requests - Enhanced Color-Coded Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* New Clients Column */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <UserPlus className="w-4 h-4 text-blue-600" />
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+              <User className="w-4 h-4 text-green-600" />
             </div>
             <h2 className="text-xl font-semibold">New Clients</h2>
-            <Badge variant="outline" className="border-blue-200 text-blue-600">
+            <Badge variant="outline" className="border-green-200 text-green-600">
               {newClientRequests.length}
             </Badge>
           </div>
           
           {newClientRequests.length === 0 ? (
-            <Card className="p-8 text-center">
-              <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <Card className="p-8 text-center border-dashed">
+              <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No new client requests</p>
             </Card>
           ) : (
@@ -411,23 +537,78 @@ const EnhancedRequestManager = () => {
         {/* Return Clients Column */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-              <User className="w-4 h-4 text-green-600" />
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <RotateCcw className="w-4 h-4 text-blue-600" />
             </div>
             <h2 className="text-xl font-semibold">Return Clients</h2>
-            <Badge variant="outline" className="border-green-200 text-green-600">
+            <Badge variant="outline" className="border-blue-200 text-blue-600">
               {returnClientRequests.length}
             </Badge>
           </div>
           
           {returnClientRequests.length === 0 ? (
-            <Card className="p-8 text-center">
-              <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <Card className="p-8 text-center border-dashed">
+              <RotateCcw className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No return client requests</p>
             </Card>
           ) : (
             <div className="space-y-4">
               {returnClientRequests.map((request) => (
+                <RequestCard key={request.id} request={request} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Second Row for Referral and Repeat Clients */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Referral Clients Column */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+              <UserPlus className="w-4 h-4 text-purple-600" />
+            </div>
+            <h2 className="text-xl font-semibold">Referral Clients</h2>
+            <Badge variant="outline" className="border-purple-200 text-purple-600">
+              {referralClientRequests.length}
+            </Badge>
+          </div>
+          
+          {referralClientRequests.length === 0 ? (
+            <Card className="p-8 text-center border-dashed">
+              <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No referral client requests</p>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {referralClientRequests.map((request) => (
+                <RequestCard key={request.id} request={request} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Repeat Clients Column */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+              <Star className="w-4 h-4 text-orange-600" />
+            </div>
+            <h2 className="text-xl font-semibold">Repeat Clients</h2>
+            <Badge variant="outline" className="border-orange-200 text-orange-600">
+              {repeatClientRequests.length}
+            </Badge>
+          </div>
+          
+          {repeatClientRequests.length === 0 ? (
+            <Card className="p-8 text-center border-dashed">
+              <Star className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No repeat client requests</p>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {repeatClientRequests.map((request) => (
                 <RequestCard key={request.id} request={request} />
               ))}
             </div>

@@ -2919,6 +2919,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cabinets: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_accessed: string | null
+          preferences: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_accessed?: string | null
+          preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_accessed?: string | null
+          preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_memories: {
         Row: {
           created_at: string
