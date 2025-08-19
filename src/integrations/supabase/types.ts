@@ -3092,19 +3092,7 @@ export type Database = {
       }
     }
     Views: {
-      security_dashboard: {
-        Row: {
-          auth_events_24h: number | null
-          critical_events: number | null
-          events_last_24h: number | null
-          high_events: number | null
-          last_security_event: string | null
-          low_events: number | null
-          medium_events: number | null
-          unauthorized_attempts_24h: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       advanced_rate_limit_check: {
@@ -3534,6 +3522,19 @@ export type Database = {
           total_spent: number
           updated_at: string
           user_id: string
+        }[]
+      }
+      get_security_dashboard: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          auth_events_24h: number
+          critical_events: number
+          events_last_24h: number
+          high_events: number
+          last_security_event: string
+          low_events: number
+          medium_events: number
+          unauthorized_attempts_24h: number
         }[]
       }
       get_security_dashboard_metrics: {
