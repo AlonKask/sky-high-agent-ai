@@ -11,7 +11,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Emails from "./pages/Emails";
+import SimpleEmails from "./pages/SimpleEmails";
 import Clients from "./pages/Clients";
 import ClientProfile from "./pages/ClientProfile";
 import Bookings from "./pages/Bookings";
@@ -63,7 +63,7 @@ function App() {
                   
                   {/* Protected routes */}
                   <Route path="/" element={<Layout><Index /></Layout>} />
-                  <Route path="/emails" element={<Layout><Emails /></Layout>} />
+                  <Route path="/emails" element={<Layout><SimpleEmails /></Layout>} />
                   <Route path="/clients" element={<Layout><Clients /></Layout>} />
                   <Route path="/clients/:id" element={<Layout><ClientProfile /></Layout>} />
                   <Route path="/bookings" element={<Layout><Bookings /></Layout>} />
