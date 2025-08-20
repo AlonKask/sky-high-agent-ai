@@ -3900,6 +3900,15 @@ export type Database = {
         Args: { p_device_fingerprint: string; p_session_token: string }
         Returns: boolean
       }
+      validate_security_isolation: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          has_isolation: boolean
+          policy_count: number
+          security_status: string
+          table_name: string
+        }[]
+      }
       validate_session_access: {
         Args: { target_user_id: string }
         Returns: boolean
