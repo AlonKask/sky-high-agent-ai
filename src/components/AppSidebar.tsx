@@ -38,50 +38,79 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const navigationItems = [
-  { 
-    title: "Dashboard", 
-    url: "/", 
-    icon: Home,
-    description: "Overview and quick stats"
-  },
-  { 
-    title: "Requests", 
-    url: "/requests", 
-    icon: FileText,
-    description: "Manage travel requests"
-  },
-  { 
-    title: "Bookings", 
-    url: "/bookings", 
-    icon: Plane,
-    description: "View and manage bookings"
-  },
-  { 
-    title: "Clients", 
-    url: "/clients", 
-    icon: Users,
-    description: "Client management"
-  },
-  { 
-    title: "Calendar", 
-    url: "/calendar", 
-    icon: Calendar,
-    description: "Schedule and events"
-  },
-  { 
-    title: "Analytics", 
-    url: "/analytics", 
-    icon: BarChart3,
-    description: "Business insights"
-  },
-  { 
-    title: "Reports", 
-    url: "/reports", 
-    icon: FileText,
-    description: "Advanced reports"
-  },
-];
+// Navigation items for different roles
+const getNavigationItems = (role: string | null) => {
+  const baseItems = [
+    { 
+      title: "Dashboard", 
+      url: "/", 
+      icon: Home,
+      description: "Overview and quick stats"
+    }
+  ];
+
+  // User role - minimal navigation
+  if (role === 'user') {
+    return [
+      ...baseItems,
+      { 
+        title: "My Bookings", 
+        url: "/bookings", 
+        icon: Plane,
+        description: "Your travel bookings"
+      }
+    ];
+  }
+
+  // Staff roles - full navigation
+  const staffItems = [
+    ...baseItems,
+    { 
+      title: "Requests", 
+      url: "/requests", 
+      icon: FileText,
+      description: "Manage travel requests"
+    },
+    { 
+      title: "Bookings", 
+      url: "/bookings", 
+      icon: Plane,
+      description: "View and manage bookings"
+    },
+    { 
+      title: "Clients", 
+      url: "/clients", 
+      icon: Users,
+      description: "Client management"
+    },
+    { 
+      title: "Calendar", 
+      url: "/calendar", 
+      icon: Calendar,
+      description: "Schedule and events"
+    }
+  ];
+
+  // Add analytics for supervisors and above
+  if (['supervisor', 'manager', 'admin'].includes(role || '')) {
+    staffItems.push(
+      { 
+        title: "Analytics", 
+        url: "/analytics", 
+        icon: BarChart3,
+        description: "Business insights"
+      },
+      { 
+        title: "Reports", 
+        url: "/reports", 
+        icon: FileText,
+        description: "Advanced reports"
+      }
+    );
+  }
+
+  return staffItems;
+};
 
 const communicationItems = [
   { 
@@ -103,6 +132,8 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const { role } = useUserRole();
   const { selectedViewRole } = useRoleView();
+
+  const navigationItems = getNavigationItems(role);
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -197,8 +228,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Management Tools for Supervisors, Managers, and Developers */}
-        {(selectedViewRole === 'supervisor' || selectedViewRole === 'manager' || selectedViewRole === 'admin') && (
+        {/* Management Tools for Supervisors, Managers, and Admins - Only for staff roles */}
+        {role !== 'user' && (selectedViewRole === 'supervisor' || selectedViewRole === 'manager' || selectedViewRole === 'admin' || role === 'supervisor' || role === 'manager' || role === 'admin') && (
           <SidebarGroup>
             <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
               {selectedViewRole === 'admin' ? 'Administration' : 'Management'}
