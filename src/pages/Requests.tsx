@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
-import SimpleRequestManager from "@/components/SimpleRequestManager";
+import FocusedRequestManager from "@/components/FocusedRequestManager";
 
 const Requests = () => {
   const { user, loading } = useAuth();
@@ -35,7 +35,7 @@ const Requests = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <SimpleRequestManager />
+      <FocusedRequestManager />
     </div>
   );
 };
