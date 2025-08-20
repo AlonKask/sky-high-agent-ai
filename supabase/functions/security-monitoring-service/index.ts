@@ -1,14 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Secure CORS headers with origin validation
+// Dynamic origin configuration based on environment
 const getAllowedOrigins = () => {
   const projectUrl = Deno.env.get('SUPABASE_URL') || '';
-  return [
+  const customOrigins = Deno.env.get('ALLOWED_ORIGINS')?.split(',') || [];
+  
+  // Default secure origins
+  const defaultOrigins = [
     projectUrl,
     'https://selectbc.online',
     'https://www.selectbc.online'
   ];
+  
+  // Combine with custom origins from environment
+  const allOrigins = [...defaultOrigins, ...customOrigins].filter(Boolean);
+  
+  return Array.from(new Set(allOrigins)); // Remove duplicates
 };
 
 const getCorsHeaders = (origin: string | null) => {

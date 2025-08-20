@@ -3326,6 +3326,14 @@ export type Database = {
             }
         Returns: Json
       }
+      detect_suspicious_activity: {
+        Args: {
+          p_action_count: number
+          p_time_window: unknown
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       emergency_admin_access: {
         Args: {
           business_justification: string

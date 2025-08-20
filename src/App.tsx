@@ -12,6 +12,7 @@ import { SimpleAuthGuard } from "@/components/SimpleAuthGuard";
 import { Suspense, lazy } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import SecurityInitializer from "@/components/SecurityInitializer";
+import { SecurityEnhancementMonitor } from "@/components/SecurityEnhancementMonitor";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -99,6 +100,7 @@ function App() {
                 </Suspense>
                 <Toaster />
                 <RadixToaster />
+                <SecurityEnhancementMonitor />
                 </ErrorBoundary>
             </RoleViewProvider>
           </SimpleAuthProvider>
