@@ -11,6 +11,7 @@ import { Layout } from "@/components/Layout";
 import { SimpleAuthGuard } from "@/components/SimpleAuthGuard";
 import { Suspense, lazy } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
+import SecurityInitializer from "@/components/SecurityInitializer";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -54,6 +55,7 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <BrowserRouter>
+      <SecurityInitializer />
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <SimpleAuthProvider>

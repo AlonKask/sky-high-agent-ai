@@ -57,9 +57,46 @@ const supabase = createClient(
 const handler = async (req: Request): Promise<Response> => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  const userAgent = req.headers.get('user-agent') || '';
+  const ipAddress = req.headers.get('x-forwarded-for') || 'unknown';
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting for Gmail integration
+  const rateLimitKey = `gmail_integration:${ipAddress}`;
+  
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Check rate limit using database function  
+    const { data: rateLimitResult } = await supabaseClient.rpc('check_edge_function_rate_limit', {
+      p_function_name: 'gmail-integration',
+      p_identifier: rateLimitKey,
+      p_max_requests: 50, // Lower limit for Gmail API calls
+      p_window_minutes: 15
+    });
+
+    if (!rateLimitResult) {
+      console.warn('Rate limit exceeded for Gmail integration:', rateLimitKey);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many Gmail requests. Please wait before trying again.',
+          success: false 
+        }),
+        { 
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+  } catch (error) {
+    console.error('Rate limiting error:', error);
+    // Continue without rate limiting on error to avoid blocking legitimate requests
   }
 
   try {

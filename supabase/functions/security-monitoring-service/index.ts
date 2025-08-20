@@ -26,17 +26,40 @@ const getCorsHeaders = (origin: string | null) => {
 serve(async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  const userAgent = req.headers.get('user-agent') || '';
+  const ipAddress = req.headers.get('x-forwarded-for') || 'unknown';
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Rate limiting check
+  const rateLimitKey = `${ipAddress}:${userAgent.slice(0, 50)}`;
+  
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Check rate limit using database function
+    const { data: rateLimitResult } = await supabaseClient.rpc('check_edge_function_rate_limit', {
+      p_function_name: 'security-monitoring-service',
+      p_identifier: rateLimitKey,
+      p_max_requests: 100,
+      p_window_minutes: 15
+    });
+
+    if (!rateLimitResult) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded', success: false }),
+        { 
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     const { action, ...params } = await req.json();
 
