@@ -541,6 +541,39 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_ips: {
+        Row: {
+          block_count: number
+          blocked_at: string
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: unknown
+          reason: string
+          updated_at: string
+        }
+        Insert: {
+          block_count?: number
+          blocked_at?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address: unknown
+          reason?: string
+          updated_at?: string
+        }
+        Update: {
+          block_count?: number
+          blocked_at?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: unknown
+          reason?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       booking_classes: {
         Row: {
           active: boolean | null
@@ -3272,6 +3305,10 @@ export type Database = {
           p_window_minutes?: number
         }
         Returns: boolean
+      }
+      cleanup_expired_blocked_ips: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       cleanup_expired_oauth_tokens: {
         Args: Record<PropertyKey, never>

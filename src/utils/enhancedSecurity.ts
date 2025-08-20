@@ -65,9 +65,11 @@ const handleXSSAttempt = async (ipAddress: string): Promise<void> => {
   // Block IP after 3 XSS attempts within 1 hour
   if (tracker.count >= 3) {
     try {
-      await supabase.rpc('block_suspicious_ip', {
-        p_ip_address: ipAddress,
-        p_block_duration: '1 hour'
+      await supabase.functions.invoke('ip-security-check', {
+        body: {
+          reason: 'repeated_xss_attempts',
+          duration_hours: 1
+        }
       });
       
       await logSecurityEvent('ip_blocked_xss_attacks', 'critical', {
@@ -84,33 +86,41 @@ const handleXSSAttempt = async (ipAddress: string): Promise<void> => {
 // Get real-time security metrics
 export const getSecurityMetrics = async (timePeriod = '24 hours'): Promise<any> => {
   try {
-    const { data, error } = await supabase.rpc('get_security_metrics', {
-      time_period: timePeriod
-    });
-    
-    if (error) throw error;
-    return data;
+    const { data: events } = await supabase
+      .from('security_events')
+      .select('*')
+      .gte('timestamp', new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString());
+
+    const { data: blockedIPs } = await supabase
+      .from('blocked_ips')
+      .select('*')
+      .gt('expires_at', new Date().toISOString());
+
+    return {
+      totalEvents: events?.length || 0,
+      blockedIPs: blockedIPs?.length || 0,
+      lastUpdate: new Date().toISOString()
+    };
   } catch (error) {
     console.error('Failed to fetch security metrics:', error);
-    return null;
+    return {
+      totalEvents: 0,
+      blockedIPs: 0,
+      lastUpdate: new Date().toISOString(),
+      error: error.message
+    };
   }
 };
 
 // Check if current IP is blocked
 export const checkIPBlocked = async (): Promise<boolean> => {
   try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const { ip } = await response.json();
-    
-    const { data, error } = await supabase.rpc('is_ip_blocked', {
-      p_ip_address: ip
-    });
-    
-    if (error) throw error;
-    return data || false;
+    const response = await supabase.functions.invoke('ip-security-check');
+    if (response.error) throw response.error;
+    return response.data?.blocked || false;
   } catch (error) {
-    console.error('Failed to check IP block status:', error);
-    return false;
+    console.error('IP check failed:', error);
+    return false; // Default to not blocked if check fails
   }
 };
 
