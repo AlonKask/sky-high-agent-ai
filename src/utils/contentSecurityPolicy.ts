@@ -3,15 +3,16 @@ export const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
   'script-src': [
     "'self'", 
-    "'unsafe-inline'", // Required for Vite in development
-    "'unsafe-eval'", // Required for development build
+    "'unsafe-inline'", // Required for Vite in development - remove in production
+    "'unsafe-eval'", // Required for development build - remove in production
     "https://challenges.cloudflare.com", // Turnstile
     "https://js.stripe.com", // Stripe if used
-    "https://apis.google.com" // Google APIs
+    "https://apis.google.com", // Google APIs
+    "'nonce-lovable-security'" // Add nonce for inline scripts
   ],
   'style-src': [
     "'self'", 
-    "'unsafe-inline'", // Required for Tailwind
+    "'unsafe-inline'", // Required for Tailwind - consider using nonce in production
     "https://fonts.googleapis.com"
   ],
   'font-src': [
@@ -23,14 +24,16 @@ export const CSP_DIRECTIVES = {
     "'self'",
     "data:",
     "blob:",
-    "https:", // Allow HTTPS images
+    "https:", // Allow HTTPS images - restrict further in production
     "https://*.supabase.co" // Supabase storage
   ],
   'connect-src': [
     "'self'",
     "https://*.supabase.co", // Supabase API
     "https://challenges.cloudflare.com", // Turnstile
-    "https://api.stripe.com" // Stripe if used
+    "https://api.stripe.com", // Stripe if used
+    "https://www.googleapis.com", // Gmail API
+    "https://oauth2.googleapis.com" // Google OAuth
   ],
   'frame-src': [
     "https://challenges.cloudflare.com", // Turnstile
@@ -40,7 +43,8 @@ export const CSP_DIRECTIVES = {
   'object-src': ["'none'"], // Prevent plugins
   'base-uri': ["'self'"], // Prevent base tag injection
   'form-action': ["'self'"], // Restrict form submissions
-  'upgrade-insecure-requests': [] // Force HTTPS
+  'upgrade-insecure-requests': [], // Force HTTPS
+  'block-all-mixed-content': [] // Block mixed content
 };
 
 export const generateCSPHeader = (): string => {

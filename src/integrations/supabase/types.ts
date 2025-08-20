@@ -3251,6 +3251,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_edge_function_rate_limit: {
+        Args: {
+          p_function_name: string
+          p_identifier: string
+          p_max_requests?: number
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
       check_rate_limit: {
         Args: {
           p_endpoint: string
@@ -3313,6 +3322,12 @@ export type Database = {
       }
       detect_session_anomaly: {
         Args:
+          | {
+              p_current_fingerprint: string
+              p_ip_address?: string
+              p_user_agent?: string
+              p_user_id: string
+            }
           | {
               p_current_fingerprint: string
               p_ip_address?: unknown
