@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 import { useUserRole } from './useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { secureAccess, secureEncrypt, secureDecrypt, validateData, monitorThreats } from '@/utils/advancedSecurity';
@@ -21,7 +21,7 @@ export interface SecurityMetrics {
 }
 
 export const useSecureData = (options: SecureDataOptions) => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const [data, setData] = useState<any>(null);
   const [decryptedData, setDecryptedData] = useState<any>({});

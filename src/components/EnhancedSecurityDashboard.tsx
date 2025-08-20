@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,7 +54,7 @@ interface DataAccessAudit {
 }
 
 export const EnhancedSecurityDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [metrics, setMetrics] = useState<SecurityMetrics | null>(null);

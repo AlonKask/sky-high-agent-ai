@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 import { useUserRole } from './useUserRole';
 
 export interface TeamAnalyticsData {
@@ -39,7 +39,7 @@ export interface TeamAnalyticsData {
 }
 
 export const useTeamAnalytics = (period: string = 'month') => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const [data, setData] = useState<TeamAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);

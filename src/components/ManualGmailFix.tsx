@@ -3,13 +3,13 @@ import { Button } from '@/components/ui/button';
 import { toastHelpers } from '@/utils/toastHelpers';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 
 export const ManualGmailFix = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   
   const { connectGmail, refreshStatus, authStatus } = useGmailIntegration();
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
 
   // Don't render if Gmail is already connected or still loading
   if (authStatus.isLoading || authStatus.isConnected) {

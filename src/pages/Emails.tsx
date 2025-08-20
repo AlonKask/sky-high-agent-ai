@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import SafeEmailRenderer from '@/components/SafeEmailRenderer';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
 import { EmailSyncManager } from '@/utils/emailSync';
@@ -70,7 +70,7 @@ interface EmailExchange {
 }
 
 const Emails = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   
   const [searchParams] = useSearchParams();
   const { authStatus, connectGmail, disconnectGmail } = useGmailIntegration();

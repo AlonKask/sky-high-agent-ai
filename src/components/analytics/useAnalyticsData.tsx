@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { addMonths, subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -39,7 +39,7 @@ export interface AnalyticsData {
 }
 
 export const useAnalyticsData = (selectedPeriod: string = 'month') => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toastHelpers } from '@/utils/toastHelpers';
 
@@ -23,7 +23,7 @@ interface SessionAnomalyResult {
 }
 
 export const useEnhancedSecurityMonitoring = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics | null>(null);
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
   const [loading, setLoading] = useState(true);

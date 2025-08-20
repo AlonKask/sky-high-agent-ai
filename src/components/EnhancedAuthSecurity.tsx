@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,7 @@ interface SecurityEvent {
 }
 
 export const EnhancedAuthSecurity: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { deviceFingerprint, logSecurityEvent } = useEnhancedSecurityMonitoring();
   const [config, setConfig] = useState<AuthSecurityConfig>({
     mfaEnabled: true,

@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { logSecurityEvent } from '@/utils/security';
 
 export const useSecurityMonitoring = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
 
   useEffect(() => {
     if (!user) return;

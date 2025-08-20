@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Shield, Eye, EyeOff, Lock, Unlock, AlertTriangle } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { secureAccess, secureDecrypt, validateData } from '@/utils/advancedSecurity';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +29,7 @@ export const SecureDataView = ({
   encryptedFields = [],
   children 
 }: SecureDataViewProps) => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const [decryptedData, setDecryptedData] = useState<any>({});
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());

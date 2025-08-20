@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 
 interface SecurityMetrics {
   threat_level: string;
@@ -21,7 +21,7 @@ interface SessionAnomalyResult {
 }
 
 export const useAdvancedSecurity = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics | null>(null);
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
   const [loading, setLoading] = useState(false);

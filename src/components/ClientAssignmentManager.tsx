@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, UserPlus, Users, Search, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toastHelpers } from '@/utils/toastHelpers';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -45,7 +45,7 @@ interface Client {
 }
 
 export const ClientAssignmentManager: React.FC<{ clientId?: string }> = ({ clientId }) => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { canAccess } = usePermissions();
   const [assignments, setAssignments] = useState<ClientAssignment[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);

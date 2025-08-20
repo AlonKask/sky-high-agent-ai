@@ -18,7 +18,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { toastHelpers } from "@/utils/toastHelpers";
 
 interface AIInsight {
@@ -45,7 +45,7 @@ interface BusinessMetrics {
 }
 
 const AIInsights = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [metrics, setMetrics] = useState<BusinessMetrics | null>(null);
   const [loading, setLoading] = useState(true);

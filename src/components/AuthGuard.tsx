@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { LoadingFallback } from "./LoadingFallback";
 
 interface AuthGuardProps {
@@ -8,7 +8,7 @@ interface AuthGuardProps {
 }
 
 export const AuthGuard = ({ children }: AuthGuardProps) => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
   const navigate = useNavigate();
   const location = useLocation();
 

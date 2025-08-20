@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { useUserRole, UserRole } from '@/hooks/useUserRole';
 import { useRoleView } from '@/contexts/RoleViewContext';
 import { useThemeSync } from '@/hooks/useThemeSync';
@@ -47,7 +47,7 @@ interface UserPreferences {
 }
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useSimpleAuth();
   const { role } = useUserRole();
   const { selectedViewRole, setSelectedViewRole, isRoleSwitchingEnabled } = useRoleView();
   const { theme, setTheme } = useThemeSync();

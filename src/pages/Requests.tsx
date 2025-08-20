@@ -1,11 +1,11 @@
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import EnhancedRequestManager from "@/components/EnhancedRequestManager";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
 const Requests = () => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
   const [searchParams] = useSearchParams();
 
   // Handle URL parameters for filtering

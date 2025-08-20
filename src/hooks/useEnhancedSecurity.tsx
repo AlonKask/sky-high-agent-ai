@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 import { sanitizeLogData } from '@/utils/dataMasking';
 
 interface SecurityMetrics {
@@ -19,7 +19,7 @@ interface DataAccessRequest {
 }
 
 export const useEnhancedSecurity = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [metrics, setMetrics] = useState<SecurityMetrics>({
     threatLevel: 'low',
     riskScore: 0,

@@ -19,7 +19,7 @@ import {
   BarChart3,
   Settings
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { useEnhancedSecurityMonitoring } from '@/hooks/useEnhancedSecurityMonitoring';
 
 interface ComplianceFramework {
@@ -66,7 +66,7 @@ interface DataGovernanceMetrics {
 }
 
 export const ComplianceGovernance: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { logSecurityEvent } = useEnhancedSecurityMonitoring();
   const [frameworks, setFrameworks] = useState<ComplianceFramework[]>([]);
   const [dataClassification, setDataClassification] = useState<DataClassification[]>([]);

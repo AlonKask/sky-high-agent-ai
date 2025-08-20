@@ -17,7 +17,7 @@ import {
   Minus
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { toastHelpers } from "@/utils/toastHelpers";
 
 interface LeadScore {
@@ -40,7 +40,7 @@ interface LeadScore {
 }
 
 const AILeadScoring = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [leadScores, setLeadScores] = useState<LeadScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);

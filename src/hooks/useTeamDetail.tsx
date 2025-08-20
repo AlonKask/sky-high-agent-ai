@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 import { useUserRole } from './useUserRole';
 
 export interface TeamMember {
@@ -50,7 +50,7 @@ export interface TeamDetailData {
 }
 
 export const useTeamDetail = (teamId: string) => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const [data, setData] = useState<TeamDetailData | null>(null);
   const [loading, setLoading] = useState(true);

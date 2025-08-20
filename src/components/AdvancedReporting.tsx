@@ -32,7 +32,7 @@ import {
   Activity
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
@@ -53,7 +53,7 @@ interface ReportData {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const AdvancedReporting = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ interface User {
 }
 
 export const Teams = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role, loading: roleLoading } = useUserRole();
   
   const navigate = useNavigate();

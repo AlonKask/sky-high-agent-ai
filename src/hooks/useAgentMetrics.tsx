@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 
 export interface AgentMetrics {
   personalProfit: number;
@@ -80,7 +80,7 @@ export const useAgentMetrics = (
   period: 'day' | 'week' | 'month' | 'year' = 'month',
   agentId?: string
 ) => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [data, setData] = useState<AgentMetrics | CSMetrics | AgentStatsMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

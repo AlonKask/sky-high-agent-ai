@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AlertTriangle, Shield, Eye, Brain, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { toastHelpers } from '@/utils/toastHelpers';
 
 interface ThreatMetrics {
@@ -27,7 +27,7 @@ interface RealTimeThreat {
 }
 
 export const ThreatDetectionSystem: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [threatMetrics, setThreatMetrics] = useState<ThreatMetrics>({
     activeThreatLevel: 'low',
     threatsDetected: 0,

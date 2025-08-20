@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useTeamDetail } from "@/hooks/useTeamDetail";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { format } from "date-fns";
@@ -14,7 +14,7 @@ import { format } from "date-fns";
 const TeamDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { role } = useUserRole();
   const { data: teamData, loading, error } = useTeamDetail(id!);
 

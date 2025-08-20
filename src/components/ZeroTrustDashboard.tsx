@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 
 interface ZeroTrustMetrics {
   deviceTrustScore: number;
@@ -49,7 +49,7 @@ interface AccessPolicy {
 }
 
 export const ZeroTrustDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [metrics, setMetrics] = useState<ZeroTrustMetrics>({
     deviceTrustScore: 85,
     behavioralTrustScore: 92,

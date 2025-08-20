@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useThemeSync = () => {
   const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
 
   // Load theme from database when user logs in
   useEffect(() => {
