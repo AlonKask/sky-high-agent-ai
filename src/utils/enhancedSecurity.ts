@@ -1,3 +1,4 @@
+
 /**
  * Enhanced Security Utilities for Production
  * Implements additional security measures and monitoring
@@ -271,9 +272,9 @@ export const logSecurityEvent = (event_type: string, severity: string, details: 
 export const monitorActivity = (userId: string, activity: string, metadata?: Record<string, any>) => 
   enhancedSecurity.monitorUserActivity(userId, activity, metadata);
 
-// Additional exports for compatibility
+// Initialize security monitoring function
 export const initSecurityMonitoring = () => {
-  console.log('Enhanced security monitoring initialized');
+  console.log('✅ Enhanced security monitoring initialized');
   return true;
 };
 

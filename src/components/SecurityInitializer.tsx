@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { applyCSPHeaders } from '@/utils/contentSecurityPolicy';
 import { validateSecurityConfig } from '@/utils/securityHeaders';
@@ -17,7 +18,7 @@ const SecurityInitializer = () => {
     
     // Validate security configuration
     const isSecure = validateSecurityConfig();
-    if (!isSecure && process.env.NODE_ENV === 'production') {
+    if (!isSecure) {
       console.error('🚨 CRITICAL: Security configuration validation failed');
     }
 
@@ -46,5 +47,4 @@ const SecurityInitializer = () => {
   return null; // This component doesn't render anything
 };
 
-export { SecurityInitializer };
 export default SecurityInitializer;

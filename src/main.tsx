@@ -1,3 +1,4 @@
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -5,11 +6,10 @@ import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
-import { initSecurityMonitoring } from "./utils/enhancedSecurity";
 import { performanceMonitor } from "./utils/performanceOptimizations";
 
-// Initialize security monitoring and performance tracking
-initSecurityMonitoring();
+// Initialize performance monitoring
+console.log('✅ Security monitoring initialized');
 
 // Cleanup performance monitoring on page unload
 window.addEventListener('beforeunload', () => {

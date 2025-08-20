@@ -1,7 +1,18 @@
+
 /**
  * Security headers configuration for the application
  * These should be applied at the server/deployment level
  */
+
+// Detect environment safely in browser
+const getEnvironment = () => {
+  if (typeof window === 'undefined') return 'production';
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'development';
+  return 'production';
+};
+
+const currentEnvironment = getEnvironment();
 
 export const SECURITY_HEADERS = {
   // Enhanced Content Security Policy (Production - strict)
@@ -80,7 +91,7 @@ export const RATE_LIMITS = {
 export const ALLOWED_ORIGINS = [
   'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
   // Development origins (only in development)
-  ...(process.env.NODE_ENV === 'development' ? [
+  ...(currentEnvironment === 'development' ? [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
@@ -107,7 +118,7 @@ export const SECURITY_MONITORING = {
   
   // Alert destinations
   ALERT_EMAIL: 'security@selectbusinessclass.com',
-  WEBHOOK_URL: process.env.SECURITY_WEBHOOK_URL
+  WEBHOOK_URL: undefined // Will be undefined in browser
 };
 
 /**
@@ -115,7 +126,7 @@ export const SECURITY_MONITORING = {
  */
 export const validateSecurityConfig = (): boolean => {
   // Ensure CSP is properly configured for production
-  if (process.env.NODE_ENV === 'production') {
+  if (currentEnvironment === 'production') {
     const csp = SECURITY_HEADERS['Content-Security-Policy'];
     
     // Check for dangerous CSP directives in production
