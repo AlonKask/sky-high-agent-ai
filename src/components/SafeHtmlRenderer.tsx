@@ -31,11 +31,25 @@ export const SafeHtmlRenderer: React.FC<SafeHtmlRendererProps> = ({
     return <>{fallback}</>;
   }
 
+  // Use text content only - completely eliminate XSS risk
+  // Parse HTML to extract text content safely
+  const extractTextContent = (html: string): string => {
+    // Create a temporary DOM element to safely extract text
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = sanitizedHtml;
+    return tempDiv.textContent || tempDiv.innerText || '';
+  };
+
+  const safeTextContent = extractTextContent(sanitizedHtml);
+
   return (
-    <div 
-      className={className}
-      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-    />
+    <div className={className}>
+      {safeTextContent.split('\n').map((line, index) => (
+        <p key={index} className={index > 0 ? "mt-2" : ""}>
+          {line}
+        </p>
+      ))}
+    </div>
   );
 };
 

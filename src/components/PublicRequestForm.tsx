@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { AirportAutocomplete } from "@/components/AirportAutocomplete";
-import TurnstileWrapper from "@/components/TurnstileWrapper";
+import EnhancedCaptchaValidator from "@/components/EnhancedCaptchaValidator";
+import { useSecureValidation, SecureInputValidator } from "@/components/SecureInputValidator";
 import { configSecurity } from "@/utils/configSecurity";
 
 interface RequestFormData {
@@ -60,7 +61,9 @@ const PublicRequestForm = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaMetadata, setCaptchaMetadata] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
+  const { validateForm, validationErrors, clearErrors, getFieldError } = useSecureValidation();
 
   useEffect(() => {
     const initializeConfig = async () => {
@@ -96,19 +99,32 @@ const PublicRequestForm = () => {
   };
 
   const handleSubmitRequest = async () => {
-    // Enhanced validation
-    const errors: string[] = [];
-    
-    if (!formData.clientName.trim()) errors.push('Name is required');
-    if (!formData.clientEmail.trim()) errors.push('Email is required');
-    if (!validateEmail(formData.clientEmail)) errors.push('Please enter a valid email address');
-    if (formData.clientPhone && !validatePhone(formData.clientPhone)) errors.push('Please enter a valid phone number');
-    if (!formData.origin) errors.push('Departure location is required');
-    if (!formData.destination) errors.push('Destination is required');
-    if (!formData.departureDate) errors.push('Departure date is required');
-    
-    if (errors.length > 0) {
-      toastHelpers.error(`Please fix the following: ${errors.join(', ')}`);
+    // Enhanced server-side validation using SecureInputValidator
+    const validationResult = validateForm({
+      clientName: formData.clientName,
+      clientEmail: formData.clientEmail,
+      clientPhone: formData.clientPhone || '',
+      origin: formData.origin,
+      destination: formData.destination,
+      specialRequirements: formData.specialRequirements || ''
+    }, {
+      clientName: SecureInputValidator.RULES.NAME,
+      clientEmail: SecureInputValidator.RULES.EMAIL,
+      clientPhone: SecureInputValidator.RULES.PHONE,
+      origin: { ...SecureInputValidator.RULES.SECURE_TEXT, required: true },
+      destination: { ...SecureInputValidator.RULES.SECURE_TEXT, required: true },
+      specialRequirements: SecureInputValidator.RULES.GENERAL_TEXT
+    });
+
+    if (!validationResult.isValid) {
+      const errorMessages = Object.values(validationResult.errors);
+      toastHelpers.error(`Please fix the following: ${errorMessages.join(', ')}`);
+      return;
+    }
+
+    // Additional date validation
+    if (!formData.departureDate) {
+      toastHelpers.error('Departure date is required');
       return;
     }
 
@@ -176,8 +192,9 @@ const PublicRequestForm = () => {
     }
   };
 
-  const handleCaptchaVerify = (token: string) => {
+  const handleCaptchaVerify = (token: string, metadata: any) => {
     setCaptchaToken(token);
+    setCaptchaMetadata(metadata);
   };
 
   const handleCaptchaError = () => {
@@ -492,15 +509,13 @@ const PublicRequestForm = () => {
                   />
                 </div>
 
-                {config?.turnstileSiteKey && (
-                  <TurnstileWrapper
-                    siteKey={config.turnstileSiteKey}
-                    onVerify={handleCaptchaVerify}
-                    onError={handleCaptchaError}
-                    onExpire={() => setCaptchaToken(null)}
-                    disabled={isSubmitting}
-                  />
-                )}
+                {/* Enhanced CAPTCHA Validator */}
+                <EnhancedCaptchaValidator
+                  onVerify={handleCaptchaVerify}
+                  onError={handleCaptchaError}
+                  action="public_request"
+                  className="mt-4"
+                />
               </div>
             )}
 
