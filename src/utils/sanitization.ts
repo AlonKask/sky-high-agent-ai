@@ -63,10 +63,39 @@ export const sanitizeEmailContent = (content: string): string => {
 
 /**
  * Creates safe HTML rendering component props
+ * Enhanced security with additional validation
  */
-export const createSafeHtmlProps = (html: string) => ({
-  dangerouslySetInnerHTML: { __html: sanitizeHtml(html) }
-});
+export const createSafeHtmlProps = (html: string) => {
+  const sanitized = sanitizeHtml(html);
+  
+  // Additional security check - reject if contains suspicious patterns
+  if (containsSuspiciousPatterns(sanitized)) {
+    console.warn('Blocked potentially malicious HTML content');
+    return { dangerouslySetInnerHTML: { __html: '' } };
+  }
+  
+  return { dangerouslySetInnerHTML: { __html: sanitized } };
+};
+
+/**
+ * Check for suspicious patterns that might indicate XSS attempts
+ */
+function containsSuspiciousPatterns(html: string): boolean {
+  const suspiciousPatterns = [
+    /javascript:/i,
+    /data:text\/html/i,
+    /vbscript:/i,
+    /onload=/i,
+    /onerror=/i,
+    /onclick=/i,
+    /<script/i,
+    /<iframe/i,
+    /<object/i,
+    /<embed/i
+  ];
+  
+  return suspiciousPatterns.some(pattern => pattern.test(html));
+}
 
 /**
  * Validates and sanitizes user input

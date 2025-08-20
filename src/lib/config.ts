@@ -10,9 +10,17 @@ export const config = {
   get google() {
     if (!_config) {
       console.warn('⚠️ Using deprecated config.ts - migrate to configSecurity.ts');
-      return {
-        clientId: "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com"
-      };
+      // Use environment variable or fallback for Google Client ID
+      const googleClientId = globalThis?.process?.env?.GOOGLE_CLIENT_ID || 
+                            window?.location?.hostname === 'localhost' ? 
+                            "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com" : null;
+      
+      if (!googleClientId) {
+        console.error('Google Client ID not configured properly');
+        return { clientId: null };
+      }
+      
+      return { clientId: googleClientId };
     }
     return { clientId: _config.googleClientId };
   },

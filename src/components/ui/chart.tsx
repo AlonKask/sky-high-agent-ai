@@ -74,28 +74,75 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
+  // Create CSS custom properties safely without dangerouslySetInnerHTML
+  React.useLayoutEffect(() => {
+    const chartElement = document.querySelector(`[data-chart="${id}"]`) as HTMLElement
+    if (!chartElement) return
+
+    // Clear existing custom properties
+    const existingProps = Array.from(chartElement.style).filter(prop => 
+      prop.startsWith('--color-')
+    )
+    existingProps.forEach(prop => {
+      chartElement.style.removeProperty(prop)
+    })
+
+    // Set new custom properties safely
+    colorConfig.forEach(([key, itemConfig]) => {
+      Object.entries(THEMES).forEach(([theme, prefix]) => {
+        const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color
+        if (color && isValidColor(color)) {
+          // Apply color based on current theme
+          const isCurrentTheme = prefix === '' ? !document.documentElement.classList.contains('dark') 
+            : document.documentElement.classList.contains('dark')
+          
+          if ((prefix === '' && !document.documentElement.classList.contains('dark')) ||
+              (prefix === '.dark' && document.documentElement.classList.contains('dark'))) {
+            chartElement.style.setProperty(`--color-${key}`, color)
+          }
+        }
+      })
+    })
+  }, [id, colorConfig])
+
+  // Listen for theme changes
+  React.useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const chartElement = document.querySelector(`[data-chart="${id}"]`) as HTMLElement
+      if (!chartElement) return
+
+      colorConfig.forEach(([key, itemConfig]) => {
+        Object.entries(THEMES).forEach(([theme, prefix]) => {
+          const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color
+          if (color && isValidColor(color)) {
+            if ((prefix === '' && !document.documentElement.classList.contains('dark')) ||
+                (prefix === '.dark' && document.documentElement.classList.contains('dark'))) {
+              chartElement.style.setProperty(`--color-${key}`, color)
+            }
+          }
+        })
+      })
+    })
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    })
+
+    return () => observer.disconnect()
+  }, [id, colorConfig])
+
+  return null
 }
-`
-          )
-          .join("\n"),
-      }}
-    />
-  )
+
+// Validate color values to prevent CSS injection
+function isValidColor(color: string): boolean {
+  if (!color || typeof color !== 'string') return false
+  
+  // Only allow safe color formats (hex, rgb, hsl, named colors)
+  const colorRegex = /^(#[0-9A-Fa-f]{3,8}|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)|rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)|hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)|hsla\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*,\s*[\d.]+\s*\)|[a-zA-Z]+)$/
+  
+  return colorRegex.test(color.trim()) && !color.includes('<') && !color.includes('>')
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip
