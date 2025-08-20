@@ -3654,6 +3654,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_client_data_access: {
+        Args: {
+          p_access_type: string
+          p_client_id: string
+          p_justification?: string
+        }
+        Returns: undefined
+      }
       log_data_access_audit: {
         Args: {
           p_access_type?: string
