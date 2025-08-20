@@ -6,6 +6,7 @@ import { ZeroTrustDashboard } from "@/components/ZeroTrustDashboard";
 import { EnhancedAuthSecurity } from "@/components/EnhancedAuthSecurity";
 import { ThreatIntelligenceCenter } from "@/components/ThreatIntelligenceCenter";
 import { ComplianceGovernance } from "@/components/ComplianceGovernance";
+import { EnhancedSecurityAlertsCenter } from "@/components/EnhancedSecurityAlertsCenter";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -49,8 +50,12 @@ export default function Security() {
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="alerts" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="alerts" className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Security Alerts
+          </TabsTrigger>
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
             Overview
@@ -68,6 +73,10 @@ export default function Security() {
             Compliance
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="alerts" className="space-y-6">
+          <EnhancedSecurityAlertsCenter />
+        </TabsContent>
 
         <TabsContent value="dashboard" className="space-y-6">
           <ZeroTrustDashboard />
