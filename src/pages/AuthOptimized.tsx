@@ -38,11 +38,12 @@ export default function AuthOptimized() {
       try {
         const config = await configSecurity.initializeSecureConfig();
         setTurnstileSiteKey(config.turnstileSiteKey);
-        setCaptchaEnabled(config.environment === 'production');
+        setCaptchaEnabled(config.environment === 'production' || config.environment === 'staging');
         console.log('🔧 Auth config initialized:', {
           environment: config.environment,
-          captchaEnabled: config.environment === 'production',
-          hasSiteKey: !!config.turnstileSiteKey
+          captchaEnabled: config.environment === 'production' || config.environment === 'staging',
+          hasSiteKey: !!config.turnstileSiteKey,
+          hostname: window.location.hostname
         });
       } catch (error) {
         console.warn('⚠️ Configuration initialization failed, using development mode:', error);

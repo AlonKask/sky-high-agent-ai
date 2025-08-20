@@ -6,7 +6,13 @@ const getAllowedOrigins = () => {
   return [
     projectUrl,
     'https://selectbc.online',
-    'https://www.selectbc.online'
+    'https://www.selectbc.online',
+    // Lovable preview domains
+    'https://lovable.dev',
+    'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovable.app',
+    'https://preview.lovable.dev',
+    // Allow all Lovable subdomains for flexibility
+    ...(['b7f1977e-e173-476b-99ff-3f86c3c87e08'].map(id => `https://${id}.lovable.app`))
   ];
 };
 

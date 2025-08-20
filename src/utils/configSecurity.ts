@@ -84,7 +84,7 @@ class ConfigSecurityManager {
     
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'development';
-    } else if (hostname.includes('staging') || hostname.includes('preview')) {
+    } else if (hostname.includes('staging') || hostname.includes('preview') || hostname.includes('lovable.app')) {
       return 'staging';
     } else {
       return 'production';
@@ -130,11 +130,11 @@ class ConfigSecurityManager {
     // Use the production site key provided by user
     const environment = this.detectEnvironment();
     
-    if (environment === 'production') {
+    if (environment === 'production' || environment === 'staging') {
       return "0x4AAAAAABr-hIuawnDu2ms3";
     }
     
-    // For development and staging, use Cloudflare test key
+    // Only use test key for localhost development
     return "1x00000000000000000000AA";
   }
 
