@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Calendar, MapPin, Users, Clock, ArrowRight, RefreshCw, UserPlus } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, ArrowRight, RefreshCw, UserPlus, AlertCircle } from "lucide-react";
 
 interface Request {
   id: string;
@@ -44,27 +45,47 @@ export const FocusedRequestManager = () => {
   const navigate = useNavigate();
 
   const [assignedRequests, setAssignedRequests] = useState<Request[]>([]);
+  const [allRequests, setAllRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [takingRequest, setTakingRequest] = useState(false);
 
   useEffect(() => {
     if (user && role) {
-      fetchAssignedRequests();
+      console.log("User authenticated with role:", role);
+      fetchRequests();
     }
   }, [user, role]);
 
-  const fetchAssignedRequests = async () => {
-    if (!user) return;
+  const fetchRequests = async () => {
+    if (!user) {
+      console.log("No user found");
+      return;
+    }
     
     try {
       setLoading(true);
       setError(null);
       
-      console.log("Fetching assigned requests for user:", user.id);
+      console.log("Fetching requests for user:", user.id, "with role:", role);
       
-      // Only fetch requests assigned to the current user
-      const { data, error } = await supabase
+      // First, let's check if the user has a role in user_roles table
+      const { data: userRoleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      if (roleError) {
+        console.error('Error fetching user role:', roleError);
+        setError(`Role verification failed: ${roleError.message}`);
+        return;
+      }
+
+      console.log("User role from database:", userRoleData?.role);
+
+      // Fetch all accessible requests (both assigned and created by user)
+      const { data: requestsData, error: requestsError } = await supabase
         .from('requests')
         .select(`
           id,
@@ -83,18 +104,34 @@ export const FocusedRequestManager = () => {
           created_at,
           updated_at
         `)
-        .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching assigned requests:', error);
-        setError(`Failed to load requests: ${error.message}`);
+      if (requestsError) {
+        console.error('Error fetching requests:', requestsError);
+        setError(`Failed to load requests: ${requestsError.message}`);
         return;
       }
 
-      // Fetch client data separately to avoid complex joins
-      if (data && data.length > 0) {
-        const clientIds = [...new Set(data.map(r => r.client_id).filter(Boolean))];
+      console.log("Raw requests data:", requestsData);
+
+      // Filter requests that are assigned to the current user
+      const userAssignedRequests = requestsData?.filter(req => req.assigned_to === user.id) || [];
+      console.log("Requests assigned to user:", userAssignedRequests);
+
+      // Also get requests created by the user
+      const userCreatedRequests = requestsData?.filter(req => req.user_id === user.id) || [];
+      console.log("Requests created by user:", userCreatedRequests);
+
+      // Combine and deduplicate
+      const allUserRequests = [...userAssignedRequests, ...userCreatedRequests.filter(req => !userAssignedRequests.find(ar => ar.id === req.id))];
+      
+      setAllRequests(allUserRequests);
+      setAssignedRequests(userAssignedRequests);
+
+      // Fetch client data if we have requests
+      if (allUserRequests && allUserRequests.length > 0) {
+        const clientIds = [...new Set(allUserRequests.map(r => r.client_id).filter(Boolean))];
+        console.log("Client IDs to fetch:", clientIds);
         
         if (clientIds.length > 0) {
           const { data: clientsData, error: clientsError } = await supabase
@@ -102,24 +139,31 @@ export const FocusedRequestManager = () => {
             .select('id, first_name, last_name, email, phone, company, client_type')
             .in('id', clientIds);
 
-          if (!clientsError && clientsData) {
+          if (clientsError) {
+            console.error('Error fetching clients:', clientsError);
+          } else {
+            console.log("Clients data:", clientsData);
             const clientMap = new Map(clientsData.map(client => [client.id, client]));
-            const enhancedRequests = data.map(request => ({
+            
+            const enhancedAllRequests = allUserRequests.map(request => ({
               ...request,
               clients: clientMap.get(request.client_id) || null
             }));
-            setAssignedRequests(enhancedRequests);
-          } else {
-            setAssignedRequests(data);
+            
+            const enhancedAssignedRequests = userAssignedRequests.map(request => ({
+              ...request,
+              clients: clientMap.get(request.client_id) || null
+            }));
+            
+            setAllRequests(enhancedAllRequests);
+            setAssignedRequests(enhancedAssignedRequests);
           }
-        } else {
-          setAssignedRequests(data);
         }
-      } else {
-        setAssignedRequests([]);
       }
 
-      console.log("Fetched assigned requests:", data?.length);
+      console.log("Final assigned requests:", userAssignedRequests?.length);
+      console.log("Final all requests:", allUserRequests?.length);
+      
     } catch (error) {
       console.error('Unexpected error fetching requests:', error);
       setError('An unexpected error occurred while loading requests');
@@ -145,10 +189,11 @@ export const FocusedRequestManager = () => {
       // First, find the next available request (highest priority, then oldest)
       const { data: availableRequests, error: fetchError } = await supabase
         .from('requests')
-        .select('id, priority, created_at')
+        .select('id, priority, created_at, origin, destination')
         .eq('assignment_status', 'available')
         .order('priority', { ascending: false }) // High priority first
-        .order('created_at', { ascending: true }); // Oldest first for same priority
+        .order('created_at', { ascending: true }) // Oldest first for same priority
+        .limit(1);
 
       if (fetchError) {
         console.error('Error fetching available requests:', fetchError);
@@ -170,6 +215,7 @@ export const FocusedRequestManager = () => {
       }
 
       const nextRequest = availableRequests[0];
+      console.log("Taking request:", nextRequest);
 
       // Assign the request to the current user
       const { error: updateError } = await supabase
@@ -194,9 +240,12 @@ export const FocusedRequestManager = () => {
 
       toast({
         title: "Success",
-        description: "Request assigned to you successfully"
+        description: `Request taken successfully: ${nextRequest.origin} → ${nextRequest.destination}`
       });
 
+      // Refresh the requests list
+      await fetchRequests();
+      
       // Navigate directly to the request detail page
       navigate(`/requests/${nextRequest.id}`);
       
@@ -254,6 +303,11 @@ export const FocusedRequestManager = () => {
         {request.clients?.company && (
           <p className="text-sm text-muted-foreground">{request.clients.company}</p>
         )}
+        <div className="flex items-center gap-2 text-xs">
+          <span className={`px-2 py-1 rounded ${request.assigned_to === user?.id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+            {request.assigned_to === user?.id ? 'Assigned to you' : 'Your request'}
+          </span>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -280,7 +334,7 @@ export const FocusedRequestManager = () => {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              Assigned {new Date(request.updated_at).toLocaleDateString()}
+              Created {new Date(request.created_at).toLocaleDateString()}
             </span>
           </div>
         </div>
@@ -296,9 +350,22 @@ export const FocusedRequestManager = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2 text-destructive">Error Loading Requests</h2>
           <p className="text-muted-foreground mb-4">{error}</p>
-          <Button onClick={fetchAssignedRequests}>Try Again</Button>
+          <Button onClick={fetchRequests}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!role) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground mb-4">You need a business role to access this page.</p>
         </div>
       </div>
     );
@@ -310,11 +377,14 @@ export const FocusedRequestManager = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">My Requests</h1>
-          <p className="text-muted-foreground">Requests assigned to you</p>
+          <p className="text-muted-foreground">
+            Showing {allRequests.length} request{allRequests.length !== 1 ? 's' : ''} 
+            ({assignedRequests.length} assigned to you)
+          </p>
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={fetchAssignedRequests} 
+            onClick={fetchRequests} 
             variant="outline" 
             size="sm"
             disabled={loading}
@@ -332,15 +402,15 @@ export const FocusedRequestManager = () => {
         </div>
       </div>
 
-      {/* Assigned Requests */}
-      {assignedRequests.length === 0 ? (
+      {/* Requests Display */}
+      {allRequests.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
             <div className="space-y-4">
               <div className="text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                <h3 className="text-lg font-semibold">No Assigned Requests</h3>
-                <p>You don't have any requests assigned to you yet.</p>
+                <h3 className="text-lg font-semibold">No Requests Found</h3>
+                <p>You don't have any requests yet. Take one to get started!</p>
               </div>
               <Button 
                 onClick={handleTakeRequest}
@@ -354,13 +424,8 @@ export const FocusedRequestManager = () => {
         </Card>
       ) : (
         <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-foreground">
-              {assignedRequests.length} Request{assignedRequests.length !== 1 ? 's' : ''}
-            </h2>
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {assignedRequests.map((request) => (
+            {allRequests.map((request) => (
               <RequestCard key={request.id} request={request} />
             ))}
           </div>

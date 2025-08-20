@@ -3213,6 +3213,10 @@ export type Database = {
         Args: { profile_user_id: string }
         Returns: boolean
       }
+      can_access_request: {
+        Args: { assigned_to_id: string; request_user_id: string }
+        Returns: boolean
+      }
       can_access_satisfaction_scores: {
         Args: { target_agent_id: string; target_client_id: string }
         Returns: boolean
@@ -3594,6 +3598,10 @@ export type Database = {
         Returns: undefined
       }
       has_admin_role: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      has_business_role: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
