@@ -25,6 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toastHelpers } from '@/utils/toastHelpers';
 import { sanitizeEmailContent } from '@/utils/sanitization';
+import { SafeHtmlRenderer } from './SafeHtmlRenderer';
 import DOMPurify from 'dompurify';
 
 interface SafeEmailRendererProps {
@@ -129,9 +130,10 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
             </Button>
           )}
         </div>
-        <div 
+        <SafeHtmlRenderer 
+          html={sanitizedHtml}
           className="bg-muted/30 p-4 rounded-lg border text-sm"
-          dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+          type="email"
         />
       </div>
     );
@@ -163,9 +165,10 @@ const SafeEmailRenderer: React.FC<SafeEmailRendererProps> = ({
           <CardTitle className="text-lg">Email Content</CardTitle>
         </CardHeader>
         <CardContent>
-          <div 
+          <SafeHtmlRenderer 
+            html={sanitizedHtml}
             className="prose max-w-none text-sm leading-relaxed email-content"
-            dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+            type="email"
           />
         </CardContent>
       </Card>

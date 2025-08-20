@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeText, sanitizeEmailContent } from '@/utils/sanitization';
+import { SafeHtmlRenderer } from './SafeHtmlRenderer';
 
 interface Quote {
   id: string;
@@ -479,9 +480,10 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
                       <strong>Subject:</strong> {emailSubject}
                     </div>
                   </div>
-                  <div 
+                  <SafeHtmlRenderer 
+                    html={emailContent}
                     className="p-4 max-h-96 overflow-y-auto bg-white"
-                    dangerouslySetInnerHTML={{ __html: sanitizeEmailContent(emailContent) }}
+                    type="email"
                   />
                 </div>
               )}
