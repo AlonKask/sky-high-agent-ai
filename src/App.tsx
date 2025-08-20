@@ -54,18 +54,24 @@ const queryClient = new QueryClient({
   },
 });
 
-function App() {
-  // Initialize security monitoring
+// Security monitoring wrapper component
+const SecurityMonitoringWrapper = ({ children }: { children: React.ReactNode }) => {
+  // Now we can safely call useSecurityMonitoring since we're inside SimpleAuthProvider
   useSecurityMonitoring();
+  
+  return <>{children}</>;
+};
 
+function App() {
   return (
     <BrowserRouter>
       <SecurityInitializer />
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <SimpleAuthProvider>
-            <RoleViewProvider>
-              <ErrorBoundary>
+            <SecurityMonitoringWrapper>
+              <RoleViewProvider>
+                <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     {/* Public routes */}
@@ -106,7 +112,8 @@ function App() {
                 <RadixToaster />
                 <SecurityEnhancementMonitor />
                 </ErrorBoundary>
-            </RoleViewProvider>
+              </RoleViewProvider>
+            </SecurityMonitoringWrapper>
           </SimpleAuthProvider>
         </TooltipProvider>
       </QueryClientProvider>
