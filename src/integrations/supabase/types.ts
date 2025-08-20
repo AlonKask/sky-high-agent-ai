@@ -1821,6 +1821,7 @@ export type Database = {
           booking_url: string | null
           class_type: string
           currency: string | null
+          data_classification: string | null
           destination_code: string
           id: string
           is_available: boolean | null
@@ -1836,6 +1837,7 @@ export type Database = {
           booking_url?: string | null
           class_type: string
           currency?: string | null
+          data_classification?: string | null
           destination_code: string
           id?: string
           is_available?: boolean | null
@@ -1851,6 +1853,7 @@ export type Database = {
           booking_url?: string | null
           class_type?: string
           currency?: string | null
+          data_classification?: string | null
           destination_code?: string
           id?: string
           is_available?: boolean | null
