@@ -27,18 +27,28 @@ class EnhancedSessionSecurity {
   }
 
   generateDeviceFingerprint(): string {
-    // Use more stable browser properties, avoid canvas that changes between loads
+    // Use stable browser properties for consistent fingerprinting
     const fingerprint = [
       navigator.userAgent,
       navigator.language,
       screen.width + 'x' + screen.height,
       new Date().getTimezoneOffset().toString(),
       navigator.platform || 'unknown',
-      navigator.hardwareConcurrency || 'unknown'
+      navigator.hardwareConcurrency || 'unknown',
+      // Add more stable identifiers
+      navigator.cookieEnabled ? 'cookies-enabled' : 'cookies-disabled',
+      navigator.doNotTrack || 'not-set'
     ].join('|');
     
-    const encoded = btoa(fingerprint).substring(0, 32);
-    console.log('[Enhanced Security] Generated stable device fingerprint:', encoded);
+    // Create consistent hash
+    let hash = 0;
+    for (let i = 0; i < fingerprint.length; i++) {
+      const char = fingerprint.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    const encoded = Math.abs(hash).toString(36).substring(0, 16);
     return encoded;
   }
 
