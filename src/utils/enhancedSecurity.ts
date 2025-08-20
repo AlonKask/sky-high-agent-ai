@@ -26,7 +26,7 @@ export const logSecurityEvent = async (
       return false;
     }
     
-    return data === true;
+    return !!data;
   } catch (error) {
     console.error('Security logging error:', error);
     return false;

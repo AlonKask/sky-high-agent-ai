@@ -3694,7 +3694,7 @@ export type Database = {
               p_user_id?: string
             }
           | { p_details?: Json; p_event_type: string; p_severity?: string }
-        Returns: boolean
+        Returns: string
       }
       log_security_monitoring: {
         Args: {
