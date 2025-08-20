@@ -3,12 +3,13 @@ export const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
   'script-src': [
     "'self'", 
-    "'unsafe-inline'", // Required for Vite in development - remove in production
-    "'unsafe-eval'", // Required for development build - remove in production
+    // Remove unsafe directives in production, keep for development
+    ...(process.env.NODE_ENV === 'development' ? ["'unsafe-inline'", "'unsafe-eval'"] : []),
     "https://challenges.cloudflare.com", // Turnstile
     "https://js.stripe.com", // Stripe if used
     "https://apis.google.com", // Google APIs
-    "'nonce-lovable-security'" // Add nonce for inline scripts
+    "https://accounts.google.com", // Google OAuth
+    "'nonce-lovable-security'" // Nonce for inline scripts
   ],
   'style-src': [
     "'self'", 

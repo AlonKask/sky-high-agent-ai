@@ -3300,6 +3300,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_enhanced_rate_limit: {
+        Args: {
+          p_max_requests?: number
+          p_operation: string
+          p_user_id?: string
+          p_window_seconds?: number
+        }
+        Returns: boolean
+      }
       check_rate_limit: {
         Args: {
           p_endpoint: string
@@ -3727,6 +3736,15 @@ export type Database = {
       }
       is_team_manager: {
         Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
+      log_admin_data_access: {
+        Args: {
+          p_justification: string
+          p_record_id: string
+          p_table_name: string
+          p_target_user_id?: string
+        }
         Returns: boolean
       }
       log_client_access: {

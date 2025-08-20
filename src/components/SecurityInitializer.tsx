@@ -1,62 +1,50 @@
 import { useEffect } from 'react';
 import { applyCSPHeaders } from '@/utils/contentSecurityPolicy';
-import { initSecurityMonitoring } from '@/utils/enhancedSecurity';
-import { config } from '@/lib/config';
-import { logSecurityEvent } from '@/utils/enhancedSecurity';
-import { authSecurity } from '@/utils/authSecurity';
+import { validateSecurityConfig } from '@/utils/securityHeaders';
+import { enhancedSecurity } from '@/utils/enhancedSecurity';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 
 /**
- * Security initializer component that runs security setup on app start
- * This component should be included at the root of the application
+ * SecurityInitializer Component
+ * Initializes security measures when the app loads
  */
-export const SecurityInitializer: React.FC = () => {
+const SecurityInitializer = () => {
+  const { user } = useSimpleAuth();
+
   useEffect(() => {
-    const initializeSecurity = async () => {
-      try {
-        console.log('🔒 Initializing security systems...');
-        
-        // 1. Apply CSP headers for XSS protection
-        applyCSPHeaders();
-        
-        // 2. Initialize security monitoring
-        initSecurityMonitoring();
-        
-        // 3. Initialize auth security manager
-        authSecurity.initializeSessionMonitoring();
-        
-        // 4. Initialize secure configuration
-        await config.init();
-        
-        // 5. Log successful security initialization
-        logSecurityEvent('security_system_initialized', 'low', {
-          timestamp: new Date().toISOString(),
-          user_agent: navigator.userAgent,
-          screen_resolution: `${screen.width}x${screen.height}`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          language: navigator.language,
-          platform: navigator.platform
-        });
-        
-        console.log('✅ Security systems initialized successfully');
-        
-      } catch (error) {
-        console.error('❌ Security initialization failed:', error);
-        
-        // Log the failure
-        logSecurityEvent('security_init_failed', 'critical', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined,
-          timestamp: new Date().toISOString()
-        });
-      }
-    };
+    // Apply client-side security headers
+    applyCSPHeaders();
     
-    // Run initialization immediately
-    initializeSecurity();
-  }, []);
-  
-  // This component renders nothing - it's purely for side effects
-  return null;
+    // Validate security configuration
+    const isSecure = validateSecurityConfig();
+    if (!isSecure && process.env.NODE_ENV === 'production') {
+      console.error('🚨 CRITICAL: Security configuration validation failed');
+    }
+
+    // Initialize security monitoring for authenticated users
+    if (user?.id) {
+      enhancedSecurity.monitorUserActivity(user.id, 'app_initialization', {
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Set up periodic security checks
+    const securityInterval = setInterval(async () => {
+      // Flush any buffered security events
+      await enhancedSecurity.flushAlertBuffer();
+      
+      // Validate IP security (simplified check)
+      await enhancedSecurity.validateIPSecurity();
+    }, 60000); // Every minute
+
+    return () => {
+      clearInterval(securityInterval);
+    };
+  }, [user?.id]);
+
+  return null; // This component doesn't render anything
 };
 
+export { SecurityInitializer };
 export default SecurityInitializer;
