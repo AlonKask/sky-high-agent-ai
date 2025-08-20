@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthGuard } from "./components/AuthGuard";
+import { AuthProvider } from "./hooks/useAuth";
 import { Layout } from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Index from "./pages/Index";
@@ -40,48 +41,50 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <ErrorBoundary>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/request" element={<PublicRequest />} />
-            <Route path="/view-option/:token" element={<ViewOption />} />
-            <Route path="/options/:token" element={<OptionsRedirect />} />
-            <Route path="/review-options/:token" element={<OptionsReview />} />
-            <Route path="/book-option/:token" element={<BookOption />} />
-            <Route
-              path="/*"
-              element={
-                <AuthGuard>
-                  <Layout>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/requests" element={<Requests />} />
-                      <Route path="/requests/:id" element={<RequestDetail />} />
-                      <Route path="/clients" element={<Clients />} />
-                      <Route path="/client/:id" element={<ClientProfile />} />
-                      <Route path="/bookings" element={<Bookings />} />
-                      <Route path="/booking/:id" element={<BookingDetail />} />
-                      <Route path="/emails" element={<Emails />} />
-                      <Route path="/simple-emails" element={<SimpleEmails />} />
-                      <Route path="/messages" element={<Messages />} />
-                      <Route path="/analytics" element={<Analytics />} />
-                      <Route path="/reports" element={<Reports />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/users" element={<Users />} />
-                      <Route path="/user/:id" element={<UserProfile />} />
-                      <Route path="/agent-statistics" element={<AgentStatistics />} />
-                      <Route path="/calendar" element={<Calendar />} />
-                      <Route path="/iata-management" element={<IATAManagement />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Layout>
-                </AuthGuard>
-              }
-            />
-          </Routes>
-        </ErrorBoundary>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/request" element={<PublicRequest />} />
+              <Route path="/view-option/:token" element={<ViewOption />} />
+              <Route path="/options/:token" element={<OptionsRedirect />} />
+              <Route path="/review-options/:token" element={<OptionsReview />} />
+              <Route path="/book-option/:token" element={<BookOption />} />
+              <Route
+                path="/*"
+                element={
+                  <AuthGuard>
+                    <Layout>
+                      <Routes>
+                        <Route path="/" element={<Index />} />
+                        <Route path="/requests" element={<Requests />} />
+                        <Route path="/requests/:id" element={<RequestDetail />} />
+                        <Route path="/clients" element={<Clients />} />
+                        <Route path="/client/:id" element={<ClientProfile />} />
+                        <Route path="/bookings" element={<Bookings />} />
+                        <Route path="/booking/:id" element={<BookingDetail />} />
+                        <Route path="/emails" element={<Emails />} />
+                        <Route path="/simple-emails" element={<SimpleEmails />} />
+                        <Route path="/messages" element={<Messages />} />
+                        <Route path="/analytics" element={<Analytics />} />
+                        <Route path="/reports" element={<Reports />} />
+                        <Route path="/settings" element={<Settings />} />
+                        <Route path="/users" element={<Users />} />
+                        <Route path="/user/:id" element={<UserProfile />} />
+                        <Route path="/agent-statistics" element={<AgentStatistics />} />
+                        <Route path="/calendar" element={<Calendar />} />
+                        <Route path="/iata-management" element={<IATAManagement />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </Layout>
+                  </AuthGuard>
+                }
+              />
+            </Routes>
+          </ErrorBoundary>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
