@@ -3326,6 +3326,15 @@ export type Database = {
             }
         Returns: Json
       }
+      emergency_admin_access: {
+        Args: {
+          business_justification: string
+          record_id: string
+          supervisor_approval_code: string
+          table_name: string
+        }
+        Returns: boolean
+      }
       emergency_client_access: {
         Args:
           | {
