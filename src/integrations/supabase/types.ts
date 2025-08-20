@@ -3746,6 +3746,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_critical_access: {
+        Args: {
+          p_operation: string
+          p_record_id?: string
+          p_table_name: string
+        }
+        Returns: undefined
+      }
       log_data_access_audit: {
         Args: {
           p_access_type?: string
