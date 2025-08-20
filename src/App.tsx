@@ -13,6 +13,7 @@ import { Suspense, lazy } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import SecurityInitializer from "@/components/SecurityInitializer";
 import { SecurityEnhancementMonitor } from "@/components/SecurityEnhancementMonitor";
+import { useSecurityMonitoring } from "@/hooks/useSecurityMonitoring";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -54,6 +55,9 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  // Initialize security monitoring
+  useSecurityMonitoring();
+
   return (
     <BrowserRouter>
       <SecurityInitializer />
