@@ -78,14 +78,46 @@ export const SecureAuthProvider = ({ children }: { children: React.ReactNode }) 
         return false;
       }
 
-      // Check device fingerprint consistency (if stored)
+      // Check device fingerprint consistency with protective action
       const storedFingerprint = localStorage.getItem('device_fingerprint');
       if (storedFingerprint && storedFingerprint !== deviceFingerprint) {
         secureLogger.error('Device fingerprint mismatch - potential session hijacking', {
           stored: storedFingerprint.substring(0, 8),
           current: deviceFingerprint.substring(0, 8)
         });
-        // Log security event but don't force logout (could be legitimate device change)
+        
+        // Log security event and take protective action
+        try {
+          await supabase.rpc('log_security_event', {
+            p_event_type: 'device_fingerprint_mismatch',
+            p_severity: 'high',
+            p_details: {
+              stored_fingerprint: storedFingerprint.substring(0, 8),
+              current_fingerprint: deviceFingerprint.substring(0, 8),
+              potential_hijacking: true
+            }
+          });
+        } catch (logError) {
+          secureLogger.warn('Failed to log security event', { error: logError });
+        }
+        
+        // Show warning to user but allow session to continue (first time)
+        const mismatchCount = parseInt(localStorage.getItem('fingerprint_mismatch_count') || '0') + 1;
+        localStorage.setItem('fingerprint_mismatch_count', mismatchCount.toString());
+        
+        if (mismatchCount >= 3) {
+          // Force logout after 3 mismatches
+          secureLogger.error('Multiple device fingerprint mismatches - forcing logout');
+          await signOut();
+          return false;
+        } else {
+          // Update stored fingerprint but warn user
+          localStorage.setItem('device_fingerprint', deviceFingerprint);
+          secureLogger.warn(`Device fingerprint updated (mismatch ${mismatchCount}/3)`);
+        }
+      } else {
+        // Reset mismatch count on successful validation
+        localStorage.removeItem('fingerprint_mismatch_count');
       }
 
       setSessionValid(true);

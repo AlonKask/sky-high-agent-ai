@@ -7,24 +7,29 @@ export const logSecurityEvent = async (
   details: Record<string, any> = {}
 ) => {
   try {
-    const { error } = await supabase
-      .from('security_events')
-      .insert({
-        event_type: eventType,
-        severity,
-        details: {
-          ...details,
-          timestamp: new Date().toISOString(),
-          user_agent: navigator.userAgent,
-          url: window.location.href
-        }
-      });
+    // Use the enhanced database function for better reliability
+    const { data, error } = await supabase.rpc('log_security_event', {
+      p_event_type: eventType,
+      p_severity: severity,
+      p_details: {
+        ...details,
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+        url: window.location.href,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }
+    });
     
     if (error) {
       console.error('Failed to log security event:', error);
+      return false;
     }
+    
+    return data === true;
   } catch (error) {
     console.error('Security logging error:', error);
+    return false;
   }
 };
 
