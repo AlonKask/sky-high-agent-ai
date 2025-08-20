@@ -1,7 +1,7 @@
 import { DashboardCore } from "./DashboardCore";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useRoleView } from "@/contexts/RoleViewContext";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth as useAuth } from "@/hooks/useSimpleAuth";
 import { useTeamAnalytics } from "@/hooks/useTeamAnalytics";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 

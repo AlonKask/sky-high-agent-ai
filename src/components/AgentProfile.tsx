@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { User, BarChart3, LogOut } from 'lucide-react';
@@ -10,7 +10,7 @@ interface AgentProfileProps {
 }
 
 export const AgentProfile: React.FC<AgentProfileProps> = ({ className = '' }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut } = useSimpleAuth();
   const navigate = useNavigate();
 
   const getDisplayName = () => {

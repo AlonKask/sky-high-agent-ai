@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { 
   LayoutDashboard, 
   Users, 
@@ -25,7 +25,7 @@ interface NavigationProps {
 }
 
 const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [counts, setCounts] = useState({
     clients: 0,

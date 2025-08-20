@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +42,7 @@ interface Request {
 
 const EnhancedRequestManager = () => {
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useSimpleAuth();
   const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -138,8 +138,8 @@ const EnhancedRequestManager = () => {
     try {
       // Use the assign_request_to_agent function for proper assignment
       const { error } = await supabase.rpc('assign_request_to_agent', {
-        request_id: requestId,
-        agent_id: user.id
+        p_request_id: requestId,
+        p_agent_id: user.id
       });
 
       if (error) {

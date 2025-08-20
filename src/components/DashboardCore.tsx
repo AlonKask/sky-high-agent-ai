@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { UserRole } from "@/hooks/useUserRole";
 import { toastHelpers, supabaseErrorToast } from "@/utils/toastHelpers";
 import { PerformanceMonitor } from "@/utils/performanceMonitor";
@@ -43,7 +43,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
   showRoleSpecificActions = true 
 }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({

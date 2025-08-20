@@ -14,14 +14,14 @@ import { format } from "date-fns";
 import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target, UserPlus, AlertCircle, RefreshCw, X, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AILeadScoring from "@/components/AILeadScoring";
 
 const ClientManager = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
