@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Search, Plus, User, Plane, Phone, Mail, MapPin, Clock, Brain, Target, UserPlus, AlertCircle, RefreshCw, X, PlusCircle, TrendingUp, MessageCircle, DollarSign, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { logDataAccess } from "@/utils/security";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

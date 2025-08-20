@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { toastHelpers } from '@/utils/toastHelpers';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 
 export const ManualGmailFix = () => {
   const [isProcessing, setIsProcessing] = useState(false);

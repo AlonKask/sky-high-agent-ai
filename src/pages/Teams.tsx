@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { Button } from '@/components/ui/button';

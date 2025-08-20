@@ -1,10 +1,13 @@
 import { useUserRole } from "@/hooks/useUserRole";
 import { useRoleView } from "@/contexts/RoleViewContext";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { UserCabinet } from "./UserCabinet";
 import EnhancedDashboard from "./EnhancedDashboard";
+import { DeveloperDashboard } from "./dashboards/DeveloperDashboard";
 import { ManagerDashboard } from "./dashboards/ManagerDashboard";
 import { SupervisorDashboard } from "./dashboards/SupervisorDashboard";
+import { GDSExpertDashboard } from "./dashboards/GDSExpertDashboard";
+import { CSAgentDashboard } from "./dashboards/CSAgentDashboard";
+import { SalesAgentDashboard } from "./dashboards/SalesAgentDashboard";
 
 export const RoleDashboard = () => {
   const { role, loading } = useUserRole();
@@ -25,12 +28,7 @@ export const RoleDashboard = () => {
     );
   }
 
-  // User role gets UserCabinet
-  if (role === 'user') {
-    return <UserCabinet />;
-  }
-
-  // Use role-specific dashboards when appropriate
+  // Use role-specific dashboards when appropriate, otherwise enhanced dashboard
   if (selectedViewRole === 'supervisor' || role === 'supervisor') {
     return <SupervisorDashboard />;
   }
@@ -39,6 +37,6 @@ export const RoleDashboard = () => {
     return <ManagerDashboard />;
   }
 
-  // Default to enhanced dashboard for staff roles
+  // Default to enhanced dashboard for all authenticated users
   return <EnhancedDashboard />;
 };

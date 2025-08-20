@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 import { useUserRole } from '@/hooks/useUserRole';
 import { addMonths, subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
 

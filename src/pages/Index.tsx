@@ -1,5 +1,5 @@
 
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { RoleDashboard } from "@/components/RoleDashboard";

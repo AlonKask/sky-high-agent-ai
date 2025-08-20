@@ -38,13 +38,12 @@ import SabreOptionManager from '@/components/SabreOptionManager';
 import UnifiedEmailBuilder from '@/components/UnifiedEmailBuilder';
 
 const RequestDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
   const [request, setRequest] = useState<any>(null);
   const [client, setClient] = useState<any>(null);
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showQuoteDialog, setShowQuoteDialog] = useState(false);
   
   // Local state for managing UI updates
@@ -55,6 +54,26 @@ const RequestDetail = () => {
   
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
   const [showEmailBuilder, setShowEmailBuilder] = useState(false);
+  const [newQuote, setNewQuote] = useState({
+    route: '',
+    fare_type: 'revenue',
+    net_price: '',
+    markup: '',
+    total_price: '',
+    valid_until: '',
+    notes: '',
+    segments: [],
+    total_segments: 0,
+    adults_count: 1,
+    children_count: 0,
+    infants_count: 0,
+    adultNetPrice: '',
+    adultMarkup: '',
+    childNetPrice: '',
+    childMarkup: '',
+    infantNetPrice: '',
+    infantMarkup: ''
+  });
 
   // Helper function to format dates
   const formatDate = (dateString: string) => {
@@ -67,13 +86,8 @@ const RequestDetail = () => {
   };
 
   useEffect(() => {
-    console.log('RequestDetail mounted with id:', id);
     if (id) {
       fetchRequestDetails();
-    } else {
-      console.error('No request ID provided');
-      setError('No request ID provided');
-      setLoading(false);
     }
   }, [id]);
 
@@ -145,27 +159,11 @@ const RequestDetail = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="container mx-auto px-6 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4 text-destructive">Error Loading Request</h1>
-          <p className="text-muted-foreground mb-4">{error}</p>
-          <Button onClick={() => navigate('/requests')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Requests
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   if (!request || !client) {
     return (
       <div className="container mx-auto px-6 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Request not found</h1>
-          <p className="text-muted-foreground mb-4">The requested item could not be found or you don't have permission to view it.</p>
           <Button onClick={() => navigate('/requests')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Requests

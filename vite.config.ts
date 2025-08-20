@@ -55,7 +55,7 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 8080,
     headers: mode === 'development' ? {
-      'X-Frame-Options': 'ALLOWALL',
+      'X-Frame-Options': 'DENY',
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
       'X-XSS-Protection': '1; mode=block',

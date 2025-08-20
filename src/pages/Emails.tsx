@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import SafeEmailRenderer from '@/components/SafeEmailRenderer';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthOptimized';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
 import { EmailSyncManager } from '@/utils/emailSync';
@@ -113,36 +113,19 @@ const Emails = () => {
     received: 0
   });
 
-  // Load emails from database with simplified query to avoid database issues
+  // Load emails from database with proper folder filtering
   const loadEmailsFromDB = async () => {
     if (!user) return;
     
     setLoading(true);
     try {
-      // Simplified query to avoid complex database function calls
       let query = supabase
         .from('email_exchanges')
-        .select(`
-          id,
-          user_id,
-          message_id,
-          thread_id,
-          subject,
-          sender_email,
-          recipient_emails,
-          cc_emails,
-          bcc_emails,
-          body,
-          is_read,
-          received_at,
-          metadata,
-          attachments,
-          created_at
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('received_at', { ascending: false });
 
-      // Apply search filter
+      // Apply search filter first
       if (searchQuery.trim()) {
         query = query.or(`subject.ilike.%${searchQuery}%,sender_email.ilike.%${searchQuery}%,body.ilike.%${searchQuery}%`);
       }

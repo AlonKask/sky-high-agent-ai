@@ -1,204 +1,197 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useUserRole } from "@/hooks/useUserRole";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuthOptimized";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toastHelpers } from "@/utils/toastHelpers";
-import { 
-  Search, 
-  Users, 
-  Clock, 
-  MapPin, 
-  User, 
-  UserPlus, 
-  Calendar, 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2,
-  Plus,
-  Filter,
-  RotateCcw,
-  Star
-} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown, Inbox } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { EmptyStateCard } from "@/components/EmptyStateCard";
+import { AuthCleanup } from "@/utils/authCleanup";
 
-// Enhanced Request interface with status field
 interface Request {
   id: string;
   client_id: string;
-  origin: string;
-  destination: string;
+  origin_airport: string;
+  destination_airport: string;
   departure_date: string;
   return_date?: string;
-  request_type: string;
-  status: string;
-  priority: string;
-  assignment_status: string;
-  assigned_to?: string;
   adults_count: number;
   children_count: number;
   infants_count: number;
-  class_preference: string;
+  priority: string;
+  status: string;
+  assignment_status: string;
+  assigned_to?: string;
   created_at: string;
-  clients?: {
-    id: string;
+  clients: {
     first_name: string;
     last_name: string;
     email: string;
     client_type: string;
   };
+  // Computed properties for backward compatibility
+  origin: string;
+  destination: string;
+  passengers: number;
 }
 
 const EnhancedRequestManager = () => {
+  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [clientTypeFilter, setClientTypeFilter] = useState("all");
   const [takingRequest, setTakingRequest] = useState<string | null>(null);
+  const [showTakeRequestDropdown, setShowTakeRequestDropdown] = useState(false);
+  const filterUserId = searchParams.get('user');
+
+  const isLoading = authLoading || roleLoading;
+
+  // Debug logging
+  useEffect(() => {
+    console.log('EnhancedRequestManager state:', {
+      user: user?.id,
+      role,
+      authLoading,
+      roleLoading,
+      isLoading
+    });
+  }, [user, role, authLoading, roleLoading, isLoading]);
 
   useEffect(() => {
-    if (!authLoading && !roleLoading && user) {
+    if (!isLoading && user) {
+      console.log('Fetching requests for user:', user.id, 'with role:', role);
       fetchRequests();
+    } else if (!isLoading && !user) {
+      console.log('No user authenticated, skipping fetch');
+      setLoading(false);
     }
-  }, [user, authLoading, roleLoading]);
+  }, [user, role, isLoading]);
 
   const fetchRequests = async () => {
     if (!user) {
-      setError("You must be logged in to view requests");
+      console.log('No user found, skipping request fetch');
       setLoading(false);
       return;
     }
     
     try {
       setLoading(true);
-      setError(null);
-      
-      console.log("Fetching requests for user:", user.id, "with role:", role);
+      console.log('Fetching requests using secure function for user:', user.id, 'role:', role);
 
-      const { data, error: fetchError } = await supabase
-        .from('requests')
-        .select(`
-          *,
-          clients!inner(
-            id,
-            first_name,
-            last_name,
-            email,
-            client_type
-          )
-        `)
-        .order('created_at', { ascending: false });
+      // Use the secure RPC function that bypasses RLS issues
+      const { data, error } = await supabase.rpc('get_user_requests', {
+        target_user_id: user.id
+      });
 
-      if (fetchError) {
-        console.error('Error fetching requests:', fetchError);
-        setError(`Failed to load requests: ${fetchError.message}`);
-        toastHelpers.error(`Failed to load requests: ${fetchError.message}`);
+      if (error) {
+        console.error('Error fetching requests:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load requests"
+        });
         return;
       }
 
-      console.log("Fetched requests:", data?.length || 0);
-      setRequests(data || []);
+      console.log('Fetched requests via RPC:', data?.length || 0, 'requests');
+      
+      // Phase 3: Transform the data to match the expected format with session recovery
+      const transformedRequests = data?.map(request => ({
+        ...request,
+        // Backward compatibility mappings
+        origin: request.origin_airport,
+        destination: request.destination_airport,
+        passengers: (request.adults_count || 0) + (request.children_count || 0) + (request.infants_count || 0),
+        clients: {
+          first_name: request.client_first_name,
+          last_name: request.client_last_name,
+          email: request.client_email,
+          client_type: 'new' // Default since client_type not in RPC response
+        }
+      })) || [];
+      
+      setRequests(transformedRequests);
     } catch (error) {
-      console.error('Unexpected error fetching requests:', error);
-      setError('An unexpected error occurred while loading requests');
-      toastHelpers.error('An unexpected error occurred while loading requests');
+      console.error('Error fetching requests:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load requests"
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleTakeRequest = async (requestId: string) => {
-    if (!user) {
-      toastHelpers.error("You must be logged in to take requests");
-      return;
-    }
-
+    if (!user) return;
+    
     try {
-      setTakingRequest(requestId);
-      console.log("Taking request:", requestId, "for user:", user.id);
+      // Use the assign_request_to_agent function for proper assignment
+      const { error } = await supabase.rpc('assign_request_to_agent', {
+        request_id: requestId,
+        agent_id: user.id
+      });
 
-      const { error: updateError } = await supabase
-        .from('requests')
-        .update({
-          assigned_to: user.id,
-          assignment_status: 'assigned',
-          status: 'in_progress'
-        })
-        .eq('id', requestId);
-
-      if (updateError) {
-        console.error('Error taking request:', updateError);
-        toastHelpers.error(`Failed to take request: ${updateError.message}`);
+      if (error) {
+        console.error('Error taking request:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Failed to take request"
+        });
         return;
       }
 
-      toastHelpers.success('Request assigned to you successfully');
-      await fetchRequests();
+      toast({
+        title: "Success",
+        description: "Request assigned successfully"
+      });
+      
+      await fetchRequests(); // Refresh the list
+      setShowTakeRequestDropdown(false);
     } catch (error) {
-      console.error('Unexpected error taking request:', error);
-      toastHelpers.error('An unexpected error occurred while taking the request');
-    } finally {
-      setTakingRequest(null);
+      console.error('Error taking request:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to take request"
+      });
     }
   };
 
-  // Enhanced filtering
   const filteredRequests = requests.filter(request => {
-    // Search filter
-    if (searchTerm) {
-      const searchString = `${request.clients?.first_name || ''} ${request.clients?.last_name || ''} ${request.origin} ${request.destination}`.toLowerCase();
-      if (!searchString.includes(searchTerm.toLowerCase())) return false;
-    }
-    
-    // Status filter
-    if (statusFilter !== "all" && request.status !== statusFilter) return false;
-    
-    // Client type filter
-    if (clientTypeFilter !== "all" && request.clients?.client_type !== clientTypeFilter) return false;
-    
-    return true;
+    const searchString = `${request.clients?.first_name} ${request.clients?.last_name} ${request.origin} ${request.destination}`.toLowerCase();
+    return searchString.includes(searchTerm.toLowerCase());
   });
 
-  // Categorize requests with enhanced color coding
+  const newClientRequests = filteredRequests.filter(request => 
+    request.clients?.client_type === 'new' && request.assignment_status === 'available'
+  );
+
+  const returnClientRequests = filteredRequests.filter(request => 
+    request.clients?.client_type === 'return' && request.assignment_status === 'available'
+  );
+
   const myAssignedRequests = filteredRequests.filter(request => 
     request.assigned_to === user?.id
   );
 
-  const availableRequests = filteredRequests.filter(request => 
-    request.assignment_status === 'available' || !request.assigned_to
-  );
-
-  const newClientRequests = availableRequests.filter(request => 
-    request.clients?.client_type === 'new'
-  );
-
-  const returnClientRequests = availableRequests.filter(request => 
-    request.clients?.client_type === 'return'
-  );
-
-  const referralClientRequests = availableRequests.filter(request => 
-    request.clients?.client_type === 'referral'
-  );
-
-  const repeatClientRequests = availableRequests.filter(request => 
-    request.clients?.client_type === 'repeat'
-  );
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "new": return "bg-green-500 text-white";
+      case "pending": return "bg-orange-500 text-white";
       case "in_progress": return "bg-blue-500 text-white";
       case "quote_sent": return "bg-purple-500 text-white";
-      case "sold": return "bg-emerald-500 text-white";
+      case "confirmed": return "bg-green-500 text-white";
       case "cancelled": return "bg-red-500 text-white";
       default: return "bg-gray-500 text-white";
     }
@@ -213,39 +206,23 @@ const EnhancedRequestManager = () => {
     }
   };
 
-  const getClientTypeColor = (clientType: string) => {
-    switch (clientType) {
-      case "new": return "border-l-4 border-l-green-500 bg-green-50/50";
-      case "return": return "border-l-4 border-l-blue-500 bg-blue-50/50";
-      case "referral": return "border-l-4 border-l-purple-500 bg-purple-50/50";
-      case "repeat": return "border-l-4 border-l-orange-500 bg-orange-50/50";
-      default: return "border-l-4 border-l-gray-500 bg-gray-50/50";
-    }
-  };
-
   const RequestCard = ({ request }: { request: Request }) => (
     <Card 
-      className={`transition-all duration-200 cursor-pointer hover:shadow-lg ${getClientTypeColor(request.clients?.client_type || 'new')}`}
+      className="card-elevated hover:shadow-large transition-all duration-200 cursor-pointer"
       onClick={() => navigate(`/request/${request.id}`)}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              {request.clients?.client_type === 'repeat' && <Star className="w-5 h-5 text-orange-600" />}
-              {request.clients?.client_type === 'referral' && <UserPlus className="w-5 h-5 text-purple-600" />}
-              {request.clients?.client_type === 'return' && <RotateCcw className="w-5 h-5 text-blue-600" />}
-              {request.clients?.client_type === 'new' && <User className="w-5 h-5 text-green-600" />}
+              <User className="w-5 h-5 text-primary" />
             </div>
             <div>
               <CardTitle className="text-lg">
                 {request.clients?.first_name} {request.clients?.last_name}
               </CardTitle>
-              <CardDescription className="text-sm flex items-center gap-2">
+              <CardDescription className="text-sm">
                 {request.clients?.email}
-                <Badge variant="outline" className="text-xs">
-                  {request.clients?.client_type}
-                </Badge>
               </CardDescription>
             </div>
           </div>
@@ -262,7 +239,7 @@ const EnhancedRequestManager = () => {
       <CardContent className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="w-4 h-4" />
-          <span>{request.origin} → {request.destination}</span>
+          <span>{request.origin} -&gt; {request.destination}</span>
         </div>
         
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -272,75 +249,56 @@ const EnhancedRequestManager = () => {
           </div>
           <div className="flex items-center gap-1">
             <Users className="w-4 h-4" />
-            <span>{request.adults_count + request.children_count + request.infants_count} passengers</span>
+            <span>{request.passengers} passengers</span>
           </div>
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
             <span>{new Date(request.created_at).toLocaleDateString()}</span>
           </div>
         </div>
-
-        {/* Show Take Request button for available requests */}
-        {(request.assignment_status === 'available' || !request.assigned_to) && (
-          <div className="pt-2">
-            <Button
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTakeRequest(request.id);
-              }}
-              disabled={takingRequest === request.id}
-              className="w-full"
-            >
-              {takingRequest === request.id ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle className="w-4 h-4 mr-2" />
-              )}
-              Take Request
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
 
-  // Loading state
-  if (authLoading || roleLoading || loading) {
+  if (isLoading || loading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Request Management</h1>
         </div>
         <div className="flex items-center justify-center h-32">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-3 text-muted-foreground">Loading requests...</span>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (error) {
+  if (!user) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Request Management</h1>
         </div>
-        <Card className="p-8 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Error Loading Requests</h2>
-          <p className="text-muted-foreground mb-4">{error}</p>
-          <Button onClick={fetchRequests} variant="outline">
-            Try Again
+        <div className="text-center py-8">
+          <h2 className="text-xl font-semibold text-muted-foreground">Authentication Required</h2>
+          <p className="text-muted-foreground mt-2">Please sign in to access the request management system.</p>
+          <Button 
+            onClick={() => window.location.href = '/auth'}
+            className="mt-4"
+          >
+            Go to Sign In
           </Button>
-        </Card>
+        </div>
       </div>
     );
   }
 
+  const availableRequests = newClientRequests.concat(returnClientRequests);
+
   return (
     <div className="space-y-6">
-      {/* Header with Take Request Button in Top Right */}
+      {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Request Management</h1>
@@ -350,144 +308,68 @@ const EnhancedRequestManager = () => {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Add New Request Button for supervisors and above */}
-          {(role === 'supervisor' || role === 'manager' || role === 'admin') && (
-            <Button onClick={() => navigate('/request/new')} className="shrink-0">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Request
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-card">
-        <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            Search
-          </label>
-          <Input
-            placeholder="Search clients, routes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Status
-          </label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="new">New</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="quote_sent">Quote Sent</SelectItem>
-              <SelectItem value="sold">Sold</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Client Type
-          </label>
-          <Select value={clientTypeFilter} onValueChange={setClientTypeFilter}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="new">New Clients</SelectItem>
-              <SelectItem value="return">Return Clients</SelectItem>
-              <SelectItem value="referral">Referral Clients</SelectItem>
-              <SelectItem value="repeat">Repeat Clients</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-end">
+          {/* Create Request Button */}
           <Button 
-            variant="outline" 
-            onClick={() => {
-              setSearchTerm("");
-              setStatusFilter("all");
-              setClientTypeFilter("all");
-            }}
-            className="w-full"
+            onClick={() => navigate('/requests/new')}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            Clear Filters
+            <UserPlus className="w-4 h-4 mr-2" />
+            Create Request
           </Button>
-        </div>
-      </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">My Assigned</p>
-                <p className="text-2xl font-bold">{myAssignedRequests.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <User className="w-5 h-5 text-green-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">New Clients</p>
-                <p className="text-2xl font-bold">{newClientRequests.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <RotateCcw className="w-5 h-5 text-blue-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Return Clients</p>
-                <p className="text-2xl font-bold">{returnClientRequests.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-purple-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Referrals</p>
-                <p className="text-2xl font-bold">{referralClientRequests.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-l-4 border-l-orange-500">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-orange-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Repeat Clients</p>
-                <p className="text-2xl font-bold">{repeatClientRequests.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Take Request Button */}
+          {availableRequests.length > 0 && (
+            <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Take Request ({availableRequests.length})
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 max-h-60 overflow-y-auto">
+                {availableRequests.map((request) => (
+                  <DropdownMenuItem
+                    key={request.id}
+                    className="p-3 cursor-pointer"
+                    onClick={() => {
+                      handleTakeRequest(request.id);
+                      setShowTakeRequestDropdown(false);
+                    }}
+                  >
+                    <div className="flex flex-col w-full">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {request.clients?.first_name} {request.clients?.last_name}
+                        </span>
+                        <Badge variant="outline" className={request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' : 'border-green-200 text-green-600'}>
+                          {request.clients?.client_type}
+                        </Badge>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {request.origin} -&gt; {request.destination}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(request.departure_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
+          {/* Search */}
+          <div className="relative w-full lg:w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search requests..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
       </div>
 
       {/* My Assigned Requests (if any) */}
@@ -506,25 +388,36 @@ const EnhancedRequestManager = () => {
         </div>
       )}
 
-      {/* Available Requests - Enhanced Color-Coded Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Show empty state if no requests at all */}
+      {requests.length === 0 && !loading && (
+        <EmptyStateCard
+          title="No Travel Requests Found"
+          description={`No travel requests found for your account. ${role === 'agent' ? 'Available requests will appear here when they\'re submitted.' : 'Create your first request to get started.'}`}
+          icon={<Inbox className="h-12 w-12 text-muted-foreground" />}
+        />
+      )}
+
+      {/* Available Requests - Two Column Layout */}
+      {requests.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* New Clients Column */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-              <User className="w-4 h-4 text-green-600" />
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <UserPlus className="w-4 h-4 text-blue-600" />
             </div>
             <h2 className="text-xl font-semibold">New Clients</h2>
-            <Badge variant="outline" className="border-green-200 text-green-600">
+            <Badge variant="outline" className="border-blue-200 text-blue-600">
               {newClientRequests.length}
             </Badge>
           </div>
           
           {newClientRequests.length === 0 ? (
-            <Card className="p-8 text-center border-dashed">
-              <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No new client requests</p>
-            </Card>
+            <EmptyStateCard
+              title="No New Client Requests"
+              description="No requests from new clients at the moment. New client requests will appear here when they're submitted."
+              icon={<UserPlus className="h-8 w-8 text-muted-foreground" />}
+            />
           ) : (
             <div className="space-y-4">
               {newClientRequests.map((request) => (
@@ -537,20 +430,21 @@ const EnhancedRequestManager = () => {
         {/* Return Clients Column */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <RotateCcw className="w-4 h-4 text-blue-600" />
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+              <User className="w-4 h-4 text-green-600" />
             </div>
             <h2 className="text-xl font-semibold">Return Clients</h2>
-            <Badge variant="outline" className="border-blue-200 text-blue-600">
+            <Badge variant="outline" className="border-green-200 text-green-600">
               {returnClientRequests.length}
             </Badge>
           </div>
           
           {returnClientRequests.length === 0 ? (
-            <Card className="p-8 text-center border-dashed">
-              <RotateCcw className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No return client requests</p>
-            </Card>
+            <EmptyStateCard
+              title="No Return Client Requests"
+              description="No requests from existing clients at the moment. Return client requests will appear here when they're submitted."
+              icon={<User className="h-8 w-8 text-muted-foreground" />}
+            />
           ) : (
             <div className="space-y-4">
               {returnClientRequests.map((request) => (
@@ -559,62 +453,8 @@ const EnhancedRequestManager = () => {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Second Row for Referral and Repeat Clients */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Referral Clients Column */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-              <UserPlus className="w-4 h-4 text-purple-600" />
-            </div>
-            <h2 className="text-xl font-semibold">Referral Clients</h2>
-            <Badge variant="outline" className="border-purple-200 text-purple-600">
-              {referralClientRequests.length}
-            </Badge>
-          </div>
-          
-          {referralClientRequests.length === 0 ? (
-            <Card className="p-8 text-center border-dashed">
-              <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No referral client requests</p>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {referralClientRequests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
-          )}
         </div>
-
-        {/* Repeat Clients Column */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-              <Star className="w-4 h-4 text-orange-600" />
-            </div>
-            <h2 className="text-xl font-semibold">Repeat Clients</h2>
-            <Badge variant="outline" className="border-orange-200 text-orange-600">
-              {repeatClientRequests.length}
-            </Badge>
-          </div>
-          
-          {repeatClientRequests.length === 0 ? (
-            <Card className="p-8 text-center border-dashed">
-              <Star className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No repeat client requests</p>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {repeatClientRequests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 };

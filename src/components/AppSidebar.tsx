@@ -18,7 +18,8 @@ import {
   Bot,
   Sparkles,
   Shield,
-  Database
+  Database,
+  ShieldCheck
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NavLink, useLocation } from "react-router-dom";
@@ -38,79 +39,50 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-// Navigation items for different roles
-const getNavigationItems = (role: string | null) => {
-  const baseItems = [
-    { 
-      title: "Dashboard", 
-      url: "/", 
-      icon: Home,
-      description: "Overview and quick stats"
-    }
-  ];
-
-  // User role - minimal navigation
-  if (role === 'user') {
-    return [
-      ...baseItems,
-      { 
-        title: "My Bookings", 
-        url: "/bookings", 
-        icon: Plane,
-        description: "Your travel bookings"
-      }
-    ];
-  }
-
-  // Staff roles - full navigation
-  const staffItems = [
-    ...baseItems,
-    { 
-      title: "Requests", 
-      url: "/requests", 
-      icon: FileText,
-      description: "Manage travel requests"
-    },
-    { 
-      title: "Bookings", 
-      url: "/bookings", 
-      icon: Plane,
-      description: "View and manage bookings"
-    },
-    { 
-      title: "Clients", 
-      url: "/clients", 
-      icon: Users,
-      description: "Client management"
-    },
-    { 
-      title: "Calendar", 
-      url: "/calendar", 
-      icon: Calendar,
-      description: "Schedule and events"
-    }
-  ];
-
-  // Add analytics for supervisors and above
-  if (['supervisor', 'manager', 'admin'].includes(role || '')) {
-    staffItems.push(
-      { 
-        title: "Analytics", 
-        url: "/analytics", 
-        icon: BarChart3,
-        description: "Business insights"
-      },
-      { 
-        title: "Reports", 
-        url: "/reports", 
-        icon: FileText,
-        description: "Advanced reports"
-      }
-    );
-  }
-
-  return staffItems;
-};
+const navigationItems = [
+  { 
+    title: "Dashboard", 
+    url: "/", 
+    icon: Home,
+    description: "Overview and quick stats"
+  },
+  { 
+    title: "Requests", 
+    url: "/requests", 
+    icon: FileText,
+    description: "Manage travel requests"
+  },
+  { 
+    title: "Bookings", 
+    url: "/bookings", 
+    icon: Plane,
+    description: "View and manage bookings"
+  },
+  { 
+    title: "Clients", 
+    url: "/clients", 
+    icon: Users,
+    description: "Client management"
+  },
+  { 
+    title: "Calendar", 
+    url: "/calendar", 
+    icon: Calendar,
+    description: "Schedule and events"
+  },
+  { 
+    title: "Analytics", 
+    url: "/analytics", 
+    icon: BarChart3,
+    description: "Business insights"
+  },
+  { 
+    title: "Reports", 
+    url: "/reports", 
+    icon: FileText,
+    description: "Advanced reports"
+  },
+];
 
 const communicationItems = [
   { 
@@ -132,8 +104,6 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const { role } = useUserRole();
   const { selectedViewRole } = useRoleView();
-
-  const navigationItems = getNavigationItems(role);
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -228,8 +198,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Management Tools for Supervisors, Managers, and Admins - Only for staff roles */}
-        {role !== 'user' && (selectedViewRole === 'supervisor' || selectedViewRole === 'manager' || selectedViewRole === 'admin' || role === 'supervisor' || role === 'manager' || role === 'admin') && (
+        {/* Management Tools for Supervisors, Managers, and Developers */}
+        {(selectedViewRole === 'supervisor' || selectedViewRole === 'manager' || selectedViewRole === 'admin') && (
           <SidebarGroup>
             <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
               {selectedViewRole === 'admin' ? 'Administration' : 'Management'}
@@ -270,25 +240,44 @@ export function AppSidebar() {
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                       <NavLink 
-                         to="/iata-management" 
-                         className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/iata-management")}`}
-                         title={isCollapsed ? "IATA Management" : ""}
-                       >
-                         <Database className="h-5 w-5" />
-                        {!isCollapsed && (
-                          <div className="flex flex-col">
-                            <span>IATA Codes</span>
-                            <span className="text-xs text-muted-foreground">Airline & airport data</span>
-                          </div>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                 {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
+                   <SidebarMenuItem>
+                     <SidebarMenuButton asChild>
+                        <NavLink 
+                          to="/iata-management" 
+                          className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/iata-management")}`}
+                          title={isCollapsed ? "IATA Management" : ""}
+                        >
+                          <Database className="h-5 w-5" />
+                         {!isCollapsed && (
+                           <div className="flex flex-col">
+                             <span>IATA Codes</span>
+                             <span className="text-xs text-muted-foreground">Airline & airport data</span>
+                           </div>
+                         )}
+                       </NavLink>
+                     </SidebarMenuButton>
+                   </SidebarMenuItem>
+                 )}
+                 {(selectedViewRole === 'admin' || selectedViewRole === 'manager' || selectedViewRole === 'supervisor') && (
+                   <SidebarMenuItem>
+                     <SidebarMenuButton asChild>
+                        <NavLink 
+                          to="/security" 
+                          className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/security")}`}
+                          title={isCollapsed ? "Security Center" : ""}
+                        >
+                          <ShieldCheck className="h-5 w-5" />
+                         {!isCollapsed && (
+                           <div className="flex flex-col">
+                             <span>Security Center</span>
+                             <span className="text-xs text-muted-foreground">Zero Trust & compliance</span>
+                           </div>
+                         )}
+                       </NavLink>
+                     </SidebarMenuButton>
+                   </SidebarMenuItem>
+                 )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

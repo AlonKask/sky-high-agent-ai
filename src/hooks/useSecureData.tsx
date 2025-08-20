@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from './useAuthOptimized';
 import { useUserRole } from './useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { secureAccess, secureEncrypt, secureDecrypt, validateData, monitorThreats } from '@/utils/advancedSecurity';

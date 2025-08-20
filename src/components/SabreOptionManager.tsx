@@ -12,7 +12,7 @@ import { SabreParser } from "@/utils/sabreParser";
 import { EnhancedSabreParser } from "@/utils/enhancedSabreParser";
 import { toastHelpers } from '@/utils/toastHelpers';
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import UnifiedEmailBuilder from "@/components/UnifiedEmailBuilder";
 
 // Interface that matches the database quotes table structure

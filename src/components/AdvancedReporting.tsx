@@ -32,7 +32,7 @@ import {
   Activity
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuthOptimized";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toastHelpers } from "@/utils/toastHelpers";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";

@@ -1,114 +1,17 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Phone, Mail, MessageSquare, Clock, Star, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-
-interface CustomerTicket {
-  id: string;
-  customer_name: string;
-  subject: string;
-  priority: 'high' | 'medium' | 'low';
-  status: 'open' | 'pending' | 'resolved';
-  created_at: string;
-  channel: 'email' | 'phone' | 'chat';
-}
+import { useAgentMetrics, CSMetrics } from "@/hooks/useAgentMetrics";
 
 export const CSAgentDashboard = () => {
   const navigate = useNavigate();
-  const [openTickets, setOpenTickets] = useState<CustomerTicket[]>([]);
-  const [metrics, setMetrics] = useState({
-    satisfaction_score: 4.7,
-    response_time: 8,
-    resolved_today: 12,
-    escalations: 2
-  });
-  const [loading, setLoading] = useState(true);
+  const { data: csMetrics, loading, error } = useAgentMetrics('cs', 'day');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const user = (await supabase.auth.getUser()).data.user;
-        if (!user) return;
 
-        // Fetch email exchanges as support tickets
-        const { data: emailTickets } = await supabase
-          .from('email_exchanges')
-          .select('id, subject, sender_email, status, created_at, metadata')
-          .eq('user_id', user.id)
-          .in('status', ['received', 'pending'])
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        // Convert email exchanges to ticket format
-        const tickets: CustomerTicket[] = emailTickets?.map(email => ({
-          id: email.id,
-          customer_name: email.sender_email.split('@')[0],
-          subject: email.subject,
-          priority: 'medium' as 'high' | 'medium' | 'low',
-          status: email.status === 'received' ? 'open' : 'pending' as 'open' | 'pending' | 'resolved',
-          created_at: email.created_at,
-          channel: 'email' as 'email' | 'phone' | 'chat'
-        })) || [];
-
-        // Fetch messages for additional tickets
-        const { data: messageTickets } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('direction', 'inbound')
-          .eq('read_status', false)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        const messageTicketsFormatted: CustomerTicket[] = messageTickets?.map(msg => ({
-          id: msg.id,
-          customer_name: msg.contact_name || msg.phone_number,
-          subject: msg.content.substring(0, 50) + '...',
-          priority: 'medium' as 'high' | 'medium' | 'low',
-          status: 'open' as 'open' | 'pending' | 'resolved',
-          created_at: msg.created_at,
-          channel: msg.message_type === 'SMS' ? 'chat' : 'phone' as 'email' | 'phone' | 'chat'
-        })) || [];
-
-        const allTickets = [...tickets, ...messageTicketsFormatted];
-        setOpenTickets(allTickets);
-
-        // Calculate real metrics
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        
-        const { data: todayEmails } = await supabase
-          .from('email_exchanges')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'sent')
-          .gte('created_at', todayStart.toISOString());
-
-        setMetrics({
-          satisfaction_score: 4.7, // This would come from client feedback
-          response_time: 8, // Average response time in minutes
-          resolved_today: todayEmails?.length || 0,
-          escalations: 0 // Count of escalated tickets
-        });
-
-      } catch (error) {
-        console.error('Error fetching CS agent data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 60000); // Refresh every minute
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) {
+  if (loading || !csMetrics) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Customer Service Dashboard</h1>
@@ -126,12 +29,27 @@ export const CSAgentDashboard = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Customer Service Dashboard</h1>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-destructive">Error loading dashboard data: {error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const metrics = csMetrics as CSMetrics;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Customer Service Dashboard</h1>
         <Badge variant="default">
-          Active: {openTickets.filter(t => t.status === 'open').length} Open Tickets
+          Active: {metrics.openTickets} Open Tickets
         </Badge>
       </div>
 
@@ -145,9 +63,9 @@ export const CSAgentDashboard = () => {
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.satisfaction_score}/5.0</div>
+            <div className="text-2xl font-bold">{metrics.satisfactionScore}/5.0</div>
             <p className="text-xs text-muted-foreground">customer rating</p>
-            <Progress value={(metrics.satisfaction_score / 5) * 100} className="mt-2" />
+            <Progress value={(parseFloat(metrics.satisfactionScore) / 5) * 100} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -160,7 +78,7 @@ export const CSAgentDashboard = () => {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.response_time}m</div>
+            <div className="text-2xl font-bold">{metrics.avgResponseTime}</div>
             <p className="text-xs text-muted-foreground">first response</p>
             <Badge variant="default" className="mt-2">
               Excellent
@@ -177,7 +95,7 @@ export const CSAgentDashboard = () => {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.resolved_today}</div>
+            <div className="text-2xl font-bold">{metrics.resolvedToday}</div>
             <p className="text-xs text-muted-foreground">tickets closed</p>
             <Progress value={75} className="mt-2" />
           </CardContent>
@@ -208,7 +126,7 @@ export const CSAgentDashboard = () => {
             <CardDescription>Customer inquiries requiring attention</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {openTickets.map((ticket, index) => (
+            {metrics.recentTickets.map((ticket, index) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted">
@@ -217,10 +135,10 @@ export const CSAgentDashboard = () => {
                     {ticket.channel === 'chat' && <MessageSquare className="h-4 w-4" />}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{ticket.customer_name}</p>
+                    <p className="text-sm font-medium">{ticket.customerName}</p>
                     <p className="text-xs text-muted-foreground">{ticket.subject}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(ticket.created_at).toLocaleString()}
+                      {new Date(ticket.createdAt).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -247,28 +165,28 @@ export const CSAgentDashboard = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm">Tickets Handled</span>
-              <span className="text-sm font-medium">15/20</span>
+              <span className="text-sm">Total Interactions</span>
+              <span className="text-sm font-medium">{metrics.metrics.totalInteractions}</span>
             </div>
             <Progress value={75} />
 
             <div className="flex items-center justify-between">
-              <span className="text-sm">Response Rate</span>
-              <span className="text-sm font-medium">98%</span>
+              <span className="text-sm">Emails Handled</span>
+              <span className="text-sm font-medium">{metrics.metrics.emailsHandled}</span>
             </div>
-            <Progress value={98} />
+            <Progress value={(metrics.metrics.emailsHandled / Math.max(metrics.metrics.totalInteractions, 1)) * 100} />
 
             <div className="flex items-center justify-between">
-              <span className="text-sm">First Call Resolution</span>
-              <span className="text-sm font-medium">85%</span>
+              <span className="text-sm">Calls Handled</span>
+              <span className="text-sm font-medium">{metrics.metrics.callsHandled}</span>
             </div>
-            <Progress value={85} />
+            <Progress value={(metrics.metrics.callsHandled / Math.max(metrics.metrics.totalInteractions, 1)) * 100} />
 
             <div className="flex items-center justify-between">
               <span className="text-sm">Customer Satisfaction</span>
-              <span className="text-sm font-medium">4.7/5.0</span>
+              <span className="text-sm font-medium">{metrics.satisfactionScore}/5.0</span>
             </div>
-            <Progress value={94} />
+            <Progress value={(parseFloat(metrics.satisfactionScore) / 5) * 100} />
           </CardContent>
         </Card>
       </div>
