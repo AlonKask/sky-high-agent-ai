@@ -62,18 +62,18 @@ export const SecureEmailContent: React.FC<SecureEmailContentProps> = ({
 }) => {
   if (!content) return null;
 
-  // Extract text content from HTML safely
+  // Extract text content from HTML safely using DOMParser (XSS-safe)
   const extractTextFromHtml = (html: string): string => {
     try {
-      // Create a temporary DOM element to safely extract text
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = html;
+      // Use DOMParser instead of innerHTML for XSS protection
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
       
       // Get text content and clean up whitespace
-      const textContent = tempDiv.textContent || tempDiv.innerText || '';
+      const textContent = doc.body?.textContent || doc.body?.innerText || '';
       return textContent.replace(/\s+/g, ' ').trim();
     } catch (error) {
-      // If HTML parsing fails, treat as plain text
+      // If HTML parsing fails, treat as plain text and strip HTML tags
       return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
     }
   };
