@@ -1,99 +1,93 @@
 
-import { Toaster } from "@/components/ui/sonner";
-import { Toaster as RadixToaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
-import { SecurityProvider } from "@/components/SecurityProvider";
-import { RoleViewProvider } from "@/contexts/RoleViewContext";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import { Layout } from "@/components/Layout";
+import { AuthGuard } from "./components/AuthGuard";
+import { Layout } from "./components/Layout";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import SimpleEmails from "./pages/SimpleEmails";
+import Requests from "./pages/Requests";
+import RequestDetail from "./pages/RequestDetail";
 import Clients from "./pages/Clients";
 import ClientProfile from "./pages/ClientProfile";
 import Bookings from "./pages/Bookings";
 import BookingDetail from "./pages/BookingDetail";
-import Requests from "./pages/Requests";
-import RequestDetail from "./pages/RequestDetail";
-import Calendar from "./pages/Calendar";
-import Analytics from "./pages/Analytics";
+import Emails from "./pages/Emails";
+import SimpleEmails from "./pages/SimpleEmails";
 import Messages from "./pages/Messages";
-import AgentStatistics from "./pages/AgentStatistics";
-import OptionsRedirect from "./pages/OptionsRedirect";
-import ViewOption from "./pages/ViewOption";
-import BookOption from "./pages/BookOption";
-import PublicRequest from "./pages/PublicRequest";
+import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
-import { Teams } from "./pages/Teams";
-import TeamDetail from "./pages/TeamDetail";
 import UserProfile from "./pages/UserProfile";
+import Teams from "./pages/Teams";
+import TeamDetail from "./pages/TeamDetail";
+import AgentStatistics from "./pages/AgentStatistics";
+import Calendar from "./pages/Calendar";
 import IATAManagement from "./pages/IATAManagement";
+import PublicRequest from "./pages/PublicRequest";
+import ViewOption from "./pages/ViewOption";
+import OptionsReview from "./pages/OptionsReview";
+import OptionsRedirect from "./pages/OptionsRedirect";
+import BookOption from "./pages/BookOption";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AuthProvider>
-            <RoleViewProvider>
-              <SecurityProvider>
-                <ErrorBoundary>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/options/:token" element={<OptionsRedirect />} />
-                  <Route path="/view-option/:token" element={<ViewOption />} />
-                  <Route path="/book/:token" element={<BookOption />} />
-                  <Route path="/public-request" element={<PublicRequest />} />
-                  
-                  {/* Protected routes */}
-                  <Route path="/" element={<Layout><Index /></Layout>} />
-                  <Route path="/emails" element={<Layout><SimpleEmails /></Layout>} />
-                  <Route path="/clients" element={<Layout><Clients /></Layout>} />
-                  <Route path="/clients/:id" element={<Layout><ClientProfile /></Layout>} />
-                  <Route path="/bookings" element={<Layout><Bookings /></Layout>} />
-                  <Route path="/bookings/:id" element={<Layout><BookingDetail /></Layout>} />
-                  <Route path="/requests" element={<Layout><Requests /></Layout>} />
-                  <Route path="/request/:id" element={<Layout><RequestDetail /></Layout>} />
-                  <Route path="/calendar" element={<Layout><Calendar /></Layout>} />
-                  <Route path="/analytics" element={<Layout><Analytics /></Layout>} />
-                  <Route path="/messages" element={<Layout><Messages /></Layout>} />
-                  <Route path="/agent-statistics" element={<Layout><AgentStatistics /></Layout>} />
-                  <Route path="/reports" element={<Layout><Reports /></Layout>} />
-                  <Route path="/settings" element={<Layout><Settings /></Layout>} />
-            <Route path="/users" element={<Layout><Users /></Layout>} />
-            <Route path="/teams" element={<Layout><Teams /></Layout>} />
-            <Route path="/teams/:id" element={<Layout><TeamDetail /></Layout>} />
-            <Route path="/users/:id" element={<Layout><UserProfile /></Layout>} />
-            <Route path="/iata-management" element={<Layout><IATAManagement /></Layout>} />
-                  
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <Toaster />
-                <RadixToaster />
-                </ErrorBoundary>
-              </SecurityProvider>
-            </RoleViewProvider>
-          </AuthProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/request" element={<PublicRequest />} />
+            <Route path="/view-option/:token" element={<ViewOption />} />
+            <Route path="/options/:token" element={<OptionsRedirect />} />
+            <Route path="/review-options/:token" element={<OptionsReview />} />
+            <Route path="/book-option/:token" element={<BookOption />} />
+            <Route
+              path="/*"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/requests" element={<Requests />} />
+                      <Route path="/requests/:id" element={<RequestDetail />} />
+                      <Route path="/clients" element={<Clients />} />
+                      <Route path="/client/:id" element={<ClientProfile />} />
+                      <Route path="/bookings" element={<Bookings />} />
+                      <Route path="/booking/:id" element={<BookingDetail />} />
+                      <Route path="/emails" element={<Emails />} />
+                      <Route path="/simple-emails" element={<SimpleEmails />} />
+                      <Route path="/messages" element={<Messages />} />
+                      <Route path="/analytics" element={<Analytics />} />
+                      <Route path="/reports" element={<Reports />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/users" element={<Users />} />
+                      <Route path="/user/:id" element={<UserProfile />} />
+                      <Route path="/teams" element={<Teams />} />
+                      <Route path="/team/:id" element={<TeamDetail />} />
+                      <Route path="/agent-statistics" element={<AgentStatistics />} />
+                      <Route path="/calendar" element={<Calendar />} />
+                      <Route path="/iata-management" element={<IATAManagement />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Layout>
+                </AuthGuard>
+              }
+            />
+          </Routes>
+        </ErrorBoundary>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

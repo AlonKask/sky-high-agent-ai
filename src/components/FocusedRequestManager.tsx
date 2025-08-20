@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -281,66 +280,85 @@ export const FocusedRequestManager = () => {
     return colors[priority as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const RequestCard = ({ request }: { request: Request }) => (
-    <Card 
-      className="hover:shadow-md transition-shadow cursor-pointer border-border"
-      onClick={() => navigate(`/requests/${request.id}`)}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg text-foreground">
-            {request.clients?.first_name} {request.clients?.last_name || 'Unknown Client'}
-          </CardTitle>
-          <div className="flex gap-2">
-            <Badge className={getStatusColor(request.status)}>
-              {request.status}
-            </Badge>
-            <Badge className={getPriorityColor(request.priority)}>
-              {request.priority}
-            </Badge>
-          </div>
-        </div>
-        {request.clients?.company && (
-          <p className="text-sm text-muted-foreground">{request.clients.company}</p>
-        )}
-        <div className="flex items-center gap-2 text-xs">
-          <span className={`px-2 py-1 rounded ${request.assigned_to === user?.id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
-            {request.assigned_to === user?.id ? 'Assigned to you' : 'Your request'}
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">
-              {request.origin} <ArrowRight className="h-3 w-3 inline mx-1" /> {request.destination}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">
-              {new Date(request.departure_date).toLocaleDateString()}
-              {request.return_date && ` - ${new Date(request.return_date).toLocaleDateString()}`}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">{request.passengers} passenger{request.passengers !== 1 ? 's' : ''}</span>
-          </div>
+  const RequestCard = ({ request }: { request: Request }) => {
+    const handleCardClick = () => {
+      console.log('Navigating to request detail:', request.id);
+      console.log('Full request object:', request);
+      
+      if (!request.id) {
+        console.error('Request ID is missing!', request);
+        toast({
+          title: "Error",
+          description: "Request ID is missing. Cannot navigate to detail page.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      navigate(`/requests/${request.id}`);
+    };
 
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Created {new Date(request.created_at).toLocaleDateString()}
+    return (
+      <Card 
+        className="hover:shadow-md transition-shadow cursor-pointer border-border"
+        onClick={handleCardClick}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-lg text-foreground">
+              {request.clients?.first_name} {request.clients?.last_name || 'Unknown Client'}
+            </CardTitle>
+            <div className="flex gap-2">
+              <Badge className={getStatusColor(request.status)}>
+                {request.status}
+              </Badge>
+              <Badge className={getPriorityColor(request.priority)}>
+                {request.priority}
+              </Badge>
+            </div>
+          </div>
+          {request.clients?.company && (
+            <p className="text-sm text-muted-foreground">{request.clients.company}</p>
+          )}
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`px-2 py-1 rounded ${request.assigned_to === user?.id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+              {request.assigned_to === user?.id ? 'Assigned to you' : 'Your request'}
             </span>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">
+                {request.origin} <ArrowRight className="h-3 w-3 inline mx-1" /> {request.destination}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">
+                {new Date(request.departure_date).toLocaleDateString()}
+                {request.return_date && ` - ${new Date(request.return_date).toLocaleDateString()}`}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">{request.passengers} passenger{request.passengers !== 1 ? 's' : ''}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Created {new Date(request.created_at).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (roleLoading || loading) {
     return <LoadingSpinner />;
