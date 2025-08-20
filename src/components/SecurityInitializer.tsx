@@ -3,6 +3,7 @@ import { applyCSPHeaders } from '@/utils/contentSecurityPolicy';
 import { initSecurityMonitoring } from '@/utils/enhancedSecurity';
 import { config } from '@/lib/config';
 import { logSecurityEvent } from '@/utils/enhancedSecurity';
+import { authSecurity } from '@/utils/authSecurity';
 
 /**
  * Security initializer component that runs security setup on app start
@@ -20,10 +21,13 @@ export const SecurityInitializer: React.FC = () => {
         // 2. Initialize security monitoring
         initSecurityMonitoring();
         
-        // 3. Initialize secure configuration
+        // 3. Initialize auth security manager
+        authSecurity.initializeSessionMonitoring();
+        
+        // 4. Initialize secure configuration
         await config.init();
         
-        // 4. Log successful security initialization
+        // 5. Log successful security initialization
         logSecurityEvent('security_system_initialized', 'low', {
           timestamp: new Date().toISOString(),
           user_agent: navigator.userAgent,
