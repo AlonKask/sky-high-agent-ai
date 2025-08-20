@@ -1,34 +1,115 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Track XSS attempts per IP for blocking
+const xssAttemptTracker = new Map<string, { count: number; lastAttempt: number }>();
+
 // Enhanced security logging and monitoring functions
 export const logSecurityEvent = async (
   eventType: string,
   severity: 'low' | 'medium' | 'high' | 'critical',
   details: Record<string, any> = {}
-) => {
+): Promise<boolean> => {
   try {
-    // Use the enhanced database function for better reliability
-    const { data, error } = await supabase.rpc('log_security_event', {
+    // Enrich details with client context
+    const enrichedDetails = {
+      ...details,
+      timestamp: new Date().toISOString(),
+      user_agent: navigator.userAgent,
+      url: window.location.href,
+      screen_resolution: `${screen.width}x${screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+
+    // Use the consolidated database function
+    const { error } = await supabase.rpc('log_security_event', {
       p_event_type: eventType,
       p_severity: severity,
-      p_details: {
-        ...details,
-        timestamp: new Date().toISOString(),
-        user_agent: navigator.userAgent,
-        url: window.location.href,
-        screen_resolution: `${screen.width}x${screen.height}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      }
+      p_details: enrichedDetails
     });
-    
+
     if (error) {
       console.error('Failed to log security event:', error);
       return false;
     }
-    
-    return !!data;
+
+    // Check for XSS attempts and implement blocking
+    if (eventType.includes('xss') && ['high', 'critical'].includes(severity)) {
+      // Try to get IP address from details or use detection
+      const ipAddress = details.ip_address || details.client_ip || 'unknown';
+      await handleXSSAttempt(ipAddress);
+    }
+
+    return true;
   } catch (error) {
-    console.error('Security logging error:', error);
+    console.error('Security event logging failed:', error);
+    return false;
+  }
+};
+
+// Enhanced XSS attack handling with IP blocking
+const handleXSSAttempt = async (ipAddress: string): Promise<void> => {
+  if (!ipAddress || ipAddress === '127.0.0.1' || ipAddress === 'unknown') return;
+  
+  const now = Date.now();
+  const tracker = xssAttemptTracker.get(ipAddress) || { count: 0, lastAttempt: 0 };
+  
+  // Reset count if last attempt was more than 1 hour ago
+  if (now - tracker.lastAttempt > 3600000) {
+    tracker.count = 0;
+  }
+  
+  tracker.count++;
+  tracker.lastAttempt = now;
+  xssAttemptTracker.set(ipAddress, tracker);
+  
+  // Block IP after 3 XSS attempts within 1 hour
+  if (tracker.count >= 3) {
+    try {
+      await supabase.rpc('block_suspicious_ip', {
+        p_ip_address: ipAddress,
+        p_block_duration: '1 hour'
+      });
+      
+      await logSecurityEvent('ip_blocked_xss_attacks', 'critical', {
+        ip_address: ipAddress,
+        attempt_count: tracker.count,
+        action: 'IP blocked for repeated XSS attempts'
+      });
+    } catch (error) {
+      console.error('Failed to block suspicious IP:', error);
+    }
+  }
+};
+
+// Get real-time security metrics
+export const getSecurityMetrics = async (timePeriod = '24 hours'): Promise<any> => {
+  try {
+    const { data, error } = await supabase.rpc('get_security_metrics', {
+      time_period: timePeriod
+    });
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch security metrics:', error);
+    return null;
+  }
+};
+
+// Check if current IP is blocked
+export const checkIPBlocked = async (): Promise<boolean> => {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const { ip } = await response.json();
+    
+    const { data, error } = await supabase.rpc('is_ip_blocked', {
+      p_ip_address: ip
+    });
+    
+    if (error) throw error;
+    return data || false;
+  } catch (error) {
+    console.error('Failed to check IP block status:', error);
     return false;
   }
 };
@@ -208,7 +289,7 @@ export const initSecurityMonitoring = (): void => {
     originalConsoleError.apply(console, args);
   };
   
-  // Monitor for potential XSS attempts
+  // Enhanced XSS monitoring for innerHTML
   const originalInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
   if (originalInnerHTML) {
     Object.defineProperty(Element.prototype, 'innerHTML', {
@@ -216,10 +297,12 @@ export const initSecurityMonitoring = (): void => {
         if (typeof value === 'string' && 
             (value.includes('<script') || 
              value.includes('javascript:') || 
-             value.includes('onload='))) {
+             value.includes('onload=') ||
+             value.includes('onerror='))) {
           logSecurityEvent('potential_xss_attempt', 'critical', {
             element: this.tagName,
-            content: value.substring(0, 100)
+            content: value.substring(0, 100),
+            location: window.location.href
           });
         }
         

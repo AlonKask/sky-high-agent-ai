@@ -3167,6 +3167,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      block_suspicious_ip: {
+        Args: { p_block_duration?: unknown; p_ip_address: unknown }
+        Returns: boolean
+      }
       calculate_passenger_totals: {
         Args: {
           p_adult_markup?: number
@@ -3578,6 +3582,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_security_metrics: {
+        Args: { time_period?: unknown }
+        Returns: Json
+      }
       get_security_status: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -3673,6 +3681,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_ip_blocked: {
+        Args: { p_ip_address: unknown }
+        Returns: boolean
+      }
       is_team_manager: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
@@ -3709,14 +3721,12 @@ export type Database = {
         Returns: undefined
       }
       log_security_event: {
-        Args:
-          | {
-              p_details?: Json
-              p_event_type: string
-              p_severity: string
-              p_user_id?: string
-            }
-          | { p_details?: Json; p_event_type: string; p_severity?: string }
+        Args: {
+          p_details?: Json
+          p_event_type: string
+          p_severity: string
+          p_user_id?: string
+        }
         Returns: boolean
       }
       log_security_monitoring: {
