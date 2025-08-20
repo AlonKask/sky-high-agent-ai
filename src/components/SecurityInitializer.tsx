@@ -6,10 +6,12 @@ import { enhancedSecurity } from '@/utils/enhancedSecurity';
 
 /**
  * SecurityInitializer Component
- * Initializes security measures when the app loads (without auth dependency)
+ * Initializes basic security measures when the app loads (no auth required)
  */
 const SecurityInitializer = () => {
   useEffect(() => {
+    console.log('🔄 SecurityInitializer: Starting basic security setup...');
+    
     // Apply client-side security headers
     applyCSPHeaders();
     
@@ -21,11 +23,15 @@ const SecurityInitializer = () => {
 
     // Set up periodic security checks (without user context)
     const securityInterval = setInterval(async () => {
-      // Flush any buffered security events
-      await enhancedSecurity.flushAlertBuffer();
-      
-      // Validate IP security (simplified check)
-      await enhancedSecurity.validateIPSecurity();
+      try {
+        // Flush any buffered security events
+        await enhancedSecurity.flushAlertBuffer();
+        
+        // Validate IP security (simplified check)
+        await enhancedSecurity.validateIPSecurity();
+      } catch (error) {
+        console.error('Security interval error:', error);
+      }
     }, 60000); // Every minute
 
     console.log('✅ Basic security monitoring initialized');

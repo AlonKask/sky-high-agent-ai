@@ -82,6 +82,7 @@ const UserSecurityMonitoring = () => {
 function App() {
   return (
     <BrowserRouter>
+      {/* SecurityInitializer runs outside all providers - no auth needed */}
       <SecurityInitializer />
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
