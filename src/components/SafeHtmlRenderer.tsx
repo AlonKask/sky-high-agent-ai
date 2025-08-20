@@ -32,12 +32,17 @@ export const SafeHtmlRenderer: React.FC<SafeHtmlRendererProps> = ({
   }
 
   // Use text content only - completely eliminate XSS risk
-  // Parse HTML to extract text content safely
+  // Parse HTML to extract text content safely using DOMParser
   const extractTextContent = (html: string): string => {
-    // Create a temporary DOM element to safely extract text
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = sanitizedHtml;
-    return tempDiv.textContent || tempDiv.innerText || '';
+    try {
+      // Use DOMParser for safe HTML parsing without executing scripts
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(sanitizedHtml, 'text/html');
+      return doc.body.textContent || doc.body.innerText || '';
+    } catch (error) {
+      console.error('Error parsing HTML content:', error);
+      return ''; // Return empty string on parse error
+    }
   };
 
   const safeTextContent = extractTextContent(sanitizedHtml);

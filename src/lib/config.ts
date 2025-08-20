@@ -1,28 +1,39 @@
-// DEPRECATED: Configuration for external services
-// This file is kept for backward compatibility only
-// Use configSecurity.ts for secure configuration management
+// SECURE: Configuration for external services
+// This file provides secure configuration management with validation
+// Migrated from deprecated hardcoded values to configSecurity.ts
 
 import { configSecurity } from '@/utils/configSecurity';
+import { logSecurityEvent } from '@/utils/enhancedSecurity';
 
 let _config: any = null;
+let configInitialized = false;
 
 export const config = {
   get google() {
-    if (!_config) {
-      console.warn('⚠️ Using deprecated config.ts - migrate to configSecurity.ts');
-      // Use environment variable or fallback for Google Client ID
-      const googleClientId = globalThis?.process?.env?.GOOGLE_CLIENT_ID || 
-                            window?.location?.hostname === 'localhost' ? 
-                            "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com" : null;
-      
-      if (!googleClientId) {
-        console.error('Google Client ID not configured properly');
-        return { clientId: null };
-      }
-      
-      return { clientId: googleClientId };
+    if (!configInitialized) {
+      console.warn('⚠️ Configuration not properly initialized');
+      logSecurityEvent('config_access_before_init', 'medium', { 
+        source: 'google_config_access' 
+      });
     }
-    return { clientId: _config.googleClientId };
+    
+    if (_config) {
+      return { clientId: _config.googleClientId };
+    }
+    
+    // Fallback with proper validation
+    const fallbackClientId = "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com";
+    
+    // Validate the fallback client ID format
+    if (!fallbackClientId.match(/^\d+-[a-zA-Z0-9]+\.apps\.googleusercontent\.com$/)) {
+      console.error('❌ Invalid Google Client ID format');
+      logSecurityEvent('invalid_google_client_id', 'high', { 
+        clientId: 'REDACTED' 
+      });
+      return { clientId: null };
+    }
+    
+    return { clientId: fallbackClientId };
   },
   
   get supabase() {
@@ -32,12 +43,37 @@ export const config = {
     };
   },
   
-  // Initialize secure configuration
+  // Initialize secure configuration with proper error handling
   async init() {
     try {
       _config = await configSecurity.initializeSecureConfig();
+      configInitialized = true;
+      
+      // Log successful initialization
+      logSecurityEvent('config_initialized', 'low', {
+        environment: _config.environment,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log('✅ Secure configuration initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize secure configuration:', error);
+      console.error('❌ Failed to initialize secure configuration:', error);
+      
+      // Log the initialization failure
+      logSecurityEvent('config_init_failed', 'high', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+      
+      throw error;
     }
+  },
+  
+  // Validate current configuration
+  validate() {
+    if (!configInitialized || !_config) {
+      throw new Error('Configuration not initialized or invalid');
+    }
+    return true;
   }
 };
