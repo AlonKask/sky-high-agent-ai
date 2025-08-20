@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useSimpleAuth } from './useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +20,10 @@ export const useSecurityMonitoring = () => {
           logSecurityEvent({
             event_type: 'suspicious_activity',
             severity: 'medium',
-            details: { error_message: message, user_agent: navigator.userAgent }
+            details: { 
+              error_message: message, 
+              user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
+            }
           });
         }
         originalError.apply(console, args);
@@ -53,7 +57,7 @@ export const useSecurityMonitoring = () => {
         }
       };
 
-      // Monitor Supabase calls
+      // Monitor Supabase calls (simplified approach)
       const originalFrom = supabase.from;
       supabase.from = (...args) => {
         checkAccessPattern();
@@ -76,8 +80,8 @@ export const useSecurityMonitoring = () => {
     });
 
     return () => {
-      activityCleanup();
-      dataAccessCleanup();
+      if (activityCleanup) activityCleanup();
+      if (dataAccessCleanup) dataAccessCleanup();
     };
   }, [user]);
 
