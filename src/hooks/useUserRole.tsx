@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuthOptimized';
+import { useSimpleAuth } from './useSimpleAuth';
 
 export type UserRole = 'admin' | 'manager' | 'supervisor' | 'gds_expert' | 'agent' | 'user';
 
 export const useUserRole = () => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
