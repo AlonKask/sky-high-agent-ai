@@ -1,10 +1,11 @@
-import { useAuth } from "@/hooks/useAuthOptimized";
+
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ComprehensiveAnalytics } from "@/components/analytics/ComprehensiveAnalytics";
 
 const Analytics = () => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 

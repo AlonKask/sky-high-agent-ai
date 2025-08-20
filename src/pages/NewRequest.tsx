@@ -1,10 +1,11 @@
-import { useAuth } from "@/hooks/useAuthOptimized";
+
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { Navigate } from "react-router-dom";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import RequestCreationForm from "@/components/RequestCreationForm";
 
 const NewRequest = () => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
 
   if (loading) {
     return <LoadingFallback />;

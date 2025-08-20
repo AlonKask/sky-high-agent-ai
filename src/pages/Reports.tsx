@@ -1,9 +1,10 @@
-import { useAuth } from "@/hooks/useAuthOptimized";
+
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { Navigate } from "react-router-dom";
 import AdvancedReporting from "@/components/AdvancedReporting";
 
 const Reports = () => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
 
   if (loading) {
     return (

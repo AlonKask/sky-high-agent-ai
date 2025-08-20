@@ -1,11 +1,11 @@
 
-import { useAuth } from "@/hooks/useAuthOptimized";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { RoleDashboard } from "@/components/RoleDashboard";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
   const navigate = useNavigate();
 
   useEffect(() => {

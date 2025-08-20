@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { SimpleAuth } from '@/utils/simpleAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { TurnstileWrapper } from '@/components/TurnstileWrapper';
 import { configSecurity } from '@/utils/configSecurity';
 
 export default function AuthOptimized() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);

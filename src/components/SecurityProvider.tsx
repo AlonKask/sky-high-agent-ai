@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/useAuthOptimized';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toastHelpers } from '@/utils/toastHelpers';
 
@@ -22,7 +22,7 @@ export const useSecurityContext = () => {
 };
 
 export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const [isSecure, setIsSecure] = useState(false);
 
   useEffect(() => {
