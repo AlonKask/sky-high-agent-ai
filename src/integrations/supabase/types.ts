@@ -3234,20 +3234,13 @@ export type Database = {
         Returns: boolean
       }
       check_advanced_rate_limit: {
-        Args:
-          | {
-              p_endpoint: string
-              p_identifier: string
-              p_ip_address?: unknown
-              p_max_requests?: number
-              p_window_minutes?: number
-            }
-          | {
-              p_identifier: string
-              p_max_requests?: number
-              p_operation: string
-              p_window_minutes?: number
-            }
+        Args: {
+          p_endpoint: string
+          p_identifier: string
+          p_ip_address?: unknown
+          p_max_requests?: number
+          p_window_minutes?: number
+        }
         Returns: boolean
       }
       check_rate_limit: {

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { secureAuthManager } from '@/utils/secureAuthManager';
 import { enhancedSecurityMonitoring } from '@/utils/enhancedSecurityMonitoring';
 
 interface SimpleAuthContextType {
@@ -64,56 +65,10 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
   }, []);
 
   const signOut = async () => {
-    console.log('🔓 Simple signOut called');
+    console.log('🔓 Secure signOut called');
     
-    // Log sign-out attempt
-    enhancedSecurityMonitoring.reportViolation({
-      type: 'low',
-      event: 'sign_out_attempt',
-      details: {
-        user_id: user?.id,
-        timestamp: new Date().toISOString()
-      },
-      timestamp: new Date()
-    });
-    
-    try {
-      await supabase.auth.signOut({ scope: 'global' });
-      
-      // Clear local storage auth keys
-      Object.keys(localStorage).forEach(key => {
-        if (key.includes('supabase') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Log successful sign-out
-      enhancedSecurityMonitoring.reportViolation({
-        type: 'low',
-        event: 'sign_out_success',
-        details: {
-          timestamp: new Date().toISOString()
-        },
-        timestamp: new Date()
-      });
-      
-      window.location.href = '/auth';
-    } catch (error) {
-      console.error('❌ Sign out error:', error);
-      
-      // Log sign-out error
-      enhancedSecurityMonitoring.reportViolation({
-        type: 'medium',
-        event: 'sign_out_failed',
-        details: {
-          error_message: error instanceof Error ? error.message : 'Unknown error',
-          timestamp: new Date().toISOString()
-        },
-        timestamp: new Date()
-      });
-      
-      window.location.href = '/auth';
-    }
+    // Use secure auth manager for enhanced sign-out
+    await secureAuthManager.secureSignOut();
   };
 
   return (

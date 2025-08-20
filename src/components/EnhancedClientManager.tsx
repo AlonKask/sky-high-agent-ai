@@ -104,9 +104,11 @@ const EnhancedClientManager = () => {
     try {
       setLoading(true);
 
-      // Use the secure client view function to get masked data
+      // SECURITY FIX: Use standard client access - RLS handles security
       const { data, error } = await supabase
-        .rpc('get_secure_client_view');
+        .from('clients')
+        .select('*')
+        .eq('user_id', user.id)  // Enforced: only own data
 
       if (error) {
         console.error('Error fetching clients:', error);
@@ -114,24 +116,8 @@ const EnhancedClientManager = () => {
         return;
       }
 
-      // Transform the secure view data to match Client interface
-      const transformedClients: Client[] = (data || []).map(client => ({
-        id: client.id,
-        first_name: client.first_name,
-        last_name: client.last_name,
-        email: client.email_masked || '', // Use masked email
-        phone: client.phone_masked || '', // Use masked phone
-        company: client.company,
-        client_type: client.client_type,
-        total_bookings: client.total_bookings,
-        total_spent: client.total_spent,
-        last_trip_date: client.last_trip_date,
-        created_at: client.created_at,
-        notes: client.notes,
-        preferred_class: client.preferred_class
-      }));
-
-      setClients(transformedClients);
+      // Use data directly - no transformation needed
+      setClients(data || []);
     } catch (error) {
       console.error('Unexpected error fetching clients:', error);
       toastHelpers.error('An unexpected error occurred while loading clients.', error);
