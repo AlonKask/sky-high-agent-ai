@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthGuard } from "./components/AuthGuard";
 import { Layout } from "./components/Layout";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Requests from "./pages/Requests";
@@ -23,8 +23,6 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 import UserProfile from "./pages/UserProfile";
-import Teams from "./pages/Teams";
-import TeamDetail from "./pages/TeamDetail";
 import AgentStatistics from "./pages/AgentStatistics";
 import Calendar from "./pages/Calendar";
 import IATAManagement from "./pages/IATAManagement";
@@ -72,8 +70,6 @@ const App = () => (
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/users" element={<Users />} />
                       <Route path="/user/:id" element={<UserProfile />} />
-                      <Route path="/teams" element={<Teams />} />
-                      <Route path="/team/:id" element={<TeamDetail />} />
                       <Route path="/agent-statistics" element={<AgentStatistics />} />
                       <Route path="/calendar" element={<Calendar />} />
                       <Route path="/iata-management" element={<IATAManagement />} />
