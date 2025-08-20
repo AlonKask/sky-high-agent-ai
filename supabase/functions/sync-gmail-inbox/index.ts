@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -494,6 +494,12 @@ async function handleAutoSync(supabase: any, request: SyncRequest): Promise<Resp
 // Main handler
 serve(async (req) => {
   console.log(`🔄 Gmail Sync Request: ${req.method} ${req.url}`);
+  
+  // Enhanced security: Origin validation
+  const origin = req.headers.get('origin');
+  if (origin && origin !== 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com') {
+    return new Response('Forbidden', { status: 403 });
+  }
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {

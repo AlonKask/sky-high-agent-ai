@@ -3095,6 +3095,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_access_with_audit: {
+        Args: {
+          p_justification: string
+          p_record_id: string
+          p_table_name: string
+        }
+        Returns: boolean
+      }
       advanced_rate_limit_check: {
         Args:
           | {

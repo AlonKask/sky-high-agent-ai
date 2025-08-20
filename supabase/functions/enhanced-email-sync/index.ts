@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withRateLimit } from '../_shared/rate-limiter.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -292,9 +292,15 @@ serve(async (req) => {
   }, async () => {
     console.log(`🚀 Enhanced Email Sync Request: ${req.method} ${req.url}`);
   
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+    // Enhanced security: Origin validation
+    const origin = req.headers.get('origin');
+    if (origin && origin !== 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com') {
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
 
   try {
     // Create a Supabase client using the incoming request's auth
