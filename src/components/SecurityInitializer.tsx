@@ -3,15 +3,12 @@ import { useEffect } from 'react';
 import { applyCSPHeaders } from '@/utils/contentSecurityPolicy';
 import { validateSecurityConfig } from '@/utils/securityHeaders';
 import { enhancedSecurity } from '@/utils/enhancedSecurity';
-import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 
 /**
  * SecurityInitializer Component
- * Initializes security measures when the app loads
+ * Initializes security measures when the app loads (without auth dependency)
  */
 const SecurityInitializer = () => {
-  const { user } = useSimpleAuth();
-
   useEffect(() => {
     // Apply client-side security headers
     applyCSPHeaders();
@@ -22,15 +19,7 @@ const SecurityInitializer = () => {
       console.error('🚨 CRITICAL: Security configuration validation failed');
     }
 
-    // Initialize security monitoring for authenticated users
-    if (user?.id) {
-      enhancedSecurity.monitorUserActivity(user.id, 'app_initialization', {
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Set up periodic security checks
+    // Set up periodic security checks (without user context)
     const securityInterval = setInterval(async () => {
       // Flush any buffered security events
       await enhancedSecurity.flushAlertBuffer();
@@ -39,10 +28,12 @@ const SecurityInitializer = () => {
       await enhancedSecurity.validateIPSecurity();
     }, 60000); // Every minute
 
+    console.log('✅ Basic security monitoring initialized');
+
     return () => {
       clearInterval(securityInterval);
     };
-  }, [user?.id]);
+  }, []);
 
   return null; // This component doesn't render anything
 };

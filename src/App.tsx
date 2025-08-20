@@ -1,19 +1,19 @@
-
 import { Toaster } from "@/components/ui/sonner";
 import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SimpleAuthProvider } from "@/hooks/useSimpleAuth";
+import { SimpleAuthProvider, useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import { SimpleAuthGuard } from "@/components/SimpleAuthGuard";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import SecurityInitializer from "@/components/SecurityInitializer";
 import { SecurityEnhancementMonitor } from "@/components/SecurityEnhancementMonitor";
 import { useSecurityMonitoring } from "@/hooks/useSecurityMonitoring";
+import { enhancedSecurity } from "@/utils/enhancedSecurity";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -62,6 +62,23 @@ const SecurityMonitoringWrapper = ({ children }: { children: React.ReactNode }) 
   return <>{children}</>;
 };
 
+// User-specific security monitoring component
+const UserSecurityMonitoring = () => {
+  const { user } = useSimpleAuth();
+  
+  useEffect(() => {
+    // Initialize security monitoring for authenticated users
+    if (user?.id) {
+      enhancedSecurity.monitorUserActivity(user.id, 'app_initialization', {
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [user?.id]);
+
+  return null;
+};
+
 function App() {
   return (
     <BrowserRouter>
@@ -70,6 +87,7 @@ function App() {
         <TooltipProvider>
           <SimpleAuthProvider>
             <SecurityMonitoringWrapper>
+              <UserSecurityMonitoring />
               <RoleViewProvider>
                 <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
