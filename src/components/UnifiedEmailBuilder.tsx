@@ -521,24 +521,24 @@ export default function UnifiedEmailBuilder({
                           <div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:12px;">Price Breakdown</div>
                           ${(() => {
                             const parts = [];
-                            if (adultPrice && paxAdults > 0) {
+                            if (adultPrice && quotePaxAdults > 0) {
                               parts.push(`
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Adult (${paxAdults}x)</span>
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Adult (${quotePaxAdults}x)</span>
                                   <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:600;color:#1D1D1F;">${currency} ${fmtNum(adultPrice)}</span>
                                 </div>`);
                             }
-                            if (childPrice && paxChildren > 0) {
+                            if (childPrice && quotePaxChildren > 0) {
                               parts.push(`
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Child (${paxChildren}x)</span>
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Child (${quotePaxChildren}x)</span>
                                   <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:600;color:#1D1D1F;">${currency} ${fmtNum(childPrice)}</span>
                                 </div>`);
                             }
-                            if (infantPrice && paxInfants > 0) {
+                            if (infantPrice && quotePaxInfants > 0) {
                               parts.push(`
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Infant (${paxInfants}x)</span>
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Infant (${quotePaxInfants}x)</span>
                                   <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:600;color:#1D1D1F;">${currency} ${fmtNum(infantPrice)}</span>
                                 </div>`);
                             }
