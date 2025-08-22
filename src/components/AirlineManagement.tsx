@@ -284,29 +284,99 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
         )}
         
         <div className="rounded-md border overflow-x-auto">
-          <Table className="w-full min-w-[800px] table-fixed">
+          <Table className="w-full min-w-[900px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16 !px-3 !py-2 text-left font-medium">IATA Code</TableHead>
-                <TableHead className="w-20 !px-3 !py-2 text-left font-medium">ICAO Code</TableHead>
-                <TableHead className="w-80 !px-3 !py-2 text-left font-medium">Name</TableHead>
-                <TableHead className="w-28 !px-3 !py-2 text-left font-medium">Country</TableHead>
-                <TableHead className="w-32 !px-3 !py-2 text-left font-medium">Alliance</TableHead>
-                <TableHead className="w-16 !px-3 !py-2 text-center font-medium">RBDs</TableHead>
-                <TableHead className="w-32 !px-3 !py-2 text-center font-medium">Actions</TableHead>
+                <TableHead 
+                  className="w-20 text-left font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  IATA Code
+                </TableHead>
+                <TableHead 
+                  className="w-24 text-left font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  ICAO Code
+                </TableHead>
+                <TableHead 
+                  className="w-96 text-left font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  Name
+                </TableHead>
+                <TableHead 
+                  className="w-32 text-left font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  Country
+                </TableHead>
+                <TableHead 
+                  className="w-36 text-left font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  Alliance
+                </TableHead>
+                <TableHead 
+                  className="w-20 text-center font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  RBDs
+                </TableHead>
+                <TableHead 
+                  className="w-36 text-center font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell className="w-16 !px-3 !py-2"><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell className="w-20 !px-3 !py-2"><Skeleton className="h-4 w-14" /></TableCell>
-                    <TableCell className="w-80 !px-3 !py-2"><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell className="w-28 !px-3 !py-2"><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell className="w-32 !px-3 !py-2"><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell className="w-16 !px-3 !py-2 text-center"><Skeleton className="h-4 w-10 mx-auto" /></TableCell>
-                    <TableCell className="w-32 !px-3 !py-2 text-center"><Skeleton className="h-4 w-16 mx-auto" /></TableCell>
+                    <TableCell 
+                      className="w-20" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-12" />
+                    </TableCell>
+                    <TableCell 
+                      className="w-24" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-14" />
+                    </TableCell>
+                    <TableCell 
+                      className="w-96" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-40" />
+                    </TableCell>
+                    <TableCell 
+                      className="w-32" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell 
+                      className="w-36" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell 
+                      className="w-20 text-center" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-10 mx-auto" />
+                    </TableCell>
+                    <TableCell 
+                      className="w-36 text-center" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-16 mx-auto" />
+                    </TableCell>
                   </TableRow>
                 ))
               ) : filteredAirlines.length === 0 ? (
@@ -321,26 +391,53 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                     <Collapsible key={airline.id} open={isExpanded} onOpenChange={() => toggleAirlineExpansion(airline.id)}>
                         <CollapsibleTrigger asChild>
                           <TableRow className="cursor-pointer hover:bg-muted/50">
-                            <TableCell className="w-16 !px-3 !py-2 font-mono font-semibold text-left">{airline.iata_code}</TableCell>
-                            <TableCell className="w-20 !px-3 !py-2 font-mono text-left">{airline.icao_code || '-'}</TableCell>
-                            <TableCell className="w-80 !px-3 !py-2 text-left">
+                            <TableCell 
+                              className="w-20 font-mono font-semibold text-left" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
+                              {airline.iata_code}
+                            </TableCell>
+                            <TableCell 
+                              className="w-24 font-mono text-left" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
+                              {airline.icao_code || '-'}
+                            </TableCell>
+                            <TableCell 
+                              className="w-96 text-left" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
                               <div className="flex items-center gap-2 overflow-hidden">
                                 <ChevronDown className={`h-4 w-4 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                                 <span className="truncate">{airline.name}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="w-28 !px-3 !py-2 text-left">{airline.country || '-'}</TableCell>
-                            <TableCell className="w-32 !px-3 !py-2 text-left">
+                            <TableCell 
+                              className="w-32 text-left" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
+                              {airline.country || '-'}
+                            </TableCell>
+                            <TableCell 
+                              className="w-36 text-left" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
                               {airline.alliance && (
                                 <Badge variant="outline" className="text-xs whitespace-nowrap">{airline.alliance}</Badge>
                               )}
                             </TableCell>
-                            <TableCell className="w-16 !px-3 !py-2 text-center">
+                            <TableCell 
+                              className="w-20 text-center" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
                               <Badge variant="secondary" className="text-xs">
                                 {airline.rbd_count || 0}
                               </Badge>
                             </TableCell>
-                            <TableCell className="w-32 !px-3 !py-2 text-center">
+                            <TableCell 
+                              className="w-36 text-center" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
                               <div className="flex gap-1 justify-center">
                                 <Button
                                   variant="outline"
