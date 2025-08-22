@@ -287,26 +287,26 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>IATA Code</TableHead>
-                <TableHead>ICAO Code</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Alliance</TableHead>
-                <TableHead>RBDs</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="w-20">IATA Code</TableHead>
+                <TableHead className="w-20">ICAO Code</TableHead>
+                <TableHead className="min-w-48">Name</TableHead>
+                <TableHead className="w-32">Country</TableHead>
+                <TableHead className="w-32">Alliance</TableHead>
+                <TableHead className="w-20">RBDs</TableHead>
+                <TableHead className="w-32">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="w-20"><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell className="w-20"><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell className="min-w-48"><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell className="w-32"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="w-32"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="w-20"><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell className="w-32"><Skeleton className="h-4 w-20" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredAirlines.length === 0 ? (
@@ -321,26 +321,26 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                     <Collapsible key={airline.id} open={isExpanded} onOpenChange={() => toggleAirlineExpansion(airline.id)}>
                       <CollapsibleTrigger asChild>
                         <TableRow className="cursor-pointer hover:bg-muted/50">
-                          <TableCell className="font-mono font-semibold">{airline.iata_code}</TableCell>
-                          <TableCell className="font-mono">{airline.icao_code || '-'}</TableCell>
-                          <TableCell>
+                          <TableCell className="font-mono font-semibold w-20">{airline.iata_code}</TableCell>
+                          <TableCell className="font-mono w-20">{airline.icao_code || '-'}</TableCell>
+                          <TableCell className="min-w-48">
                             <div className="flex items-center gap-2">
                               <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                               {airline.name}
                             </div>
                           </TableCell>
-                          <TableCell>{airline.country || '-'}</TableCell>
-                          <TableCell>
+                          <TableCell className="w-32">{airline.country || '-'}</TableCell>
+                          <TableCell className="w-32">
                             {airline.alliance && (
                               <Badge variant="outline">{airline.alliance}</Badge>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="w-20">
                             <Badge variant="secondary">
                               {airline.rbd_count || 0} RBDs
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="w-32">
                             <div className="flex gap-2">
                               <Button
                                 variant="outline"
