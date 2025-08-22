@@ -3965,6 +3965,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_critical_data_access: {
+        Args: {
+          p_new_values?: Json
+          p_old_values?: Json
+          p_operation: string
+          p_record_id: string
+          p_table_name: string
+        }
+        Returns: undefined
+      }
       log_data_access_audit: {
         Args: {
           p_access_type?: string
