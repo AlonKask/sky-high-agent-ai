@@ -267,6 +267,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                         logoUrl={formData.logo_url}
                         airlineName={formData.name || "Preview"}
                         iataCode={formData.iata_code || "XX"}
+                        icaoCode={formData.icao_code}
                         size="md"
                       />
                     </div>
@@ -436,6 +437,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                                 logoUrl={airline.logo_url}
                                 airlineName={airline.name}
                                 iataCode={airline.iata_code}
+                                icaoCode={airline.icao_code}
                                 size="sm"
                               />
                             </TableCell>
