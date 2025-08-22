@@ -816,10 +816,6 @@ export default function UnifiedEmailBuilder({
   const debouncedSave = useCallback((content: string) => {
     const timeoutId = setTimeout(() => {
       setPreviewHtml(content);
-      toast({
-        title: "Email updated",
-        description: "Your changes have been saved automatically",
-      });
     }, 500);
     
     return () => clearTimeout(timeoutId);
