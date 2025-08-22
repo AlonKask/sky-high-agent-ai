@@ -23,11 +23,43 @@ interface UserData {
     first_name?: string;
     last_name?: string;
     company?: string;
+    phone?: string;
   };
   user_roles?: {
     role: UserRole;
   }[];
 }
+
+// Helper function to generate display name
+const getDisplayName = (user: UserData): string => {
+  const firstName = user.profiles?.first_name;
+  const lastName = user.profiles?.last_name;
+  
+  if (firstName && lastName) {
+    return `${firstName} ${lastName}`;
+  }
+  if (firstName) return firstName;
+  if (lastName) return lastName;
+  
+  // Fallback to email username
+  return user.email.split('@')[0];
+};
+
+// Helper function to get user initials
+const getUserInitials = (user: UserData): string => {
+  const firstName = user.profiles?.first_name;
+  const lastName = user.profiles?.last_name;
+  
+  if (firstName && lastName) {
+    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  }
+  if (firstName) return firstName[0].toUpperCase();
+  if (lastName) return lastName[0].toUpperCase();
+  
+  // Fallback to email
+  const email = user.email;
+  return email[0].toUpperCase();
+};
 
 const Users = () => {
   const navigate = useNavigate();
@@ -46,8 +78,11 @@ const Users = () => {
     firstName: '',
     lastName: '',
     company: '',
+    phone: '',
     role: 'user' as UserRole
   });
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [emailValid, setEmailValid] = useState(true);
 
   useEffect(() => {
     if (user && ['supervisor', 'manager', 'admin'].includes(selectedViewRole || '')) {
@@ -80,6 +115,7 @@ const Users = () => {
           first_name,
           last_name,
           company,
+          phone,
           created_at
         `);
 
@@ -90,10 +126,18 @@ const Users = () => {
 
       console.log('Raw profiles data:', profilesData);
 
-      // Fetch user roles separately
+      // Fetch user roles and team memberships
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('user_id, role');
+      
+      // Fetch team memberships for context
+      const { data: teamData, error: teamError } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          teams!inner(name)
+        `);
 
       if (roleError) {
         console.error('Error fetching roles:', roleError);
@@ -103,17 +147,24 @@ const Users = () => {
       console.log('Raw role data:', roleData);
 
       // Combine the data
-      const usersWithRoles = profilesData?.map(user => ({
-        id: user.id,
-        email: user.email || 'No email',
-        created_at: user.created_at,
-        profiles: {
-          first_name: user.first_name || '',
-          last_name: user.last_name || '',
-          company: user.company || ''
-        },
-        user_roles: roleData?.filter(r => r.user_id === user.id).map(r => ({ role: r.role as UserRole })) || []
-      })) || [];
+      const usersWithRoles = profilesData?.map(user => {
+        const userRoles = roleData?.filter(r => r.user_id === user.id).map(r => ({ role: r.role as UserRole })) || [];
+        const userTeams = teamData?.filter(t => t.user_id === user.id) || [];
+        
+        return {
+          id: user.id,
+          email: user.email || 'No email',
+          created_at: user.created_at,
+          profiles: {
+            first_name: user.first_name || '',
+            last_name: user.last_name || '',
+            company: user.company || '',
+            phone: user.phone || ''
+          },
+          user_roles: userRoles,
+          teams: userTeams
+        };
+      }) || [];
 
       console.log('Processed user data:', usersWithRoles);
       setUsers(usersWithRoles);
@@ -125,10 +176,40 @@ const Users = () => {
     }
   };
 
+  // Email validation function
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValid = emailRegex.test(email);
+    setEmailValid(isValid);
+    return isValid;
+  };
+
+  // Password strength calculation
+  const calculatePasswordStrength = (password: string) => {
+    let strength = 0;
+    if (password.length >= 8) strength += 1;
+    if (/[A-Z]/.test(password)) strength += 1;
+    if (/[a-z]/.test(password)) strength += 1;
+    if (/[0-9]/.test(password)) strength += 1;
+    if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+    setPasswordStrength(strength);
+    return strength;
+  };
+
   const createUser = async () => {
     try {
       if (!newUserData.email || !newUserData.password || !newUserData.firstName || !newUserData.lastName || !newUserData.role) {
         toastHelpers.error('Please fill in all required fields');
+        return;
+      }
+
+      if (!validateEmail(newUserData.email)) {
+        toastHelpers.error('Please enter a valid email address');
+        return;
+      }
+
+      if (passwordStrength < 3) {
+        toastHelpers.error('Password is too weak. Please use a stronger password.');
         return;
       }
 
@@ -139,7 +220,7 @@ const Users = () => {
           firstName: newUserData.firstName,
           lastName: newUserData.lastName,
           role: newUserData.role,
-          phone: newUserData.company || undefined,
+          phone: newUserData.phone || undefined,
           company: newUserData.company || undefined
         }
       });
@@ -161,8 +242,11 @@ const Users = () => {
         firstName: '',
         lastName: '',
         company: '',
+        phone: '',
         role: 'user' as UserRole
       });
+      setPasswordStrength(0);
+      setEmailValid(true);
       
       setShowAddUserDialog(false);
       fetchUsers();
@@ -206,15 +290,27 @@ const Users = () => {
     return searchString.includes(searchTerm.toLowerCase());
   });
 
-  const getRoleBadgeColor = (role?: UserRole) => {
+  const getRoleBadgeVariant = (role?: UserRole) => {
     switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'manager': return 'bg-green-100 text-green-800';
-      case 'supervisor': return 'bg-yellow-100 text-yellow-800';
-      case 'gds_expert': return 'bg-indigo-100 text-indigo-800';
-      case 'agent': return 'bg-blue-100 text-blue-800';
-      case 'user': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'admin': return 'destructive';
+      case 'manager': return 'default';
+      case 'supervisor': return 'secondary';
+      case 'gds_expert': return 'outline';
+      case 'agent': return 'secondary';
+      case 'user': return 'outline';
+      default: return 'outline';
+    }
+  };
+
+  const getRoleDescription = (role: UserRole) => {
+    switch (role) {
+      case 'admin': return 'Full system access and user management';
+      case 'manager': return 'Team management and oversight';
+      case 'supervisor': return 'Team supervision and quality control';
+      case 'gds_expert': return 'Specialized booking system expertise';
+      case 'agent': return 'Customer service and booking assistance';
+      case 'user': return 'Basic system access';
+      default: return 'No role assigned';
     }
   };
 
@@ -282,28 +378,55 @@ const Users = () => {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input
                   id="email"
                   type="email"
                   value={newUserData.email}
-                  onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => {
+                    setNewUserData(prev => ({ ...prev, email: e.target.value }));
+                    validateEmail(e.target.value);
+                  }}
                   placeholder="user@example.com"
+                  className={!emailValid && newUserData.email ? 'border-destructive' : ''}
                 />
+                {!emailValid && newUserData.email && (
+                  <p className="text-sm text-destructive">Please enter a valid email address</p>
+                )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Password *</Label>
                 <Input
                   id="password"
                   type="password"
                   value={newUserData.password}
-                  onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
+                  onChange={(e) => {
+                    setNewUserData(prev => ({ ...prev, password: e.target.value }));
+                    calculatePasswordStrength(e.target.value);
+                  }}
                   placeholder="Temporary password"
                 />
+                {newUserData.password && (
+                  <div className="space-y-1">
+                    <div className="flex space-x-1">
+                      {[...Array(5)].map((_, i) => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded ${
+                            i < passwordStrength ? 'bg-primary' : 'bg-muted'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Password strength: {['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'][passwordStrength]}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="firstName">First Name *</Label>
                   <Input
                     id="firstName"
                     value={newUserData.firstName}
@@ -312,7 +435,7 @@ const Users = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="lastName">Last Name *</Label>
                   <Input
                     id="lastName"
                     value={newUserData.lastName}
@@ -321,37 +444,76 @@ const Users = () => {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="company">Company</Label>
-                <Input
-                  id="company"
-                  value={newUserData.company}
-                  onChange={(e) => setNewUserData(prev => ({ ...prev, company: e.target.value }))}
-                  placeholder="Company name"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input
+                    id="company"
+                    value={newUserData.company}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, company: e.target.value }))}
+                    placeholder="Company name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={newUserData.phone}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role">Role *</Label>
                 <Select value={newUserData.role} onValueChange={(value: UserRole) => setNewUserData(prev => ({ ...prev, role: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="user">
+                      <div className="flex flex-col">
+                        <span>User</span>
+                        <span className="text-xs text-muted-foreground">Basic system access</span>
+                      </div>
+                    </SelectItem>
                     {(selectedViewRole === 'admin' || selectedViewRole === 'manager' || selectedViewRole === 'supervisor') && (
                       <>
-                        <SelectItem value="agent">Agent</SelectItem>
-                        <SelectItem value="gds_expert">GDS Expert</SelectItem>
+                        <SelectItem value="agent">
+                          <div className="flex flex-col">
+                            <span>Agent</span>
+                            <span className="text-xs text-muted-foreground">Customer service and booking assistance</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="gds_expert">
+                          <div className="flex flex-col">
+                            <span>GDS Expert</span>
+                            <span className="text-xs text-muted-foreground">Specialized booking system expertise</span>
+                          </div>
+                        </SelectItem>
                       </>
                     )}
                     {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
-                      <SelectItem value="supervisor">Supervisor</SelectItem>
+                      <SelectItem value="supervisor">
+                        <div className="flex flex-col">
+                          <span>Supervisor</span>
+                          <span className="text-xs text-muted-foreground">Team supervision and quality control</span>
+                        </div>
+                      </SelectItem>
                     )}
                     {selectedViewRole === 'admin' && (
-                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="manager">
+                        <div className="flex flex-col">
+                          <span>Manager</span>
+                          <span className="text-xs text-muted-foreground">Team management and oversight</span>
+                        </div>
+                      </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  {getRoleDescription(newUserData.role)}
+                </p>
               </div>
               <Button onClick={createUser} className="w-full">
                 Create User
@@ -388,10 +550,10 @@ const Users = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Contact</TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -403,46 +565,75 @@ const Users = () => {
                   onClick={() => navigate(`/users/${userData.id}`)}
                 >
                   <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="w-4 h-4" />
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-medium text-sm">
+                        {getUserInitials(userData)}
                       </div>
-                       <div>
-                         <p className="font-medium">
-                           {userData.profiles?.first_name || userData.profiles?.last_name 
-                             ? `${userData.profiles?.first_name || ''} ${userData.profiles?.last_name || ''}`.trim()
-                             : userData.email.split('@')[0]
-                           }
-                         </p>
-                       </div>
+                      <div>
+                        <p className="font-medium">{getDisplayName(userData)}</p>
+                        <p className="text-sm text-muted-foreground">{userData.email}</p>
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell>{userData.email}</TableCell>
-                  <TableCell>{userData.profiles?.company || '-'}</TableCell>
                   <TableCell>
-                    <Badge className={getRoleBadgeColor(userData.user_roles?.[0]?.role)}>
+                    <div className="space-y-1">
+                      <p className="text-sm">{userData.email}</p>
+                      {userData.profiles?.phone && (
+                        <p className="text-sm text-muted-foreground">{userData.profiles.phone}</p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <p className="text-sm">{userData.profiles?.company || '-'}</p>
+                      {(userData as any).teams?.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Teams: {(userData as any).teams.map((t: any) => t.teams.name).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getRoleBadgeVariant(userData.user_roles?.[0]?.role)}>
                       {userData.user_roles?.[0]?.role || 'No role'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(userData.created_at).toLocaleDateString()}
+                    <div className="space-y-1">
+                      <Badge variant="outline" className="text-xs">
+                        Active
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        Joined {new Date(userData.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </TableCell>
-                   <TableCell>
-                     <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                       <Select
-                         value={userData.user_roles?.[0]?.role || 'user'}
-                         onValueChange={(value: UserRole) => updateUserRole(userData.id, value)}
-                       >
-                        <SelectTrigger className="w-32">
+                  <TableCell>
+                    <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={userData.user_roles?.[0]?.role || 'user'}
+                        onValueChange={(value: UserRole) => updateUserRole(userData.id, value)}
+                      >
+                        <SelectTrigger className="w-36">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="agent">Agent</SelectItem>
-                          <SelectItem value="gds_expert">GDS Expert</SelectItem>
-                          <SelectItem value="supervisor">Supervisor</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
+                          {(selectedViewRole === 'admin' || selectedViewRole === 'manager' || selectedViewRole === 'supervisor') && (
+                            <>
+                              <SelectItem value="agent">Agent</SelectItem>
+                              <SelectItem value="gds_expert">GDS Expert</SelectItem>
+                            </>
+                          )}
+                          {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
+                            <SelectItem value="supervisor">Supervisor</SelectItem>
+                          )}
+                          {selectedViewRole === 'admin' && (
+                            <>
+                              <SelectItem value="manager">Manager</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
