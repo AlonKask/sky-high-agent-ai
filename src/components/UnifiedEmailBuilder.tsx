@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, X, Send, Mail, Star, Clock, DollarSign, AlertCircle, RotateCcw } from 'lucide-react';
+import { Loader2, X, Send, Mail, AlertCircle, RotateCcw } from 'lucide-react';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { SabreParser } from '@/utils/sabreParser';
@@ -258,11 +258,6 @@ export default function UnifiedEmailBuilder({
     return labels[index] || `Option ${index + 1}`;
   };
 
-  const getOptionIcon = (index: number) => {
-    const icons = [Star, Clock, DollarSign];
-    const IconComponent = icons[index] || Star;
-    return <IconComponent className="h-4 w-4" />;
-  };
 
   const generateEmailHTML = async (): Promise<string> => {
     const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
@@ -1012,7 +1007,6 @@ export default function UnifiedEmailBuilder({
                           }}
                         />
                         <div className="flex items-center gap-2">
-                          {getOptionIcon(index)}
                           <CardTitle className="text-base">{getOptionLabel(index)}</CardTitle>
                           <Badge variant="secondary" className="ml-auto">
                             {formatPrice(quote.total_price)}
