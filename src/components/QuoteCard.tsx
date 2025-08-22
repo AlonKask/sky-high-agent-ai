@@ -92,6 +92,18 @@ const safeParseInt = (value: number | null | undefined): number => {
   return isNaN(value) ? 0 : value;
 };
 
+// Helper function to calculate actual CK fee
+const calculateCKFee = (quote: Quote): number => {
+  if (!quote.ck_fee_enabled) return 0;
+  
+  const dbAmount = safeParseFloat(quote.ck_fee_amount);
+  if (dbAmount > 0) return dbAmount;
+  
+  // Calculate 3.5% of net price + markup when amount is 0 but enabled
+  const basePrice = safeParseFloat(quote.net_price) + safeParseFloat(quote.markup);
+  return basePrice * 0.035;
+};
+
 export function QuoteCard({
   quote,
   isSelected,
@@ -328,7 +340,7 @@ export function QuoteCard({
                     {quote.ck_fee_enabled && (
                       <div>
                         <div className="text-xs text-muted-foreground">CK Fee (3.5%)</div>
-                        <div className="font-medium">${formatPrice(quote.ck_fee_amount)}</div>
+                        <div className="font-medium">${calculateCKFee(quote).toFixed(2)}</div>
                       </div>
                     )}
                     <div>
