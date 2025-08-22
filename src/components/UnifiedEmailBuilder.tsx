@@ -67,7 +67,7 @@ export default function UnifiedEmailBuilder({
   onEmailSent 
 }: UnifiedEmailBuilderProps) {
   const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
-  const [emailSubject, setEmailSubject] = useState(`Select Business Class — Flight Options for ${client.first_name}`);
+  const [emailSubject, setEmailSubject] = useState(`Flight Options for ${client.first_name}`);
   const [personalMessage, setPersonalMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [processedQuotes, setProcessedQuotes] = useState<Quote[]>([]);
@@ -647,7 +647,7 @@ export default function UnifiedEmailBuilder({
                 <tr>
                   <td>
                     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#263244;">Questions or a different date/cabin? Reply to this email or contact our concierge.</div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:6px;">Select Business Class • +1 (888) 424-4968 • support@selectbusinessclass.com</div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:6px;">+1 (888) 424-4968 • support@selectbusinessclass.com</div>
                   </td>
                   <td align="right">
                     <a href="{{UnsubscribeLink}}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;text-decoration:none;">Unsubscribe</a>
@@ -659,7 +659,7 @@ export default function UnifiedEmailBuilder({
         </table>
         <table role="presentation" width="640" class="container" style="width:640px;border-collapse:collapse;">
           <tr>
-            <td align="center" style="padding:10px 10px 8px 10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#94A3B8;">Prices subject to change until ticketed. © Select Business Class</td>
+            <td align="center" style="padding:10px 10px 8px 10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#94A3B8;">Prices subject to change until ticketed.</td>
           </tr>
           <tr>
             <td align="left" style="padding:0 10px 24px 10px;">
