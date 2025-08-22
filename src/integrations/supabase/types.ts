@@ -3318,6 +3318,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      classify_sensitive_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_expired_blocked_ips: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -3970,8 +3974,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      validate_booking_access: {
+        Args: { p_access_type?: string; p_booking_id: string }
+        Returns: boolean
+      }
       validate_business_hours_access: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      validate_communication_access: {
+        Args: { p_communication_type?: string; p_user_id: string }
+        Returns: boolean
+      }
+      validate_credential_access: {
+        Args: { p_credential_type?: string; p_user_id: string }
         Returns: boolean
       }
       validate_data_classification_access: {
@@ -3989,12 +4005,24 @@ export type Database = {
         Args: { encrypted_data: string; field_name: string }
         Returns: boolean
       }
+      validate_financial_access: {
+        Args: { p_access_type?: string; p_quote_id: string }
+        Returns: boolean
+      }
       validate_oauth_state_token: {
         Args: { p_state_token: string }
         Returns: string
       }
       validate_password_strength: {
         Args: { password: string }
+        Returns: boolean
+      }
+      validate_pii_access: {
+        Args: {
+          p_client_id: string
+          p_field_name: string
+          p_justification?: string
+        }
         Returns: boolean
       }
       validate_secure_session: {
