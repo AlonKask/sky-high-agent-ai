@@ -109,7 +109,7 @@ const RequestDetail = () => {
     try {
       // Use the new secure RPC function to fetch all details
       const { data, error } = await supabase.rpc('get_request_details', {
-        p_request_id: id
+        request_id: id
       });
 
       if (error) throw error;
@@ -128,26 +128,24 @@ const RequestDetail = () => {
 
       // Map the RPC result to the component state structure
       const requestData = {
-        id: details.request_id,
-        user_id: details.request_user_id,
+        id: details.id,
+        user_id: details.user_id,
         assigned_to: details.assigned_to,
         client_id: details.client_id,
         origin: details.origin,
         destination: details.destination,
         departure_date: details.departure_date,
         return_date: details.return_date,
-        passengers_adults: details.adults_count,
-        passengers_children: details.children_count,
-        passengers_infants: details.infants_count,
+        adults_count: details.adults_count,
+        children_count: details.children_count,
+        infants_count: details.infants_count,
         class_preference: details.class_preference,
-        request_type: details.trip_type,
-        special_requirements: details.special_requirements,
-        budget_min: details.budget_min,
-        budget_max: details.budget_max,
+        request_type: details.request_type,
+        budget_range: details.budget_range,
         status: details.status,
         priority: details.priority,
-        created_at: details.request_created_at,
-        updated_at: details.request_updated_at,
+        created_at: details.created_at,
+        updated_at: details.updated_at,
         segments: details.segments
       };
 
@@ -158,16 +156,23 @@ const RequestDetail = () => {
         email: details.client_email,
         phone: details.client_phone,
         company: details.client_company,
-        total_spent: details.client_total_spent,
-        total_bookings: details.client_total_bookings,
-        client_type: details.client_type
+        total_spent: 0, // Default value since not returned by RPC
+        total_bookings: 0, // Default value since not returned by RPC
+        preferred_class: details.client_preferred_class
       };
 
-      const quotesData = Array.isArray(details.quotes) ? details.quotes : [];
+      // For now, fetch quotes separately as RPC doesn't return them
+      const { data: quotesData, error: quotesError } = await supabase
+        .from('quotes')
+        .select('*')
+        .eq('request_id', id)
+        .order('created_at', { ascending: false });
+        
+      const quotes = quotesData || [];
 
       setRequest(requestData);
       setClient(clientData);
-      setQuotes(quotesData);
+      setQuotes(quotes);
 
     } catch (error) {
       console.error('Error fetching request details:', error);
