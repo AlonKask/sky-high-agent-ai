@@ -351,76 +351,92 @@ export default function UnifiedEmailBuilder({
 
       return `
           <tr>
-            <td class=\"px\" style=\"padding:14px 28px 0 28px;\">
-              <table role=\"presentation\" width=\"100%\" class=\"card\" style=\"border-collapse:collapse;background:#FFFFFF;border:1px solid #E8EDF3;border-radius:14px;padding:18px;\">
+            <td class="px" style="padding:14px 28px 0 28px;">
+              <table role="presentation" width="100%" class="card" style="border-collapse:collapse;background:#FBFCFE;border:1px solid #D1D9E0;border-radius:12px;margin-bottom:16px;">
                 <tr>
-                  <td class=\"stack\" style=\"vertical-align:top;padding-right:12px;\">
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;line-height:26px;font-weight:800;color:#0B1220;\">
-                      ${depTime} → ${arrTime}
-                    </div>
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#2B3A4B;margin-top:4px;\">
-                      ${depCity} (${depCode}) → ${arrCity} (${arrCode}) • Duration ${duration} • ${stops} stop(s)
-                    </div>
-                  </td>
-                  <td class=\"stack\" align=\"right\" style=\"vertical-align:top;min-width:180px;\">
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">
-                      Airline
-                    </div>
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:700;color:#0B1220;\">
-                      ${airline} • ${flightNumber}
-                    </div>
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B5FFF;font-weight:700;margin-top:2px;\">
-                      ${cabin} • Fare Class ${rbd}
-                    </div>
-                  </td>
-                </tr>
-                <tr><td colspan=\"2\" style=\"border-top:1px solid #E8EDF3;height:14px;line-height:14px;font-size:0;\">&nbsp;</td></tr>
-                ${itineraryHtml}
-                <tr>
-                  <td colspan=\"2\" style=\"padding-top:0;\">
-                    <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;\">
+                  <td style="padding:20px 24px;">
+                    <!-- Header Row: Route & Price -->
+                    <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:16px;">
                       <tr>
-                        ${adultCol}
-                        ${childCol}
-                        ${infantCol}
-                        <td class=\"stack\" align=\"right\" style=\"vertical-align:middle;padding:10px 12px;min-width:140px;\">
-                          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Total</div>
-                          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;font-weight:900;color:#0B1220;margin-top:2px;\">
-                            ${currency} ${fmtNum(totalPrice)}
+                        <td style="vertical-align:middle;">
+                          <div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:20px;font-weight:600;color:#1D1D1F;line-height:1.2;">
+                            ${depCity} → ${arrCity}
+                          </div>
+                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;margin-top:4px;">
+                            ${depCode} → ${arrCode}
+                          </div>
+                        </td>
+                        <td align="right" style="vertical-align:middle;">
+                          <div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:24px;font-weight:700;color:#1D1D1F;">
+                            ${currency}${fmtNum(totalPrice)}
+                          </div>
+                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#6E6E73;text-align:right;">
+                            ${cabin}
                           </div>
                         </td>
                       </tr>
                     </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan=\"2\" style=\"padding-top:8px;\">
-                    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">
+
+                    <!-- Flight Details Row -->
+                    <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:20px;">
                       <tr>
-                        <td style=\"border-radius:12px;\">
-                          <a href=\"{{BookLink:${quote.id}}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
+                        <td style="vertical-align:middle;width:70px;">
+                          <!-- Plane Icon -->
+                          <svg width="40" height="40" viewBox="0 0 40 40" style="display:block;">
+                            <circle cx="20" cy="20" r="20" fill="#E3F2FD"/>
+                            <path d="M28 19L16 15V12.5C16 11.67 16.67 11 17.5 11S19 11.67 19 12.5V14L24 15.5L28 19ZM28 21L24 24.5L19 26V27.5C19 28.33 18.33 29 17.5 29S16 28.33 16 27.5V25L28 21Z" fill="#1976D2"/>
+                          </svg>
                         </td>
-                        <td width=\"8\"></td>
-                        <td bgcolor=\"#0B5FFF\" style=\"border-radius:12px;\">
-                          <a href=\"{{ViewLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">View Details</a>
-                        </td>
-                        <td width=\"8\"></td>
-                        <td style=\"border:1px solid #0B5FFF;border-radius:12px;\">
-                          <a href=\"{{HoldLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B5FFF;text-decoration:none;\">Hold Seats</a>
-                        </td>
-                        <td width=\"8\"></td>
-                        <td style=\"border:1px solid #E8EDF3;border-radius:12px;\">
-                          <a href=\"{{AltLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B1220;text-decoration:none;\">See Alternatives</a>
+                        <td style="vertical-align:middle;padding-left:16px;">
+                          <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
+                            ${depTime} ———————————— ${arrTime}
+                          </div>
+                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
+                            ${airline} ${flightNumber} • ${duration}
+                            ${stops > 0 ? ` • ${stops} stop${stops > 1 ? 's' : ''}` : ' • Nonstop'}
+                          </div>
                         </td>
                       </tr>
                     </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan=\"2\" style=\"padding-top:10px;\">
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#5B6472;\">
-                      Baggage: ${baggage} • Change rules: ${changeRules} • Booking code: ${rbd} • Aircraft: ${aircraft}
-                    </div>
+
+                    <!-- Connection Info (if stops) -->
+                    ${stops > 0 ? `
+                    <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:20px;">
+                      <tr>
+                        <td style="padding:12px 16px;background:#F5F5F7;border-radius:8px;">
+                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#6E6E73;margin-bottom:4px;">
+                            <svg width="12" height="12" viewBox="0 0 12 12" style="display:inline-block;margin-right:4px;vertical-align:middle;">
+                              <circle cx="6" cy="6" r="2" fill="#FF9500"/>
+                            </svg>
+                            Connection Details
+                          </div>
+                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#1D1D1F;">
+                            ${stops} stop${stops > 1 ? 's' : ''} • ${aircraft} aircraft
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    ` : ''}
+
+                    <!-- Single CTA Button -->
+                    <table role="presentation" width="100%" style="border-collapse:collapse;">
+                      <tr>
+                        <td align="center">
+                          <table role="presentation" style="border-collapse:collapse;">
+                            <tr>
+                              <td bgcolor="#007AFF" style="border-radius:12px;padding:16px 32px;">
+                                <a href="{{BookLink:${quote.id}}}" style="display:inline-block;font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:600;color:#FFFFFF;text-decoration:none;line-height:1;">
+                                  <svg width="16" height="16" viewBox="0 0 16 16" style="display:inline-block;margin-right:8px;vertical-align:middle;">
+                                    <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                                  </svg>
+                                  View & Book
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
