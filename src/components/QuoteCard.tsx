@@ -354,7 +354,7 @@ export function QuoteCard({
                                 {safeParseInt(quote.adults_count)} Adult{safeParseInt(quote.adults_count) > 1 ? 's' : ''}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                ${formatPrice(quote.adult_net_price)} net + ${formatPrice(quote.adult_markup)} markup
+                                ${formatPrice(quote.adult_net_price)} net + ${formatPrice(safeParseFloat(quote.adult_price) - safeParseFloat(quote.adult_net_price))} markup
                               </div>
                             </div>
                             <div className="text-right">
@@ -370,7 +370,7 @@ export function QuoteCard({
                                 {safeParseInt(quote.children_count)} Child{safeParseInt(quote.children_count) > 1 ? 'ren' : ''}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                ${formatPrice(quote.child_net_price)} net + ${formatPrice(quote.child_markup)} markup
+                                ${formatPrice(quote.child_net_price)} net + ${formatPrice(safeParseFloat(quote.child_price) - safeParseFloat(quote.child_net_price))} markup
                               </div>
                             </div>
                             <div className="text-right">
@@ -386,7 +386,7 @@ export function QuoteCard({
                                 {safeParseInt(quote.infants_count)} Infant{safeParseInt(quote.infants_count) > 1 ? 's' : ''}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                ${formatPrice(quote.infant_net_price)} net + ${formatPrice(quote.infant_markup)} markup
+                                ${formatPrice(quote.infant_net_price)} net + ${formatPrice(safeParseFloat(quote.infant_price) - safeParseFloat(quote.infant_net_price))} markup
                               </div>
                             </div>
                             <div className="text-right">
