@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAirlines, useAirlineMutations, type Airline } from "@/hooks/useIATAData";
 import { InlineRBDManagement } from "./InlineRBDManagement";
 import RBDCopyDialog from "./RBDCopyDialog";
+import { AirlineLogo } from "./ui/AirlineLogo";
 
 interface AirlineManagementProps {
   searchTerm: string;
@@ -257,7 +258,19 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                     id="logo_url"
                     value={formData.logo_url}
                     onChange={(e) => setFormData({...formData, logo_url: e.target.value})}
+                    placeholder="https://example.com/logo.png"
                   />
+                  {formData.logo_url && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Preview:</span>
+                      <AirlineLogo
+                        logoUrl={formData.logo_url}
+                        airlineName={formData.name || "Preview"}
+                        iataCode={formData.iata_code || "XX"}
+                        size="md"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -288,43 +301,49 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
             <TableHeader>
               <TableRow>
                 <TableHead 
-                  className="w-20 text-left font-medium" 
+                  className="w-16 text-left font-medium" 
                   style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                 >
                   IATA Code
                 </TableHead>
                 <TableHead 
-                  className="w-24 text-left font-medium" 
+                  className="w-20 text-left font-medium" 
                   style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                 >
                   ICAO Code
                 </TableHead>
                 <TableHead 
-                  className="w-96 text-left font-medium" 
+                  className="w-16 text-center font-medium" 
+                  style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                >
+                  Logo
+                </TableHead>
+                <TableHead 
+                  className="w-72 text-left font-medium" 
                   style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                 >
                   Name
                 </TableHead>
                 <TableHead 
-                  className="w-32 text-left font-medium" 
+                  className="w-28 text-left font-medium" 
                   style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                 >
                   Country
                 </TableHead>
                 <TableHead 
-                  className="w-36 text-left font-medium" 
+                  className="w-32 text-left font-medium" 
                   style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                 >
                   Alliance
                 </TableHead>
                 <TableHead 
-                  className="w-20 text-center font-medium" 
+                  className="w-16 text-center font-medium" 
                   style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                 >
                   RBDs
                 </TableHead>
                 <TableHead 
-                  className="w-36 text-center font-medium" 
+                  className="w-32 text-center font-medium" 
                   style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                 >
                   Actions
@@ -336,22 +355,34 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell 
+                      className="w-16" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-10" />
+                    </TableCell>
+                    <TableCell 
                       className="w-20" 
                       style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                     >
                       <Skeleton className="h-4 w-12" />
                     </TableCell>
                     <TableCell 
-                      className="w-24" 
+                      className="w-16 text-center" 
                       style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                     >
-                      <Skeleton className="h-4 w-14" />
+                      <Skeleton className="h-8 w-8 mx-auto" />
                     </TableCell>
                     <TableCell 
-                      className="w-96" 
+                      className="w-72" 
                       style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                     >
                       <Skeleton className="h-4 w-40" />
+                    </TableCell>
+                    <TableCell 
+                      className="w-28" 
+                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                    >
+                      <Skeleton className="h-4 w-16" />
                     </TableCell>
                     <TableCell 
                       className="w-32" 
@@ -360,19 +391,13 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                       <Skeleton className="h-4 w-20" />
                     </TableCell>
                     <TableCell 
-                      className="w-36" 
+                      className="w-16 text-center" 
                       style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                     >
-                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-8 mx-auto" />
                     </TableCell>
                     <TableCell 
-                      className="w-20 text-center" 
-                      style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
-                    >
-                      <Skeleton className="h-4 w-10 mx-auto" />
-                    </TableCell>
-                    <TableCell 
-                      className="w-36 text-center" 
+                      className="w-32 text-center" 
                       style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                     >
                       <Skeleton className="h-4 w-16 mx-auto" />
@@ -381,7 +406,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                 ))
               ) : filteredAirlines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">No airlines found</TableCell>
+                  <TableCell colSpan={8} className="text-center">No airlines found</TableCell>
                 </TableRow>
               ) : (
                 filteredAirlines.map((airline) => {
@@ -392,19 +417,30 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                         <CollapsibleTrigger asChild>
                           <TableRow className="cursor-pointer hover:bg-muted/50">
                             <TableCell 
-                              className="w-20 font-mono font-semibold text-left" 
+                              className="w-16 font-mono font-semibold text-left" 
                               style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                             >
                               {airline.iata_code}
                             </TableCell>
                             <TableCell 
-                              className="w-24 font-mono text-left" 
+                              className="w-20 font-mono text-left" 
                               style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                             >
                               {airline.icao_code || '-'}
                             </TableCell>
                             <TableCell 
-                              className="w-96 text-left" 
+                              className="w-16 text-center" 
+                              style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
+                            >
+                              <AirlineLogo
+                                logoUrl={airline.logo_url}
+                                airlineName={airline.name}
+                                iataCode={airline.iata_code}
+                                size="sm"
+                              />
+                            </TableCell>
+                            <TableCell 
+                              className="w-72 text-left" 
                               style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                             >
                               <div className="flex items-center gap-2 overflow-hidden">
@@ -413,13 +449,13 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                               </div>
                             </TableCell>
                             <TableCell 
-                              className="w-32 text-left" 
+                              className="w-28 text-left" 
                               style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                             >
                               {airline.country || '-'}
                             </TableCell>
                             <TableCell 
-                              className="w-36 text-left" 
+                              className="w-32 text-left" 
                               style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                             >
                               {airline.alliance && (
@@ -427,7 +463,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                               )}
                             </TableCell>
                             <TableCell 
-                              className="w-20 text-center" 
+                              className="w-16 text-center" 
                               style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                             >
                               <Badge variant="secondary" className="text-xs">
@@ -435,7 +471,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                               </Badge>
                             </TableCell>
                             <TableCell 
-                              className="w-36 text-center" 
+                              className="w-32 text-center" 
                               style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px' }}
                             >
                               <div className="flex gap-1 justify-center">
@@ -482,7 +518,7 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                         </CollapsibleTrigger>
                        <CollapsibleContent asChild>
                         <TableRow>
-                          <TableCell colSpan={7} className="p-4 bg-muted/20">
+                          <TableCell colSpan={8} className="p-4 bg-muted/20">
                             <InlineRBDManagement 
                               airlineId={airline.id}
                               airlineName={airline.name}
