@@ -79,6 +79,7 @@ export default function UnifiedEmailBuilder({
   const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string } | null>(null);
   const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string } | null>(null);
   const [requestInfo, setRequestInfo] = useState<{ departure_date?: string; return_date?: string; adults_count?: number; children_count?: number; infants_count?: number; origin?: string; destination?: string } | null>(null);
+  const [airlineLogos, setAirlineLogos] = useState<Record<string, string>>({});
 
   useEffect(() => {
     (async () => {
@@ -204,6 +205,54 @@ export default function UnifiedEmailBuilder({
     return `${hours}h ${minutes}m`;
   };
 
+  // Helper function to fetch airline logos from database
+  const fetchAirlineLogos = async (airlineCodes: string[]) => {
+    if (airlineCodes.length === 0) return {};
+    
+    try {
+      const { data, error } = await supabase
+        .from('airline_codes')
+        .select('iata_code, name, logo_url, icao_code')
+        .in('iata_code', airlineCodes);
+      
+      if (error) {
+        console.warn('Failed to fetch airline logos:', error);
+        return {};
+      }
+
+      const logoMap: Record<string, string> = {};
+      data?.forEach(airline => {
+        if (airline.logo_url) {
+          logoMap[airline.iata_code] = airline.logo_url;
+        }
+      });
+      
+      return logoMap;
+    } catch (error) {
+      console.warn('Error fetching airline logos:', error);
+      return {};
+    }
+  };
+
+  // Helper function to get airline logo with fallbacks
+  const getAirlineLogo = (airlineCode: string, icaoCode?: string): string => {
+    // Check if we have the logo in our cached data
+    if (airlineLogos[airlineCode]) {
+      return airlineLogos[airlineCode];
+    }
+    
+    // Multi-source fallback similar to AirlineLogo component
+    const sources = [];
+    
+    // Add FlightAware CDN if ICAO code available
+    if (icaoCode) {
+      sources.push(`https://flightaware.com/images/airline_logos/90p/${icaoCode}.png`);
+    }
+    
+    // Return first available source or empty string
+    return sources[0] || '';
+  };
+
   const getOptionLabel = (index: number) => {
     const labels = ['Best Balance', 'Fastest Connection', 'Most Affordable'];
     return labels[index] || `Option ${index + 1}`;
@@ -220,6 +269,20 @@ export default function UnifiedEmailBuilder({
     if (selectedQuoteData.length === 0) {
       return '<p>No options selected.</p>';
     }
+
+    // Collect all unique airline codes from segments for logo fetching
+    const allAirlineCodes = new Set<string>();
+    selectedQuoteData.forEach(quote => {
+      const segs = (quote.parsedItinerary?.segments || quote.segments || []) as any[];
+      segs.forEach((seg: any) => {
+        const code = seg.airlineCode || seg.airlineName;
+        if (code && code.length === 2) allAirlineCodes.add(code);
+      });
+    });
+
+    // Fetch airline logos once for all quotes
+    const logos = await fetchAirlineLogos(Array.from(allAirlineCodes));
+    setAirlineLogos(logos);
 
     const currency = userPrefs?.currency || 'USD';
     const clientName = `${client?.first_name || ''} ${client?.last_name || ''}`.trim() || 'Valued Client';
@@ -290,7 +353,13 @@ export default function UnifiedEmailBuilder({
         const aCity = s.arrivalCity || aCode;
         const aOffset = s.arrivalDayOffset && s.arrivalDayOffset > 0 ? ` <span style=\"color:#0B5FFF;\">+${s.arrivalDayOffset}d</span>` : '';
         const line1 = `${dCity} (${dCode}) ${s.departureTime || ''} → ${aCity} (${aCode}) ${s.arrivalTime || ''}${aOffset}`;
-        const metaParts = [s.airlineName || s.airlineCode || '', s.flightNumber || ''].filter(Boolean).join(' ');
+        
+        // Get airline logo for this segment
+        const airlineCode = s.airlineCode || s.airlineName;
+        const logoUrl = getAirlineLogo(airlineCode, s.icaoCode);
+        const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+        
+        const metaParts = [`${airlineLogo}${s.airlineName || s.airlineCode || ''}`, s.flightNumber || ''].filter(Boolean).join(' ');
         const extras: string[] = [];
         if (s.cabin || s.cabinClass) extras.push(s.cabin || s.cabinClass);
         if (s.bookingClass) extras.push(`RBD ${s.bookingClass}`);
@@ -392,7 +461,12 @@ export default function UnifiedEmailBuilder({
                             ${depTime} ———————————— ${arrTime}
                           </div>
                           <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
-                            ${airline} ${flightNumber} • ${duration}
+                            ${(() => {
+                              const airlineCode = first.airlineCode || first.airlineName;
+                              const logoUrl = getAirlineLogo(airlineCode, first.icaoCode);
+                              const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">` : '';
+                              return `${airlineLogo}${airline} ${flightNumber} • ${duration}`;
+                            })()}
                             ${stops > 0 ? ` • ${stops} stop${stops > 1 ? 's' : ''}` : ' • Nonstop'}
                           </div>
                         </td>
