@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, X, Send, Mail, Star, Clock, DollarSign, AlertCircle, RotateCcw } from 'lucide-react';
+import { Loader2, X, Send, Mail, AlertCircle, RotateCcw } from 'lucide-react';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { SabreParser } from '@/utils/sabreParser';
@@ -258,12 +258,6 @@ export default function UnifiedEmailBuilder({
     return labels[index] || `Option ${index + 1}`;
   };
 
-  const getOptionIcon = (index: number) => {
-    const icons = [Star, Clock, DollarSign];
-    const IconComponent = icons[index] || Star;
-    return <IconComponent className="h-4 w-4" />;
-  };
-
   const generateEmailHTML = async (): Promise<string> => {
     const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
     if (selectedQuoteData.length === 0) {
@@ -325,7 +319,30 @@ export default function UnifiedEmailBuilder({
       }
       const outLast = segs[outboundIndex] || segs[segs.length - 1] || {};
 
-      const stops = Math.max(0, (segs?.length || 1) - 1);
+      // Fix stop calculation for round-trip flights
+      const stops = (() => {
+        if (!segs || segs.length === 0) return 0;
+        
+        // Check if this is a round-trip flight (origin equals final destination)
+        const firstOrigin = segs[0]?.departureAirport || segs[0]?.origin;
+        const lastDestination = segs[segs.length - 1]?.arrivalAirport || segs[segs.length - 1]?.destination;
+        
+        if (firstOrigin === lastDestination && segs.length > 1) {
+          // Round-trip: calculate stops for outbound and return separately
+          const midPoint = Math.ceil(segs.length / 2);
+          const outboundStops = Math.max(0, midPoint - 1);
+          const returnStops = Math.max(0, (segs.length - midPoint) - 1);
+          
+          // If both legs are non-stop, show as "Nonstop"
+          if (outboundStops === 0 && returnStops === 0) return 0;
+          
+          // Otherwise show total intermediate stops
+          return outboundStops + returnStops;
+        } else {
+          // One-way or multi-city: use traditional calculation
+          return Math.max(0, segs.length - 1);
+        }
+      })();
       const depCode = originCode;
       const arrCode = outLast.arrivalAirport || outLast.destination || (quote.route ? (quote.route.split(/[-→]/).slice(-1)[0] || '').trim().toUpperCase() : '—');
       const depTime = first.departureTime || first.departure_time || '7:45 AM';
@@ -490,7 +507,56 @@ export default function UnifiedEmailBuilder({
                         </td>
                       </tr>
                     </table>
-                    ` : ''}
+                     ` : ''}
+
+                    <!-- Passenger Pricing Section -->
+                    <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:20px;">
+                      <tr>
+                        <td style="background:#F8F9FA;border-radius:12px;padding:20px;">
+                          <div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:12px;">Price Breakdown</div>
+                          ${(() => {
+                            const parts = [];
+                            if (adultPrice && paxAdults > 0) {
+                              parts.push(`
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Adult (${paxAdults}x)</span>
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:600;color:#1D1D1F;">${currency} ${fmtNum(adultPrice)}</span>
+                                </div>`);
+                            }
+                            if (childPrice && paxChildren > 0) {
+                              parts.push(`
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Child (${paxChildren}x)</span>
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:600;color:#1D1D1F;">${currency} ${fmtNum(childPrice)}</span>
+                                </div>`);
+                            }
+                            if (infantPrice && paxInfants > 0) {
+                              parts.push(`
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;">Infant (${paxInfants}x)</span>
+                                  <span style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:600;color:#1D1D1F;">${currency} ${fmtNum(infantPrice)}</span>
+                                </div>`);
+                            }
+                            
+                            if (parts.length > 0) {
+                              return parts.join('') + `
+                                <div style="border-top:1px solid #E5E5E7;margin-top:12px;padding-top:12px;">
+                                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:700;color:#1D1D1F;">Total</span>
+                                    <span style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:20px;font-weight:700;color:#007AFF;">${currency} ${fmtNum(totalPrice)}</span>
+                                  </div>
+                                </div>`;
+                            } else {
+                              return `
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                  <span style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:700;color:#1D1D1F;">Total Price</span>
+                                  <span style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:20px;font-weight:700;color:#007AFF;">${currency} ${fmtNum(totalPrice)}</span>
+                                </div>`;
+                            }
+                          })()}
+                        </td>
+                      </tr>
+                    </table>
 
                     <!-- Single CTA Button -->
                     <table role="presentation" width="100%" style="border-collapse:collapse;">
@@ -1011,21 +1077,73 @@ export default function UnifiedEmailBuilder({
                             }
                           }}
                         />
-                        <div className="flex items-center gap-2">
-                          {getOptionIcon(index)}
-                          <CardTitle className="text-base">{getOptionLabel(index)}</CardTitle>
-                          <Badge variant="secondary" className="ml-auto">
-                            {formatPrice(quote.total_price)}
-                          </Badge>
-                        </div>
+                         <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-2">
+                             <span className="font-medium text-sm">{getOptionLabel(index)}</span>
+                           </div>
+                           <div className="text-right">
+                             <div className="font-semibold text-lg text-primary">
+                               {formatPrice(quote.total_price)}
+                             </div>
+                             <div className="text-xs text-muted-foreground">
+                               {(() => {
+                                 const adults = quote.adults_count || requestInfo?.adults_count || 1;
+                                 const children = quote.children_count || requestInfo?.children_count || 0;
+                                 const infants = quote.infants_count || requestInfo?.infants_count || 0;
+                                 const total = adults + children + infants;
+                                 return `${total} passenger${total !== 1 ? 's' : ''}`;
+                               })()}
+                             </div>
+                           </div>
+                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <div><strong>Route:</strong> {quote.route}</div>
-                        <div><strong>Type:</strong> {quote.fare_type}</div>
-                        <div><strong>Passengers:</strong> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
-                      </div>
+                       <div className="text-sm text-muted-foreground space-y-1">
+                         <div><strong>Route:</strong> {quote.route}</div>
+                         <div><strong>Type:</strong> {quote.fare_type}</div>
+                         <div><strong>Stops:</strong> {(() => {
+                           const segs = quote.parsedItinerary?.segments || quote.segments || [];
+                           const firstOrigin = segs[0]?.departureAirport || segs[0]?.origin;
+                           const lastDestination = segs[segs.length - 1]?.arrivalAirport || segs[segs.length - 1]?.destination;
+                           
+                           if (firstOrigin === lastDestination && segs.length > 1) {
+                             const midPoint = Math.ceil(segs.length / 2);
+                             const outboundStops = Math.max(0, midPoint - 1);
+                             const returnStops = Math.max(0, (segs.length - midPoint) - 1);
+                             if (outboundStops === 0 && returnStops === 0) return "Nonstop";
+                             return `${outboundStops + returnStops} stop${(outboundStops + returnStops) !== 1 ? 's' : ''}`;
+                           } else {
+                             const stops = Math.max(0, segs.length - 1);
+                             return stops === 0 ? "Nonstop" : `${stops} stop${stops !== 1 ? 's' : ''}`;
+                           }
+                         })()}</div>
+                         <div><strong>Passengers:</strong> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
+                         
+                         {/* Passenger Price Breakdown */}
+                         {(quote.adult_price || quote.child_price || quote.infant_price) && (
+                           <div className="pt-2 border-t border-border/30 space-y-1">
+                             {quote.adult_price && (quote.adults_count || requestInfo?.adults_count || 1) > 0 && (
+                               <div className="flex justify-between text-xs">
+                                 <span>Adult ({quote.adults_count || requestInfo?.adults_count || 1}x):</span>
+                                 <span className="font-medium">{formatPrice(quote.adult_price)}</span>
+                               </div>
+                             )}
+                             {quote.child_price && (quote.children_count || requestInfo?.children_count || 0) > 0 && (
+                               <div className="flex justify-between text-xs">
+                                 <span>Child ({quote.children_count || requestInfo?.children_count}x):</span>
+                                 <span className="font-medium">{formatPrice(quote.child_price)}</span>
+                               </div>
+                             )}
+                             {quote.infant_price && (quote.infants_count || requestInfo?.infants_count || 0) > 0 && (
+                               <div className="flex justify-between text-xs">
+                                 <span>Infant ({quote.infants_count || requestInfo?.infants_count}x):</span>
+                                 <span className="font-medium">{formatPrice(quote.infant_price)}</span>
+                               </div>
+                             )}
+                           </div>
+                         )}
+                       </div>
                     </CardContent>
                   </Card>
                 ))}
