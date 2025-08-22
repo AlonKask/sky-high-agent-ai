@@ -76,6 +76,22 @@ interface QuoteCardProps {
   selectable?: boolean;
 }
 
+// Helper functions for safe price parsing and formatting
+const safeParseFloat = (value: string | number | null | undefined): number => {
+  if (value === null || value === undefined) return 0;
+  const parsed = typeof value === 'string' ? parseFloat(value) : Number(value);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+const formatPrice = (value: string | number | null | undefined): string => {
+  return safeParseFloat(value).toFixed(2);
+};
+
+const safeParseInt = (value: number | null | undefined): number => {
+  if (value === null || value === undefined) return 0;
+  return isNaN(value) ? 0 : value;
+};
+
 export function QuoteCard({
   quote,
   isSelected,
@@ -89,7 +105,7 @@ export function QuoteCard({
   generateIFormatDisplay,
   selectable = true,
 }: QuoteCardProps) {
-  const totalPrice = parseFloat(quote.total_price);
+  const totalPrice = safeParseFloat(quote.total_price);
   const fareTypeDisplay = quote.fare_type.replace('_', ' ').toUpperCase();
   
   // Extract route info for collapsed view
@@ -170,7 +186,7 @@ export function QuoteCard({
               {/* Center - Price */}
               <div className="text-center px-4">
                 <div className="text-2xl font-bold text-primary">
-                  ${totalPrice.toFixed(2)}
+                  ${formatPrice(quote.total_price)}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Total Price
@@ -297,24 +313,27 @@ export function QuoteCard({
                 </h4>
                 <div className="space-y-3">
                   {/* Overall Pricing */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/30 rounded-lg">
+                  <div className={cn(
+                    "grid gap-4 p-3 bg-muted/30 rounded-lg",
+                    quote.ck_fee_enabled ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-3"
+                  )}>
                     <div>
                       <div className="text-xs text-muted-foreground">Net Price</div>
-                      <div className="font-medium">${parseFloat(quote.net_price).toFixed(2)}</div>
+                      <div className="font-medium">${formatPrice(quote.net_price)}</div>
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">Markup</div>
-                      <div className="font-medium">${parseFloat(quote.markup).toFixed(2)}</div>
+                      <div className="font-medium">${formatPrice(quote.markup)}</div>
                     </div>
                     {quote.ck_fee_enabled && (
                       <div>
                         <div className="text-xs text-muted-foreground">CK Fee (3.5%)</div>
-                        <div className="font-medium">${parseFloat(quote.ck_fee_amount || '0').toFixed(2)}</div>
+                        <div className="font-medium">${formatPrice(quote.ck_fee_amount)}</div>
                       </div>
                     )}
                     <div>
                       <div className="text-xs text-muted-foreground">Total</div>
-                      <div className="font-bold text-primary">${totalPrice.toFixed(2)}</div>
+                      <div className="font-bold text-primary">${formatPrice(quote.total_price)}</div>
                     </div>
                   </div>
 
@@ -326,51 +345,51 @@ export function QuoteCard({
                         Passenger Breakdown
                       </h5>
                       <div className="space-y-3">
-                        {quote.adult_net_price && quote.adults_count > 0 && (
+                        {quote.adult_net_price && safeParseInt(quote.adults_count) > 0 && (
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-blue-700">
-                                {quote.adults_count} Adult{quote.adults_count > 1 ? 's' : ''}
+                                {safeParseInt(quote.adults_count)} Adult{safeParseInt(quote.adults_count) > 1 ? 's' : ''}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                ${parseFloat(quote.adult_net_price).toFixed(2)} net + ${parseFloat(quote.adult_markup || '0').toFixed(2)} markup
+                                ${formatPrice(quote.adult_net_price)} net + ${formatPrice(quote.adult_markup)} markup
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-medium">${(parseFloat(quote.adult_price || '0') * quote.adults_count).toFixed(2)}</div>
-                              <div className="text-xs text-muted-foreground">per person: ${parseFloat(quote.adult_price || '0').toFixed(2)}</div>
+                              <div className="font-medium">${(safeParseFloat(quote.adult_price) * safeParseInt(quote.adults_count)).toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">per person: ${formatPrice(quote.adult_price)}</div>
                             </div>
                           </div>
                         )}
-                        {quote.child_net_price && quote.children_count > 0 && (
+                        {quote.child_net_price && safeParseInt(quote.children_count) > 0 && (
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-blue-700">
-                                {quote.children_count} Child{quote.children_count > 1 ? 'ren' : ''}
+                                {safeParseInt(quote.children_count)} Child{safeParseInt(quote.children_count) > 1 ? 'ren' : ''}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                ${parseFloat(quote.child_net_price).toFixed(2)} net + ${parseFloat(quote.child_markup || '0').toFixed(2)} markup
+                                ${formatPrice(quote.child_net_price)} net + ${formatPrice(quote.child_markup)} markup
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-medium">${(parseFloat(quote.child_price || '0') * quote.children_count).toFixed(2)}</div>
-                              <div className="text-xs text-muted-foreground">per person: ${parseFloat(quote.child_price || '0').toFixed(2)}</div>
+                              <div className="font-medium">${(safeParseFloat(quote.child_price) * safeParseInt(quote.children_count)).toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">per person: ${formatPrice(quote.child_price)}</div>
                             </div>
                           </div>
                         )}
-                        {quote.infant_net_price && quote.infants_count > 0 && (
+                        {quote.infant_net_price && safeParseInt(quote.infants_count) > 0 && (
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-blue-700">
-                                {quote.infants_count} Infant{quote.infants_count > 1 ? 's' : ''}
+                                {safeParseInt(quote.infants_count)} Infant{safeParseInt(quote.infants_count) > 1 ? 's' : ''}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                ${parseFloat(quote.infant_net_price).toFixed(2)} net + ${parseFloat(quote.infant_markup || '0').toFixed(2)} markup
+                                ${formatPrice(quote.infant_net_price)} net + ${formatPrice(quote.infant_markup)} markup
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-medium">${(parseFloat(quote.infant_price || '0') * quote.infants_count).toFixed(2)}</div>
-                              <div className="text-xs text-muted-foreground">per person: ${parseFloat(quote.infant_price || '0').toFixed(2)}</div>
+                              <div className="font-medium">${(safeParseFloat(quote.infant_price) * safeParseInt(quote.infants_count)).toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">per person: ${formatPrice(quote.infant_price)}</div>
                             </div>
                           </div>
                         )}
