@@ -136,9 +136,9 @@ const RequestDetail = () => {
         destination: details.destination,
         departure_date: details.departure_date,
         return_date: details.return_date,
-        passengers_adults: details.passengers_adults,
-        passengers_children: details.passengers_children,
-        passengers_infants: details.passengers_infants,
+        passengers_adults: details.adults_count,
+        passengers_children: details.children_count,
+        passengers_infants: details.infants_count,
         class_preference: details.class_preference,
         request_type: details.trip_type,
         special_requirements: details.special_requirements,
@@ -314,39 +314,39 @@ const RequestDetail = () => {
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground">Route</p>
                       <div className="font-semibold flex items-center gap-2">
-                        <InlineEditField
-                          value={request.origin}
-                          onSave={async (value) => {
-                            const { error } = await supabase
-                              .from('requests')
-                              .update({ origin: String(value) })
-                              .eq('id', id);
-                            if (!error) {
-                              setRequest(prev => ({ ...prev, origin: String(value) }));
-                              toast({ title: "Success", description: "Origin updated" });
-                            } else {
-                              toast({ title: "Error", description: "Failed to update origin", variant: "destructive" });
-                            }
-                          }}
-                          placeholder="Origin"
-                        />
-                        <span>→</span>
-                        <InlineEditField
-                          value={request.destination}
-                          onSave={async (value) => {
-                            const { error } = await supabase
-                              .from('requests')
-                              .update({ destination: String(value) })
-                              .eq('id', id);
-                            if (!error) {
-                              setRequest(prev => ({ ...prev, destination: String(value) }));
-                              toast({ title: "Success", description: "Destination updated" });
-                            } else {
-                              toast({ title: "Error", description: "Failed to update destination", variant: "destructive" });
-                            }
-                          }}
-                          placeholder="Destination"
-                        />
+                         <InlineEditField
+                           value={request.origin}
+                           onSave={async (value) => {
+                             const { error } = await supabase
+                               .from('requests')
+                               .update({ origin: String(value) })
+                               .eq('id', id);
+                             if (!error) {
+                               setRequest(prev => ({ ...prev, origin: String(value) }));
+                               toast({ title: "Success", description: "Origin updated" });
+                             } else {
+                               toast({ title: "Error", description: "Failed to update origin", variant: "destructive" });
+                             }
+                           }}
+                           placeholder="Origin"
+                         />
+                         <span>→</span>
+                         <InlineEditField
+                           value={request.destination}
+                           onSave={async (value) => {
+                             const { error } = await supabase
+                               .from('requests')
+                               .update({ destination: String(value) })
+                               .eq('id', id);
+                             if (!error) {
+                               setRequest(prev => ({ ...prev, destination: String(value) }));
+                               toast({ title: "Success", description: "Destination updated" });
+                             } else {
+                               toast({ title: "Error", description: "Failed to update destination", variant: "destructive" });
+                             }
+                           }}
+                           placeholder="Destination"
+                         />
                       </div>
                       <InlineEditField
                         value={localTripType}

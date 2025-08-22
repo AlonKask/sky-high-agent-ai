@@ -3752,9 +3752,11 @@ export type Database = {
       get_request_details: {
         Args: { p_request_id: string }
         Returns: {
+          adults_count: number
           assigned_to: string
           budget_max: number
           budget_min: number
+          children_count: number
           class_preference: string
           client_company: string
           client_email: string
@@ -3767,10 +3769,8 @@ export type Database = {
           client_type: string
           departure_date: string
           destination: string
+          infants_count: number
           origin: string
-          passengers_adults: number
-          passengers_children: number
-          passengers_infants: number
           priority: string
           quotes: Json
           request_created_at: string
