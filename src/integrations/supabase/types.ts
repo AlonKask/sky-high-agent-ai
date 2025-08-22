@@ -586,6 +586,54 @@ export type Database = {
         }
         Relationships: []
       }
+      assets: {
+        Row: {
+          alt_text: string | null
+          asset_category: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          is_public: boolean
+          tags: Json | null
+          updated_at: string
+          usage_count: number
+          user_id: string
+        }
+        Insert: {
+          alt_text?: string | null
+          asset_category?: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          file_type: string
+          id?: string
+          is_public?: boolean
+          tags?: Json | null
+          updated_at?: string
+          usage_count?: number
+          user_id: string
+        }
+        Update: {
+          alt_text?: string | null
+          asset_category?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          is_public?: boolean
+          tags?: Json | null
+          updated_at?: string
+          usage_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           id: string
