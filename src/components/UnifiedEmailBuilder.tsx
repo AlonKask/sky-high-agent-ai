@@ -428,16 +428,16 @@ export default function UnifiedEmailBuilder({
           <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
             ${currency} ${fmtNum(childPrice)}
           </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${quotePaxChildren}</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${quotePaxChildren}</div>
         </td>`;
 
       const infantCol = !anyInfants ? '' : `
         <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;\">
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Infant</div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Infant</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
             ${currency} ${fmtNum(infantPrice)}
           </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${quotePaxInfants}</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${quotePaxInfants}</div>
         </td>`;
 
       return `
@@ -1085,28 +1085,11 @@ export default function UnifiedEmailBuilder({
                         <span className="font-medium text-sm">{getOptionLabel(index)}</span>
                       </div>
                     </CardHeader>
-                    <CardContent className="pt-0">
-                       <div className="text-sm text-muted-foreground space-y-1">
-                         <div><strong>Route:</strong> {quote.route}</div>
-                         <div><strong>Type:</strong> {quote.fare_type}</div>
-                         <div><strong>Stops:</strong> {(() => {
-                           const segs = quote.parsedItinerary?.segments || quote.segments || [];
-                           const firstOrigin = segs[0]?.departureAirport || segs[0]?.origin;
-                           const lastDestination = segs[segs.length - 1]?.arrivalAirport || segs[segs.length - 1]?.destination;
-                           
-                           if (firstOrigin === lastDestination && segs.length > 1) {
-                             const midPoint = Math.ceil(segs.length / 2);
-                             const outboundStops = Math.max(0, midPoint - 1);
-                             const returnStops = Math.max(0, (segs.length - midPoint) - 1);
-                             if (outboundStops === 0 && returnStops === 0) return "Nonstop";
-                             return `${outboundStops + returnStops} stop${(outboundStops + returnStops) !== 1 ? 's' : ''}`;
-                           } else {
-                             const stops = Math.max(0, segs.length - 1);
-                             return stops === 0 ? "Nonstop" : `${stops} stop${stops !== 1 ? 's' : ''}`;
-                           }
-                         })()}</div>
-                         <div><strong>Passengers:</strong> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
-                       </div>
+                     <CardContent className="pt-0">
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div><strong>Route:</strong> {quote.route}</div>
+                          <div><strong>Type:</strong> {quote.fare_type}</div>
+                        </div>
                     </CardContent>
                   </Card>
                 ))}
