@@ -24,35 +24,47 @@ export function AirlineLogo({
   size = 'sm', 
   className 
 }: AirlineLogoProps) {
-  const [imageError, setImageError] = useState(false);
+  const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Simple fallback strategy: FlightAware (ICAO) -> IATA code display
-  const getLogoUrl = (): string | null => {
+  // Multi-source fallback strategy
+  const getLogoSources = (): string[] => {
+    const sources: string[] = [];
+    
     // Use provided logoUrl first if available
     if (logoUrl) {
-      return logoUrl;
+      sources.push(logoUrl);
     }
     
-    // FlightAware CDN (proven to work, watermark-free)
+    // Add FlightAware CDN if ICAO code available
     if (icaoCode) {
-      return `https://flightaware.com/images/airline_logos/90p/${icaoCode}.png`;
+      sources.push(`https://flightaware.com/images/airline_logos/90p/${icaoCode}.png`);
     }
     
-    return null;
+    // Add Airlines.net CDN as secondary fallback if ICAO code available
+    if (icaoCode) {
+      sources.push(`https://www.airlines.net/photos/airline-logos/9999/${icaoCode}.gif`);
+    }
+    
+    return sources;
   };
 
-  const currentUrl = getLogoUrl();
-  const showFallback = !currentUrl || imageError;
+  const logoSources = getLogoSources();
+  const currentUrl = logoSources[currentSourceIndex];
+  const showFallback = !currentUrl || currentSourceIndex >= logoSources.length;
 
   const handleImageLoad = () => {
     setIsLoaded(true);
-    setImageError(false);
   };
 
   const handleImageError = () => {
-    setImageError(true);
-    setIsLoaded(true);
+    // Try next source if available
+    if (currentSourceIndex < logoSources.length - 1) {
+      setCurrentSourceIndex(currentSourceIndex + 1);
+      setIsLoaded(false);
+    } else {
+      setIsLoaded(true);
+    }
   };
 
   return (
