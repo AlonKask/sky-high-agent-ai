@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, X, Send, Mail, Star, Clock, DollarSign, AlertCircle, RotateCcw } from 'lucide-react';
+import { Loader2, X, Send, Mail, Star, Clock, DollarSign, AlertCircle, RotateCcw, Edit3, Save } from 'lucide-react';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { SabreParser } from '@/utils/sabreParser';
@@ -75,6 +75,8 @@ export default function UnifiedEmailBuilder({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
+  const [isEditingPreview, setIsEditingPreview] = useState(false);
+  const [editableContent, setEditableContent] = useState('');
 
   const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string } | null>(null);
   const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string } | null>(null);
@@ -800,26 +802,41 @@ export default function UnifiedEmailBuilder({
         replaced = replaced.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
 
         setPreviewHtml(replaced);
+        setEditableContent(replaced);
       } catch (error) {
         console.error('Preview generation error:', error);
         const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
         const basic = generateBasicEmailHTML(selectedQuoteData).replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
         setPreviewHtml(basic);
+        setEditableContent(basic);
       }
     };
     updatePreview();
   }, [selectedQuotes, processedQuotes]);
 
+  const handleSavePreviewEdit = () => {
+    setPreviewHtml(editableContent);
+    setIsEditingPreview(false);
+    toast({
+      title: "Email updated",
+      description: "Your changes have been saved to the preview",
+    });
+  };
+
   // Handle ESC key to close
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        if (isEditingPreview) {
+          setIsEditingPreview(false);
+        } else {
+          onClose();
+        }
       }
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [onClose, isEditingPreview]);
 
   const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
   const totalPrice = selectedQuoteData.reduce((sum, quote) => sum + quote.total_price, 0);
@@ -833,9 +850,17 @@ export default function UnifiedEmailBuilder({
             <h2 className="text-2xl font-semibold">Send Flight Options to {client.first_name}</h2>
             <p className="text-muted-foreground">Client: {client.email}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Input
+              value={emailSubject}
+              onChange={(e) => setEmailSubject(e.target.value)}
+              placeholder="Email subject"
+              className="w-80"
+            />
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Processing Status */}
@@ -876,40 +901,8 @@ export default function UnifiedEmailBuilder({
 
         {/* Main Content */}
         <div className="flex-1 flex min-h-0">
-          {/* Left Panel - Email Composition */}
+          {/* Left Panel - Quote Selection */}
           <div className="w-1/2 border-r flex flex-col">
-            <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold mb-2">Compose Email</h3>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                <span className="px-2 py-1 rounded-full bg-muted">1. Compose</span>
-                <span className="h-px w-6 bg-border" />
-                <span className="px-2 py-1 rounded-full bg-primary/10 text-primary">2. Select</span>
-                <span className="h-px w-6 bg-border" />
-                <span className="px-2 py-1 rounded-full bg-muted">3. Send</span>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Email Subject</label>
-                  <Input
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    placeholder="Email subject"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Personal Message (Optional)</label>
-                  <Textarea
-                    value={personalMessage}
-                    onChange={(e) => setPersonalMessage(e.target.value)}
-                    placeholder="Add a personal message for your client..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Quote Selection */}
             <div className="flex-1 overflow-auto p-6">
               <h4 className="text-lg font-semibold mb-4">Select Flight Options ({processedQuotes.length} available)</h4>
               
@@ -956,21 +949,51 @@ export default function UnifiedEmailBuilder({
             </div>
           </div>
 
-          {/* Right Panel - Email Preview */}
+          {/* Right Panel - Email Preview with Inline Editing */}
           <div className="w-1/2 flex flex-col">
             <div className="p-6 border-b bg-muted/50">
-              <h3 className="text-lg font-semibold">Email Preview</h3>
-              <p className="text-sm text-muted-foreground">This is how your email will appear to the client</p>
-              <div className="mt-2 text-xs text-muted-foreground">Preview mode: Links open in a new tab for testing.</div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Email Preview</h3>
+                  <p className="text-sm text-muted-foreground">This is how your email will appear to the client</p>
+                </div>
+                {!isEditingPreview ? (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditingPreview(true)}>
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Edit Content
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsEditingPreview(false)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSavePreviewEdit}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="flex-1 overflow-auto bg-gray-50">
-              <iframe
-                title="Email Preview"
-                srcDoc={previewHtml}
-                className="w-full h-full border-0"
-                sandbox="allow-popups allow-top-navigation-by-user-activation allow-forms allow-same-origin"
-              />
+              {isEditingPreview ? (
+                <div className="p-4 h-full">
+                  <Textarea
+                    value={editableContent}
+                    onChange={(e) => setEditableContent(e.target.value)}
+                    className="w-full h-full font-mono text-sm resize-none"
+                    placeholder="Edit the email HTML content..."
+                  />
+                </div>
+              ) : (
+                <iframe
+                  title="Email Preview"
+                  srcDoc={previewHtml}
+                  className="w-full h-full border-0"
+                  sandbox="allow-popups allow-top-navigation-by-user-activation allow-forms allow-same-origin"
+                />
+              )}
             </div>
           </div>
         </div>
