@@ -28,6 +28,7 @@ interface Team {
     first_name: string;
     last_name: string;
     email: string;
+    display_name?: string;
   };
   member_count?: number;
 }
@@ -42,6 +43,7 @@ interface TeamMember {
     first_name: string;
     last_name: string;
     email: string;
+    display_name?: string;
   };
 }
 
@@ -100,7 +102,12 @@ export const Teams = () => {
               .select('first_name, last_name, email')
               .eq('id', team.manager_id)
               .single();
-            manager = managerData;
+            manager = managerData ? {
+              ...managerData,
+              display_name: managerData.first_name && managerData.last_name 
+                ? `${managerData.first_name} ${managerData.last_name}`
+                : managerData.first_name || managerData.last_name || managerData.email || 'Unknown Manager'
+            } : null;
           }
 
           const { count } = await supabase
@@ -166,10 +173,15 @@ export const Teams = () => {
             .eq('id', member.user_id)
             .single();
 
-          return {
-            ...member,
-            user: userData
-          };
+                  return {
+                    ...member,
+                    user: userData ? {
+                      ...userData,
+                      display_name: userData.first_name && userData.last_name 
+                        ? `${userData.first_name} ${userData.last_name}`
+                        : userData.first_name || userData.last_name || userData.email || 'Unknown User'
+                    } : null
+                  };
         })
       );
 
@@ -429,11 +441,14 @@ export const Teams = () => {
                       <SelectValue placeholder="Select a manager" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.first_name} {user.last_name} ({user.email})
-                        </SelectItem>
-                      ))}
+                    {availableUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.first_name && user.last_name 
+                          ? `${user.first_name} ${user.last_name}`
+                          : user.first_name || user.last_name || user.email || 'Unknown User'
+                        } ({user.email})
+                      </SelectItem>
+                    ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -514,7 +529,7 @@ export const Teams = () => {
                     <span className="text-muted-foreground">Manager:</span>
                     <span className="flex items-center gap-1">
                       <Crown className="h-3 w-3" />
-                      {team.manager.first_name} {team.manager.last_name}
+                      {team.manager.display_name || `${team.manager.first_name || ''} ${team.manager.last_name || ''}`.trim() || team.manager.email}
                     </span>
                   </div>
                 )}
@@ -569,9 +584,9 @@ export const Teams = () => {
               <TableBody>
                 {teamMembers.map((member) => (
                   <TableRow key={member.id}>
-                    <TableCell>
-                      {member.user?.first_name} {member.user?.last_name}
-                    </TableCell>
+                  <TableCell>
+                    {member.user?.display_name || `${member.user?.first_name || ''} ${member.user?.last_name || ''}`.trim() || member.user?.email || 'Unknown User'}
+                  </TableCell>
                     <TableCell>{member.user?.email}</TableCell>
                     <TableCell>
                       <Badge variant={member.role_in_team === 'lead' ? 'default' : 'secondary'}>

@@ -15,6 +15,7 @@ export interface TeamMember {
     first_name: string;
     last_name: string;
     avatar_url?: string;
+    display_name?: string;
   };
 }
 
@@ -34,6 +35,8 @@ export interface TeamAnalytics {
   activeRequests: number;
   conversionRate: number;
   avgTicketPrice: number;
+  hasData?: boolean;
+  isEmpty?: boolean;
 }
 
 export interface TeamDetailData {
@@ -45,6 +48,7 @@ export interface TeamDetailData {
     first_name: string;
     last_name: string;
     avatar_url?: string;
+    display_name?: string;
   };
   analytics?: TeamAnalytics;
 }
@@ -120,7 +124,13 @@ export const useTeamDetail = (teamId: string) => {
             ...member,
             role: member.role_in_team, // Map role_in_team to role for compatibility
             created_at: member.joined_at, // Map joined_at to created_at for compatibility
-            user: userData
+            user: userData ? {
+              ...userData,
+              // Add display name fallback
+              display_name: userData.first_name && userData.last_name 
+                ? `${userData.first_name} ${userData.last_name}`
+                : userData.first_name || userData.last_name || userData.email || 'Unknown User'
+            } : null
           };
         })
       );
@@ -139,7 +149,15 @@ export const useTeamDetail = (teamId: string) => {
           .single();
 
         if (!managerError && manager) {
-          managerData = manager;
+          managerData = {
+            ...manager,
+            // Add display name fallback for manager
+            display_name: manager.first_name && manager.last_name 
+              ? `${manager.first_name} ${manager.last_name}`
+              : manager.first_name || manager.last_name || manager.email || 'Unknown Manager'
+          };
+        } else if (managerError) {
+          console.warn('Manager profile not found:', managerError);
         }
       }
 

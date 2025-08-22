@@ -144,14 +144,21 @@ const TeamDetail = () => {
               </Avatar>
               <div>
                 <p className="font-medium">
-                  {teamData.manager.first_name} {teamData.manager.last_name}
+                  {teamData.manager.display_name || `${teamData.manager.first_name || ''} ${teamData.manager.last_name || ''}`.trim() || teamData.manager.email}
                 </p>
                 <p className="text-sm text-muted-foreground">{teamData.manager.email}</p>
               </div>
               <Badge variant="secondary">Manager</Badge>
             </div>
           ) : (
-            <p className="text-muted-foreground">No manager assigned</p>
+            <div className="text-center py-4">
+              <p className="text-muted-foreground mb-2">No manager assigned to this team</p>
+              {canManageTeam && (
+                <Button variant="outline" size="sm">
+                  Assign Manager
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -171,63 +178,112 @@ const TeamDetail = () => {
           )}
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {teamData.members.map((member) => (
-              <div key={member.id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Avatar>
-                    <AvatarImage src={member.user?.avatar_url || undefined} />
-                    <AvatarFallback>
-                      {member.user?.first_name?.[0]}{member.user?.last_name?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">
-                      {member.user?.first_name} {member.user?.last_name}
+          {teamData.members.length > 0 ? (
+            <div className="space-y-4">
+              {teamData.members.map((member) => (
+                <div key={member.id} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Avatar>
+                      <AvatarImage src={member.user?.avatar_url || undefined} />
+                      <AvatarFallback>
+                        {member.user?.first_name?.[0] || member.user?.email?.[0] || '?'}
+                        {member.user?.last_name?.[0] || ''}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">
+                        {member.user?.display_name || 
+                         `${member.user?.first_name || ''} ${member.user?.last_name || ''}`.trim() || 
+                         member.user?.email ||
+                         'Unknown User'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {member.user?.email || 'No email available'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant={member.role === 'manager' ? 'default' : 'secondary'}>
+                      {member.role}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      Joined {format(new Date(member.created_at), 'MMM yyyy')}
                     </p>
-                    <p className="text-sm text-muted-foreground">{member.user?.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant={member.role === 'manager' ? 'default' : 'secondary'}>
-                    {member.role}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground">
-                    Joined {format(new Date(member.created_at), 'MMM yyyy')}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">No team members yet</p>
+              {canManageTeam && (
+                <Button>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add First Member
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Team Performance Analytics */}
-      {teamData.analytics && (
+      {teamData.analytics ? (
         <Card>
           <CardHeader>
             <CardTitle>Team Performance</CardTitle>
-            <CardDescription>Key performance metrics for this team</CardDescription>
+            <CardDescription>
+              {teamData.analytics.hasData 
+                ? 'Key performance metrics for this team' 
+                : 'No performance data available yet'
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold">
-                  {teamData.analytics.conversionRate?.toFixed(1) || '0'}%
+            {teamData.analytics.hasData ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                  <div className="text-2xl font-bold">
+                    {teamData.analytics.conversionRate?.toFixed(1) || '0'}%
+                  </div>
+                  <p className="text-sm text-muted-foreground">Conversion Rate</p>
                 </div>
-                <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                  <div className="text-2xl font-bold">
+                    ${teamData.analytics.avgTicketPrice?.toLocaleString() || '0'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Avg Ticket Price</p>
+                </div>
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                  <div className="text-2xl font-bold">
+                    {teamData.analytics.totalClients || 0}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total Clients</p>
+                </div>
               </div>
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold">
-                  ${teamData.analytics.avgTicketPrice?.toLocaleString() || '0'}
-                </div>
-                <p className="text-sm text-muted-foreground">Avg Ticket Price</p>
+            ) : (
+              <div className="text-center py-8">
+                <TrendingUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-2">No performance data yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Team metrics will appear here as the team completes bookings and serves clients.
+                </p>
               </div>
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold">
-                  {teamData.analytics.totalClients || 0}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Clients</p>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Team Performance</CardTitle>
+            <CardDescription>Loading team performance data...</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <div className="animate-pulse">
+                <div className="h-4 bg-muted rounded w-3/4 mx-auto mb-2"></div>
+                <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
               </div>
             </div>
           </CardContent>

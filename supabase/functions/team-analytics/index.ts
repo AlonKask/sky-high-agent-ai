@@ -27,6 +27,7 @@ interface TeamAnalyticsRequest {
   period?: string;
   role?: string;
   metric?: string;
+  teamId?: string;
 }
 
 serve(async (req) => {
@@ -72,10 +73,10 @@ serve(async (req) => {
       );
     }
 
-    const { period = 'month', role: requestRole, metric }: TeamAnalyticsRequest = 
+    const { period = 'month', role: requestRole, metric, teamId }: TeamAnalyticsRequest = 
       req.method === 'POST' ? await req.json() : {};
 
-    console.log(`Fetching team analytics: period=${period}, role=${requestRole}, metric=${metric}`);
+    console.log(`Fetching team analytics: period=${period}, role=${requestRole}, metric=${metric}, teamId=${teamId}`);
 
     // Calculate date range
     const now = new Date();
@@ -95,13 +96,26 @@ serve(async (req) => {
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
     }
 
-    // Fetch team members (all agents and their supervisors)
-    const { data: teamMembers } = await supabaseClient
-      .from('user_roles')
-      .select('user_id, role')
-      .in('role', ['agent', 'gds_expert', 'supervisor']);
-
-    const teamUserIds = teamMembers?.map(member => member.user_id) || [];
+    // Fetch team members - either specific team or all company members
+    let teamUserIds: string[] = [];
+    
+    if (teamId) {
+      // Get specific team members
+      const { data: specificTeamMembers } = await supabaseClient
+        .from('team_members')
+        .select('user_id')
+        .eq('team_id', teamId);
+      
+      teamUserIds = specificTeamMembers?.map(member => member.user_id) || [];
+    } else {
+      // Get all agents and their supervisors (company-wide)
+      const { data: allTeamMembers } = await supabaseClient
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', ['agent', 'gds_expert', 'supervisor']);
+      
+      teamUserIds = allTeamMembers?.map(member => member.user_id) || [];
+    }
 
     // Fetch team bookings
     const { data: teamBookings } = await supabaseClient
@@ -268,34 +282,52 @@ serve(async (req) => {
 
     const analyticsData = {
       // KPI Data
-      totalRevenue,
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalBookings,
       totalClients,
       activeRequests,
-      avgTicketPrice,
-      conversionRate,
+      avgTicketPrice: Math.round(avgTicketPrice * 100) / 100,
+      conversionRate: Math.round(conversionRate * 100) / 100,
       teamReplyRate: Math.round(teamReplyRate),
       avgResponseTime: Math.round(avgResponseTime * 10) / 10,
       
       // Chart Data
-      monthlyData,
-      topRoutes,
-      agentPerformance,
+      monthlyData: monthlyData.length > 0 ? monthlyData : [
+        { month: 'Jan', revenue: 0, bookings: 0, clients: 0 },
+        { month: 'Feb', revenue: 0, bookings: 0, clients: 0 },
+        { month: 'Mar', revenue: 0, bookings: 0, clients: 0 },
+        { month: 'Apr', revenue: 0, bookings: 0, clients: 0 },
+        { month: 'May', revenue: 0, bookings: 0, clients: 0 },
+        { month: 'Jun', revenue: 0, bookings: 0, clients: 0 }
+      ],
+      topRoutes: topRoutes.length > 0 ? topRoutes : [
+        { route: 'No routes yet', revenue: 0, bookings: 0, avgPrice: 0 }
+      ],
+      agentPerformance: agentPerformance.length > 0 ? agentPerformance : [
+        { agentName: 'No agents yet', revenue: 0, bookings: 0, clients: 0, avgResponseTime: 0, replyRate: 0 }
+      ],
       
       // Metadata
       period,
       userRole: userRole.role,
       teamSize: teamUserIds.length,
-      generatedAt: new Date().toISOString()
+      teamId: teamId || null,
+      generatedAt: new Date().toISOString(),
+      
+      // Status indicators
+      hasData: totalBookings > 0 || totalClients > 0,
+      isEmpty: teamUserIds.length === 0
     };
 
     console.log(`Team analytics generated successfully: ${JSON.stringify({
-      totalRevenue,
-      totalBookings,
-      teamSize: teamUserIds.length,
-      period
+      totalRevenue: analyticsData.totalRevenue,
+      totalBookings: analyticsData.totalBookings,
+      teamSize: analyticsData.teamSize,
+      period: analyticsData.period,
+      teamId: analyticsData.teamId,
+      hasData: analyticsData.hasData
     })}`);
-
+    
     return new Response(
       JSON.stringify(analyticsData),
       { 
