@@ -24,47 +24,35 @@ export function AirlineLogo({
   size = 'sm', 
   className 
 }: AirlineLogoProps) {
-  const [fallbackIndex, setFallbackIndex] = useState(0);
+  const [imageError, setImageError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Watermark-free fallback URLs in priority order
-  const getFallbackUrls = (): string[] => {
-    const urls: string[] = [];
-    
+  // Simple fallback strategy: FlightAware (ICAO) -> IATA code display
+  const getLogoUrl = (): string | null => {
     // Use provided logoUrl first if available
     if (logoUrl) {
-      urls.push(logoUrl);
+      return logoUrl;
     }
     
-    // Primary: GitHub jsDelivr - urbullet repository (IATA-based)
-    urls.push(`https://cdn.jsdelivr.net/gh/urbullet/iata-airelines-logos@master/${iataCode}.png`);
-    
-    // Secondary: GitHub jsDelivr - calda repository (ICAO-based)
+    // FlightAware CDN (proven to work, watermark-free)
     if (icaoCode) {
-      urls.push(`https://cdn.jsdelivr.net/gh/calda/Airline-Logos@master/logos/${icaoCode}.png`);
+      return `https://flightaware.com/images/airline_logos/90p/${icaoCode}.png`;
     }
     
-    // Tertiary: FlightAware (ICAO-based)
-    if (icaoCode) {
-      urls.push(`https://flightaware.com/images/airline_logos/90p/${icaoCode}.png`);
-    }
-    
-    return urls;
+    return null;
   };
 
-  const fallbackUrls = getFallbackUrls();
-  const currentUrl = fallbackUrls[fallbackIndex];
-  const showFallback = !currentUrl || fallbackIndex >= fallbackUrls.length;
+  const currentUrl = getLogoUrl();
+  const showFallback = !currentUrl || imageError;
 
   const handleImageLoad = () => {
     setIsLoaded(true);
+    setImageError(false);
   };
 
   const handleImageError = () => {
-    if (fallbackIndex < fallbackUrls.length - 1) {
-      setFallbackIndex(prev => prev + 1);
-      setIsLoaded(false);
-    }
+    setImageError(true);
+    setIsLoaded(true);
   };
 
   return (
