@@ -3776,6 +3776,7 @@ export type Database = {
           request_type: string
           return_date: string
           segments: Json
+          special_requirements: string
           status: string
           updated_at: string
           user_id: string
