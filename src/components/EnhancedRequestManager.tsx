@@ -174,12 +174,8 @@ const EnhancedRequestManager = () => {
     return searchString.includes(searchTerm.toLowerCase());
   });
 
-  const newClientRequests = filteredRequests.filter(request => 
-    request.clients?.client_type === 'new' && request.assignment_status === 'available'
-  );
-
-  const returnClientRequests = filteredRequests.filter(request => 
-    request.clients?.client_type === 'return' && request.assignment_status === 'available'
+  const availableRequests = filteredRequests.filter(request => 
+    request.assignment_status === 'available'
   );
 
   const myAssignedRequests = filteredRequests.filter(request => 
@@ -206,26 +202,40 @@ const EnhancedRequestManager = () => {
     }
   };
 
-  const RequestCard = ({ request }: { request: Request }) => (
-    <Card 
-      className="card-elevated hover:shadow-large transition-all duration-200 cursor-pointer"
-      onClick={() => navigate(`/request/${request.id}`)}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-5 h-5 text-primary" />
+  const getClientTypeIcon = (clientType: string) => {
+    switch (clientType) {
+      case 'new': return { icon: UserPlus, color: 'bg-blue-100 text-blue-600' };
+      case 'return': return { icon: User, color: 'bg-green-100 text-green-600' };
+      case 'referral': 
+      case 'repeat': return { icon: Users, color: 'bg-purple-100 text-purple-600' };
+      default: return { icon: User, color: 'bg-gray-100 text-gray-600' };
+    }
+  };
+
+  const RequestCard = ({ request }: { request: Request }) => {
+    const clientTypeInfo = getClientTypeIcon(request.clients?.client_type || 'new');
+    const ClientTypeIcon = clientTypeInfo.icon;
+    
+    return (
+      <Card 
+        className="card-elevated hover:shadow-large transition-all duration-200 cursor-pointer"
+        onClick={() => navigate(`/request/${request.id}`)}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full ${clientTypeInfo.color} flex items-center justify-center`}>
+                <ClientTypeIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">
+                  {request.clients?.first_name} {request.clients?.last_name}
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  {request.clients?.email}
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-lg">
-                {request.clients?.first_name} {request.clients?.last_name}
-              </CardTitle>
-              <CardDescription className="text-sm">
-                {request.clients?.email}
-              </CardDescription>
-            </div>
-          </div>
           <div className="flex items-center gap-2">
             <Badge className={getPriorityColor(request.priority)}>
               {request.priority}
@@ -258,7 +268,8 @@ const EnhancedRequestManager = () => {
         </div>
       </CardContent>
     </Card>
-  );
+    );
+  };
 
   if (isLoading || loading) {
     return (
@@ -294,7 +305,7 @@ const EnhancedRequestManager = () => {
     );
   }
 
-  const availableRequests = newClientRequests.concat(returnClientRequests);
+  
 
   return (
     <div className="space-y-6">
@@ -342,7 +353,11 @@ const EnhancedRequestManager = () => {
                         <span className="font-medium">
                           {request.clients?.first_name} {request.clients?.last_name}
                         </span>
-                        <Badge variant="outline" className={request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' : 'border-green-200 text-green-600'}>
+                        <Badge variant="outline" className={
+                          request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' :
+                          request.clients?.client_type === 'return' ? 'border-green-200 text-green-600' :
+                          'border-purple-200 text-purple-600'
+                        }>
                           {request.clients?.client_type}
                         </Badge>
                       </div>
@@ -397,62 +412,24 @@ const EnhancedRequestManager = () => {
         />
       )}
 
-      {/* Available Requests - Two Column Layout */}
-      {requests.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* New Clients Column */}
+      {/* Available Requests - Unified List */}
+      {availableRequests.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <UserPlus className="w-4 h-4 text-blue-600" />
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Inbox className="w-4 h-4 text-primary" />
             </div>
-            <h2 className="text-xl font-semibold">New Clients</h2>
-            <Badge variant="outline" className="border-blue-200 text-blue-600">
-              {newClientRequests.length}
+            <h2 className="text-xl font-semibold">Available Requests</h2>
+            <Badge variant="outline" className="border-primary/20 text-primary">
+              {availableRequests.length}
             </Badge>
           </div>
           
-          {newClientRequests.length === 0 ? (
-            <EmptyStateCard
-              title="No New Client Requests"
-              description="No requests from new clients at the moment. New client requests will appear here when they're submitted."
-              icon={<UserPlus className="h-8 w-8 text-muted-foreground" />}
-            />
-          ) : (
-            <div className="space-y-4">
-              {newClientRequests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Return Clients Column */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-              <User className="w-4 h-4 text-green-600" />
-            </div>
-            <h2 className="text-xl font-semibold">Return Clients</h2>
-            <Badge variant="outline" className="border-green-200 text-green-600">
-              {returnClientRequests.length}
-            </Badge>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {availableRequests.map((request) => (
+              <RequestCard key={request.id} request={request} />
+            ))}
           </div>
-          
-          {returnClientRequests.length === 0 ? (
-            <EmptyStateCard
-              title="No Return Client Requests"
-              description="No requests from existing clients at the moment. Return client requests will appear here when they're submitted."
-              icon={<User className="h-8 w-8 text-muted-foreground" />}
-            />
-          ) : (
-            <div className="space-y-4">
-              {returnClientRequests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
-          )}
-        </div>
         </div>
       )}
     </div>
