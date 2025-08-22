@@ -902,8 +902,8 @@ export default function UnifiedEmailBuilder({
         {/* Main Content */}
         <div className="flex-1 flex min-h-0">
           {/* Left Panel - Quote Selection */}
-          <div className="w-1/2 border-r flex flex-col">
-            <div className="flex-1 overflow-auto p-6">
+          <div className="w-[30%] border-r flex flex-col">
+            <div className="flex-1 overflow-auto p-4">
               <h4 className="text-lg font-semibold mb-4">Select Flight Options ({processedQuotes.length} available)</h4>
               
               <div className="space-y-3">
@@ -950,8 +950,8 @@ export default function UnifiedEmailBuilder({
           </div>
 
           {/* Right Panel - Email Preview with Inline Editing */}
-          <div className="w-1/2 flex flex-col">
-            <div className="p-6 border-b bg-muted/50">
+          <div className="w-[70%] flex flex-col">
+            <div className="p-4 border-b bg-muted/50">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold">Email Preview</h3>
