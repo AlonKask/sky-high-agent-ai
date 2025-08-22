@@ -5,6 +5,7 @@ interface AirlineLogoProps {
   logoUrl?: string;
   airlineName: string;
   iataCode: string;
+  icaoCode?: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
@@ -18,7 +19,8 @@ const sizeClasses = {
 export function AirlineLogo({ 
   logoUrl, 
   airlineName, 
-  iataCode, 
+  iataCode,
+  icaoCode, 
   size = 'sm', 
   className 
 }: AirlineLogoProps) {
@@ -26,12 +28,17 @@ export function AirlineLogo({
   const [isLoaded, setIsLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Fallback URL strategy for better reliability
-  const getFallbackUrl = (originalUrl: string, attempt: number): string | null => {
+  // Comprehensive fallback URL strategy using AirHex as primary
+  const getFallbackUrl = (originalUrl: string, attempt: number, icaoCode?: string): string | null => {
     if (!originalUrl) return null;
     
-    // If original URL fails and it's airlinelogos.aero, try alternative pattern
-    if (attempt === 1 && originalUrl.includes('airlinelogos.aero')) {
+    // Attempt 1: Try ICAO code if available
+    if (attempt === 1 && icaoCode) {
+      return `https://content.airhex.com/content/logos/airlines_${icaoCode}_200_200_s.png`;
+    }
+    
+    // Attempt 2: Try IATA code
+    if (attempt === 2 || (attempt === 1 && !icaoCode)) {
       return `https://content.airhex.com/content/logos/airlines_${iataCode}_200_200_s.png`;
     }
     
@@ -44,9 +51,9 @@ export function AirlineLogo({
   };
 
   const handleImageError = () => {
-    const fallbackUrl = getFallbackUrl(logoUrl || '', retryCount + 1);
+    const fallbackUrl = getFallbackUrl(logoUrl || '', retryCount + 1, icaoCode);
     
-    if (fallbackUrl && retryCount < 1) {
+    if (fallbackUrl && retryCount < 2) {
       setRetryCount(prev => prev + 1);
       setIsLoaded(false);
       // Component will re-render with new URL
@@ -58,10 +65,10 @@ export function AirlineLogo({
   };
 
   // Determine the actual URL to use
-  const currentUrl = logoUrl && retryCount > 0 ? getFallbackUrl(logoUrl, retryCount) : logoUrl;
+  const currentUrl = logoUrl && retryCount > 0 ? getFallbackUrl(logoUrl, retryCount, icaoCode) : logoUrl;
   
   // Show fallback if no logo URL or if image failed to load with no more fallbacks
-  const showFallback = !currentUrl || (hasError && retryCount >= 1);
+  const showFallback = !currentUrl || (hasError && retryCount >= 2);
 
   return (
     <div className={cn("relative flex items-center justify-center rounded-md overflow-hidden", sizeClasses[size], className)}>
