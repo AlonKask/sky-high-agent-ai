@@ -19,7 +19,8 @@ import {
   Sparkles,
   Shield,
   Database,
-  ShieldCheck
+  ShieldCheck,
+  FileImage
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NavLink, useLocation } from "react-router-dom";
@@ -223,23 +224,40 @@ export function AppSidebar() {
                     </NavLink>
                   </SidebarMenuButton>
                  </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                     <NavLink 
-                       to="/teams" 
-                       className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/teams")}`}
-                       title={isCollapsed ? "Teams" : ""}
-                     >
-                       <Users className="h-5 w-5" />
-                      {!isCollapsed && (
-                        <div className="flex flex-col">
-                          <span>Teams</span>
-                          <span className="text-xs text-muted-foreground">Team management</span>
-                        </div>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                   <SidebarMenuButton asChild>
+                      <NavLink 
+                        to="/teams" 
+                        className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/teams")}`}
+                        title={isCollapsed ? "Teams" : ""}
+                      >
+                        <Users className="h-5 w-5" />
+                       {!isCollapsed && (
+                         <div className="flex flex-col">
+                           <span>Teams</span>
+                           <span className="text-xs text-muted-foreground">Team management</span>
+                         </div>
+                       )}
+                     </NavLink>
+                   </SidebarMenuButton>
+                 </SidebarMenuItem>
+                 <SidebarMenuItem>
+                   <SidebarMenuButton asChild>
+                      <NavLink 
+                        to="/assets" 
+                        className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/assets")}`}
+                        title={isCollapsed ? "Assets" : ""}
+                      >
+                        <FileImage className="h-5 w-5" />
+                       {!isCollapsed && (
+                         <div className="flex flex-col">
+                           <span>Assets</span>
+                           <span className="text-xs text-muted-foreground">File management</span>
+                         </div>
+                       )}
+                     </NavLink>
+                   </SidebarMenuButton>
+                 </SidebarMenuItem>
                  {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
                    <SidebarMenuItem>
                      <SidebarMenuButton asChild>

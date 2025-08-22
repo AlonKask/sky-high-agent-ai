@@ -41,6 +41,7 @@ const Users = lazy(() => import("./pages/Users"));
 const Teams = lazy(() => import("./pages/Teams").then(module => ({ default: module.Teams })));
 const TeamDetail = lazy(() => import("./pages/TeamDetail"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
+const Assets = lazy(() => import("./pages/Assets"));
 const IATAManagement = lazy(() => import("./pages/IATAManagement"));
 const Security = lazy(() => import("./pages/Security"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -117,12 +118,13 @@ function App() {
                      <Route path="/agent-statistics" element={<SimpleAuthGuard><Layout><AgentStatistics /></Layout></SimpleAuthGuard>} />
                      <Route path="/reports" element={<SimpleAuthGuard><Layout><Reports /></Layout></SimpleAuthGuard>} />
                      <Route path="/settings" element={<SimpleAuthGuard><Layout><Settings /></Layout></SimpleAuthGuard>} />
-                <Route path="/users" element={<SimpleAuthGuard><Layout><Users /></Layout></SimpleAuthGuard>} />
-                <Route path="/teams" element={<SimpleAuthGuard><Layout><Teams /></Layout></SimpleAuthGuard>} />
-                <Route path="/teams/:id" element={<SimpleAuthGuard><Layout><TeamDetail /></Layout></SimpleAuthGuard>} />
-                <Route path="/users/:id" element={<SimpleAuthGuard><Layout><UserProfile /></Layout></SimpleAuthGuard>} />
-                <Route path="/iata-management" element={<SimpleAuthGuard><Layout><IATAManagement /></Layout></SimpleAuthGuard>} />
-                <Route path="/security" element={<SimpleAuthGuard><Layout><Security /></Layout></SimpleAuthGuard>} />
+                 <Route path="/users" element={<SimpleAuthGuard><Layout><Users /></Layout></SimpleAuthGuard>} />
+                 <Route path="/teams" element={<SimpleAuthGuard><Layout><Teams /></Layout></SimpleAuthGuard>} />
+                 <Route path="/teams/:id" element={<SimpleAuthGuard><Layout><TeamDetail /></Layout></SimpleAuthGuard>} />
+                 <Route path="/users/:id" element={<SimpleAuthGuard><Layout><UserProfile /></Layout></SimpleAuthGuard>} />
+                 <Route path="/assets" element={<SimpleAuthGuard><Layout><Assets /></Layout></SimpleAuthGuard>} />
+                 <Route path="/iata-management" element={<SimpleAuthGuard><Layout><IATAManagement /></Layout></SimpleAuthGuard>} />
+                 <Route path="/security" element={<SimpleAuthGuard><Layout><Security /></Layout></SimpleAuthGuard>} />
                     
                     <Route path="*" element={<NotFound />} />
                   </Routes>
