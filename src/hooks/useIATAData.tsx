@@ -46,6 +46,20 @@ export interface BookingClass {
   updated_at?: string;
 }
 
+export interface AircraftModel {
+  id: string;
+  code: string;
+  aliases: string[];
+  display_label: string;
+  manufacturer: string;
+  family: string;
+  model: string;
+  category: string;
+  icon_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Airport hooks
 export const useAirports = (searchTerm?: string, enabled = true) => {
   return useQuery({
@@ -475,6 +489,95 @@ export const useAirlineRBDMutations = () => {
   });
 
   return { createRBD, updateRBD, deleteRBD, copyRBDs };
+};
+
+// Aircraft Model hooks
+export const useAircraftModels = (searchTerm?: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['aircraft-models', searchTerm],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('search_aircraft_models', {
+        search_term: searchTerm || null,
+        page_limit: 1000,
+        page_offset: 0
+      });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+};
+
+export const useAircraftModelMutations = () => {
+  const queryClient = useQueryClient();
+
+  const createAircraftModel = useMutation({
+    mutationFn: async (newAircraftModel: Omit<AircraftModel, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data, error } = await supabase
+        .from('aircraft_models')
+        .insert(newAircraftModel)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft-models'] });
+      toast.success("Aircraft model created successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to create aircraft model: ${error.message}`);
+    },
+  });
+
+  const updateAircraftModel = useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<AircraftModel> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('aircraft_models')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft-models'] });
+      toast.success("Aircraft model updated successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to update aircraft model: ${error.message}`);
+    },
+  });
+
+  const deleteAircraftModel = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('aircraft_models')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aircraft-models'] });
+      toast.success("Aircraft model deleted successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete aircraft model: ${error.message}`);
+    },
+  });
+
+  return {
+    createAircraftModel,
+    updateAircraftModel,
+    deleteAircraftModel,
+  };
 };
 
 // Debounced search hook

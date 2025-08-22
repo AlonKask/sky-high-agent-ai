@@ -8,6 +8,7 @@ import { Plus, Search, Download, Upload } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { AirlineManagement } from "@/components/AirlineManagement";
 import OptimizedAirportManagement from "@/components/OptimizedAirportManagement";
+import AircraftManagement from "@/components/AircraftManagement";
 
 
 export default function IATAManagement() {
@@ -38,7 +39,7 @@ export default function IATAManagement() {
         <div>
           <h1 className="text-3xl font-bold">IATA Codes Management</h1>
           <p className="text-muted-foreground">
-            Manage airline codes with integrated RBDs and airport codes
+            Manage airline codes with integrated RBDs, airport codes, and aircraft models
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -53,7 +54,7 @@ export default function IATAManagement() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search airlines with RBDs or airports..."
+                placeholder="Search airlines, airports, or aircraft models..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -68,11 +69,12 @@ export default function IATAManagement() {
         </CardContent>
       </Card>
 
-      {/* Management Tabs - Removed Booking Classes tab, integrated into Airlines */}
+      {/* Management Tabs - Now includes Aircraft Models */}
       <Tabs defaultValue="airlines" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="airlines">Airlines & RBDs</TabsTrigger>
           <TabsTrigger value="airports">Airports</TabsTrigger>
+          <TabsTrigger value="aircraft">Aircraft Models</TabsTrigger>
         </TabsList>
 
         <TabsContent value="airlines" className="space-y-6">
@@ -81,6 +83,10 @@ export default function IATAManagement() {
 
         <TabsContent value="airports" className="space-y-6">
           <OptimizedAirportManagement searchTerm={searchTerm} />
+        </TabsContent>
+
+        <TabsContent value="aircraft" className="space-y-6">
+          <AircraftManagement searchTerm={searchTerm} />
         </TabsContent>
       </Tabs>
     </div>

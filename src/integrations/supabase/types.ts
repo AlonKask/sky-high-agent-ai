@@ -386,6 +386,48 @@ export type Database = {
           },
         ]
       }
+      aircraft_models: {
+        Row: {
+          aliases: string[] | null
+          category: string
+          code: string
+          created_at: string | null
+          display_label: string
+          family: string
+          icon_url: string | null
+          id: string
+          manufacturer: string
+          model: string
+          updated_at: string | null
+        }
+        Insert: {
+          aliases?: string[] | null
+          category: string
+          code: string
+          created_at?: string | null
+          display_label: string
+          family: string
+          icon_url?: string | null
+          id?: string
+          manufacturer: string
+          model: string
+          updated_at?: string | null
+        }
+        Update: {
+          aliases?: string[] | null
+          category?: string
+          code?: string
+          created_at?: string | null
+          display_label?: string
+          family?: string
+          icon_url?: string | null
+          id?: string
+          manufacturer?: string
+          model?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       airline_codes: {
         Row: {
           alliance: string | null
@@ -4053,6 +4095,23 @@ export type Database = {
       rotate_gmail_tokens: {
         Args: { p_user_id: string }
         Returns: boolean
+      }
+      search_aircraft_models: {
+        Args: { page_limit?: number; page_offset?: number; search_term: string }
+        Returns: {
+          aliases: string[]
+          category: string
+          code: string
+          created_at: string
+          display_label: string
+          family: string
+          icon_url: string
+          id: string
+          manufacturer: string
+          model: string
+          total_count: number
+          updated_at: string
+        }[]
       }
       search_airlines: {
         Args: { page_limit?: number; page_offset?: number; search_term: string }
