@@ -338,14 +338,16 @@ export function QuoteCard({
                   </div>
 
                   {/* Enhanced Passenger-specific Pricing */}
-                  {(quote.adult_net_price || quote.child_net_price || quote.infant_net_price) && (
+                  {(quote.adult_net_price !== null && quote.adult_net_price !== undefined || 
+                    quote.child_net_price !== null && quote.child_net_price !== undefined || 
+                    quote.infant_net_price !== null && quote.infant_net_price !== undefined) && (
                     <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-200">
                       <h5 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
                         <Users className="h-4 w-4" />
                         Passenger Breakdown
                       </h5>
                       <div className="space-y-3">
-                        {quote.adult_net_price && safeParseInt(quote.adults_count) > 0 && (
+                        {quote.adult_net_price !== null && quote.adult_net_price !== undefined && safeParseInt(quote.adults_count) > 0 && (
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-blue-700">
@@ -361,7 +363,7 @@ export function QuoteCard({
                             </div>
                           </div>
                         )}
-                        {quote.child_net_price && safeParseInt(quote.children_count) > 0 && (
+                        {quote.child_net_price !== null && quote.child_net_price !== undefined && safeParseInt(quote.children_count) > 0 && (
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-blue-700">
@@ -377,7 +379,7 @@ export function QuoteCard({
                             </div>
                           </div>
                         )}
-                        {quote.infant_net_price && safeParseInt(quote.infants_count) > 0 && (
+                        {quote.infant_net_price !== null && quote.infant_net_price !== undefined && safeParseInt(quote.infants_count) > 0 && (
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-blue-700">
