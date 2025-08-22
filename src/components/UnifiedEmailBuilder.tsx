@@ -1073,7 +1073,7 @@ export default function UnifiedEmailBuilder({
               {selectedQuotes.length > 0 ? (
                 <>
                   {selectedQuotes.length} option{selectedQuotes.length > 1 ? 's' : ''} selected • 
-                  Total value: {formatPrice(totalPrice)}
+                  {formatPrice(totalPrice)}
                 </>
               ) : (
                 'No options selected'
