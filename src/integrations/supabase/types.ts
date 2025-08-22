@@ -396,6 +396,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          updated_at: string | null
         }
         Insert: {
           alliance?: string | null
@@ -406,6 +407,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          updated_at?: string | null
         }
         Update: {
           alliance?: string | null
@@ -416,6 +418,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
