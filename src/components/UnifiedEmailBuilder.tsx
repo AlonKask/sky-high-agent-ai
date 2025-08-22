@@ -1077,25 +1077,7 @@ export default function UnifiedEmailBuilder({
                             }
                           }}
                         />
-                         <div className="flex items-center justify-between">
-                           <div className="flex items-center gap-2">
-                             <span className="font-medium text-sm">{getOptionLabel(index)}</span>
-                           </div>
-                           <div className="text-right">
-                             <div className="font-semibold text-lg text-primary">
-                               {formatPrice(quote.total_price)}
-                             </div>
-                             <div className="text-xs text-muted-foreground">
-                               {(() => {
-                                 const adults = quote.adults_count || requestInfo?.adults_count || 1;
-                                 const children = quote.children_count || requestInfo?.children_count || 0;
-                                 const infants = quote.infants_count || requestInfo?.infants_count || 0;
-                                 const total = adults + children + infants;
-                                 return `${total} passenger${total !== 1 ? 's' : ''}`;
-                               })()}
-                             </div>
-                           </div>
-                         </div>
+                        <span className="font-medium text-sm">{getOptionLabel(index)}</span>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
@@ -1119,30 +1101,6 @@ export default function UnifiedEmailBuilder({
                            }
                          })()}</div>
                          <div><strong>Passengers:</strong> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
-                         
-                         {/* Passenger Price Breakdown */}
-                         {(quote.adult_price || quote.child_price || quote.infant_price) && (
-                           <div className="pt-2 border-t border-border/30 space-y-1">
-                             {quote.adult_price && (quote.adults_count || requestInfo?.adults_count || 1) > 0 && (
-                               <div className="flex justify-between text-xs">
-                                 <span>Adult ({quote.adults_count || requestInfo?.adults_count || 1}x):</span>
-                                 <span className="font-medium">{formatPrice(quote.adult_price)}</span>
-                               </div>
-                             )}
-                             {quote.child_price && (quote.children_count || requestInfo?.children_count || 0) > 0 && (
-                               <div className="flex justify-between text-xs">
-                                 <span>Child ({quote.children_count || requestInfo?.children_count}x):</span>
-                                 <span className="font-medium">{formatPrice(quote.child_price)}</span>
-                               </div>
-                             )}
-                             {quote.infant_price && (quote.infants_count || requestInfo?.infants_count || 0) > 0 && (
-                               <div className="flex justify-between text-xs">
-                                 <span>Infant ({quote.infants_count || requestInfo?.infants_count}x):</span>
-                                 <span className="font-medium">{formatPrice(quote.infant_price)}</span>
-                               </div>
-                             )}
-                           </div>
-                         )}
                        </div>
                     </CardContent>
                   </Card>
