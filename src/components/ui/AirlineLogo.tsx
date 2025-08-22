@@ -24,56 +24,48 @@ export function AirlineLogo({
   size = 'sm', 
   className 
 }: AirlineLogoProps) {
-  const [hasError, setHasError] = useState(false);
+  const [fallbackIndex, setFallbackIndex] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
 
-  // GitHub + jsDelivr CDN fallback strategy (watermark-free)
-  const getFallbackUrl = (originalUrl: string, attempt: number, icaoCode?: string): string | null => {
-    if (!originalUrl) return null;
+  // Watermark-free fallback URLs in priority order
+  const getFallbackUrls = (): string[] => {
+    const urls: string[] = [];
     
-    // Attempt 1: Primary GitHub jsDelivr - urbullet repository (IATA-based)
-    if (attempt === 1) {
-      return `https://cdn.jsdelivr.net/gh/urbullet/iata-airelines-logos@master/${iataCode}.png`;
+    // Use provided logoUrl first if available
+    if (logoUrl) {
+      urls.push(logoUrl);
     }
     
-    // Attempt 2: Secondary GitHub jsDelivr - calda repository (ICAO-based)
-    if (attempt === 2 && icaoCode) {
-      return `https://cdn.jsdelivr.net/gh/calda/Airline-Logos@master/logos/${icaoCode}.png`;
+    // Primary: GitHub jsDelivr - urbullet repository (IATA-based)
+    urls.push(`https://cdn.jsdelivr.net/gh/urbullet/iata-airelines-logos@master/${iataCode}.png`);
+    
+    // Secondary: GitHub jsDelivr - calda repository (ICAO-based)
+    if (icaoCode) {
+      urls.push(`https://cdn.jsdelivr.net/gh/calda/Airline-Logos@master/logos/${icaoCode}.png`);
     }
     
-    // Attempt 3: Tertiary FlightAware direct (ICAO-based)
-    if (attempt === 3 && icaoCode) {
-      return `https://flightaware.com/images/airline_logos/90p/${icaoCode}.png`;
+    // Tertiary: FlightAware (ICAO-based)
+    if (icaoCode) {
+      urls.push(`https://flightaware.com/images/airline_logos/90p/${icaoCode}.png`);
     }
     
-    return null;
+    return urls;
   };
+
+  const fallbackUrls = getFallbackUrls();
+  const currentUrl = fallbackUrls[fallbackIndex];
+  const showFallback = !currentUrl || fallbackIndex >= fallbackUrls.length;
 
   const handleImageLoad = () => {
     setIsLoaded(true);
-    setHasError(false);
   };
 
   const handleImageError = () => {
-    const fallbackUrl = getFallbackUrl(logoUrl || '', retryCount + 1, icaoCode);
-    
-    if (fallbackUrl && retryCount < 3) {
-      setRetryCount(prev => prev + 1);
+    if (fallbackIndex < fallbackUrls.length - 1) {
+      setFallbackIndex(prev => prev + 1);
       setIsLoaded(false);
-      // Component will re-render with new URL
-      return;
     }
-    
-    setHasError(true);
-    setIsLoaded(true);
   };
-
-  // Determine the actual URL to use
-  const currentUrl = logoUrl && retryCount > 0 ? getFallbackUrl(logoUrl, retryCount, icaoCode) : logoUrl;
-  
-  // Show fallback if no logo URL or if image failed to load with no more fallbacks
-  const showFallback = !currentUrl || (hasError && retryCount >= 3);
 
   return (
     <div className={cn("relative flex items-center justify-center rounded-md overflow-hidden", sizeClasses[size], className)}>
