@@ -107,35 +107,67 @@ const RequestDetail = () => {
 
   const fetchRequestDetails = async () => {
     try {
-      // Fetch request details
-      const { data: requestData, error: requestError } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('id', id)
-        .single();
+      // Use the new secure RPC function to fetch all details
+      const { data, error } = await supabase.rpc('get_request_details', {
+        p_request_id: id
+      });
 
-      if (requestError) throw requestError;
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        console.error('No request data returned');
+        toast({
+          title: "Error",
+          description: "Request not found or access denied",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const details = data[0];
+
+      // Map the RPC result to the component state structure
+      const requestData = {
+        id: details.request_id,
+        user_id: details.request_user_id,
+        assigned_to: details.assigned_to,
+        client_id: details.client_id,
+        origin: details.origin,
+        destination: details.destination,
+        departure_date: details.departure_date,
+        return_date: details.return_date,
+        passengers_adults: details.passengers_adults,
+        passengers_children: details.passengers_children,
+        passengers_infants: details.passengers_infants,
+        class_preference: details.class_preference,
+        request_type: details.trip_type,
+        special_requirements: details.special_requirements,
+        budget_min: details.budget_min,
+        budget_max: details.budget_max,
+        status: details.status,
+        priority: details.priority,
+        created_at: details.request_created_at,
+        updated_at: details.request_updated_at,
+        segments: details.segments
+      };
+
+      const clientData = {
+        id: details.client_id,
+        first_name: details.client_first_name,
+        last_name: details.client_last_name,
+        email: details.client_email,
+        phone: details.client_phone,
+        company: details.client_company,
+        total_spent: details.client_total_spent,
+        total_bookings: details.client_total_bookings,
+        client_type: details.client_type
+      };
+
+      const quotesData = Array.isArray(details.quotes) ? details.quotes : [];
+
       setRequest(requestData);
-
-      // Fetch client details
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', requestData.client_id)
-        .single();
-
-      if (clientError) throw clientError;
       setClient(clientData);
-
-      // Fetch quotes
-      const { data: quotesData, error: quotesError } = await supabase
-        .from('quotes')
-        .select('*')
-        .eq('request_id', id)
-        .order('created_at', { ascending: false });
-
-      if (quotesError) throw quotesError;
-      setQuotes(quotesData || []);
+      setQuotes(quotesData);
 
     } catch (error) {
       console.error('Error fetching request details:', error);

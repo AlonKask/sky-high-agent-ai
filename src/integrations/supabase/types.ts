@@ -3749,6 +3749,41 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_request_details: {
+        Args: { p_request_id: string }
+        Returns: {
+          assigned_to: string
+          budget_max: number
+          budget_min: number
+          class_preference: string
+          client_company: string
+          client_email: string
+          client_first_name: string
+          client_id: string
+          client_last_name: string
+          client_phone: string
+          client_total_bookings: number
+          client_total_spent: number
+          client_type: string
+          departure_date: string
+          destination: string
+          origin: string
+          passengers_adults: number
+          passengers_children: number
+          passengers_infants: number
+          priority: string
+          quotes: Json
+          request_created_at: string
+          request_id: string
+          request_updated_at: string
+          request_user_id: string
+          return_date: string
+          segments: Json
+          special_requirements: string
+          status: string
+          trip_type: string
+        }[]
+      }
       get_secure_client_view: {
         Args: Record<PropertyKey, never>
         Returns: {
