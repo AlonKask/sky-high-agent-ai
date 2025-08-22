@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, X, Send, Mail, Star, Clock, DollarSign, AlertCircle, RotateCcw, Edit3, Save } from 'lucide-react';
+import { Loader2, X, Send, Mail, Star, Clock, DollarSign, AlertCircle, RotateCcw } from 'lucide-react';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { SabreParser } from '@/utils/sabreParser';
@@ -75,8 +74,7 @@ export default function UnifiedEmailBuilder({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
-  const [isEditingPreview, setIsEditingPreview] = useState(false);
-  const [editableContent, setEditableContent] = useState('');
+  const [previewContent, setPreviewContent] = useState('');
 
   const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string } | null>(null);
   const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string } | null>(null);
@@ -802,41 +800,47 @@ export default function UnifiedEmailBuilder({
         replaced = replaced.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
 
         setPreviewHtml(replaced);
-        setEditableContent(replaced);
+        setPreviewContent(replaced);
       } catch (error) {
         console.error('Preview generation error:', error);
         const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
         const basic = generateBasicEmailHTML(selectedQuoteData).replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
         setPreviewHtml(basic);
-        setEditableContent(basic);
+        setPreviewContent(basic);
       }
     };
     updatePreview();
   }, [selectedQuotes, processedQuotes]);
 
-  const handleSavePreviewEdit = () => {
-    setPreviewHtml(editableContent);
-    setIsEditingPreview(false);
-    toast({
-      title: "Email updated",
-      description: "Your changes have been saved to the preview",
-    });
-  };
+  // Auto-save functionality with debouncing
+  const debouncedSave = useCallback((content: string) => {
+    const timeoutId = setTimeout(() => {
+      setPreviewHtml(content);
+      toast({
+        title: "Email updated",
+        description: "Your changes have been saved automatically",
+      });
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  const handleContentEdit = useCallback((event: React.FormEvent<HTMLDivElement>) => {
+    const content = event.currentTarget.innerHTML;
+    setPreviewContent(content);
+    debouncedSave(content);
+  }, [debouncedSave]);
 
   // Handle ESC key to close
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (isEditingPreview) {
-          setIsEditingPreview(false);
-        } else {
-          onClose();
-        }
+        onClose();
       }
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
-  }, [onClose, isEditingPreview]);
+  }, [onClose]);
 
   const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
   const totalPrice = selectedQuoteData.reduce((sum, quote) => sum + quote.total_price, 0);
@@ -955,45 +959,23 @@ export default function UnifiedEmailBuilder({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold">Email Preview</h3>
-                  <p className="text-sm text-muted-foreground">This is how your email will appear to the client</p>
+                  <p className="text-sm text-muted-foreground">Click anywhere in the preview to edit the content directly</p>
                 </div>
-                {!isEditingPreview ? (
-                  <Button variant="outline" size="sm" onClick={() => setIsEditingPreview(true)}>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Edit Content
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setIsEditingPreview(false)}>
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={handleSavePreviewEdit}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
             
             <div className="flex-1 overflow-auto bg-gray-50">
-              {isEditingPreview ? (
-                <div className="p-4 h-full">
-                  <Textarea
-                    value={editableContent}
-                    onChange={(e) => setEditableContent(e.target.value)}
-                    className="w-full h-full font-mono text-sm resize-none"
-                    placeholder="Edit the email HTML content..."
-                  />
-                </div>
-              ) : (
-                <iframe
-                  title="Email Preview"
-                  srcDoc={previewHtml}
-                  className="w-full h-full border-0"
-                  sandbox="allow-popups allow-top-navigation-by-user-activation allow-forms allow-same-origin"
-                />
-              )}
+              <div
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleContentEdit}
+                dangerouslySetInnerHTML={{ __html: previewContent }}
+                className="w-full h-full p-4 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
+                style={{ 
+                  minHeight: '100%',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+                }}
+              />
             </div>
           </div>
         </div>
