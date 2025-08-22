@@ -310,6 +310,11 @@ export default function UnifiedEmailBuilder({
       const segs = (quote.parsedItinerary?.segments || quote.segments || []) as any[];
       const first = segs[0] || {};
 
+      // Use quote-specific passenger counts instead of request-level counts
+      const quotePaxAdults = quote.adults_count ?? 1;
+      const quotePaxChildren = quote.children_count ?? 0;
+      const quotePaxInfants = quote.infants_count ?? 0;
+
       // Determine true outbound destination (final destination before any return to origin)
       const originCode = first.departureAirport || first.origin || (quote.route ? (quote.route.split(/[-→]/)[0] || '').trim().toUpperCase() : '—');
       let outboundIndex = segs.length > 0 ? segs.length - 1 : 0;
@@ -401,9 +406,9 @@ export default function UnifiedEmailBuilder({
           </td>
         </tr>` : '';
 
-      // Conditional pax columns
-      const anyKids = paxChildren > 0;
-      const anyInfants = paxInfants > 0;
+      // Conditional pax columns - use quote-specific passenger counts
+      const anyKids = quotePaxChildren > 0;
+      const anyInfants = quotePaxInfants > 0;
 
       const adultBorder = anyKids || anyInfants ? 'border-right:1px solid #E8EDF3;' : '';
       const childBorder = anyInfants ? 'border-right:1px solid #E8EDF3;' : '';
@@ -414,7 +419,7 @@ export default function UnifiedEmailBuilder({
           <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
             ${currency} ${fmtNum(adultPrice)}
           </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxAdults}</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${quotePaxAdults}</div>
         </td>`;
 
       const childCol = !anyKids ? '' : `
@@ -423,16 +428,16 @@ export default function UnifiedEmailBuilder({
           <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
             ${currency} ${fmtNum(childPrice)}
           </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxChildren}</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${quotePaxChildren}</div>
         </td>`;
 
       const infantCol = !anyInfants ? '' : `
         <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;\">
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Infant</div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Infant</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
             ${currency} ${fmtNum(infantPrice)}
           </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxInfants}</div>
+          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segue UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${quotePaxInfants}</div>
         </td>`;
 
       return `
