@@ -278,21 +278,82 @@ export const initSecurityMonitoring = () => {
   return true;
 };
 
-export const getSecurityMetrics = (period?: string) => ({
-  alertCount: 0,
-  rateLimitViolations: 0,
-  suspiciousActivity: 0,
-  threat_level: 'LOW' as const,
-  period_hours: 24,
-  threat_events: 0,
-  critical_events: 0,
-  xss_attempts: 0,
-  sql_injection_attempts: 0,
-  blocked_ips: 0,
-  last_updated: new Date().toISOString()
-});
+export const getSecurityMetrics = async (period?: string) => {
+  try {
+    // Use the Supabase function to get real security metrics
+    const { data, error } = await supabase.rpc('get_security_metrics', {
+      time_period: period || '24 hours'
+    });
+    
+    if (error) {
+      console.error('Error fetching security metrics:', error);
+      // Return safe defaults on error
+      return {
+        alertCount: 0,
+        rateLimitViolations: 0,
+        suspiciousActivity: 0,
+        threat_level: 'LOW' as const,
+        period_hours: 24,
+        threat_events: 0,
+        critical_events: 0,
+        xss_attempts: 0,
+        sql_injection_attempts: 0,
+        blocked_ips: 0,
+        last_updated: new Date().toISOString()
+      };
+    }
+    
+    // Cast the data to the expected type
+    const metrics = data as any;
+    
+    return {
+      alertCount: metrics.threat_events || 0,
+      rateLimitViolations: 0, // This would need separate tracking
+      suspiciousActivity: metrics.threat_events || 0,
+      threat_level: metrics.threat_level || 'LOW',
+      period_hours: metrics.period_hours || 24,
+      threat_events: metrics.threat_events || 0,
+      critical_events: metrics.critical_events || 0,
+      xss_attempts: metrics.xss_attempts || 0,
+      sql_injection_attempts: metrics.sql_injection_attempts || 0,
+      blocked_ips: metrics.blocked_ips || 0,
+      last_updated: metrics.last_updated || new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Failed to fetch security metrics:', error);
+    // Return safe defaults on error
+    return {
+      alertCount: 0,
+      rateLimitViolations: 0,
+      suspiciousActivity: 0,
+      threat_level: 'LOW' as const,
+      period_hours: 24,
+      threat_events: 0,
+      critical_events: 0,
+      xss_attempts: 0,
+      sql_injection_attempts: 0,
+      blocked_ips: 0,
+      last_updated: new Date().toISOString()
+    };
+  }
+};
 
 export const checkIPBlocked = async () => {
-  // Simple IP check - can be enhanced with actual threat intelligence
-  return false;
+  try {
+    // Get current IP and check if it's blocked
+    const response = await fetch('https://api.ipify.org?format=json');
+    const { ip } = await response.json();
+    
+    const { data, error } = await supabase
+      .from('blocked_ips')
+      .select('id')
+      .eq('ip_address', ip)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+    
+    return !error && data !== null;
+  } catch (error) {
+    console.error('Failed to check IP block status:', error);
+    return false; // Fail open for availability
+  }
 };

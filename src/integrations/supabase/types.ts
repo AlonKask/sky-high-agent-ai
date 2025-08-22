@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_policies: {
+        Row: {
+          compliance_percentage: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          last_evaluated: string | null
+          name: string
+          policy_config: Json | null
+          policy_type: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          compliance_percentage?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_evaluated?: string | null
+          name: string
+          policy_config?: Json | null
+          policy_type: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          compliance_percentage?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_evaluated?: string | null
+          name?: string
+          policy_config?: Json | null
+          policy_type?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       access_rate_limits: {
         Row: {
           created_at: string | null
@@ -1460,6 +1502,63 @@ export type Database = {
           retention_period?: unknown
           table_name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      device_fingerprints: {
+        Row: {
+          browser: string
+          created_at: string | null
+          device_hash: string
+          device_type: string
+          id: string
+          is_verified: boolean | null
+          language: string | null
+          last_seen: string | null
+          metadata: Json | null
+          os: string
+          risk_level: string | null
+          screen_resolution: string | null
+          timezone: string | null
+          trust_score: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          browser: string
+          created_at?: string | null
+          device_hash: string
+          device_type: string
+          id?: string
+          is_verified?: boolean | null
+          language?: string | null
+          last_seen?: string | null
+          metadata?: Json | null
+          os: string
+          risk_level?: string | null
+          screen_resolution?: string | null
+          timezone?: string | null
+          trust_score?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          browser?: string
+          created_at?: string | null
+          device_hash?: string
+          device_type?: string
+          id?: string
+          is_verified?: boolean | null
+          language?: string | null
+          last_seen?: string | null
+          metadata?: Json | null
+          os?: string
+          risk_level?: string | null
+          screen_resolution?: string | null
+          timezone?: string | null
+          trust_score?: number | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -2955,6 +3054,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_behavior_analytics: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          data_points: number | null
+          id: string
+          last_calculated: string | null
+          metadata: Json | null
+          metric_name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          data_points?: number | null
+          id?: string
+          last_calculated?: string | null
+          metadata?: Json | null
+          metric_name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          data_points?: number | null
+          id?: string
+          last_calculated?: string | null
+          metadata?: Json | null
+          metric_name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_cabinets: {
         Row: {
           created_at: string | null
@@ -3457,6 +3592,19 @@ export type Database = {
         }
         Returns: Json
       }
+      generate_device_fingerprint: {
+        Args: {
+          p_browser: string
+          p_device_type: string
+          p_language?: string
+          p_metadata?: Json
+          p_os: string
+          p_screen_resolution?: string
+          p_timezone?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       generate_oauth_state_token: {
         Args: { p_user_id: string }
         Returns: string
@@ -3954,6 +4102,16 @@ export type Database = {
       }
       update_airline_logo: {
         Args: { p_airline_id: string; p_logo_url: string }
+        Returns: undefined
+      }
+      update_behavior_analytics: {
+        Args: {
+          p_confidence_score: number
+          p_data_points?: number
+          p_metadata?: Json
+          p_metric_name: string
+          p_user_id: string
+        }
         Returns: undefined
       }
       update_client_encrypted_field: {

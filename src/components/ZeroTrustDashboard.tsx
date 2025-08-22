@@ -24,6 +24,139 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { getSecurityMetrics, checkIPBlocked } from '@/utils/enhancedSecurity';
 
+// Behavioral Analytics Component
+const BehavioralAnalyticsContent: React.FC<{ user: any }> = ({ user }) => {
+  const [behaviorMetrics, setBehaviorMetrics] = useState<Array<{
+    metric_name: string;
+    confidence_score: number;
+    data_points: number;
+    last_calculated: string;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchBehaviorMetrics();
+    }
+  }, [user]);
+
+  const fetchBehaviorMetrics = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_behavior_analytics')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('last_calculated', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching behavior metrics:', error);
+      } else {
+        setBehaviorMetrics(data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch behavior metrics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMetricScore = (metricName: string) => {
+    const metric = behaviorMetrics.find(m => m.metric_name === metricName);
+    return metric ? Number(metric.confidence_score) : 75; // Default score for new users
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'text-green-500';
+    if (score >= 70) return 'text-yellow-500';
+    return 'text-red-500';
+  };
+
+  const metrics = [
+    {
+      name: 'Typing Patterns',
+      description: 'Keystroke dynamics and timing analysis',
+      metricKey: 'typing_patterns',
+      icon: '⌨️'
+    },
+    {
+      name: 'Mouse Movement',
+      description: 'Movement patterns and interaction behavior',
+      metricKey: 'mouse_movement',
+      icon: '🖱️'
+    },
+    {
+      name: 'Access Patterns',
+      description: 'Login times and application usage patterns',
+      metricKey: 'access_patterns',
+      icon: '🕒'
+    },
+    {
+      name: 'Geographic Location',
+      description: 'Location-based risk assessment',
+      metricKey: 'geo_location',
+      icon: '🌍'
+    }
+  ];
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="border rounded-lg p-4 animate-pulse">
+            <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+            <div className="h-3 bg-muted rounded w-full mb-3"></div>
+            <div className="h-2 bg-muted rounded w-full"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {metrics.map((metric) => {
+        const score = getMetricScore(metric.metricKey);
+        const behaviorData = behaviorMetrics.find(m => m.metric_name === metric.metricKey);
+        
+        return (
+          <div key={metric.metricKey} className="border rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">{metric.icon}</span>
+              <h4 className="font-medium">{metric.name}</h4>
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">
+              {metric.description}
+            </p>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm">Confidence Score</span>
+              <span className={`font-medium ${getScoreColor(score)}`}>
+                {Math.round(score)}%
+              </span>
+            </div>
+            <Progress value={score} className="mb-2" />
+            {behaviorData && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>Data Points: {behaviorData.data_points}</div>
+                <div>Last Updated: {new Date(behaviorData.last_calculated).toLocaleDateString()}</div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      
+      {behaviorMetrics.length === 0 && (
+        <div className="col-span-full text-center py-8">
+          <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Building Behavioral Profile</h3>
+          <p className="text-muted-foreground">
+            Your behavioral analytics are being collected. Data will appear as you use the system.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface ZeroTrustMetrics {
   deviceTrustScore: number;
   behavioralTrustScore: number;
@@ -137,93 +270,144 @@ export const ZeroTrustDashboard: React.FC = () => {
     }
   };
 
+  const generateCurrentDeviceFingerprint = async () => {
+    if (!user?.id) return;
+    
+    try {
+      // Get browser and device information
+      const deviceType = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+        ? 'Mobile' : 'Desktop';
+      
+      const browser = (() => {
+        const userAgent = navigator.userAgent;
+        if (userAgent.includes('Chrome')) return `Chrome ${userAgent.match(/Chrome\/(\d+)/)?.[1] || ''}`;
+        if (userAgent.includes('Firefox')) return `Firefox ${userAgent.match(/Firefox\/(\d+)/)?.[1] || ''}`;
+        if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) return `Safari ${userAgent.match(/Version\/(\d+)/)?.[1] || ''}`;
+        if (userAgent.includes('Edge')) return `Edge ${userAgent.match(/Edge\/(\d+)/)?.[1] || ''}`;
+        return 'Unknown Browser';
+      })();
+      
+      const os = (() => {
+        const userAgent = navigator.userAgent;
+        if (userAgent.includes('Windows')) return 'Windows';
+        if (userAgent.includes('Mac OS')) return 'macOS';
+        if (userAgent.includes('Linux')) return 'Linux';
+        if (userAgent.includes('Android')) return 'Android';
+        if (userAgent.includes('iOS')) return 'iOS';
+        return 'Unknown OS';
+      })();
+      
+      const screenResolution = `${screen.width}x${screen.height}`;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const language = navigator.language;
+      
+      // Generate device fingerprint using Supabase function
+      const { data, error } = await supabase.rpc('generate_device_fingerprint', {
+        p_user_id: user.id,
+        p_device_type: deviceType,
+        p_browser: browser,
+        p_os: os,
+        p_screen_resolution: screenResolution,
+        p_timezone: timezone,
+        p_language: language,
+        p_metadata: {
+          user_agent: navigator.userAgent,
+          screen_color_depth: screen.colorDepth,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      if (error) {
+        console.error('Error generating device fingerprint:', error);
+      } else {
+        console.log('Device fingerprint generated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to generate device fingerprint:', error);
+    }
+  };
+
   const initializeZeroTrustData = async () => {
     try {
       setLoading(true);
       
       // Fetch security data first
       await fetchSecurityData();
-      // Simulate device fingerprints data
-      const mockDevices: DeviceFingerprint[] = [
-        {
-          id: '1',
-          deviceType: 'Desktop',
-          browser: 'Chrome 120.0',
-          os: 'Windows 11',
-          lastSeen: new Date().toISOString(),
-          trustScore: 95,
-          isVerified: true,
-          riskLevel: 'low'
-        },
-        {
-          id: '2',
-          deviceType: 'Mobile',
-          browser: 'Safari 17.0',
-          os: 'iOS 17.2',
-          lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          trustScore: 88,
-          isVerified: true,
-          riskLevel: 'low'
-        },
-        {
-          id: '3',
-          deviceType: 'Desktop',
-          browser: 'Firefox 121.0',
-          os: 'Ubuntu 22.04',
-          lastSeen: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          trustScore: 72,
-          isVerified: false,
-          riskLevel: 'medium'
-        }
-      ];
+      // Generate real device fingerprint and fetch device data
+      await generateCurrentDeviceFingerprint();
+      
+      // Fetch real device fingerprints from database
+      const { data: devices, error: devicesError } = await supabase
+        .from('device_fingerprints')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('last_seen', { ascending: false });
+      
+      if (devicesError) {
+        console.error('Error fetching devices:', devicesError);
+      } else {
+        const formattedDevices: DeviceFingerprint[] = (devices || []).map(device => ({
+          id: device.id,
+          deviceType: device.device_type,
+          browser: device.browser,
+          os: device.os,
+          lastSeen: device.last_seen,
+          trustScore: device.trust_score,
+          isVerified: device.is_verified,
+          riskLevel: device.risk_level as 'low' | 'medium' | 'high'
+        }));
+        setDeviceFingerprints(formattedDevices);
+      }
 
-      // Simulate access policies
-      const mockPolicies: AccessPolicy[] = [
-        {
-          id: '1',
-          name: 'Device Authentication',
-          description: 'Requires verified device certificates for access',
-          compliance: 95,
-          lastEvaluated: new Date().toISOString(),
-          status: 'compliant'
-        },
-        {
-          id: '2',
-          name: 'Behavioral Analytics',
-          description: 'Continuous monitoring of user behavior patterns',
-          compliance: 92,
-          lastEvaluated: new Date().toISOString(),
-          status: 'compliant'
-        },
-        {
-          id: '3',
-          name: 'Geo-Location Verification',
-          description: 'Validates user location against expected patterns',
-          compliance: 78,
-          lastEvaluated: new Date().toISOString(),
-          status: 'warning'
-        },
-        {
-          id: '4',
-          name: 'Time-Based Access Control',
-          description: 'Restricts access based on business hours and patterns',
-          compliance: 85,
-          lastEvaluated: new Date().toISOString(),
-          status: 'compliant'
-        }
-      ];
+      // Fetch real access policies
+      const { data: policies, error: policiesError } = await supabase
+        .from('access_policies')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (policiesError) {
+        console.error('Error fetching access policies:', policiesError);
+      } else {
+        const formattedPolicies: AccessPolicy[] = (policies || []).map(policy => ({
+          id: policy.id,
+          name: policy.name,
+          description: policy.description || '',
+          compliance: policy.compliance_percentage,
+          lastEvaluated: policy.last_evaluated,
+          status: policy.status as 'compliant' | 'non-compliant' | 'warning'
+        }));
+        setAccessPolicies(formattedPolicies);
+      }
 
-      setDeviceFingerprints(mockDevices);
-      setAccessPolicies(mockPolicies);
+      // Calculate real metrics based on fetched data (use current state instead of stale variables)
+      let avgDeviceTrust = 50;
+      let avgPolicyCompliance = 50;
+      
+      // Wait for device data to be fetched and set
+      if (devices && devices.length > 0) {
+        avgDeviceTrust = devices.reduce((sum, device) => sum + device.trust_score, 0) / devices.length;
+      }
+      
+      if (policies && policies.length > 0) {
+        avgPolicyCompliance = policies.reduce((sum, policy) => sum + policy.compliance_percentage, 0) / policies.length;
+      }
 
-      // Calculate overall metrics based on mock data
-      const avgDeviceTrust = mockDevices.reduce((sum, device) => sum + device.trustScore, 0) / mockDevices.length;
-      const avgPolicyCompliance = mockPolicies.reduce((sum, policy) => sum + policy.compliance, 0) / mockPolicies.length;
+      // Fetch behavioral analytics
+      const { data: behaviorData } = await supabase
+        .from('user_behavior_analytics')
+        .select('confidence_score')
+        .eq('user_id', user.id);
+      
+      const avgBehavioralTrust = behaviorData && behaviorData.length > 0
+        ? behaviorData.reduce((sum, metric) => sum + Number(metric.confidence_score), 0) / behaviorData.length
+        : 75; // Default for new users
 
       setMetrics(prev => ({
         ...prev,
         deviceTrustScore: Math.round(avgDeviceTrust),
-        accessPolicyCompliance: Math.round(avgPolicyCompliance)
+        accessPolicyCompliance: Math.round(avgPolicyCompliance),
+        behavioralTrustScore: Math.round(avgBehavioralTrust)
       }));
 
       setLoading(false);
@@ -593,55 +777,7 @@ export const ZeroTrustDashboard: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-2">Typing Patterns</h4>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Keystroke dynamics and timing analysis
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Confidence Score</span>
-                    <span className="font-medium text-green-500">94%</span>
-                  </div>
-                  <Progress value={94} className="mt-1" />
-                </div>
-
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-2">Mouse Movement</h4>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Movement patterns and interaction behavior
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Confidence Score</span>
-                    <span className="font-medium text-green-500">91%</span>
-                  </div>
-                  <Progress value={91} className="mt-1" />
-                </div>
-
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-2">Access Patterns</h4>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Login times and application usage patterns
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Confidence Score</span>
-                    <span className="font-medium text-yellow-500">87%</span>
-                  </div>
-                  <Progress value={87} className="mt-1" />
-                </div>
-
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-2">Geographic Location</h4>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Location-based risk assessment
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Confidence Score</span>
-                    <span className="font-medium text-green-500">96%</span>
-                  </div>
-                  <Progress value={96} className="mt-1" />
-                </div>
-              </div>
+              <BehavioralAnalyticsContent user={user} />
             </CardContent>
           </Card>
         </TabsContent>
