@@ -1026,9 +1026,8 @@ export default function UnifiedEmailBuilder({
                         <div><strong>Type:</strong> {quote.fare_type}</div>
                         <div><strong>Passengers:</strong> {quote.adults_count || 1} Adult{(quote.adults_count || 1) > 1 ? 's' : ''}{quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}{quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
                         {quote.parsedItinerary?.segments?.length > 0 && (
-                          <div className="text-green-600 text-xs mt-2 flex items-center gap-1">
+                          <div className="text-xs mt-2 flex items-center gap-1">
                             <span>✅</span>
-                            Enhanced with {quote.parsedItinerary.segments.length} flight segments
                           </div>
                         )}
                       </div>
