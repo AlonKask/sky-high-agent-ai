@@ -593,7 +593,7 @@ export default function UnifiedEmailBuilder({
 
     const signatureName = `${agentProfile?.first_name || ''} ${agentProfile?.last_name || ''}`.trim();
     const signatureCompany = agentProfile?.company || 'Select Business Class';
-    const signatureEmail = agentProfile?.email || (await supabase.auth.getUser()).data.user?.email || 'support@selectbc.online';
+    const signatureEmail = agentProfile?.email || (await supabase.auth.getUser()).data.user?.email || 'support@selectbusinessclass.com';
     const signaturePhone = agentProfile?.phone || '';
 
     return `<!doctype html>
@@ -626,11 +626,10 @@ export default function UnifiedEmailBuilder({
               <table role="presentation" width="100%">
                 <tr>
                   <td style="vertical-align:middle;">
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-weight:800;font-size:20px;letter-spacing:.2px;color:#0B1220;">SELECT <span style="color:#0B5FFF;">BUSINESS</span> CLASS</div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:4px;">Premium airfare • Blue / Black / White palette</div>
+                    <img src="/lovable-uploads/18e0942c-48c7-447d-8631-34f5ef1e28dc.png" alt="Select Business Class" style="height:32px;width:auto;" />
                   </td>
                   <td align="right" class="hide-sm" style="vertical-align:middle;">
-                    <a href="https://selectbc.online" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;text-decoration:none;">selectbc.online</a>
+                    <a href="https://selectbusinessclass.com" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;text-decoration:none;">selectbusinessclass.com</a>
                   </td>
                 </tr>
               </table>
@@ -639,7 +638,6 @@ export default function UnifiedEmailBuilder({
           <tr>
             <td class="px" style="padding:26px 28px 6px 28px;">
               <div class="h1" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:28px;line-height:34px;font-weight:800;color:#0B1220;">Flight Options for ${clientName}</div>
-              <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:22px;color:#263244;margin-top:6px;">Dates: ${dateRange || '—'} • ${paxLine}</div>
             </td>
           </tr>
           ${cardsHtml}
@@ -649,7 +647,7 @@ export default function UnifiedEmailBuilder({
                 <tr>
                   <td>
                     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#263244;">Questions or a different date/cabin? Reply to this email or contact our concierge.</div>
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:6px;">Select Business Class • +1 (000) 000-0000 • support@selectbc.online</div>
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:6px;">Select Business Class • +1 (888) 424-4968 • support@selectbusinessclass.com</div>
                   </td>
                   <td align="right">
                     <a href="{{UnsubscribeLink}}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;text-decoration:none;">Unsubscribe</a>
@@ -871,7 +869,7 @@ export default function UnifiedEmailBuilder({
         .replace(/\{\{ViewLink\}\}/g, reviewUrl)
         .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
         .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
-        .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbc.online?subject=Unsubscribe');
+        .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
 
       const bookUrlBase = `${window.location.origin}/book/${clientToken}`;
       selectedQuotes.forEach((qid) => {
@@ -950,7 +948,7 @@ export default function UnifiedEmailBuilder({
           .replace(/\{\{ViewLink\}\}/g, reviewUrl)
           .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
           .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
-          .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbc.online?subject=Unsubscribe');
+          .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
 
         selectedQuotes.forEach((qid) => {
           const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
