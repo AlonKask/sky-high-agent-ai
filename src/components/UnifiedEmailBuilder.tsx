@@ -902,7 +902,7 @@ export default function UnifiedEmailBuilder({
         {/* Main Content */}
         <div className="flex-1 flex min-h-0">
           {/* Left Panel - Quote Selection */}
-          <div className="flex-1 border-r flex flex-col">
+          <div className="w-[30%] border-r flex flex-col">
             <div className="flex-1 overflow-auto p-4">
               <h4 className="text-lg font-semibold mb-4">Select Flight Options ({processedQuotes.length} available)</h4>
               
@@ -949,8 +949,8 @@ export default function UnifiedEmailBuilder({
             </div>
           </div>
 
-          {/* Right Panel - Email Preview with Fixed Dimensions */}
-          <div className="flex flex-col" style={{ flex: 'none', order: 0, flexGrow: 0, width: '592px' }}>
+          {/* Right Panel - Email Preview with Inline Editing */}
+          <div className="w-[70%] flex flex-col">
             <div className="p-4 border-b bg-muted/50">
               <div className="flex items-center justify-between">
                 <div>
@@ -966,9 +966,9 @@ export default function UnifiedEmailBuilder({
                 suppressContentEditableWarning
                 onInput={handleContentEdit}
                 dangerouslySetInnerHTML={{ __html: previewContent }}
-                className="w-full p-4 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
+                className="w-full h-full p-4 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
                 style={{ 
-                  height: '2501px',
+                  minHeight: '100%',
                   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
                 }}
               />
