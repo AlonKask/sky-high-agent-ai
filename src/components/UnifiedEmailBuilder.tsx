@@ -252,180 +252,117 @@ export default function UnifiedEmailBuilder({
     const buildOptionCard = (quote: Quote) => {
       const segs = (quote.parsedItinerary?.segments || quote.segments || []) as any[];
       const first = segs[0] || {};
+      const last = segs[segs.length - 1] || first;
 
-      // Determine true outbound destination (final destination before any return to origin)
-      const originCode = first.departureAirport || first.origin || (quote.route ? (quote.route.split(/[-→]/)[0] || '').trim().toUpperCase() : '—');
-      let outboundIndex = segs.length > 0 ? segs.length - 1 : 0;
-      for (let i = 0; i < segs.length; i++) {
-        const arr = segs[i]?.arrivalAirport || segs[i]?.destination;
-        if (arr && arr !== originCode) outboundIndex = i;
-      }
-      const outLast = segs[outboundIndex] || segs[segs.length - 1] || {};
-
-      const stops = Math.max(0, (segs?.length || 1) - 1);
-      const depCode = originCode;
-      const arrCode = outLast.arrivalAirport || outLast.destination || (quote.route ? (quote.route.split(/[-→]/).slice(-1)[0] || '').trim().toUpperCase() : '—');
-      const depTime = first.departureTime || first.departure_time || 'TBD';
-      const arrTime = outLast.arrivalTime || outLast.arrival_time || 'TBD';
-      const depCity = first.departureCity || depCode;
-      const arrCity = outLast.arrivalCity || arrCode;
-      const duration = quote.parsedItinerary?.totalDuration || formatDuration(segs);
-      const airline = first.airlineName || first.airlineCode || '—';
+      // Extract basic route information
+      const depCode = first.departureAirport || first.origin || (quote.route ? (quote.route.split(/[-→]/)[0] || '').trim().toUpperCase() : '—');
+      const arrCode = last.arrivalAirport || last.destination || (quote.route ? (quote.route.split(/[-→]/).slice(-1)[0] || '').trim().toUpperCase() : '—');
+      
+      // Extract flight details
       const flightNumber = first.flightNumber || '—';
       const cabin = first.cabin || first.cabinClass || 'Business';
       const rbd = first.bookingClass || '—';
-      const adultPrice = (quote as any).adult_price as number | undefined;
-      const childPrice = (quote as any).child_price as number | undefined;
-      const infantPrice = (quote as any).infant_price as number | undefined;
-      const totalPrice = quote.total_price;
-      const baggage = 'As per fare rules';
-      const changeRules = 'Fare dependent';
+      const depTime = first.departureTime || first.departure_time || 'TBD';
+      const arrTime = last.arrivalTime || last.arrival_time || 'TBD';
       const aircraft = first.aircraft || 'TBD';
+      const duration = quote.parsedItinerary?.totalDuration || formatDuration(segs);
+      
+      // Calculate stops and connection info
+      const stops = Math.max(0, (segs?.length || 1) - 1);
+      const stopInfo = stops === 0 ? 'Direct' : stops === 1 ? '1 stop' : `${stops} stops`;
+      const connectionInfo = stops > 0 && segs.length > 1 ? 
+        ` (${segs.slice(0, -1).map((s: any) => s.arrivalAirport || s.destination).join(', ')})` : '';
+      
+      // Format passenger pricing for header
+      const passengerBreakdown = [];
+      if (paxAdults > 0) {
+        const adultPrice = (quote as any).adult_price as number | undefined;
+        passengerBreakdown.push(`${paxAdults}×ADT ${currency}${fmtNum(adultPrice)}`);
+      }
+      if (paxChildren > 0) {
+        const childPrice = (quote as any).child_price as number | undefined;
+        passengerBreakdown.push(`${paxChildren}×CHD ${currency}${fmtNum(childPrice)}`);
+      }
+      if (paxInfants > 0) {
+        const infantPrice = (quote as any).infant_price as number | undefined;
+        passengerBreakdown.push(`${paxInfants}×INF ${currency}${fmtNum(infantPrice)}`);
+      }
 
-      // Build full itinerary rows
-      const itineraryRows = (segs || []).map((s: any) => {
-        const dCode = s.departureAirport || s.origin || '';
-        const aCode = s.arrivalAirport || s.destination || '';
-        const dCity = s.departureCity || dCode;
-        const aCity = s.arrivalCity || aCode;
-        const aOffset = s.arrivalDayOffset && s.arrivalDayOffset > 0 ? ` <span style=\"color:#0B5FFF;\">+${s.arrivalDayOffset}d</span>` : '';
-        const line1 = `${dCity} (${dCode}) ${s.departureTime || ''} → ${aCity} (${aCode}) ${s.arrivalTime || ''}${aOffset}`;
-        const metaParts = [s.airlineName || s.airlineCode || '', s.flightNumber || ''].filter(Boolean).join(' ');
-        const extras: string[] = [];
-        if (s.cabin || s.cabinClass) extras.push(s.cabin || s.cabinClass);
-        if (s.bookingClass) extras.push(`RBD ${s.bookingClass}`);
-        if (s.aircraft) extras.push(s.aircraft);
-        const line2 = [metaParts, extras.join(' • ')].filter(Boolean).join(' • ');
-        return `
-          <tr>
-            <td style=\"padding:6px 0;\">
-              <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#0B1220;\">${line1}</div>
-              ${line2 ? `<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:2px;\">${line2}</div>` : ''}
-            </td>
-          </tr>`;
-      }).join('');
-
-      const itineraryHtml = segs && segs.length > 0 ? `
-        <tr>
-          <td colspan=\"2\" style=\"padding:6px 0 10px 0;\">
-            <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-bottom:6px;\">Full itinerary</div>
-            <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;\">
-              ${itineraryRows}
-            </table>
-          </td>
-        </tr>` : '';
-
-      // Conditional pax columns
-      const anyKids = paxChildren > 0;
-      const anyInfants = paxInfants > 0;
-
-      const adultBorder = anyKids || anyInfants ? 'border-right:1px solid #E8EDF3;' : '';
-      const childBorder = anyInfants ? 'border-right:1px solid #E8EDF3;' : '';
-
-      const adultCol = `
-        <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;${adultBorder}\">
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Adult</div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
-            ${currency} ${fmtNum(adultPrice)}
-          </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxAdults}</div>
-        </td>`;
-
-      const childCol = !anyKids ? '' : `
-        <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;${childBorder}\">
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Child</div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
-            ${currency} ${fmtNum(childPrice)}
-          </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxChildren}</div>
-        </td>`;
-
-      const infantCol = !anyInfants ? '' : `
-        <td class=\"stack\" style=\"vertical-align:top;padding:10px 12px;\">
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Infant</div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;font-weight:800;color:#0B1220;margin-top:2px;\">
-            ${currency} ${fmtNum(infantPrice)}
-          </div>
-          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">x ${paxInfants}</div>
-        </td>`;
+      // Get departure date for display
+      const depDate = first.departureDate || 'TBD';
 
       return `
+        <table role="presentation" width="100%" style="border:2px solid #0B1220;border-radius:10px;background:#FBFCFE;margin:0 0 16px 0;">
           <tr>
-            <td class=\"px\" style=\"padding:14px 28px 0 28px;\">
-              <table role=\"presentation\" width=\"100%\" class=\"card\" style=\"border-collapse:collapse;background:#FFFFFF;border:1px solid #E8EDF3;border-radius:14px;padding:18px;\">
+            <td style="padding:12px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0B1220;">
+              <!-- Header row: route + price -->
+              <table role="presentation" width="100%">
                 <tr>
-                  <td class=\"stack\" style=\"vertical-align:top;padding-right:12px;\">
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;line-height:26px;font-weight:800;color:#0B1220;\">
-                      ${depTime} → ${arrTime}
-                    </div>
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#2B3A4B;margin-top:4px;\">
-                      ${depCity} (${depCode}) → ${arrCity} (${arrCode}) • Duration ${duration} • ${stops} stop(s)
-                    </div>
+                  <td style="font-weight:700;font-size:18px;">${depCode} → ${arrCode}
+                    <div style="font-size:12px;color:#6B7280;margin-top:2px;">${depDate} • Local time</div>
                   </td>
-                  <td class=\"stack\" align=\"right\" style=\"vertical-align:top;min-width:180px;\">
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">
-                      Airline
-                    </div>
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:700;color:#0B1220;\">
-                      ${airline} • ${flightNumber}
-                    </div>
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B5FFF;font-weight:700;margin-top:2px;\">
-                      ${cabin} • Fare Class ${rbd}
-                    </div>
-                  </td>
-                </tr>
-                <tr><td colspan=\"2\" style=\"border-top:1px solid #E8EDF3;height:14px;line-height:14px;font-size:0;\">&nbsp;</td></tr>
-                ${itineraryHtml}
-                <tr>
-                  <td colspan=\"2\" style=\"padding-top:0;\">
-                    <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;\">
-                      <tr>
-                        ${adultCol}
-                        ${childCol}
-                        ${infantCol}
-                        <td class=\"stack\" align=\"right\" style=\"vertical-align:middle;padding:10px 12px;min-width:140px;\">
-                          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;\">Total</div>
-                          <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:22px;font-weight:900;color:#0B1220;margin-top:2px;\">
-                            ${currency} ${fmtNum(totalPrice)}
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan=\"2\" style=\"padding-top:8px;\">
-                    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\">
-                      <tr>
-                        <td style=\"border-radius:12px;\">
-                          <a href=\"{{BookLink:${quote.id}}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">Book Now</a>
-                        </td>
-                        <td width=\"8\"></td>
-                        <td bgcolor=\"#0B5FFF\" style=\"border-radius:12px;\">
-                          <a href=\"{{ViewLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;\">View Details</a>
-                        </td>
-                        <td width=\"8\"></td>
-                        <td style=\"border:1px solid #0B5FFF;border-radius:12px;\">
-                          <a href=\"{{HoldLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B5FFF;text-decoration:none;\">Hold Seats</a>
-                        </td>
-                        <td width=\"8\"></td>
-                        <td style=\"border:1px solid #E8EDF3;border-radius:12px;\">
-                          <a href=\"{{AltLink}}\" style=\"display:inline-block;padding:12px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#0B1220;text-decoration:none;\">See Alternatives</a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan=\"2\" style=\"padding-top:10px;\">
-                    <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#5B6472;\">
-                      Baggage: ${baggage} • Change rules: ${changeRules} • Booking code: ${rbd} • Aircraft: ${aircraft}
+                  <td align="right">
+                    <div style="font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;font-size:20px;font-weight:700;">${currency}${fmtNum(quote.total_price)}</div>
+                    <div style="font-size:12px;color:#6B7280;font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">
+                      ${passengerBreakdown.join(' · ')}
                     </div>
                   </td>
                 </tr>
               </table>
+
+              <!-- Flight details -->
+              <table role="presentation" width="100%" style="border-top:1px dashed #D0D6E0;margin-top:8px;">
+                <tr>
+                  <td width="32%" style="padding:10px 12px;vertical-align:top;border-top:1px dashed #D0D6E0;">
+                    <div style="font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">${flightNumber}</div>
+                    <div style="display:inline-block;border:1px solid #0B1220;border-radius:4px;padding:2px 6px;font-size:11px;margin-top:4px;font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">
+                      ${cabin} • [${rbd}]
+                    </div>
+                  </td>
+                  <td width="36%" style="padding:10px 12px;vertical-align:top;border-top:1px dashed #D0D6E0;">
+                    <div>
+                      <span style="font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">${depTime}</span> ${depCode} →
+                      <span style="font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">${arrTime}</span> ${arrCode}
+                    </div>
+                    <div style="font-size:12px;color:#6B7280;">${depDate}</div>
+                  </td>
+                  <!-- Plane icon -->
+                  <td width="16%" align="center" style="padding:6px 0 0 0;border-top:1px dashed #D0D6E0;">
+                    <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true" style="opacity:.14;display:block;">
+                      <path fill="#000"
+                        d="M58 33c0-1.1-.9-2-2-2l-16-2-7-18h-3l2 18-12-2-3-6h-3l2 7-6-1-2 3 8 2 4 12-8 2-2 3h3l10-4 8 4 3-1-4-12 17-1c1.1 0 2-.9 2-2l13-2z" />
+                    </svg>
+                    <div style="font-size:10px;color:#6B7280;margin-top:-6px;text-align:right;width:64px;font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">
+                      ${aircraft}
+                    </div>
+                  </td>
+                  <td width="16%" align="right" style="padding:10px 12px;vertical-align:top;border-top:1px dashed #D0D6E0;">
+                    <div style="font-size:12px;color:#6B7280;font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">${duration} ⏱</div>
+                  </td>
+                </tr>
+
+                <!-- Connection summary + CTA -->
+                <tr>
+                  <td colspan="3" style="padding:10px 12px;">
+                    <table role="presentation" width="100%">
+                      <tr>
+                        <td style="border-top:2px dashed #8C919B;height:0;line-height:0;">&nbsp;</td>
+                        <td style="width:20px;text-align:center;font-size:14px;line-height:14px;">◆</td>
+                        <td style="border-top:2px dashed #8C919B;height:0;line-height:0;">&nbsp;</td>
+                      </tr>
+                    </table>
+                    <div style="font-size:12px;color:#6B7280;margin-top:8px;">
+                      ${stopInfo}${connectionInfo} • Total ${duration} • Baggage as per fare rules
+                    </div>
+                  </td>
+                  <td align="right" style="padding:10px 12px;">
+                    <a href="{{BookLink:${quote.id}}}" style="display:inline-block;background:#111827;border:2px solid #111827;border-radius:6px;color:#fff;text-decoration:none;padding:10px 14px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,'Courier New',monospace;">▷ View &amp; Book</a>
+                  </td>
+                </tr>
+              </table>
             </td>
-          </tr>`;
+          </tr>
+        </table>`;
     };
 
     const cardsHtml = selectedQuoteData.map(q => buildOptionCard(q)).join('\n');
