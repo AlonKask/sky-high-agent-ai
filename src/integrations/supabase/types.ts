@@ -3139,6 +3139,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      admin_can_access_with_audit: {
+        Args: {
+          justification: string
+          target_table: string
+          target_user_id: string
+        }
+        Returns: boolean
+      }
       advanced_rate_limit_check: {
         Args:
           | {
