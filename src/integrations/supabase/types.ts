@@ -3750,12 +3750,12 @@ export type Database = {
         }[]
       }
       get_request_details: {
-        Args: { p_request_id: string }
+        Args: { request_id: string }
         Returns: {
           adults_count: number
           assigned_to: string
-          budget_max: number
-          budget_min: number
+          assignment_status: string
+          budget_range: string
           children_count: number
           class_preference: string
           client_company: string
@@ -3764,24 +3764,21 @@ export type Database = {
           client_id: string
           client_last_name: string
           client_phone: string
-          client_total_bookings: number
-          client_total_spent: number
-          client_type: string
+          client_preferred_class: string
+          created_at: string
           departure_date: string
           destination: string
+          id: string
           infants_count: number
+          notes: string
           origin: string
           priority: string
-          quotes: Json
-          request_created_at: string
-          request_id: string
-          request_updated_at: string
-          request_user_id: string
+          request_type: string
           return_date: string
           segments: Json
-          special_requirements: string
           status: string
-          trip_type: string
+          updated_at: string
+          user_id: string
         }[]
       }
       get_secure_client_view: {
