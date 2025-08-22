@@ -284,29 +284,29 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
         )}
         
         <div className="rounded-md border overflow-x-auto">
-          <Table className="table-fixed w-full min-w-[800px]">
+          <Table className="w-full min-w-[800px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-20 text-left">IATA Code</TableHead>
-                <TableHead className="w-20 text-left">ICAO Code</TableHead>
-                <TableHead className="text-left pl-8">Name</TableHead>
-                <TableHead className="w-28 text-left">Country</TableHead>
-                <TableHead className="w-32 text-left">Alliance</TableHead>
-                <TableHead className="w-16 text-center">RBDs</TableHead>
-                <TableHead className="w-28 text-center">Actions</TableHead>
+                <TableHead className="w-16 px-4 py-3 text-left">IATA Code</TableHead>
+                <TableHead className="w-16 px-4 py-3 text-left">ICAO Code</TableHead>
+                <TableHead className="flex-1 min-w-0 pl-8 pr-4 py-3 text-left">Name</TableHead>
+                <TableHead className="w-24 px-4 py-3 text-left">Country</TableHead>
+                <TableHead className="w-28 px-4 py-3 text-left">Alliance</TableHead>
+                <TableHead className="w-16 px-4 py-3 text-center">RBDs</TableHead>
+                <TableHead className="w-24 px-4 py-3 text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell className="w-20"><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell className="w-20"><Skeleton className="h-4 w-14" /></TableCell>
-                    <TableCell className="pl-8"><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell className="w-28"><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell className="w-32"><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell className="w-16 text-center"><Skeleton className="h-4 w-10 mx-auto" /></TableCell>
-                    <TableCell className="w-28 text-center"><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
+                    <TableCell className="w-16 p-4"><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell className="w-16 p-4"><Skeleton className="h-4 w-14" /></TableCell>
+                    <TableCell className="flex-1 min-w-0 pl-8 pr-4 py-4"><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell className="w-24 p-4"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="w-28 p-4"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="w-16 p-4 text-center"><Skeleton className="h-4 w-10 mx-auto" /></TableCell>
+                    <TableCell className="w-24 p-4 text-center"><Skeleton className="h-4 w-16 mx-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredAirlines.length === 0 ? (
@@ -319,70 +319,70 @@ export function AirlineManagement({ searchTerm }: AirlineManagementProps) {
                   
                   return (
                     <Collapsible key={airline.id} open={isExpanded} onOpenChange={() => toggleAirlineExpansion(airline.id)}>
-                      <CollapsibleTrigger asChild>
-                        <TableRow className="cursor-pointer hover:bg-muted/50">
-                          <TableCell className="font-mono font-semibold w-20 text-left">{airline.iata_code}</TableCell>
-                          <TableCell className="font-mono w-20 text-left">{airline.icao_code || '-'}</TableCell>
-                          <TableCell className="text-left pl-8">
-                            <div className="flex items-center gap-2">
-                              <ChevronDown className={`h-4 w-4 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
-                              <span className="truncate">{airline.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="w-28 text-left">{airline.country || '-'}</TableCell>
-                          <TableCell className="w-32 text-left">
-                            {airline.alliance && (
-                              <Badge variant="outline" className="text-xs whitespace-nowrap">{airline.alliance}</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="w-16 text-center">
-                            <Badge variant="secondary" className="text-xs">
-                              {airline.rbd_count || 0}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="w-28 text-center">
-                            <div className="flex gap-1 justify-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(airline);
-                                }}
-                                title="Edit Airline"
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedAirlineForCopy(airline);
-                                  setCopyDialogOpen(true);
-                                }}
-                                title="Copy RBDs"
-                                className="h-8 w-8 p-0"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(airline.id);
-                                }}
-                                title="Delete Airline"
-                                className="h-8 w-8 p-0"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </CollapsibleTrigger>
+                       <CollapsibleTrigger asChild>
+                         <TableRow className="cursor-pointer hover:bg-muted/50">
+                           <TableCell className="w-16 p-4 font-mono font-semibold text-left">{airline.iata_code}</TableCell>
+                           <TableCell className="w-16 p-4 font-mono text-left">{airline.icao_code || '-'}</TableCell>
+                           <TableCell className="flex-1 min-w-0 pl-8 pr-4 py-4 text-left">
+                             <div className="flex items-center gap-2">
+                               <ChevronDown className={`h-4 w-4 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                               <span className="truncate">{airline.name}</span>
+                             </div>
+                           </TableCell>
+                           <TableCell className="w-24 p-4 text-left">{airline.country || '-'}</TableCell>
+                           <TableCell className="w-28 p-4 text-left">
+                             {airline.alliance && (
+                               <Badge variant="outline" className="text-xs whitespace-nowrap">{airline.alliance}</Badge>
+                             )}
+                           </TableCell>
+                           <TableCell className="w-16 p-4 text-center">
+                             <Badge variant="secondary" className="text-xs">
+                               {airline.rbd_count || 0}
+                             </Badge>
+                           </TableCell>
+                           <TableCell className="w-24 p-4 text-center">
+                             <div className="flex gap-1 justify-center">
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleEdit(airline);
+                                 }}
+                                 title="Edit Airline"
+                                 className="h-8 w-8 p-0"
+                               >
+                                 <Edit className="h-3 w-3" />
+                               </Button>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setSelectedAirlineForCopy(airline);
+                                   setCopyDialogOpen(true);
+                                 }}
+                                 title="Copy RBDs"
+                                 className="h-8 w-8 p-0"
+                               >
+                                 <Copy className="h-3 w-3" />
+                               </Button>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleDelete(airline.id);
+                                 }}
+                                 title="Delete Airline"
+                                 className="h-8 w-8 p-0"
+                               >
+                                 <Trash2 className="h-3 w-3" />
+                               </Button>
+                             </div>
+                           </TableCell>
+                         </TableRow>
+                       </CollapsibleTrigger>
                        <CollapsibleContent asChild>
                         <TableRow>
                           <TableCell colSpan={7} className="p-4 bg-muted/20">
