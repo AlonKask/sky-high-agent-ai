@@ -11,7 +11,7 @@ import { SimpleAuthGuard } from "@/components/SimpleAuthGuard";
 import { Suspense, lazy, useEffect } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import SecurityInitializer from "@/components/SecurityInitializer";
-import { SecurityEnhancementMonitor } from "@/components/SecurityEnhancementMonitor";
+
 import { useSecurityMonitoring } from "@/hooks/useSecurityMonitoring";
 import { enhancedSecurity } from "@/utils/enhancedSecurity";
 
@@ -129,7 +129,6 @@ function App() {
                 </Suspense>
                 <Toaster />
                 <RadixToaster />
-                <SecurityEnhancementMonitor />
                 </ErrorBoundary>
               </RoleViewProvider>
             </SecurityMonitoringWrapper>
