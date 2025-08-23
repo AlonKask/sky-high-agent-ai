@@ -323,93 +323,148 @@ export default function UnifiedEmailBuilder({
 
     const buildOptionCard = (quote: Quote) => {
       const segs = (quote.parsedItinerary?.segments || quote.segments || []) as any[];
-      const first = segs[0] || {};
+      const directions = quote.parsedItinerary?.flightDirections || [];
 
       // Use quote-specific passenger counts instead of request-level counts
       const quotePaxAdults = quote.adults_count ?? 1;
       const quotePaxChildren = quote.children_count ?? 0;
       const quotePaxInfants = quote.infants_count ?? 0;
 
-      // Determine true outbound destination (final destination before any return to origin)
-      const originCode = first.departureAirport || first.origin || (quote.route ? (quote.route.split(/[-→]/)[0] || '').trim().toUpperCase() : '—');
-      let outboundIndex = segs.length > 0 ? segs.length - 1 : 0;
-      for (let i = 0; i < segs.length; i++) {
-        const arr = segs[i]?.arrivalAirport || segs[i]?.destination;
-        if (arr && arr !== originCode) outboundIndex = i;
-      }
-      const outLast = segs[outboundIndex] || segs[segs.length - 1] || {};
-
-      // Fix stop calculation for round-trip flights
-      const stops = (() => {
-        if (!segs || segs.length === 0) return 0;
-        
-        // Check if this is a round-trip flight (origin equals final destination)
-        const firstOrigin = segs[0]?.departureAirport || segs[0]?.origin;
-        const lastDestination = segs[segs.length - 1]?.arrivalAirport || segs[segs.length - 1]?.destination;
-        
-        if (firstOrigin === lastDestination && segs.length > 1) {
-          // Round-trip: calculate stops for outbound and return separately
-          const midPoint = Math.ceil(segs.length / 2);
-          const outboundStops = Math.max(0, midPoint - 1);
-          const returnStops = Math.max(0, (segs.length - midPoint) - 1);
-          
-          // If both legs are non-stop, show as "Nonstop"
-          if (outboundStops === 0 && returnStops === 0) return 0;
-          
-          // Otherwise show total intermediate stops
-          return outboundStops + returnStops;
-        } else {
-          // One-way or multi-city: use traditional calculation
-          return Math.max(0, segs.length - 1);
-        }
-      })();
-      const depCode = originCode;
-      const arrCode = outLast.arrivalAirport || outLast.destination || (quote.route ? (quote.route.split(/[-→]/).slice(-1)[0] || '').trim().toUpperCase() : '—');
-      const depTime = first.departureTime || first.departure_time || '7:45 AM';
-      const arrTime = outLast.arrivalTime || outLast.arrival_time || '9:30 PM';
-      const depCity = first.departureCity || depCode;
-      const arrCity = outLast.arrivalCity || arrCode;
-      const duration = quote.parsedItinerary?.totalDuration || '27h 0m';
-      const airline = first.airlineName || first.airlineCode || 'Lufthansa';
-      const flightNumber = first.flightNumber || 'LH441';
-      const cabin = first.cabin || first.cabinClass || 'Business Class';
-      const rbd = first.bookingClass || 'J';
+      // Get overall route information
+      const originCode = segs[0]?.departureAirport || '—';
+      const finalCode = segs[segs.length - 1]?.arrivalAirport || '—';
+      const isRoundTrip = originCode === finalCode && segs.length > 1;
+      
+      // Calculate total stops
+      const stops = Math.max(0, segs.length - 1);
+      
+      // Get overall timing - use actual segments instead of fallbacks
+      const depTime = segs[0]?.departureTime || '—';
+      const arrTime = segs[segs.length - 1]?.arrivalTime || '—';
+      const duration = quote.parsedItinerary?.totalDuration || '—';
+      
+      // Pricing info
       const adultPrice = (quote as any).adult_price as number | undefined;
       const childPrice = (quote as any).child_price as number | undefined;
       const infantPrice = (quote as any).infant_price as number | undefined;
       const totalPrice = quote.total_price;
-      const baggage = '2 × 40kg';
-      const changeRules = 'Fare dependent';
-      const aircraft = first.aircraft || 'A350';
 
-      // Build full itinerary rows
-      const itineraryRows = (segs || []).map((s: any) => {
-        const dCode = s.departureAirport || s.origin || '';
-        const aCode = s.arrivalAirport || s.destination || '';
-        const dCity = s.departureCity || dCode;
-        const aCity = s.arrivalCity || aCode;
-        const aOffset = s.arrivalDayOffset && s.arrivalDayOffset > 0 ? ` <span style=\"color:#0B5FFF;\">+${s.arrivalDayOffset}d</span>` : '';
-        const line1 = `${dCity} (${dCode}) ${s.departureTime || ''} → ${aCity} (${aCode}) ${s.arrivalTime || ''}${aOffset}`;
-        
-        // Get airline logo for this segment
-        const airlineCode = s.airlineCode || s.airlineName;
-        const logoUrl = getAirlineLogo(airlineCode, s.icaoCode);
-        const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
-        
-        const metaParts = [`${airlineLogo}${s.airlineName || s.airlineCode || ''}`, s.flightNumber || ''].filter(Boolean).join(' ');
-        const extras: string[] = [];
-        if (s.cabin || s.cabinClass) extras.push(s.cabin || s.cabinClass);
-        if (s.bookingClass) extras.push(`RBD ${s.bookingClass}`);
-        if (s.aircraft) extras.push(s.aircraft);
-        const line2 = [metaParts, extras.join(' • ')].filter(Boolean).join(' • ');
-        return `
-          <tr>
-            <td style=\"padding:6px 0;\">
-              <div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#0B1220;\">${line1}</div>
-              ${line2 ? `<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#5B6472;margin-top:2px;\">${line2}</div>` : ''}
-            </td>
-          </tr>`;
-      }).join('');
+      // Build enhanced itinerary with proper segment grouping
+      const buildFlightDirections = () => {
+        if (directions && directions.length > 0) {
+          return directions.map((direction, dirIndex) => {
+            const directionTitle = direction.type === 'outbound' ? 'Outbound' : 
+                                  direction.type === 'return' ? 'Return' : 
+                                  `Direction ${dirIndex + 1}`;
+            
+            const directionSegs = direction.segments.map((s: any, segIndex: number) => {
+              const dCode = s.departureAirport || '—';
+              const aCode = s.arrivalAirport || '—';
+              const dCity = s.departureCity || dCode;
+              const aCity = s.arrivalCity || aCode;
+              
+              // Format date properly
+              const segmentDate = s.flightDate ? new Date(s.flightDate).toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+              }) : '';
+              
+              const aOffset = s.arrivalDayOffset && s.arrivalDayOffset > 0 ? ` <span style="color:#0B5FFF;">+${s.arrivalDayOffset}d</span>` : '';
+              const line1 = `<strong>${s.departureTime || '—'} ${dCode}</strong> ——— <strong>${s.arrivalTime || '—'} ${aCode}</strong>${aOffset}`;
+              
+              // Get airline logo for this segment  
+              const airlineCode = s.airlineCode || s.airlineName;
+              const logoUrl = getAirlineLogo(airlineCode, s.icaoCode);
+              const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+              
+              const flightDetails = [
+                s.flightNumber || '',
+                s.airlineName || s.airlineCode || '',
+                s.aircraftType || '',
+                s.cabinClass || '',
+                s.bookingClass ? `RBD ${s.bookingClass}` : ''
+              ].filter(Boolean).join(' • ');
+              
+              const layoverInfo = segIndex < direction.segments.length - 1 && s.layoverTime ? 
+                `<div style="font-size:11px;color:#6B7280;margin-top:4px;font-style:italic;">Connection in ${aCode}: ${Math.floor(s.layoverTime / 60)}h ${s.layoverTime % 60}m</div>` : '';
+              
+              return `
+                <tr>
+                  <td style="padding:8px 0;border-bottom:1px solid #F3F4F6;">
+                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                      <div style="font-size:14px;color:#0B1220;margin-bottom:3px;">${line1}</div>
+                      <div style="font-size:12px;color:#5B6472;">${airlineLogo}${flightDetails}</div>
+                      ${segmentDate ? `<div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${segmentDate}</div>` : ''}
+                      ${layoverInfo}
+                    </div>
+                  </td>
+                </tr>`;
+            }).join('');
+            
+            return `
+              <div style="margin-bottom:16px;">
+                <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">${directionTitle}</div>
+                <table style="width:100%;">${directionSegs}</table>
+              </div>`;
+          }).join('');
+        } else {
+          // Fallback to simple segment display
+          return segs.map((s: any, index: number) => {
+            const dCode = s.departureAirport || '—';
+            const aCode = s.arrivalAirport || '—';
+            const segmentDate = s.flightDate ? new Date(s.flightDate).toLocaleDateString('en-US', { 
+              weekday: 'short', 
+              month: 'short', 
+              day: 'numeric' 
+            }) : '';
+            
+            const aOffset = s.arrivalDayOffset && s.arrivalDayOffset > 0 ? ` <span style="color:#0B5FFF;">+${s.arrivalDayOffset}d</span>` : '';
+            const line1 = `<strong>${s.departureTime || '—'} ${dCode}</strong> ——— <strong>${s.arrivalTime || '—'} ${aCode}</strong>${aOffset}`;
+            
+            const airlineCode = s.airlineCode || s.airlineName;
+            const logoUrl = getAirlineLogo(airlineCode, s.icaoCode);
+            const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+            
+            const flightDetails = [
+              s.flightNumber || '',
+              s.airlineName || s.airlineCode || '',
+              s.aircraftType || '',
+              s.cabinClass || '',
+              s.bookingClass ? `RBD ${s.bookingClass}` : ''
+            ].filter(Boolean).join(' • ');
+            
+            const layoverInfo = index < segs.length - 1 && s.layoverTime ? 
+              `<div style="font-size:11px;color:#6B7280;margin-top:4px;font-style:italic;">Connection in ${aCode}: ${Math.floor(s.layoverTime / 60)}h ${s.layoverTime % 60}m</div>` : '';
+            
+            return `
+              <tr>
+                <td style="padding:8px 0;border-bottom:1px solid #F3F4F6;">
+                  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                    <div style="font-size:14px;color:#0B1220;margin-bottom:3px;">${line1}</div>
+                    <div style="font-size:12px;color:#5B6472;">${airlineLogo}${flightDetails}</div>
+                    ${segmentDate ? `<div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${segmentDate}</div>` : ''}
+                    ${layoverInfo}
+                  </div>
+                </td>
+              </tr>`;
+          }).join('');
+        }
+      };
+
+      const itineraryRows = buildFlightDirections();
+      
+      // Extract summary info from first and last segments for display  
+      const first = segs[0] || {};
+      const last = segs[segs.length - 1] || {};
+      const depCode = originCode;
+      const arrCode = finalCode;
+      const depCity = first.departureCity || depCode;
+      const arrCity = last.arrivalCity || arrCode;
+      const airline = first.airlineName || first.airlineCode || 'Multiple Airlines';
+      const flightNumber = segs.length === 1 ? (first.flightNumber || '') : 'Multiple Flights';
+      const cabin = first.cabin || first.cabinClass || 'Business Class';
+      const aircraft = first.aircraftType || first.aircraft || 'Various Aircraft';
 
       const itineraryHtml = segs && segs.length > 0 ? `
         <tr>
@@ -524,19 +579,19 @@ export default function UnifiedEmailBuilder({
                                        </div>
                                      </div>`;
                                  }).join('');
-                               } else {
-                                 // Fallback to original display
-                                 const airlineCode = first.airlineCode || first.airlineName;
-                                 const logoUrl = getAirlineLogo(airlineCode, first.icaoCode);
-                                 const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">` : '';
-                                 return `
-                                   <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
-                                     ${depTime} ———————————— ${arrTime}
-                                   </div>
-                                   <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
-                                     ${airlineLogo}${airline} ${flightNumber} • ${duration}
-                                     ${stops > 0 ? ` • ${stops} stop${stops > 1 ? 's' : ''}` : ' • Nonstop'}
-                                   </div>`;
+                                } else {
+                                  // Fallback to original display
+                                  const airlineCode = first.airlineCode || first.airlineName;
+                                  const logoUrl = getAirlineLogo(airlineCode, first.icaoCode);
+                                  const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">` : '';
+                                  return `
+                                    <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
+                                      ${depTime} ———————————— ${arrTime}
+                                    </div>
+                                    <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
+                                      ${airlineLogo}${airline} ${flightNumber} • ${duration}
+                                      ${stops > 0 ? ` • ${stops} stop${stops > 1 ? 's' : ''}` : ' • Nonstop'}
+                                    </div>`;
                                }
                              })()}
                           </div>
@@ -555,9 +610,9 @@ export default function UnifiedEmailBuilder({
                             </svg>
                             Connection Details
                           </div>
-                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#1D1D1F;">
-                            ${stops} stop${stops > 1 ? 's' : ''} • ${aircraft} aircraft
-                          </div>
+                           <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#1D1D1F;">
+                             ${stops} stop${stops > 1 ? 's' : ''} • ${aircraft} type aircraft
+                           </div>
                         </td>
                       </tr>
                     </table>

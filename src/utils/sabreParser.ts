@@ -250,14 +250,23 @@ export class SabreParser {
     const directions: FlightDirection[] = [];
     let currentDirection: FlightSegment[] = [];
     
+    // For round-trip detection, check if first departure equals last arrival
+    const isRoundTrip = segments.length > 1 && 
+                       segments[0].departureAirport === segments[segments.length - 1].arrivalAirport;
+    
     for (let i = 0; i < segments.length; i++) {
       currentDirection.push(segments[i]);
       
-      // Check if this is end of direction (layover >= 24h or last segment)
+      // Determine if this segment ends a direction
       const isLastSegment = i === segments.length - 1;
-      const hasLongLayover = segments[i].layoverTime && segments[i].layoverTime >= 1440; // 24 hours in minutes
+      const hasLongLayover = segments[i].layoverTime && segments[i].layoverTime >= 360; // 6 hours instead of 24
       
-      if (isLastSegment || hasLongLayover) {
+      // For round-trip flights, split at the midpoint if no long layover detected
+      const isRoundTripMidpoint = isRoundTrip && 
+                                 i === Math.floor(segments.length / 2) - 1 && 
+                                 segments.length > 2;
+      
+      if (isLastSegment || hasLongLayover || isRoundTripMidpoint) {
         const directionType = this.determineDirectionType(currentDirection, directions.length, segments);
         const connectionCount = Math.max(0, currentDirection.length - 1);
         
@@ -270,6 +279,16 @@ export class SabreParser {
         
         currentDirection = [];
       }
+    }
+    
+    // If no directions were created but we have segments, create a single direction
+    if (directions.length === 0 && segments.length > 0) {
+      directions.push({
+        segments: [...segments],
+        type: 'outbound',
+        connectionCount: Math.max(0, segments.length - 1),
+        totalDuration: this.calculateDirectionDuration(segments)
+      });
     }
     
     return directions;
