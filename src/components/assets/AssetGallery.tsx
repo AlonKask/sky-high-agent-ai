@@ -152,6 +152,15 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const getAssetSourceDisplay = (source: string): string => {
+    const sourceMap: { [key: string]: string } = {
+      'external_cdn': 'CDN',
+      'supabase_storage': 'Storage',
+      'static': 'Static'
+    };
+    return sourceMap[source] || source;
+  };
+
   const isImage = (fileType: string) => fileType.startsWith('image/') || fileType === 'image';
 
   const handleAssetUpdated = (updatedAsset: Asset) => {
@@ -163,7 +172,7 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-3">
@@ -217,23 +226,23 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
                       <FileImage className="h-6 w-6 text-muted-foreground" />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium truncate">{asset.file_name}</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">
-                        {asset.asset_category}
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {asset.asset_source}
-                      </Badge>
-                       <span className="text-sm text-muted-foreground">
-                         {asset.asset_source === 'external_cdn' ? 'External' : formatFileSize(asset.file_size)}
-                       </span>
-                      {asset.is_public && (
-                        <Badge variant="secondary" className="text-xs">Public</Badge>
-                      )}
-                    </div>
-                  </div>
+                   <div className="flex-1 min-w-0">
+                     <h4 className="font-medium truncate">{asset.file_name}</h4>
+                     <div className="flex items-center flex-wrap gap-1 mt-1">
+                       <Badge variant="outline" className="text-xs">
+                         {asset.asset_category}
+                       </Badge>
+                       <Badge variant="secondary" className="text-xs">
+                         {getAssetSourceDisplay(asset.asset_source)}
+                       </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {asset.asset_source === 'external_cdn' ? 'External' : formatFileSize(asset.file_size)}
+                        </span>
+                       {asset.is_public && (
+                         <Badge variant="secondary" className="text-xs">Public</Badge>
+                       )}
+                     </div>
+                   </div>
                   <div className="flex items-center gap-2">
                     <Button 
                       variant="ghost" 
@@ -288,7 +297,7 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
       {assets.map((asset) => (
         <Card key={asset.id} className="group hover:shadow-md transition-shadow">
           <CardContent className="p-3">
@@ -313,54 +322,57 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
                 {asset.file_name}
               </h4>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center flex-wrap gap-1">
                 <Badge variant="outline" className="text-xs">
                   {asset.asset_category}
                 </Badge>
                 <Badge variant="secondary" className="text-xs">
-                  {asset.asset_source}
+                  {getAssetSourceDisplay(asset.asset_source)}
                 </Badge>
                 {asset.is_public && (
                   <Badge variant="secondary" className="text-xs">Public</Badge>
                 )}
               </div>
               
-               <p className="text-xs text-muted-foreground">
+               <p className="text-xs text-muted-foreground truncate">
                  {asset.asset_source === 'external_cdn' ? 'External' : formatFileSize(asset.file_size)}
                </p>
               
-               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+               <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                  <Button 
                    variant="ghost" 
                    size="sm" 
-                   className="h-8 w-8 p-0"
+                   className="h-7 w-7 p-0"
                    onClick={() => window.open(getAssetUrl(asset), '_blank')}
+                   title="View"
                  >
-                   <Eye className="h-4 w-4" />
+                   <Eye className="h-3 w-3" />
                  </Button>
                  <Button 
                    variant="ghost" 
                    size="sm" 
-                   className="h-8 w-8 p-0"
+                   className="h-7 w-7 p-0"
                    onClick={() => setEditingAsset(asset)}
+                   title="Edit"
                  >
-                   <Edit className="h-4 w-4" />
+                   <Edit className="h-3 w-3" />
                  </Button>
                  <Button 
                    variant="ghost" 
                    size="sm" 
-                   className="h-8 w-8 p-0"
+                   className="h-7 w-7 p-0"
                    onClick={() => downloadAsset(asset)}
+                   title="Download"
                  >
-                   <Download className="h-4 w-4" />
+                   <Download className="h-3 w-3" />
                  </Button>
                  <AlertDialog>
                    <AlertDialogTrigger asChild>
-                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                       <Trash2 className="h-4 w-4" />
+                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Delete">
+                       <Trash2 className="h-3 w-3" />
                      </Button>
                    </AlertDialogTrigger>
-                   <AlertDialogContent>
+                   <AlertDialogContent className="z-50">
                      <AlertDialogHeader>
                        <AlertDialogTitle>Delete Asset</AlertDialogTitle>
                        <AlertDialogDescription>

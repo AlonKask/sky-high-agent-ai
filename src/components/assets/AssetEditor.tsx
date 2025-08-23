@@ -156,15 +156,15 @@ export function AssetEditor({ asset, onClose, onAssetUpdated }: AssetEditorProps
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Asset</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Asset Preview */}
-          <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-            <div className="w-16 h-16 rounded-lg overflow-hidden bg-background flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row items-start gap-4 p-4 bg-muted rounded-lg">
+            <div className="w-16 h-16 rounded-lg overflow-hidden bg-background flex items-center justify-center flex-shrink-0">
               {isImage(asset.file_type) ? (
                 <img 
                   src={getAssetUrl(asset)} 
@@ -181,7 +181,7 @@ export function AssetEditor({ asset, onClose, onAssetUpdated }: AssetEditorProps
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{asset.file_name}</p>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center flex-wrap gap-1 mt-1">
                 <Badge variant="outline" className="text-xs">
                   {asset.asset_category}
                 </Badge>
@@ -211,7 +211,7 @@ export function AssetEditor({ asset, onClose, onAssetUpdated }: AssetEditorProps
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="asset_category">Category</Label>
                 <Select 
@@ -221,7 +221,7 @@ export function AssetEditor({ asset, onClose, onAssetUpdated }: AssetEditorProps
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50">
                     {assetCategories.map((cat) => (
                       <SelectItem key={cat.value} value={cat.value}>
                         {cat.label}
@@ -243,7 +243,7 @@ export function AssetEditor({ asset, onClose, onAssetUpdated }: AssetEditorProps
                   <SelectTrigger>
                     <SelectValue placeholder="Select page context" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50">
                     {pageContexts.map((context) => (
                       <SelectItem key={context.value} value={context.value}>
                         {context.label}
@@ -264,6 +264,7 @@ export function AssetEditor({ asset, onClose, onAssetUpdated }: AssetEditorProps
                 {...register('alt_text')}
                 placeholder="Describe the asset for accessibility purposes"
                 rows={2}
+                className="resize-none"
               />
             </div>
 
@@ -282,16 +283,16 @@ export function AssetEditor({ asset, onClose, onAssetUpdated }: AssetEditorProps
                 checked={watchedIsPublic}
                 onCheckedChange={(checked) => setValue('is_public', checked)}
               />
-              <Label htmlFor="is_public">Make asset public (visible to all users)</Label>
+              <Label htmlFor="is_public" className="text-sm">Make asset public (visible to all users)</Label>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" type="button" onClick={onClose}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="outline" type="button" onClick={onClose} className="order-2 sm:order-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={saving} className="gap-2">
+            <Button type="submit" disabled={saving} className="gap-2 order-1 sm:order-2">
               <Save className="h-4 w-4" />
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
