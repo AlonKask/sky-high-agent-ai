@@ -554,45 +554,100 @@ export default function UnifiedEmailBuilder({
                           </div>
                           <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
                              ${(() => {
-                               // Check if we have flight directions for better display
-                               if (quote.parsedItinerary?.flightDirections && quote.parsedItinerary.flightDirections.length > 0) {
-                                 const directions = quote.parsedItinerary.flightDirections;
-                                 return directions.map((direction, dirIndex) => {
-                                   const directionTitle = direction.type === 'outbound' ? 'Outbound Journey' : 
-                                                        direction.type === 'return' ? 'Return Journey' : 'Continuing Journey';
-                                   const connectionText = direction.connectionCount > 0 ? 
-                                     ` with ${direction.connectionCount} connection${direction.connectionCount > 1 ? 's' : ''}` : '';
-                                   
-                                   const firstSeg = direction.segments[0];
-                                   const lastSeg = direction.segments[direction.segments.length - 1];
-                                   
-                                   return `
-                                     <div style="margin-bottom:16px;">
-                                       <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;margin-bottom:8px;">
-                                         ${directionTitle}${connectionText}
-                                       </div>
-                                       <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
-                                         ${firstSeg.departureTime} ———————————— ${lastSeg.arrivalTime}
-                                       </div>
-                                       <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
-                                         ${firstSeg.departureAirport} → ${lastSeg.arrivalAirport} • ${direction.totalDuration || 'Duration TBD'}
-                                       </div>
-                                     </div>`;
-                                 }).join('');
+                                // Display individual flight segments with details
+                                if (quote.parsedItinerary?.flightDirections && quote.parsedItinerary.flightDirections.length > 0) {
+                                  const directions = quote.parsedItinerary.flightDirections;
+                                  return directions.map((direction, dirIndex) => {
+                                    const directionTitle = direction.type === 'outbound' ? 'Outbound Journey' : 
+                                                         direction.type === 'return' ? 'Return Journey' : 'Continuing Journey';
+                                    
+                                    let segmentHtml = `
+                                      <div style="margin-bottom:16px;">
+                                        <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;margin-bottom:8px;">
+                                          ${directionTitle}
+                                        </div>`;
+                                    
+                                    // Display each individual segment
+                                    direction.segments.forEach((segment, segIndex) => {
+                                      const airlineCode = segment.airlineCode || segment.airlineName;
+                                      const logoUrl = getAirlineLogo(airlineCode, segment.icaoCode);
+                                      const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${segment.airlineName}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+                                      
+                                      const flightNum = segment.flightNumber || '';
+                                      const aircraft = segment.aircraftType || segment.equipment || '';
+                                      const bookingClass = segment.bookingClass || segment.rbd || '';
+                                      const cabinClass = segment.cabinClass || '';
+                                      const duration = segment.duration || '';
+                                      const departureDate = segment.departureDate || segment.flightDate || '';
+                                      
+                                      // Format times consistently
+                                      const depTime = segment.departureTime || '';
+                                      const arrTime = segment.arrivalTime || '';
+                                      
+                                      segmentHtml += `
+                                        <div style="margin-bottom:12px;">
+                                          <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:15px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
+                                            ${depTime} ${segment.departureAirport} ——— ${arrTime} ${segment.arrivalAirport}
+                                          </div>
+                                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#6E6E73;">
+                                            ${airlineLogo}${segment.airlineName || ''} ${flightNum}${aircraft ? ` • ${aircraft}` : ''}${bookingClass ? ` • ${bookingClass}` : ''}${cabinClass ? ` (${cabinClass})` : ''}${duration ? ` • ${duration}` : ''}
+                                          </div>
+                                          ${departureDate ? `<div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#86868B;">${departureDate}</div>` : ''}
+                                        </div>`;
+                                      
+                                      // Add layover information between segments
+                                      if (segIndex < direction.segments.length - 1) {
+                                        const nextSegment = direction.segments[segIndex + 1];
+                                        const layoverDuration = segment.layoverDuration || nextSegment.layoverDuration || '';
+                                        const connectionAirport = segment.arrivalAirport;
+                                        
+                                        segmentHtml += `
+                                          <div style="margin:8px 0;padding:6px 12px;background-color:#F5F5F7;border-radius:6px;">
+                                            <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:11px;color:#86868B;text-align:center;">
+                                              Layover in ${connectionAirport}${layoverDuration ? ` • ${layoverDuration}` : ''}
+                                            </div>
+                                          </div>`;
+                                      }
+                                    });
+                                    
+                                    segmentHtml += `</div>`;
+                                    return segmentHtml;
+                                  }).join('');
                                 } else {
-                                  // Fallback to original display
-                                  const airlineCode = first.airlineCode || first.airlineName;
-                                  const logoUrl = getAirlineLogo(airlineCode, first.icaoCode);
-                                  const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">` : '';
-                                  return `
-                                    <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
-                                      ${depTime} ———————————— ${arrTime}
-                                    </div>
-                                    <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
-                                      ${airlineLogo}${airline} ${flightNumber} • ${duration}
-                                      ${stops > 0 ? ` • ${stops} stop${stops > 1 ? 's' : ''}` : ' • Nonstop'}
-                                    </div>`;
-                               }
+                                  // Fallback: try to use raw segments data
+                                  if (quote.segments && Array.isArray(quote.segments)) {
+                                    let segmentHtml = '';
+                                    quote.segments.forEach((segment, index) => {
+                                      const airlineCode = segment.airlineCode || segment.airlineName;
+                                      const logoUrl = getAirlineLogo(airlineCode, segment.icaoCode);
+                                      const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${segment.airlineName}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+                                      
+                                      segmentHtml += `
+                                        <div style="margin-bottom:12px;">
+                                          <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:15px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
+                                            ${segment.departureTime || ''} ${segment.departureAirport || ''} ——— ${segment.arrivalTime || ''} ${segment.arrivalAirport || ''}
+                                          </div>
+                                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#6E6E73;">
+                                            ${airlineLogo}${segment.airlineName || ''} ${segment.flightNumber || ''}${segment.aircraftType ? ` • ${segment.aircraftType}` : ''}${segment.bookingClass ? ` • ${segment.bookingClass}` : ''}
+                                          </div>
+                                        </div>`;
+                                    });
+                                    return segmentHtml;
+                                  } else {
+                                    // Final fallback to original display
+                                    const airlineCode = first.airlineCode || first.airlineName;
+                                    const logoUrl = getAirlineLogo(airlineCode, first.icaoCode);
+                                    const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">` : '';
+                                    return `
+                                      <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
+                                        ${depTime} ——— ${arrTime}
+                                      </div>
+                                      <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
+                                        ${airlineLogo}${airline} ${flightNumber} • ${duration}
+                                        ${stops > 0 ? ` • ${stops} stop${stops > 1 ? 's' : ''}` : ' • Nonstop'}
+                                      </div>`;
+                                  }
+                                }
                              })()}
                           </div>
                         </td>
