@@ -338,9 +338,7 @@ export default function UnifiedEmailBuilder({
       // Calculate total stops
       const stops = Math.max(0, segs.length - 1);
       
-      // Get overall timing - use actual segments instead of fallbacks
-      const depTime = segs[0]?.departureTime || '—';
-      const arrTime = segs[segs.length - 1]?.arrivalTime || '—';
+      // Overall timing removed - individual segments handle display
       const duration = quote.parsedItinerary?.totalDuration || '—';
       
       // Pricing info
@@ -549,9 +547,6 @@ export default function UnifiedEmailBuilder({
                           </svg>
                         </td>
                         <td style="vertical-align:middle;padding-left:16px;">
-                          <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
-                            ${depTime} ———————————— ${arrTime}
-                          </div>
                           <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
                              ${(() => {
                                 // Display individual flight segments with details
@@ -639,9 +634,9 @@ export default function UnifiedEmailBuilder({
                                     const logoUrl = getAirlineLogo(airlineCode, first.icaoCode);
                                     const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">` : '';
                                     return `
-                                      <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
-                                        ${depTime} ——— ${arrTime}
-                                      </div>
+                                       <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
+                                         ${first.departureTime || '—'} ——— ${last.arrivalTime || '—'}
+                                       </div>
                                       <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;">
                                         ${airlineLogo}${airline} ${flightNumber} • ${duration}
                                         ${stops > 0 ? ` • ${stops} stop${stops > 1 ? 's' : ''}` : ' • Nonstop'}
