@@ -3264,6 +3264,7 @@ export type Database = {
       user_preferences: {
         Row: {
           commission_rate: number | null
+          company_logo_asset_id: string | null
           created_at: string | null
           currency: string | null
           date_format: string | null
@@ -3280,6 +3281,7 @@ export type Database = {
         }
         Insert: {
           commission_rate?: number | null
+          company_logo_asset_id?: string | null
           created_at?: string | null
           currency?: string | null
           date_format?: string | null
@@ -3296,6 +3298,7 @@ export type Database = {
         }
         Update: {
           commission_rate?: number | null
+          company_logo_asset_id?: string | null
           created_at?: string | null
           currency?: string | null
           date_format?: string | null
@@ -3310,7 +3313,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_company_logo_asset_id_fkey"
+            columns: ["company_logo_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

@@ -14,6 +14,7 @@ import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { SabreParser } from '@/utils/sabreParser';
 import { DatabaseUtils } from '@/utils/databaseUtils';
 import { EmailTemplateGenerator, SabreOption } from '@/utils/emailTemplateGenerator';
+import { LogoSelector } from '@/components/LogoSelector';
 
 interface Quote {
   id: string;
@@ -77,9 +78,10 @@ export default function UnifiedEmailBuilder({
   const [previewContent, setPreviewContent] = useState('');
 
   const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string } | null>(null);
-  const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string } | null>(null);
+  const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string; company_logo_asset_id?: string } | null>(null);
   const [requestInfo, setRequestInfo] = useState<{ departure_date?: string; return_date?: string; adults_count?: number; children_count?: number; infants_count?: number; origin?: string; destination?: string } | null>(null);
   const [airlineLogos, setAirlineLogos] = useState<Record<string, string>>({});
+  const [selectedLogoAsset, setSelectedLogoAsset] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -88,7 +90,7 @@ export default function UnifiedEmailBuilder({
       try {
         const [profileRes, prefsRes, reqRes] = await Promise.all([
           userId ? supabase.from('profiles').select('first_name,last_name,email,phone,company').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
-          userId ? supabase.from('user_preferences').select('currency,timezone,date_format').eq('user_id', userId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
+          userId ? supabase.from('user_preferences').select('currency,timezone,date_format,company_logo_asset_id').eq('user_id', userId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
           requestId ? supabase.from('requests').select('departure_date,return_date,adults_count,children_count,infants_count,origin,destination').eq('id', requestId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
         ]);
         if (!profileRes.error) setAgentProfile(profileRes.data as any);
