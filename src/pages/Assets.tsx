@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { AssetGallery } from '@/components/assets/AssetGallery';
 import { AssetUploader } from '@/components/assets/AssetUploader';
 import { AssetStats } from '@/components/assets/AssetStats';
-import { AssetMigrationTool } from '@/components/assets/AssetMigrationTool';
+
 import { usePermissions } from '@/hooks/usePermissions';
 
 export default function Assets() {
@@ -52,8 +52,6 @@ export default function Assets() {
         )}
       </div>
 
-      {/* Migration Tool */}
-      <AssetMigrationTool />
 
       {/* Stats */}
       <AssetStats />
