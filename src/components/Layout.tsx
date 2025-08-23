@@ -16,7 +16,9 @@ export const Layout = ({ children }: LayoutProps) => {
           <main className="flex-1 overflow-hidden">
             <div className="h-full overflow-auto relative">
               <NotificationCenter />
-              {children}
+              <div className="p-6">
+                {children}
+              </div>
             </div>
           </main>
         </div>

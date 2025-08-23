@@ -5,14 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { UserRole } from "@/hooks/useUserRole";
 import { toastHelpers, supabaseErrorToast } from "@/utils/toastHelpers";
 import { PerformanceMonitor } from "@/utils/performanceMonitor";
 import { 
-  Users, Plane, Calendar, TrendingUp, Clock, MapPin, Search, Plus, 
+  Users, Plane, Calendar, TrendingUp, Clock, MapPin, Search,
   ExternalLink, ArrowRight, Filter, Globe, Star, Award, Zap,
   Shield, BarChart3, AlertCircle, CheckCircle2, Timer, DollarSign,
   Mail, Phone, FileText, Briefcase, Code, Database, Bug, Settings
@@ -346,7 +346,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8">
+      <div className="mb-8">
         <div>
           <h1 className="text-4xl font-bold text-gradient">Business Travel Hub</h1>
           <p className="text-muted-foreground mt-2">
@@ -355,41 +355,6 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
              'Manage premium travel experiences and client relationships'}
           </p>
         </div>
-        {showRoleSpecificActions && (
-          <div className="flex gap-3">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-primary to-accent hover:shadow-large transition-all duration-200">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Quick Action
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Quick Actions</DialogTitle>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-4 py-4">
-                  <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/bookings")}>
-                    <Plane className="h-6 w-6 mb-2" />
-                    New Booking
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/clients")}>
-                    <Users className="h-6 w-6 mb-2" />
-                    Add Client
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/requests")}>
-                    <Calendar className="h-6 w-6 mb-2" />
-                    New Request
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col" onClick={() => navigate("/analytics")}>
-                    <TrendingUp className="h-6 w-6 mb-2" />
-                    Analytics
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        )}
       </div>
 
       {renderStatsCards()}
@@ -417,15 +382,15 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
       </div>
 
       {/* Recent Activity Tabs */}
-      <Tabs defaultValue="bookings" className="space-y-6">
+      <Tabs defaultValue="requests" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3">
-          <TabsTrigger value="bookings" className="flex items-center gap-2">
-            <Plane className="h-4 w-4" />
-            Recent Bookings
-          </TabsTrigger>
           <TabsTrigger value="requests" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Active Requests
+          </TabsTrigger>
+          <TabsTrigger value="bookings" className="flex items-center gap-2">
+            <Plane className="h-4 w-4" />
+            Recent Bookings
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
