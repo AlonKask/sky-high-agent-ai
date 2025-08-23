@@ -7,9 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Upload, X, FileImage } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useSimpleAuth } from '@/hooks/useSimpleAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useAssetUpload } from '@/hooks/useAssetUpload';
 
 interface AssetUploaderProps {
   onClose: () => void;
@@ -46,9 +44,7 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
   const [altText, setAltText] = useState('');
   const [tags, setTags] = useState('');
   const [isPublic, setIsPublic] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const { toast } = useToast();
-  const { user } = useSimpleAuth();
+  const { uploading, uploadAssets, formatFileSize } = useAssetUpload();
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -69,57 +65,18 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
     setFiles(files.filter((_, i) => i !== index));
   };
 
-  const uploadAssets = async () => {
-    if (!user || files.length === 0) return;
+  const handleUpload = async () => {
+    if (files.length === 0) return;
 
-    setUploading(true);
-    
-    try {
-      for (const file of files) {
-        // Upload to Supabase Storage
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('assets')
-          .upload(fileName, file);
+    const success = await uploadAssets(files, {
+      category,
+      pageContext,
+      altText,
+      tags,
+      isPublic
+    });
 
-        if (uploadError) throw uploadError;
-
-        // Create asset record
-        const assetData = {
-          user_id: user.id,
-          file_name: file.name,
-          original_filename: file.name,
-          file_path: fileName,
-          file_type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document',
-          file_size: file.size,
-          asset_category: category,
-          page_context: pageContext,
-          asset_source: 'upload',
-          mime_type: file.type,
-          alt_text: altText,
-          tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-          is_public: isPublic,
-          metadata: {
-            uploaded_at: new Date().toISOString(),
-            original_name: file.name,
-            size_formatted: formatFileSize(file.size)
-          }
-        };
-
-        const { error } = await supabase
-          .from('assets')
-          .insert([assetData]);
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: "Success",
-        description: `${files.length} asset(s) uploaded successfully`
-      });
-
+    if (success) {
       onUploadComplete();
       
       // Reset form
@@ -129,25 +86,7 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
       setAltText('');
       setTags('');
       setIsPublic(false);
-      
-    } catch (error) {
-      console.error('Error uploading assets:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload assets. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setUploading(false);
     }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
@@ -283,7 +222,7 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
               Cancel
             </Button>
             <Button 
-              onClick={uploadAssets} 
+              onClick={handleUpload} 
               disabled={files.length === 0 || uploading}
             >
               {uploading ? 'Uploading...' : `Upload ${files.length} Asset(s)`}

@@ -34,9 +34,10 @@ interface AssetGalleryProps {
   pageContext: string;
   viewMode: 'grid' | 'list';
   onAssetUpdated?: () => void;
+  refreshTrigger?: number;
 }
 
-export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAssetUpdated }: AssetGalleryProps) {
+export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAssetUpdated, refreshTrigger }: AssetGalleryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
@@ -45,7 +46,7 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
 
   useEffect(() => {
     fetchAssets();
-  }, [searchTerm, category, pageContext]);
+  }, [searchTerm, category, pageContext, refreshTrigger]);
 
   const fetchAssets = async () => {
     if (!user) return;
@@ -94,7 +95,7 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
       // Delete from storage if it's an uploaded asset
       if (asset && asset.asset_source === 'supabase_storage') {
         await supabase.storage
-          .from('CRM Assets')
+          .from('assets')
           .remove([asset.file_path]);
       }
 
@@ -129,7 +130,7 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
       return asset.file_path;
     }
     if (asset.asset_source === 'supabase_storage') {
-      return `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/CRM Assets/${asset.file_path}`;
+      return `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/assets/${asset.file_path}`;
     }
     return asset.file_path || '/placeholder.svg';
   };

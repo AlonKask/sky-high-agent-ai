@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { FileImage, Upload, Search, Filter, Grid, List } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { AssetGallery } from '@/components/assets/AssetGallery';
 import { AssetUploader } from '@/components/assets/AssetUploader';
 import { AssetStats } from '@/components/assets/AssetStats';
-
+import { useAssetUpload } from '@/hooks/useAssetUpload';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export default function Assets() {
@@ -18,7 +18,11 @@ export default function Assets() {
   const [selectedPageContext, setSelectedPageContext] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showUploader, setShowUploader] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const dragCounterRef = useRef(0);
   const { canAccess } = usePermissions();
+  const { uploading, uploadAssets } = useAssetUpload();
 
   const categories = [
     { value: 'all', label: 'All Categories' },
@@ -44,8 +48,95 @@ export default function Assets() {
 
   const canManageAssets = canAccess('assets', 'create');
 
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    dragCounterRef.current = 0;
+
+    if (!canManageAssets) return;
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    // Filter valid files (images, documents, etc.)
+    const validFiles = files.filter(file => {
+      const validTypes = [
+        'image/',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain'
+      ];
+      return validTypes.some(type => file.type.startsWith(type));
+    });
+
+    if (validFiles.length === 0) {
+      return;
+    }
+
+    const success = await uploadAssets(validFiles, {
+      category: 'general',
+      pageContext: 'general',
+      isPublic: false
+    });
+
+    if (success) {
+      setRefreshTrigger(prev => prev + 1);
+    }
+  }, [canManageAssets, uploadAssets]);
+
+  const handleUploadComplete = () => {
+    setShowUploader(false);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div 
+      className="container mx-auto p-6 space-y-6 relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag and Drop Overlay */}
+      {isDragOver && canManageAssets && (
+        <div className="fixed inset-0 z-50 bg-primary/5 backdrop-blur-sm border-2 border-dashed border-primary/50 flex items-center justify-center">
+          <div className="bg-background/90 backdrop-blur-sm rounded-lg p-8 border border-border shadow-lg text-center">
+            <Upload className="h-16 w-16 mx-auto mb-4 text-primary" />
+            <h3 className="text-2xl font-semibold mb-2">Drop Assets Here</h3>
+            <p className="text-muted-foreground">
+              {uploading ? 'Uploading files...' : 'Release to upload your files'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
@@ -147,6 +238,7 @@ export default function Assets() {
             category={selectedCategory}
             pageContext={selectedPageContext}
             viewMode={viewMode}
+            refreshTrigger={refreshTrigger}
           />
         </TabsContent>
 
@@ -169,12 +261,10 @@ export default function Assets() {
       {showUploader && (
         <AssetUploader 
           onClose={() => setShowUploader(false)}
-          onUploadComplete={() => {
-            setShowUploader(false);
-            // Trigger refresh of gallery
-          }}
+          onUploadComplete={handleUploadComplete}
         />
       )}
+      </div>
     </div>
   );
 }
