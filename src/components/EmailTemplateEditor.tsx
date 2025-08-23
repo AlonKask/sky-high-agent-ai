@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmailVariableParser, EmailVariables } from '@/utils/emailVariableParser';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Mail, 
   Send, 
@@ -707,6 +708,41 @@ export function EmailTemplateEditor({
     `).join('');
   };
 
+  // Company logo state
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+
+  // Fetch company logo from assets
+  useEffect(() => {
+    const fetchCompanyLogo = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('asset_category', 'company_logo')
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          const logoAsset = data[0];
+          let logoUrl = '';
+          if (logoAsset.asset_source === 'supabase_storage') {
+            logoUrl = `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/CRM Assets/${logoAsset.file_path}`;
+          } else if (logoAsset.asset_source === 'upload') {
+            logoUrl = `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/assets/${logoAsset.file_path}`;
+          } else {
+            logoUrl = logoAsset.file_path || logoAsset.external_url;
+          }
+          setCompanyLogoUrl(logoUrl);
+        }
+      } catch (error) {
+        console.error('Error fetching company logo:', error);
+      }
+    };
+
+    fetchCompanyLogo();
+  }, []);
+
   // Legacy variables for backward compatibility with existing templates
   const [variables, setVariables] = useState(() => {
     const vars = emailVariables;
@@ -759,6 +795,12 @@ export function EmailTemplateEditor({
     setSelectedTemplate(template);
     let processedContent = template.content;
     let processedSubject = template.subject;
+
+    // Replace logo placeholders with actual logo or fallback text
+    if (companyLogoUrl) {
+      const logoImageTag = `<img src="${companyLogoUrl}" alt="Select Business Class" style="height: 40px; max-width: 200px; object-fit: contain;" />`;
+      processedContent = processedContent.replace(/SELECT BUSINESS CLASS/g, logoImageTag);
+    }
 
     // Replace variables in template - first try new EmailVariableParser variables, then legacy
     processedContent = EmailVariableParser.replaceVariablesInContent(processedContent, emailVariables);
