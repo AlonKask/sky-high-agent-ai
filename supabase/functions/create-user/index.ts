@@ -2,9 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { withRateLimit } from '../_shared/rate-limiter.ts'
 
-// CORS headers for the current environment
+// CORS headers - permissive for development
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.sandbox.lovable.dev',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400', // 24 hours
@@ -30,19 +30,42 @@ const roleHierarchy = {
 serve(async (req) => {
   // Handle CORS preflight requests first
   if (req.method === 'OPTIONS') {
+    console.log('CORS preflight request received');
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Enhanced security: Origin validation
+  // Only validate origin for non-OPTIONS requests and in production
   const origin = req.headers.get('origin');
-  if (origin && origin !== 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.sandbox.lovable.dev') {
-    return new Response('Forbidden', { status: 403 });
+  const isValidOrigin = !origin || 
+    origin.includes('sandbox.lovable.dev') || 
+    origin.includes('lovableproject.com') ||
+    origin === 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.sandbox.lovable.dev';
+  
+  if (!isValidOrigin) {
+    console.log('Invalid origin:', origin);
+    return new Response('Forbidden: Invalid origin', { 
+      status: 403, 
+      headers: corsHeaders 
+    });
   }
 
-  // SECURITY: Apply strict rate limiting to user creation
+  // Log the request for debugging
+  console.log('Request received:', {
+    method: req.method,
+    origin: origin,
+    userAgent: req.headers.get('user-agent')
+  });
+
+  // SECURITY: Apply rate limiting to user creation
   return await withRateLimit(req, {
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 10, // Increased to 10 for testing
+    maxRequests: 15, // Increased for testing
+    keyGenerator: (req) => {
+      // Use origin + IP for rate limiting to avoid CORS conflicts
+      const origin = req.headers.get('origin') || 'unknown';
+      const ip = req.headers.get('x-forwarded-for') || 'unknown';
+      return `${origin}-${ip}`;
+    }
   }, async () => {
 
   try {

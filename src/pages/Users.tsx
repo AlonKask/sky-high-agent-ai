@@ -213,6 +213,13 @@ const Users = () => {
         return;
       }
 
+      console.log('Creating user with data:', {
+        email: newUserData.email,
+        firstName: newUserData.firstName,
+        lastName: newUserData.lastName,
+        role: newUserData.role
+      });
+
       const { data, error } = await supabase.functions.invoke('create-user', {
         body: {
           email: newUserData.email,
@@ -225,14 +232,34 @@ const Users = () => {
         }
       });
 
+      console.log('Function response:', { data, error });
+
       if (error) {
+        console.error('Function error details:', error);
+        
+        // Handle specific error types
+        if (error.message?.includes('fetch')) {
+          throw new Error('Network connection failed. Please check your internet connection and try again.');
+        }
+        
+        if (error.message?.includes('CORS')) {
+          throw new Error('Security configuration error. Please try refreshing the page.');
+        }
+        
+        if (error.message?.includes('rate limit')) {
+          throw new Error('Too many requests. Please wait a moment and try again.');
+        }
+        
         throw error;
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create user');
+      if (!data?.success) {
+        const errorMsg = data?.error || 'Failed to create user - unknown error';
+        console.error('User creation failed:', errorMsg);
+        throw new Error(errorMsg);
       }
 
+      console.log('User created successfully:', data);
       toastHelpers.success(`Successfully created user ${newUserData.firstName} ${newUserData.lastName}`);
       
       // Reset form
@@ -252,7 +279,19 @@ const Users = () => {
       fetchUsers();
     } catch (error: any) {
       console.error('Error creating user:', error);
-      toastHelpers.error('Failed to create user', error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to create user';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error.details) {
+        errorMessage = error.details;
+      }
+      
+      toastHelpers.error(errorMessage);
     }
   };
 
