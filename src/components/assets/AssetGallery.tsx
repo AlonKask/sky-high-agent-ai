@@ -83,9 +83,9 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
       const asset = assets.find(a => a.id === assetId);
       
       // Delete from storage if it's an uploaded asset
-      if (asset && asset.asset_source === 'upload') {
+      if (asset && asset.asset_source === 'supabase_storage') {
         await supabase.storage
-          .from('assets')
+          .from('CRM Assets')
           .remove([asset.file_path]);
       }
 
@@ -119,8 +119,8 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
     if (asset.asset_source === 'static') {
       return asset.file_path;
     }
-    if (asset.asset_source === 'upload') {
-      return `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/assets/${asset.file_path}`;
+    if (asset.asset_source === 'supabase_storage') {
+      return `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/CRM Assets/${asset.file_path}`;
     }
     return asset.file_path || '/placeholder.svg';
   };
@@ -143,7 +143,7 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const isImage = (fileType: string) => fileType.startsWith('image/');
+  const isImage = (fileType: string) => fileType.startsWith('image/') || fileType === 'image';
 
   if (loading) {
     return (
@@ -210,9 +210,9 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                       <Badge variant="secondary" className="text-xs">
                         {asset.asset_source}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {formatFileSize(asset.file_size)}
-                      </span>
+                       <span className="text-sm text-muted-foreground">
+                         {asset.asset_source === 'external_cdn' ? 'External' : formatFileSize(asset.file_size)}
+                       </span>
                       {asset.is_public && (
                         <Badge variant="secondary" className="text-xs">Public</Badge>
                       )}
@@ -302,9 +302,9 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                 )}
               </div>
               
-              <p className="text-xs text-muted-foreground">
-                {formatFileSize(asset.file_size)}
-              </p>
+               <p className="text-xs text-muted-foreground">
+                 {asset.asset_source === 'external_cdn' ? 'External' : formatFileSize(asset.file_size)}
+               </p>
               
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button 

@@ -23,11 +23,8 @@ export default function Assets() {
     { value: 'all', label: 'All Assets' },
     { value: 'airline_logo', label: 'Airline Logos' },
     { value: 'aircraft_icon', label: 'Aircraft Icons' },
-    { value: 'logo', label: 'Logos' },
-    { value: 'icon', label: 'Icons' },
-    { value: 'avatar', label: 'Avatars' },
+    { value: 'external_cdn', label: 'External CDN' },
     { value: 'static_file', label: 'Static Files' },
-    { value: 'attachment', label: 'Attachments' },
     { value: 'general', label: 'General' }
   ];
 
