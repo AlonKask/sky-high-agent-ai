@@ -22,7 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeText, sanitizeEmailContent } from '@/utils/sanitization';
 import { SafeHtmlRenderer } from './SafeHtmlRenderer';
-import { clearLogoCache, getCompanyLogoUrl } from '@/utils/logoService';
+import { getCompanyLogoUrl } from '@/utils/logoService';
 
 interface Quote {
   id: string;
@@ -67,17 +67,14 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     setSelectedQuotes(new Set(visibleQuotes.map(q => q.id)));
     setEmailSubject(`Flight Options for ${client.first_name} ${client.last_name}`);
     
-    // Load company logo with better error handling
+    // Load company logo
     setLogoLoading(true);
-    // Clear cache to ensure fresh logo data
-    clearLogoCache();
     getCompanyLogoUrl()
       .then((url) => {
-        console.log('✅ Logo URL loaded for email:', url);
-        setCompanyLogoUrl(url || ''); // Ensure we set empty string if null
+        setCompanyLogoUrl(url);
       })
       .catch((error) => {
-        console.error('❌ Failed to load logo:', error);
+        console.error('Failed to load logo:', error);
         setCompanyLogoUrl(''); // Fallback to empty string
       })
       .finally(() => {
