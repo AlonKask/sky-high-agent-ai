@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,16 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { supabase } from "@/integrations/supabase/client";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { UserRole } from "@/hooks/useUserRole";
-import { toastHelpers, supabaseErrorToast } from "@/utils/toastHelpers";
-import { PerformanceMonitor } from "@/utils/performanceMonitor";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import { 
   Users, Plane, Calendar, TrendingUp, Clock, MapPin, Search,
   ExternalLink, ArrowRight, Filter, Globe, Star, Award, Zap,
   Shield, BarChart3, AlertCircle, CheckCircle2, Timer, DollarSign,
-  Mail, Phone, FileText, Briefcase, Code, Database, Bug, Settings
+  Mail, Phone, FileText, Briefcase, Code, Database, Bug, Settings,
+  Activity, Server, WifiOff, Loader2
 } from "lucide-react";
 
 interface DashboardCoreProps {
@@ -23,17 +22,6 @@ interface DashboardCoreProps {
   selectedViewRole: UserRole;
   teamData?: any;
   showRoleSpecificActions?: boolean;
-}
-
-interface DashboardStats {
-  totalClients: number;
-  activeRequests: number;
-  thisMonthBookings: number;
-  revenue: number;
-  followUpsToday: number;
-  upcomingTrips: number;
-  conversionRate: number;
-  averageTicketPrice: number;
 }
 
 export const DashboardCore: React.FC<DashboardCoreProps> = ({ 
@@ -45,106 +33,39 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
   const navigate = useNavigate();
   const { user } = useSimpleAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalClients: 0,
-    activeRequests: 0,
-    thisMonthBookings: 0,
-    revenue: 0,
-    followUpsToday: 0,
-    upcomingTrips: 0,
-    conversionRate: 0,
-    averageTicketPrice: 0
-  });
-  const [recentBookings, setRecentBookings] = useState<any[]>([]);
-  const [activeRequests, setActiveRequests] = useState<any[]>([]);
+  
+  // Use the new dashboard data hook
+  const { stats, systemHealth, recentBookings, activeRequests, loading, error, refresh } = useDashboardData(
+    user?.id, 
+    userRole, 
+    selectedViewRole
+  );
 
-  useEffect(() => {
-    if (user) {
-      PerformanceMonitor.measureAsync('dashboard-data-fetch', () => fetchDashboardData());
+  // Helper functions
+  const getHealthStatusIcon = (status: string) => {
+    switch (status) {
+      case 'healthy': return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case 'warning': return <AlertCircle className="h-4 w-4 text-yellow-600" />;
+      case 'critical': return <WifiOff className="h-4 w-4 text-red-600" />;
+      default: return <Activity className="h-4 w-4 text-gray-600" />;
     }
-  }, [user, selectedViewRole, teamData]);
+  };
 
-  const fetchDashboardData = async () => {
-    if (!user) return;
+  const getHealthStatusText = (status: string) => {
+    switch (status) {
+      case 'healthy': return { text: 'Optimal', color: 'text-green-600' };
+      case 'warning': return { text: 'Warning', color: 'text-yellow-600' };
+      case 'critical': return { text: 'Critical', color: 'text-red-600' };
+      default: return { text: 'Unknown', color: 'text-gray-600' };
+    }
+  };
 
-    try {
-      setLoading(true);
-
-      // Use team data for managers/supervisors if available
-      if (['manager', 'supervisor', 'admin'].includes(selectedViewRole) && teamData) {
-        setStats({
-          totalClients: teamData.totalClients,
-          activeRequests: teamData.activeRequests,
-          thisMonthBookings: teamData.totalBookings,
-          revenue: teamData.totalRevenue,
-          followUpsToday: 0,
-          upcomingTrips: 0,
-          conversionRate: teamData.conversionRate,
-          averageTicketPrice: teamData.avgTicketPrice
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Build queries based on user role
-      let clientsQuery = supabase.from('clients').select('id', { count: 'exact' });
-      let requestsQuery = supabase.from('requests').select('*').in('status', ['pending', 'researching', 'quote_sent']);
-      let bookingsQuery = supabase.from('bookings').select(`
-        *,
-        clients!inner(first_name, last_name, email)
-      `).order('created_at', { ascending: false }).limit(10);
-
-      // Apply user filtering for regular users
-      if (selectedViewRole === 'user') {
-        clientsQuery = clientsQuery.eq('user_id', user.id);
-        requestsQuery = requestsQuery.eq('user_id', user.id);
-        bookingsQuery = bookingsQuery.eq('user_id', user.id);
-      }
-
-      const [clientsResult, requestsResult, bookingsResult] = await Promise.all([
-        clientsQuery,
-        requestsQuery,
-        bookingsQuery
-      ]);
-
-      // Calculate stats
-      const totalClients = clientsResult.count || 0;
-      const activeRequestsCount = requestsResult.data?.length || 0;
-      const bookings = bookingsResult.data || [];
-      
-      const thisMonth = new Date();
-      thisMonth.setDate(1);
-      const thisMonthBookings = bookings.filter(booking => 
-        new Date(booking.created_at) >= thisMonth
-      );
-      
-      const totalRevenue = thisMonthBookings.reduce((sum, booking) => 
-        sum + (Number(booking.total_price) || 0), 0
-      );
-      
-      const avgTicketPrice = thisMonthBookings.length > 0 
-        ? totalRevenue / thisMonthBookings.length 
-        : 0;
-
-      setStats({
-        totalClients,
-        activeRequests: activeRequestsCount,
-        thisMonthBookings: thisMonthBookings.length,
-        revenue: totalRevenue,
-        followUpsToday: 0,
-        upcomingTrips: bookings.filter(b => new Date(b.departure_date) > new Date()).length,
-        conversionRate: 0,
-        averageTicketPrice: avgTicketPrice
-      });
-
-      setRecentBookings(bookings.slice(0, 4));
-      setActiveRequests(requestsResult.data || []);
-
-    } catch (error) {
-      supabaseErrorToast('fetch dashboard data', error);
-    } finally {
-      setLoading(false);
+  const getDatabaseStatusText = (status: string) => {
+    switch (status) {
+      case 'healthy': return { text: 'Active', color: 'text-green-600' };
+      case 'warning': return { text: 'Slow', color: 'text-yellow-600' };
+      case 'critical': return { text: 'Error', color: 'text-red-600' };
+      default: return { text: 'Unknown', color: 'text-gray-600' };
     }
   };
 
@@ -164,11 +85,35 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="minimal-card animate-pulse">
-              <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
-              <div className="h-8 bg-muted rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-muted rounded w-1/3"></div>
+              <div className="flex items-center justify-center h-20">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
             </div>
           ))}
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="col-span-full border-red-200 bg-red-50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Data Loading Error</span>
+              </div>
+              <p className="text-sm text-red-600 mt-2">{error}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={refresh}
+                className="mt-3"
+              >
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       );
     }
@@ -181,11 +126,29 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
                   onClick={() => navigate('/analytics')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">System Health</CardTitle>
-                <Code className="h-4 w-4 text-purple-600" />
+                <div className="flex items-center gap-2">
+                  {systemHealth ? getHealthStatusIcon(systemHealth.overall_status) : <Code className="h-4 w-4 text-purple-600" />}
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-purple-600">Optimal</div>
-                <p className="text-xs text-muted-foreground">All services running</p>
+                {systemHealth ? (
+                  <>
+                    <div className={`text-3xl font-bold ${getHealthStatusText(systemHealth.overall_status).color}`}>
+                      {getHealthStatusText(systemHealth.overall_status).text}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {systemHealth.issues?.length > 0 
+                        ? `${systemHealth.issues.length} issues detected`
+                        : 'All services running'
+                      }
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold text-purple-600">Loading...</div>
+                    <p className="text-xs text-muted-foreground">Checking systems</p>
+                  </>
+                )}
               </CardContent>
             </Card>
             
@@ -193,11 +156,29 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
                   onClick={() => navigate('/analytics')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Database Status</CardTitle>
-                <Database className="h-4 w-4 text-cyan-600" />
+                <div className="flex items-center gap-2">
+                  {systemHealth?.database ? getHealthStatusIcon(systemHealth.database.status) : <Database className="h-4 w-4 text-cyan-600" />}
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-cyan-600">Active</div>
-                <p className="text-xs text-muted-foreground">All tables accessible</p>
+                {systemHealth?.database ? (
+                  <>
+                    <div className={`text-3xl font-bold ${getDatabaseStatusText(systemHealth.database.status).color}`}>
+                      {getDatabaseStatusText(systemHealth.database.status).text}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {systemHealth.database.response_time_ms > 0 
+                        ? `${Math.round(systemHealth.database.response_time_ms)}ms response`
+                        : 'All tables accessible'
+                      }
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold text-cyan-600">Active</div>
+                    <p className="text-xs text-muted-foreground">All tables accessible</p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -209,7 +190,9 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-blue-600">{stats.totalClients}</div>
-                <p className="text-xs text-muted-foreground">Active clients</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.dataScope === 'system_wide' ? 'System-wide' : 'Active clients'}
+                </p>
               </CardContent>
             </Card>
 
@@ -221,7 +204,9 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-orange-600">{stats.activeRequests}</div>
-                <p className="text-xs text-muted-foreground">Pending requests</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.dataScope === 'system_wide' ? 'System-wide' : 'Pending requests'}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -237,7 +222,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
                 <DollarSign className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-primary">${stats.revenue.toLocaleString()}</div>
+                <div className="text-3xl font-bold text-primary">${stats.monthlyRevenue.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
@@ -320,7 +305,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
                 <TrendingUp className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600">${(stats.revenue/1000).toFixed(0)}K</div>
+                <div className="text-3xl font-bold text-green-600">${(stats.monthlyRevenue/1000).toFixed(0)}K</div>
                 <p className="text-xs text-muted-foreground">{stats.thisMonthBookings} bookings this month</p>
               </CardContent>
             </Card>

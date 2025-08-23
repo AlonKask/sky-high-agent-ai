@@ -3853,6 +3853,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_dashboard_stats: {
+        Args: {
+          p_role?: Database["public"]["Enums"]["app_role"]
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       get_encryption_status: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -3965,6 +3972,10 @@ export type Database = {
         Returns: Json
       }
       get_security_status: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_system_health_status: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
