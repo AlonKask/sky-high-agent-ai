@@ -26,6 +26,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NavLink, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useRoleView } from "@/contexts/RoleViewContext";
+import { usePermissions } from "@/hooks/usePermissions";
 
 import {
   Sidebar,
@@ -105,6 +106,7 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const { role } = useUserRole();
   const { selectedViewRole } = useRoleView();
+  const { canAccess } = usePermissions();
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -199,7 +201,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Management Tools for Supervisors, Managers, and Developers */}
+        {/* Management Tools for Supervisors, Managers, and Admins */}
         {(selectedViewRole === 'supervisor' || selectedViewRole === 'manager' || selectedViewRole === 'admin') && (
           <SidebarGroup>
             <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
@@ -241,23 +243,25 @@ export function AppSidebar() {
                      </NavLink>
                    </SidebarMenuButton>
                  </SidebarMenuItem>
-                 <SidebarMenuItem>
-                   <SidebarMenuButton asChild>
-                      <NavLink 
-                        to="/assets" 
-                        className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/assets")}`}
-                        title={isCollapsed ? "Assets" : ""}
-                      >
-                        <FileImage className="h-5 w-5" />
-                       {!isCollapsed && (
-                         <div className="flex flex-col">
-                           <span>Assets</span>
-                           <span className="text-xs text-muted-foreground">File management</span>
-                         </div>
-                       )}
-                     </NavLink>
-                   </SidebarMenuButton>
-                 </SidebarMenuItem>
+                  {canAccess('assets', 'view') && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild>
+                         <NavLink 
+                           to="/assets" 
+                           className={`flex items-center justify-center w-full rounded-xl py-3 transition-all duration-200 ${getNavCls("/assets")}`}
+                           title={isCollapsed ? "Assets" : ""}
+                         >
+                           <FileImage className="h-5 w-5" />
+                          {!isCollapsed && (
+                            <div className="flex flex-col">
+                              <span>Assets</span>
+                              <span className="text-xs text-muted-foreground">File management</span>
+                            </div>
+                          )}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                  {(selectedViewRole === 'admin' || selectedViewRole === 'manager') && (
                    <SidebarMenuItem>
                      <SidebarMenuButton asChild>

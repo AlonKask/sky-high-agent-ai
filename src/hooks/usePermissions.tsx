@@ -19,6 +19,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     teams: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     reports: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     iata_management: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    assets: { canView: true, canCreate: true, canEdit: true, canDelete: true },
   },
   manager: {
     clients: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -31,6 +32,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     teams: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     reports: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     iata_management: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    assets: { canView: true, canCreate: true, canEdit: true, canDelete: true },
   },
   supervisor: {
     clients: { canView: true, canCreate: true, canEdit: true, canDelete: false },
@@ -43,6 +45,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     teams: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     reports: { canView: true, canCreate: true, canEdit: false, canDelete: false },
     iata_management: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    assets: { canView: false, canCreate: false, canEdit: false, canDelete: false },
   },
   gds_expert: {
     clients: { canView: true, canCreate: true, canEdit: true, canDelete: false },
@@ -55,6 +58,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     teams: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     reports: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     iata_management: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    assets: { canView: false, canCreate: false, canEdit: false, canDelete: false },
   },
   agent: {
     clients: { canView: true, canCreate: true, canEdit: true, canDelete: false },
@@ -67,6 +71,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     teams: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     reports: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     iata_management: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    assets: { canView: false, canCreate: false, canEdit: false, canDelete: false },
   },
   user: {
     clients: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -79,6 +84,7 @@ const rolePermissions: Record<UserRole, Record<string, Permission>> = {
     teams: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     reports: { canView: true, canCreate: false, canEdit: false, canDelete: false },
     iata_management: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    assets: { canView: false, canCreate: false, canEdit: false, canDelete: false },
   },
 };
 

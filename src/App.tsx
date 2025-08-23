@@ -8,6 +8,7 @@ import { RoleViewProvider } from "@/contexts/RoleViewContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Layout } from "@/components/Layout";
 import { SimpleAuthGuard } from "@/components/SimpleAuthGuard";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Suspense, lazy, useEffect } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import SecurityInitializer from "@/components/SecurityInitializer";
@@ -122,7 +123,7 @@ function App() {
                  <Route path="/teams" element={<SimpleAuthGuard><Layout><Teams /></Layout></SimpleAuthGuard>} />
                  <Route path="/teams/:id" element={<SimpleAuthGuard><Layout><TeamDetail /></Layout></SimpleAuthGuard>} />
                  <Route path="/users/:id" element={<SimpleAuthGuard><Layout><UserProfile /></Layout></SimpleAuthGuard>} />
-                 <Route path="/assets" element={<SimpleAuthGuard><Layout><Assets /></Layout></SimpleAuthGuard>} />
+                 <Route path="/assets" element={<SimpleAuthGuard><ProtectedRoute resource="assets" action="view"><Layout><Assets /></Layout></ProtectedRoute></SimpleAuthGuard>} />
                  <Route path="/iata-management" element={<SimpleAuthGuard><Layout><IATAManagement /></Layout></SimpleAuthGuard>} />
                  <Route path="/security" element={<SimpleAuthGuard><Layout><Security /></Layout></SimpleAuthGuard>} />
                     
