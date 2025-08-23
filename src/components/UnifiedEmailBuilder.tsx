@@ -16,6 +16,7 @@ import { DatabaseUtils } from '@/utils/databaseUtils';
 import { EmailTemplateGenerator, SabreOption } from '@/utils/emailTemplateGenerator';
 import { AssetPicker } from '@/components/assets/AssetPicker';
 import { LogoSelector } from '@/components/LogoSelector';
+import { getCompanyLogoUrl } from '@/utils/logoService';
 
 interface Quote {
   id: string;

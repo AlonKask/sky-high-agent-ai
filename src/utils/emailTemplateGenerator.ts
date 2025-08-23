@@ -1,6 +1,7 @@
 
 import { ParsedItinerary } from './sabreParser';
 import { DatabaseUtils } from './databaseUtils';
+import { getCompanyLogoUrl } from './logoService';
 
 export interface SabreOption {
   id: string;
@@ -29,11 +30,14 @@ export class EmailTemplateGenerator {
     const { segments, totalDuration, layoverInfo, route, totalSegments } = option.parsedInfo;
     console.log(`✅ Generating rich email with ${segments.length} segments`);
     
-    // Enrich segments with database information
-    const enrichedSegments = await this.enrichSegmentsWithDatabase(segments);
+    // Enrich segments with database information and get company logo
+    const [enrichedSegments, companyLogoUrl] = await Promise.all([
+      this.enrichSegmentsWithDatabase(segments),
+      getCompanyLogoUrl()
+    ]);
     
     // Generate modern HTML email template with rich flight display
-    return this.generateHtmlEmail(option, clientName, enrichedSegments, totalDuration, layoverInfo, route, totalSegments);
+    return this.generateHtmlEmail(option, clientName, enrichedSegments, totalDuration, layoverInfo, route, totalSegments, companyLogoUrl);
   }
 
   static async enrichSegmentsWithDatabase(segments: any[]): Promise<any[]> {
@@ -105,7 +109,8 @@ export class EmailTemplateGenerator {
     totalDuration?: string, 
     layoverInfo?: any[], 
     route?: string,
-    totalSegments?: number
+    totalSegments?: number,
+    companyLogoUrl?: string
   ): string {
     const segmentCards = segments.map((segment, index) => {
       const segmentDate = new Date(segment.flightDate);
@@ -144,6 +149,7 @@ export class EmailTemplateGenerator {
 <body>
     <div class="email-container">
         <div class="header">
+            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="height: 48px; margin-bottom: 20px;">` : ''}
             <h1>🛫 Your Flight Itinerary</h1>
             <p class="greeting">Dear ${clientName},</p>
             <p>Thank you for choosing our travel services. Here are your flight options:</p>
