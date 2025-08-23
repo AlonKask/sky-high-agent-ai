@@ -81,19 +81,28 @@ export const getCompanyLogo = async (): Promise<LogoAsset | null> => {
  */
 export const getCompanyLogoUrl = async (): Promise<string> => {
   try {
+    console.log('🔍 Getting company logo...');
     const logo = await getCompanyLogo();
-    if (!logo) return '';
+    console.log('📸 Logo found:', logo);
+    
+    if (!logo) {
+      console.log('❌ No logo found');
+      return '';
+    }
 
     if (logo.asset_source === 'supabase_storage') {
       const { data } = supabase.storage
         .from('assets')
         .getPublicUrl(logo.file_path);
+      
+      console.log('🔗 Generated public URL:', data.publicUrl);
       return data.publicUrl;
     }
 
+    console.log('🌐 Using external URL:', logo.file_path);
     return logo.file_path; // External URL
   } catch (error) {
-    console.error('Error getting company logo URL:', error);
+    console.error('❌ Error getting company logo URL:', error);
     return '';
   }
 };
