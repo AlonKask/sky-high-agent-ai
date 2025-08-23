@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { FileImage, Download, Edit, Trash2, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
+import { AssetEditor } from './AssetEditor';
 
 interface Asset {
   id: string;
@@ -16,6 +17,7 @@ interface Asset {
   file_size: number;
   asset_category: string;
   asset_source: string;
+  page_context?: string;
   external_url?: string;
   tags: any; // JSONB from Supabase
   alt_text?: string;
@@ -29,18 +31,21 @@ interface Asset {
 interface AssetGalleryProps {
   searchTerm: string;
   category: string;
+  pageContext: string;
   viewMode: 'grid' | 'list';
+  onAssetUpdated?: () => void;
 }
 
-export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryProps) {
+export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAssetUpdated }: AssetGalleryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const { toast } = useToast();
   const { user } = useSimpleAuth();
 
   useEffect(() => {
     fetchAssets();
-  }, [searchTerm, category]);
+  }, [searchTerm, category, pageContext]);
 
   const fetchAssets = async () => {
     if (!user) return;
@@ -55,6 +60,10 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
 
       if (category !== 'all') {
         query = query.eq('asset_category', category);
+      }
+
+      if (pageContext !== 'all') {
+        query = query.eq('page_context', pageContext);
       }
 
       if (searchTerm) {
@@ -145,6 +154,13 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
 
   const isImage = (fileType: string) => fileType.startsWith('image/') || fileType === 'image';
 
+  const handleAssetUpdated = (updatedAsset: Asset) => {
+    setAssets(assets.map(asset => 
+      asset.id === updatedAsset.id ? updatedAsset : asset
+    ));
+    onAssetUpdated?.();
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -229,6 +245,13 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                     <Button 
                       variant="ghost" 
                       size="sm"
+                      onClick={() => setEditingAsset(asset)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
                       onClick={() => downloadAsset(asset)}
                     >
                       <Download className="h-4 w-4" />
@@ -306,49 +329,66 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                  {asset.asset_source === 'external_cdn' ? 'External' : formatFileSize(asset.file_size)}
                </p>
               
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-8 w-8 p-0"
-                  onClick={() => window.open(getAssetUrl(asset), '_blank')}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-8 w-8 p-0"
-                  onClick={() => downloadAsset(asset)}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Asset</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "{asset.file_name}"? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteAsset(asset.id)}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                 <Button 
+                   variant="ghost" 
+                   size="sm" 
+                   className="h-8 w-8 p-0"
+                   onClick={() => window.open(getAssetUrl(asset), '_blank')}
+                 >
+                   <Eye className="h-4 w-4" />
+                 </Button>
+                 <Button 
+                   variant="ghost" 
+                   size="sm" 
+                   className="h-8 w-8 p-0"
+                   onClick={() => setEditingAsset(asset)}
+                 >
+                   <Edit className="h-4 w-4" />
+                 </Button>
+                 <Button 
+                   variant="ghost" 
+                   size="sm" 
+                   className="h-8 w-8 p-0"
+                   onClick={() => downloadAsset(asset)}
+                 >
+                   <Download className="h-4 w-4" />
+                 </Button>
+                 <AlertDialog>
+                   <AlertDialogTrigger asChild>
+                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                       <Trash2 className="h-4 w-4" />
+                     </Button>
+                   </AlertDialogTrigger>
+                   <AlertDialogContent>
+                     <AlertDialogHeader>
+                       <AlertDialogTitle>Delete Asset</AlertDialogTitle>
+                       <AlertDialogDescription>
+                         Are you sure you want to delete "{asset.file_name}"? This action cannot be undone.
+                       </AlertDialogDescription>
+                     </AlertDialogHeader>
+                     <AlertDialogFooter>
+                       <AlertDialogCancel>Cancel</AlertDialogCancel>
+                       <AlertDialogAction onClick={() => deleteAsset(asset.id)}>
+                         Delete
+                       </AlertDialogAction>
+                     </AlertDialogFooter>
+                   </AlertDialogContent>
+                 </AlertDialog>
+               </div>
             </div>
           </CardContent>
         </Card>
       ))}
+
+      {/* Asset Editor Modal */}
+      {editingAsset && (
+        <AssetEditor 
+          asset={editingAsset}
+          onClose={() => setEditingAsset(null)}
+          onAssetUpdated={handleAssetUpdated}
+        />
+      )}
     </div>
   );
 }

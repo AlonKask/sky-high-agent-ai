@@ -602,6 +602,7 @@ export type Database = {
           metadata: Json | null
           mime_type: string | null
           original_filename: string | null
+          page_context: string | null
           tags: Json | null
           thumbnail_path: string | null
           updated_at: string
@@ -623,6 +624,7 @@ export type Database = {
           metadata?: Json | null
           mime_type?: string | null
           original_filename?: string | null
+          page_context?: string | null
           tags?: Json | null
           thumbnail_path?: string | null
           updated_at?: string
@@ -644,6 +646,7 @@ export type Database = {
           metadata?: Json | null
           mime_type?: string | null
           original_filename?: string | null
+          page_context?: string | null
           tags?: Json | null
           thumbnail_path?: string | null
           updated_at?: string

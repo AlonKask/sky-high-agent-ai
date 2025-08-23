@@ -15,18 +15,31 @@ import { usePermissions } from '@/hooks/usePermissions';
 export default function Assets() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedPageContext, setSelectedPageContext] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showUploader, setShowUploader] = useState(false);
   const { canAccess } = usePermissions();
 
   const categories = [
-    { value: 'all', label: 'All Assets' },
+    { value: 'all', label: 'All Categories' },
     { value: 'airline_logo', label: 'Airline Logos' },
     { value: 'aircraft_icon', label: 'Aircraft Icons' },
     { value: 'company_logo', label: 'Company Logos' },
     { value: 'external_cdn', label: 'External CDN' },
     { value: 'static_file', label: 'Static Files' },
     { value: 'general', label: 'General' }
+  ];
+
+  const pageContexts = [
+    { value: 'all', label: 'All Pages' },
+    { value: 'general', label: 'General' },
+    { value: 'email_templates', label: 'Email Templates' },
+    { value: 'client_reports', label: 'Client Reports' },
+    { value: 'company_branding', label: 'Company Branding' },
+    { value: 'airline_data', label: 'Airline Data' },
+    { value: 'user_profiles', label: 'User Profiles' },
+    { value: 'booking_forms', label: 'Booking Forms' },
+    { value: 'dashboard', label: 'Dashboard' }
   ];
 
   const canManageAssets = canAccess('assets', 'create');
@@ -91,6 +104,18 @@ export default function Assets() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Select value={selectedPageContext} onValueChange={setSelectedPageContext}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Page Context" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageContexts.map((context) => (
+                      <SelectItem key={context.value} value={context.value}>
+                        {context.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <div className="flex gap-2">
                   <Button
                     variant={viewMode === 'grid' ? 'default' : 'outline'}
@@ -115,6 +140,7 @@ export default function Assets() {
           <AssetGallery
             searchTerm={searchTerm}
             category={selectedCategory}
+            pageContext={selectedPageContext}
             viewMode={viewMode}
           />
         </TabsContent>

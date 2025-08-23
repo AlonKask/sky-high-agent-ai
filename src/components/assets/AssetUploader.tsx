@@ -28,9 +28,21 @@ const assetCategories = [
   { value: 'static_file', label: 'Static File' }
 ];
 
+const pageContexts = [
+  { value: 'general', label: 'General' },
+  { value: 'email_templates', label: 'Email Templates' },
+  { value: 'client_reports', label: 'Client Reports' },
+  { value: 'company_branding', label: 'Company Branding' },
+  { value: 'airline_data', label: 'Airline Data' },
+  { value: 'user_profiles', label: 'User Profiles' },
+  { value: 'booking_forms', label: 'Booking Forms' },
+  { value: 'dashboard', label: 'Dashboard' }
+];
+
 export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [category, setCategory] = useState('general');
+  const [pageContext, setPageContext] = useState('general');
   const [altText, setAltText] = useState('');
   const [tags, setTags] = useState('');
   const [isPublic, setIsPublic] = useState(false);
@@ -83,6 +95,7 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
           file_type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document',
           file_size: file.size,
           asset_category: category,
+          page_context: pageContext,
           asset_source: 'upload',
           mime_type: file.type,
           alt_text: altText,
@@ -112,6 +125,7 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
       // Reset form
       setFiles([]);
       setCategory('general');
+      setPageContext('general');
       setAltText('');
       setTags('');
       setIsPublic(false);
@@ -217,14 +231,30 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tags">Tags (comma-separated)</Label>
-              <Input
-                id="tags"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="logo, header, branding"
-              />
+              <Label htmlFor="pageContext">Page Context</Label>
+                <Select value={pageContext} onValueChange={setPageContext}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select page context" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageContexts.map((context) => (
+                      <SelectItem key={context.value} value={context.value}>
+                        {context.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags (comma-separated)</Label>
+            <Input
+              id="tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="logo, header, branding"
+            />
           </div>
 
           <div className="space-y-2">
