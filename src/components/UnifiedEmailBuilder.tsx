@@ -452,44 +452,9 @@ export default function UnifiedEmailBuilder({
 
       const itineraryRows = buildFlightDirections();
       
-      // Helper function to build multi-segment route display
-      const buildRouteDisplay = (segments, useCity = true) => {
-        if (!segments || segments.length === 0) {
-          return useCity ? `${originCode} → ${finalCode}` : `${originCode} → ${finalCode}`;
-        }
-        
-        if (segments.length === 1) {
-          const seg = segments[0];
-          const dep = useCity ? (seg.departureCity || seg.departureAirportCode || originCode) : (seg.departureAirportCode || originCode);
-          const arr = useCity ? (seg.arrivalCity || seg.arrivalAirportCode || finalCode) : (seg.arrivalAirportCode || finalCode);
-          return `${dep} → ${arr}`;
-        }
-        
-        // Multi-segment route: build "DEP-STOP1/STOP1-STOP2/STOP2-ARR" format
-        const routeParts = [];
-        for (let i = 0; i < segments.length; i++) {
-          const seg = segments[i];
-          const depCode = useCity ? (seg.departureCity || seg.departureAirportCode) : seg.departureAirportCode;
-          const arrCode = useCity ? (seg.arrivalCity || seg.arrivalAirportCode) : seg.arrivalAirportCode;
-          
-          if (i === 0) {
-            // First segment: "DEP-STOP1"
-            routeParts.push(`${depCode || originCode}-${arrCode || seg.arrivalAirportCode}`);
-          } else {
-            // Subsequent segments: "STOP1-STOP2"
-            routeParts.push(`${depCode || seg.departureAirportCode}-${arrCode || seg.arrivalAirportCode}`);
-          }
-        }
-        return routeParts.join('/');
-      };
-
-      // Extract summary info from segments for display  
+      // Extract summary info from first and last segments  
       const first = segs[0] || {};
       const last = segs[segs.length - 1] || {};
-      const depCode = buildRouteDisplay(segs, false); // Airport codes
-      const arrCode = ''; // Not used in new format
-      const depCity = buildRouteDisplay(segs, true); // City names
-      const arrCity = ''; // Not used in new format
       const airline = first.airlineName || first.airlineCode || 'Multiple Airlines';
       const flightNumber = segs.length === 1 ? (first.flightNumber || '') : 'Multiple Flights';
       const cabin = first.cabin || first.cabinClass || 'Business Class';
@@ -545,27 +510,19 @@ export default function UnifiedEmailBuilder({
               <table role="presentation" width="100%" class="card" style="border-collapse:collapse;background:#FBFCFE;border:1px solid #D1D9E0;border-radius:12px;margin-bottom:16px;">
                 <tr>
                   <td style="padding:20px 24px;">
-                    <!-- Header Row: Route & Price -->
-                    <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:16px;">
-                      <tr>
-                        <td style="vertical-align:middle;">
-                           <div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:20px;font-weight:600;color:#1D1D1F;line-height:1.2;">
-                             ${depCity}
+                     <!-- Price Display Only -->
+                     <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:16px;">
+                       <tr>
+                         <td align="right" style="vertical-align:middle;">
+                           <div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:24px;font-weight:700;color:#1D1D1F;">
+                             ${currency}${fmtNum(totalPrice)}
                            </div>
-                           <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#6E6E73;margin-top:4px;">
-                             ${depCode}
+                           <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#6E6E73;text-align:right;">
+                             ${cabin}
                            </div>
-                        </td>
-                        <td align="right" style="vertical-align:middle;">
-                          <div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:24px;font-weight:700;color:#1D1D1F;">
-                            ${currency}${fmtNum(totalPrice)}
-                          </div>
-                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#6E6E73;text-align:right;">
-                            ${cabin}
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
+                         </td>
+                       </tr>
+                     </table>
 
                     <!-- Flight Details Row -->
                     <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:20px;">
