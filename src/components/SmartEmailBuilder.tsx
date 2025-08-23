@@ -22,7 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeText, sanitizeEmailContent } from '@/utils/sanitization';
 import { SafeHtmlRenderer } from './SafeHtmlRenderer';
-import { getCompanyLogoUrl } from '@/utils/logoService';
+import { getCompanyLogoUrl, validateLogoForEmail } from '@/utils/logoService';
 
 interface Quote {
   id: string;
@@ -60,6 +60,8 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
   const [isSending, setIsSending] = useState(false);
   const [companyLogoUrl, setCompanyLogoUrl] = useState('');
   const [logoLoading, setLogoLoading] = useState(true);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoDiagnostics, setLogoDiagnostics] = useState<string[]>([]);
 
   // Initialize with all visible quotes selected and load company logo
   useEffect(() => {
@@ -67,18 +69,38 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     setSelectedQuotes(new Set(visibleQuotes.map(q => q.id)));
     setEmailSubject(`Flight Options for ${client.first_name} ${client.last_name}`);
     
-    // Load company logo
+    // Load and validate company logo with comprehensive debugging
     setLogoLoading(true);
-    getCompanyLogoUrl()
-      .then((url) => {
-        setCompanyLogoUrl(url || '');
+    setLogoError(null);
+    setLogoDiagnostics([]);
+    
+    console.log('🚀 SmartEmailBuilder: Starting logo validation...');
+    
+    validateLogoForEmail()
+      .then((result) => {
+        console.log('📊 Logo validation result:', result);
+        
+        setLogoDiagnostics(result.diagnostics);
+        
+        if (result.isValid && result.url) {
+          setCompanyLogoUrl(result.url);
+          setLogoError(null);
+          console.log('✅ Logo ready for email use:', result.url);
+        } else {
+          setCompanyLogoUrl('');
+          setLogoError(result.url ? 'Logo URL generated but failed to load' : 'No logo URL available');
+          console.warn('⚠️ Logo validation failed:', result.diagnostics);
+        }
       })
       .catch((error) => {
-        console.error('Failed to load logo:', error);
+        console.error('💥 Logo validation error:', error);
         setCompanyLogoUrl('');
+        setLogoError(`Logo validation failed: ${error.message}`);
+        setLogoDiagnostics([`Error: ${error.message}`]);
       })
       .finally(() => {
         setLogoLoading(false);
+        console.log('🏁 Logo validation complete');
       });
   }, [quotes, client]);
 
@@ -106,7 +128,10 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
       let emailHTML = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff; line-height: 1.6;">
           <div style="text-align: center; margin-bottom: 40px; padding: 30px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border-radius: 12px;">
-            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; margin-bottom: 20px; object-fit: contain; display: block; margin-left: auto; margin-right: auto;" />` : '<div style="height: 20px; margin-bottom: 20px;"></div>'}
+            ${companyLogoUrl ? 
+              `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; margin-bottom: 20px; object-fit: contain; display: block; margin-left: auto; margin-right: auto; border: 0;" onerror="this.style.display='none';" />` : 
+              '<div style="height: 20px; margin-bottom: 20px;"></div>'
+            }
             <h1 style="margin: 0; font-size: 32px; font-weight: 700;">✈️ Flight Options</h1>
             <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Carefully selected for ${client.first_name} ${client.last_name}</p>
           </div>
@@ -396,6 +421,29 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Logo Status Debug Info */}
+              {(logoError || logoDiagnostics.length > 0) && (
+                <Alert className="mb-4">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-1">
+                      <div className="font-medium">Logo Status:</div>
+                      {logoError && <div className="text-red-600">❌ {logoError}</div>}
+                      {logoDiagnostics.map((diagnostic, index) => (
+                        <div key={index} className="text-xs text-muted-foreground font-mono">
+                          {diagnostic}
+                        </div>
+                      ))}
+                      {companyLogoUrl && (
+                        <div className="text-xs">
+                          <strong>URL:</strong> <span className="font-mono break-all">{companyLogoUrl}</span>
+                        </div>
+                      )}
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div>
                 <label className="text-sm font-medium">Subject Line</label>
                 <Input
