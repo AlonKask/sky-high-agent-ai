@@ -614,7 +614,10 @@ export default function UnifiedEmailBuilder({
     // Get company logo URL
     const companyLogoUrl = await getCompanyLogoUrl();
 
-    return `<!doctype html>
+    // Debug logging for logo usage
+    console.log('📧 Using company logo in email:', companyLogoUrl || 'No logo - using text fallback');
+
+    return `<!doctype html
 <html lang="en" style="margin:0;padding:0;">
 <head>
   <meta charset="utf-8">
