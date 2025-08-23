@@ -69,6 +69,10 @@ serve(async (req) => {
   }, async () => {
 
   try {
+    console.log('=== CREATE USER FUNCTION START ===');
+    console.log('Method:', req.method);
+    console.log('Headers:', Object.fromEntries(req.headers.entries()));
+    
     // Create admin client with service role key
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -81,22 +85,41 @@ serve(async (req) => {
       }
     );
 
+    console.log('Supabase admin client created');
+
     // Get the calling user's info and verify permissions
     const authHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
+    console.log('Auth header exists:', !!authHeader);
+    console.log('Auth header preview:', authHeader ? authHeader.substring(0, 20) + '...' : 'none');
+    
     if (!authHeader) {
+      console.log('ERROR: Missing authorization header');
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log('Getting user from auth header...');
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authHeader);
-    if (authError || !user) {
+    
+    if (authError) {
+      console.log('Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: 'Invalid authorization' }),
+        JSON.stringify({ error: `Authentication failed: ${authError.message}` }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    if (!user) {
+      console.log('No user found');
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('User authenticated:', user.id);
 
     // Check caller's role and permissions
     const { data: userRole, error: roleError } = await supabaseAdmin
@@ -122,7 +145,9 @@ serve(async (req) => {
       );
     }
 
+    console.log('Parsing request body...');
     const requestBody = await req.json();
+    console.log('Raw request body:', JSON.stringify(requestBody, null, 2));
     
     // Enhanced input validation and sanitization
     const sanitizeInput = (input: string) => {
@@ -141,10 +166,32 @@ serve(async (req) => {
       company: requestBody.company ? sanitizeInput(requestBody.company) : undefined
     };
 
+    console.log('Parsed and sanitized data:', {
+      email,
+      firstName,
+      lastName,
+      role,
+      hasPassword: !!password,
+      phone,
+      company
+    });
+
     // Validate required fields
-    if (!email || !password || !firstName || !lastName || !role) {
+    console.log('Validating required fields...');
+    const missingFields = [];
+    if (!email) missingFields.push('email');
+    if (!password) missingFields.push('password');
+    if (!firstName) missingFields.push('firstName');
+    if (!lastName) missingFields.push('lastName');
+    if (!role) missingFields.push('role');
+    
+    if (missingFields.length > 0) {
+      console.log('Missing required fields:', missingFields);
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ 
+          error: `Missing required fields: ${missingFields.join(', ')}`,
+          missingFields
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

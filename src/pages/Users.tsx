@@ -198,6 +198,23 @@ const Users = () => {
 
   const createUser = async () => {
     try {
+      // Check if user is authenticated first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        toastHelpers.error('Authentication error. Please refresh the page and try again.');
+        return;
+      }
+      
+      if (!session?.access_token) {
+        console.error('No valid session found');
+        toastHelpers.error('You are not authenticated. Please log in again.');
+        return;
+      }
+      
+      console.log('User is authenticated, session exists:', !!session);
+      
       if (!newUserData.email || !newUserData.password || !newUserData.firstName || !newUserData.lastName || !newUserData.role) {
         toastHelpers.error('Please fill in all required fields');
         return;
@@ -232,7 +249,8 @@ const Users = () => {
         }
       });
 
-      console.log('Function response:', { data, error });
+      console.log('Function response - data:', data);
+      console.log('Function response - error:', error);
 
       if (error) {
         console.error('Function error details:', error);
@@ -250,7 +268,18 @@ const Users = () => {
           throw new Error('Too many requests. Please wait a moment and try again.');
         }
         
+        // If the error has a specific message from the function, use it
+        if (error.message) {
+          throw new Error(error.message);
+        }
+        
         throw error;
+      }
+
+      // Handle function-level errors (when function returns error in response)
+      if (data && !data.success && data.error) {
+        console.error('Function returned error:', data.error);
+        throw new Error(data.error);
       }
 
       if (!data?.success) {
