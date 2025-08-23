@@ -145,7 +145,8 @@ export class EnhancedSabreParser {
                    !line.startsWith('CHECK-IN WITH') &&
                    !line.startsWith('SEAT MAP') &&
                    !line.startsWith('MEAL') &&
-                   /^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line);
+                   // Support both formats: "1 UA2033P 20AUG" and "LO 7 20SEP F JFKWAW"
+                   (/^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line) || /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}/.test(line));
           });
         
         logger.info(`Processing ${lines.length} flight lines`, { lines: lines.length, operationId });
@@ -238,26 +239,53 @@ export class EnhancedSabreParser {
       return [];
     }
     
-    // Enhanced format validation
-    if (!/^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line)) {
-      console.warn(`⚠️ Line doesn't match expected flight format: "${line}"`);
+    // Enhanced format validation - support both formats
+    const hasStandardFormat = /^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line);
+    const hasSimpleFormat = /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}/.test(line);
+    
+    if (!hasStandardFormat && !hasSimpleFormat) {
+      console.warn(`⚠️ Line doesn't match any expected flight format: "${line}"`);
       return [];
     }
 
     const segments: FlightSegment[] = [];
     
-    // NEW ENHANCED PATTERN for the exact format: "1 UA2033P 20AUG W EWRBOS*SS1   310P  428P /DCUA /E"
+    // PATTERN 1: Standard format: "1 UA2033P 20AUG W EWRBOS*SS1   310P  428P /DCUA /E"
     const sabrePattern = /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*(?:\/([A-Z0-9]+))?\s*(?:\/([A-Z]+))?\s*.*$/;
     
-    const match = line.match(sabrePattern);
+    // PATTERN 2: Simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 BOEING 789 BUSINESS"
+    const simplePattern = /^([A-Z]{2})\s+(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*(?:(.+?)\s+(.+?)\s+(.+))?$/;
+    
+    let match = line.match(sabrePattern);
+    let useSimpleFormat = false;
+    
+    if (!match) {
+      match = line.match(simplePattern);
+      useSimpleFormat = true;
+    }
     
     if (match) {
-      console.log('✅ Sabre format pattern matched');
-      const [, segmentStr, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime, nextDateStr, nextDay, misc1, misc2] = match;
+      console.log(`✅ ${useSimpleFormat ? 'Simple' : 'Standard'} format pattern matched`);
+      
+      let segmentNumber, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime, arrivalDayOffset, aircraftInfo, cabinInfo;
+      
+      if (useSimpleFormat) {
+        // Simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 BOEING 789 BUSINESS"
+        [, airlineCode, flightNum, dateStr, bookingClass, route, depTime, arrTime, arrivalDayOffset, aircraftInfo, , cabinInfo] = match;
+        segmentNumber = 1; // Default segment number for simple format
+        dayOfWeek = ''; // Not provided in simple format
+        statusCode = 'OK'; // Default status
+        arrivalDayOffset = arrivalDayOffset ? parseInt(arrivalDayOffset) : 0;
+      } else {
+        // Standard format: "1 UA2033P 20AUG W EWRBOS*SS1   310P  428P /DCUA /E"
+        [, segmentNumber, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime] = match;
+        segmentNumber = parseInt(segmentNumber);
+        arrivalDayOffset = 0; // Handle separately for standard format
+      }
       
       // Enhanced validation of extracted components
-      if (!segmentStr || isNaN(parseInt(segmentStr))) {
-        console.error(`❌ Invalid segment number: ${segmentStr}`);
+      if (segmentNumber && isNaN(segmentNumber)) {
+        console.error(`❌ Invalid segment number: ${segmentNumber}`);
         return [];
       }
       
@@ -271,7 +299,6 @@ export class EnhancedSabreParser {
         return [];
       }
       
-      const segmentNumber = parseInt(segmentStr);
       const flightNumber = `${airlineCode}${flightNum}`;
       
       // Enhanced route parsing with validation
@@ -295,12 +322,6 @@ export class EnhancedSabreParser {
       }
       
       console.log(`✅ Parsed route: ${departureAirport} → ${arrivalAirport}`);
-      
-      // Handle next day arrival if indicated
-      let arrivalDayOffset = 0;
-      if (nextDateStr && nextDay) {
-        arrivalDayOffset = 1;
-      }
       
       try {
         // Enhanced date and time parsing with validation
@@ -327,20 +348,37 @@ export class EnhancedSabreParser {
           cabinClass = this.mapBookingClassBasic(bookingClass);
         }
         
+        // Override with explicit cabin info if available (simple format)
+        if (cabinInfo && useSimpleFormat) {
+          cabinClass = cabinInfo.toLowerCase().includes('business') ? 'Business' :
+                      cabinInfo.toLowerCase().includes('first') ? 'First' :
+                      cabinInfo.toLowerCase().includes('economy') ? 'Economy' : cabinClass;
+        }
+        
+        // Determine aircraft type from aircraft info if available
+        let aircraftType;
+        if (aircraftInfo && useSimpleFormat) {
+          aircraftType = aircraftInfo.includes('BOEING') ? aircraftInfo.replace('BOEING ', 'Boeing ') :
+                        aircraftInfo.includes('AIRBUS') ? aircraftInfo.replace('AIRBUS ', 'Airbus ') :
+                        aircraftInfo.includes('A3') ? `Airbus ${aircraftInfo}` :
+                        aircraftInfo.includes('7') ? `Boeing ${aircraftInfo}` : aircraftInfo;
+        }
+        
         const segment: FlightSegment = {
-          segmentNumber,
+          segmentNumber: segmentNumber || 1,
           flightNumber,
           airlineCode,
           bookingClass,
           flightDate,
-          dayOfWeek,
+          dayOfWeek: dayOfWeek || '',
           departureAirport,
           arrivalAirport,
-          statusCode: statusCode || 'SS1',
+          statusCode: statusCode || 'OK',
           departureTime: formattedDepTime,
           arrivalTime: formattedArrTime,
-          arrivalDayOffset,
-          cabinClass
+          arrivalDayOffset: arrivalDayOffset || 0,
+          cabinClass: cabinClass || 'Economy',
+          aircraftType: aircraftType || undefined
         };
         
         segments.push(segment);
@@ -348,7 +386,8 @@ export class EnhancedSabreParser {
           flight: segment.flightNumber,
           route: `${segment.departureAirport}-${segment.arrivalAirport}`,
           time: `${segment.departureTime}-${segment.arrivalTime}`,
-          class: segment.cabinClass
+          class: segment.cabinClass,
+          aircraft: segment.aircraftType
         });
         return segments;
         
@@ -356,7 +395,7 @@ export class EnhancedSabreParser {
         console.error(`❌ Error creating segment:`, {
           error: segmentError.message,
           line,
-          extractedData: { segmentStr, airlineCode, flightNum, bookingClass, dateStr }
+          extractedData: { segmentNumber, airlineCode, flightNum, bookingClass, dateStr }
         });
         return [];
       }
