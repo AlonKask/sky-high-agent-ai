@@ -218,7 +218,37 @@ serve(async (req) => {
 
     console.log(`Creating user with email: ${email}, role: ${role}, by: ${callerRole}`);
 
-    // Create the user in Supabase Auth
+    // STEP 1: Check if email already exists in profiles
+    console.log('Checking if email already exists...');
+    const { data: existingProfile, error: checkError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email')
+      .eq('email', email)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 is "not found" - which is what we want
+      console.error('Error checking existing email:', checkError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to validate email availability' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (existingProfile) {
+      console.log('Email already exists:', email);
+      return new Response(
+        JSON.stringify({ 
+          error: `Email ${email} is already registered. Please use a different email address.`,
+          code: 'EMAIL_EXISTS'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Email is available, proceeding with user creation...');
+
+    // STEP 2: Create the user in Supabase Auth
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -231,6 +261,18 @@ serve(async (req) => {
 
     if (createError) {
       console.error('Error creating user:', createError);
+      
+      // Handle specific Supabase Auth errors
+      if (createError.message?.includes('email_address_already_exists')) {
+        return new Response(
+          JSON.stringify({ 
+            error: `Email ${email} is already registered in the authentication system.`,
+            code: 'EMAIL_EXISTS'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: `Failed to create user: ${createError.message}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -246,7 +288,7 @@ serve(async (req) => {
 
     console.log(`User created with ID: ${newUser.user.id}`);
 
-    // Create profile entry
+    // STEP 3: Create profile entry
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -260,10 +302,32 @@ serve(async (req) => {
 
     if (profileError) {
       console.error('Error creating profile:', profileError);
-      // Don't fail completely if profile creation fails
+      
+      // If profile creation fails due to duplicate, clean up auth user
+      if (profileError.code === '23505') {
+        console.log('Profile already exists, cleaning up auth user...');
+        await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+        return new Response(
+          JSON.stringify({ 
+            error: `Email ${email} is already registered. Please use a different email.`,
+            code: 'EMAIL_EXISTS'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // For other profile errors, clean up and report
+      console.log('Profile creation failed, cleaning up auth user...');
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      return new Response(
+        JSON.stringify({ error: `Failed to create user profile: ${profileError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Assign role
+    console.log('Profile created successfully');
+
+    // STEP 4: Assign role
     const { error: roleInsertError } = await supabaseAdmin
       .from('user_roles')
       .insert({
@@ -273,15 +337,31 @@ serve(async (req) => {
 
     if (roleInsertError) {
       console.error('Error assigning role:', roleInsertError);
-      // Try to cleanup the user if role assignment fails
+      
+      // Clean up both auth user and profile on role assignment failure
+      console.log('Role assignment failed, cleaning up user and profile...');
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      await supabaseAdmin.from('profiles').delete().eq('id', newUser.user.id);
+      
+      if (roleInsertError.code === '23505') {
+        return new Response(
+          JSON.stringify({ 
+            error: `User role already exists. This shouldn't happen - please contact support.`,
+            code: 'ROLE_EXISTS'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: `Failed to assign role: ${roleInsertError.message}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create user preferences
+    console.log('Role assigned successfully');
+
+    // STEP 5: Create user preferences
     const { error: prefsError } = await supabaseAdmin
       .from('user_preferences')
       .insert({

@@ -176,10 +176,30 @@ const Users = () => {
     }
   };
 
-  // Email validation function
-  const validateEmail = (email: string) => {
+  // Email validation function with existence check
+  const validateEmail = async (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isValid = emailRegex.test(email);
+    
+    if (isValid && email.length > 0) {
+      // Check if email already exists in profiles
+      try {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .single();
+        
+        if (existingProfile) {
+          setEmailValid(false);
+          return false;
+        }
+      } catch (error) {
+        // Error likely means email doesn't exist, which is good
+        console.log('Email availability check:', error);
+      }
+    }
+    
     setEmailValid(isValid);
     return isValid;
   };
@@ -220,8 +240,8 @@ const Users = () => {
         return;
       }
 
-      if (!validateEmail(newUserData.email)) {
-        toastHelpers.error('Please enter a valid email address');
+      if (!(await validateEmail(newUserData.email))) {
+        toastHelpers.error('Please enter a valid email address or use a different email');
         return;
       }
 
@@ -279,6 +299,12 @@ const Users = () => {
       // Handle function-level errors (when function returns error in response)
       if (data && !data.success && data.error) {
         console.error('Function returned error:', data.error);
+        
+        // Handle specific error codes
+        if (data.code === 'EMAIL_EXISTS') {
+          throw new Error('This email is already registered. Please use a different email address.');
+        }
+        
         throw new Error(data.error);
       }
 
@@ -453,13 +479,19 @@ const Users = () => {
                   value={newUserData.email}
                   onChange={(e) => {
                     setNewUserData(prev => ({ ...prev, email: e.target.value }));
-                    validateEmail(e.target.value);
+                    // Use debounced email validation
+                    const email = e.target.value;
+                    setTimeout(() => validateEmail(email), 500);
                   }}
                   placeholder="user@example.com"
                   className={!emailValid && newUserData.email ? 'border-destructive' : ''}
                 />
                 {!emailValid && newUserData.email && (
-                  <p className="text-sm text-destructive">Please enter a valid email address</p>
+                  <p className="text-sm text-destructive">
+                    {newUserData.email.includes('@') && newUserData.email.includes('.') 
+                      ? 'This email is already registered. Please use a different email.' 
+                      : 'Please enter a valid email address'}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
