@@ -96,6 +96,20 @@ export const getCompanyLogoUrl = async (): Promise<string> => {
         .getPublicUrl(logo.file_path);
       
       console.log('🔗 Generated public URL:', data.publicUrl);
+      
+      // Test URL accessibility
+      try {
+        const response = await fetch(data.publicUrl, { method: 'HEAD' });
+        if (!response.ok) {
+          console.error('❌ Logo URL not accessible:', response.status);
+          return '';
+        }
+        console.log('✅ Logo URL verified accessible');
+      } catch (fetchError) {
+        console.error('❌ Logo URL fetch failed:', fetchError);
+        return '';
+      }
+      
       return data.publicUrl;
     }
 

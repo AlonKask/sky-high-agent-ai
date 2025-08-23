@@ -59,6 +59,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [companyLogoUrl, setCompanyLogoUrl] = useState('');
+  const [logoLoading, setLogoLoading] = useState(true);
 
   // Initialize with all visible quotes selected and load company logo
   useEffect(() => {
@@ -66,23 +67,30 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     setSelectedQuotes(new Set(visibleQuotes.map(q => q.id)));
     setEmailSubject(`Flight Options for ${client.first_name} ${client.last_name}`);
     
-    // Load company logo
-    getCompanyLogoUrl().then((url) => {
-      console.log('✅ Logo URL loaded for email:', url);
-      setCompanyLogoUrl(url);
-    }).catch((error) => {
-      console.error('❌ Failed to load logo:', error);
-    });
+    // Load company logo with better error handling
+    setLogoLoading(true);
+    getCompanyLogoUrl()
+      .then((url) => {
+        console.log('✅ Logo URL loaded for email:', url);
+        setCompanyLogoUrl(url || ''); // Ensure we set empty string if null
+      })
+      .catch((error) => {
+        console.error('❌ Failed to load logo:', error);
+        setCompanyLogoUrl(''); // Fallback to empty string
+      })
+      .finally(() => {
+        setLogoLoading(false);
+      });
   }, [quotes, client]);
 
   // Generate email content when selections change
   useEffect(() => {
-    if (selectedQuotes.size > 0) {
+    if (selectedQuotes.size > 0 && !logoLoading) {
       generateEmailContent();
     } else {
       setEmailContent('');
     }
-  }, [selectedQuotes, personalMessage, companyLogoUrl]);
+  }, [selectedQuotes, personalMessage, companyLogoUrl, logoLoading]);
 
   const generateEmailContent = () => {
     setIsLoading(true);
@@ -99,7 +107,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
       let emailHTML = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff; line-height: 1.6;">
           <div style="text-align: center; margin-bottom: 40px; padding: 30px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border-radius: 12px;">
-            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; margin-bottom: 20px; object-fit: contain;" />` : ''}
+            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; margin-bottom: 20px; object-fit: contain; display: block; margin-left: auto; margin-right: auto;" onerror="this.style.display='none';" />` : '<div style="height: 20px; margin-bottom: 20px;"></div>'}
             <h1 style="margin: 0; font-size: 32px; font-weight: 700;">✈️ Flight Options</h1>
             <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Carefully selected for ${client.first_name} ${client.last_name}</p>
           </div>
