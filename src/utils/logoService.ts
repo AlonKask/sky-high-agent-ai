@@ -54,7 +54,7 @@ export const getCompanyLogo = async (): Promise<LogoAsset | null> => {
     const { data: assets, error: assetsError } = await supabase
       .from('assets')
       .select('id, file_path, asset_source')
-      .eq('asset_type', 'company_logo')
+      .eq('asset_category', 'company_logo')
       .order('created_at', { ascending: false })
       .limit(1);
 

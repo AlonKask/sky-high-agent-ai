@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeText, sanitizeEmailContent } from '@/utils/sanitization';
 import { SafeHtmlRenderer } from './SafeHtmlRenderer';
+import { getCompanyLogoUrl } from '@/utils/logoService';
 
 interface Quote {
   id: string;
@@ -57,12 +58,16 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
   const [emailContent, setEmailContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState('');
 
-  // Initialize with all visible quotes selected
+  // Initialize with all visible quotes selected and load company logo
   useEffect(() => {
     const visibleQuotes = quotes.filter(q => !q.is_hidden);
     setSelectedQuotes(new Set(visibleQuotes.map(q => q.id)));
     setEmailSubject(`Flight Options for ${client.first_name} ${client.last_name}`);
+    
+    // Load company logo
+    getCompanyLogoUrl().then(setCompanyLogoUrl).catch(console.error);
   }, [quotes, client]);
 
   // Generate email content when selections change
@@ -72,7 +77,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     } else {
       setEmailContent('');
     }
-  }, [selectedQuotes, personalMessage]);
+  }, [selectedQuotes, personalMessage, companyLogoUrl]);
 
   const generateEmailContent = () => {
     setIsLoading(true);
@@ -89,6 +94,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
       let emailHTML = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff; line-height: 1.6;">
           <div style="text-align: center; margin-bottom: 40px; padding: 30px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border-radius: 12px;">
+            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; margin-bottom: 20px; object-fit: contain;" />` : ''}
             <h1 style="margin: 0; font-size: 32px; font-weight: 700;">✈️ Flight Options</h1>
             <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Carefully selected for ${client.first_name} ${client.last_name}</p>
           </div>
