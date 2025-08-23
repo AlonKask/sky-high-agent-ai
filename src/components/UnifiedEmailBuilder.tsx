@@ -649,24 +649,6 @@ export default function UnifiedEmailBuilder({
                       </tr>
                     </table>
 
-                    <!-- Connection Info (if stops) -->
-                    ${stops > 0 ? `
-                    <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:20px;">
-                      <tr>
-                        <td style="padding:12px 16px;background:#F5F5F7;border-radius:8px;">
-                          <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#6E6E73;margin-bottom:4px;">
-                            <svg width="12" height="12" viewBox="0 0 12 12" style="display:inline-block;margin-right:4px;vertical-align:middle;">
-                              <circle cx="6" cy="6" r="2" fill="#FF9500"/>
-                            </svg>
-                            Connection Details
-                          </div>
-                           <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#1D1D1F;">
-                             ${stops} stop${stops > 1 ? 's' : ''} • ${aircraft} type aircraft
-                           </div>
-                        </td>
-                      </tr>
-                    </table>
-                     ` : ''}
 
                     <!-- Passenger Pricing Section -->
                     <table role="presentation" width="100%" style="border-collapse:collapse;margin-bottom:20px;">
