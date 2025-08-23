@@ -96,7 +96,9 @@ export default function AuthOptimized() {
         }
         
         setError(errorMessage);
-        setCaptchaToken(null); // Reset CAPTCHA
+        
+        // Reset CAPTCHA token on any error to force regeneration
+        setCaptchaToken(null);
       }
     } catch (error: any) {
       console.error('❌ Sign in error:', error);
@@ -196,12 +198,12 @@ export default function AuthOptimized() {
                   onVerify={setCaptchaToken}
                   onError={(error) => {
                     console.error('CAPTCHA error:', error);
-                    setError('Security verification failed. Please try again.');
+                    setError('Security verification failed. Please refresh and try again.');
                     setCaptchaToken(null);
                   }}
                   onExpire={() => {
+                    console.log('CAPTCHA expired, resetting token');
                     setCaptchaToken(null);
-                    setError('Security verification expired. Please verify again.');
                   }}
                 />
               </div>

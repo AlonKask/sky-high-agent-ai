@@ -18,42 +18,12 @@ export class SimpleAuth {
     error?: string;
   }> {
     try {
-      console.log('🔐 Starting enhanced auth sign-in with CAPTCHA...');
-      
-      // 1. CAPTCHA verification if token provided
-      if (captchaToken) {
-        console.log('🛡️ Verifying CAPTCHA token...');
-        const captchaResult = await captchaService.verifyCaptcha(captchaToken, 'login');
-        
-        if (!captchaResult.success) {
-          console.error('❌ CAPTCHA verification failed:', captchaResult.error);
-          return {
-            success: false,
-            error: `Security verification failed: ${captchaResult.error}`
-          };
-        }
-        
-        console.log('✅ CAPTCHA verification successful');
-      } else {
-        // Check if CAPTCHA is required but not provided
-        const captchaRequired = captchaService.isCaptchaRequired('login');
-        if (captchaRequired) {
-          console.warn('⚠️ CAPTCHA required but not provided');
-          return {
-            success: false,
-            error: 'Security verification is required. Please complete the CAPTCHA.'
-          };
-        }
-      }
-      
-      // 2. Clean up any stale tokens (less aggressive approach)
-      try {
-        await supabase.auth.signOut({ scope: 'local' });
-      } catch (err) {
-        // Continue if this fails - not critical
-      }
+      console.log('🔐 Starting simple auth sign-in...', {
+        email,
+        hasCaptchaToken: !!captchaToken
+      });
 
-      // 3. Attempt sign in with Supabase
+      // 1. Attempt sign in with Supabase (let Supabase handle CAPTCHA directly)
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -65,11 +35,11 @@ export class SimpleAuth {
       if (error) {
         console.error('❌ Supabase sign-in failed:', error);
         
-        // Enhanced error handling with CAPTCHA context
+        // Enhanced error handling
         let errorMessage = error.message;
         
-        if (error.message.includes('captcha')) {
-          errorMessage = 'Security verification failed. Please try again.';
+        if (error.message.includes('captcha') || error.message.includes('timeout-or-duplicate')) {
+          errorMessage = 'Security verification failed. Please refresh and try again.';
         } else if (error.message.includes('Invalid login credentials')) {
           errorMessage = 'Invalid email or password. Please check your credentials.';
         } else if (error.message.includes('Email not confirmed')) {
@@ -96,24 +66,6 @@ export class SimpleAuth {
         captchaUsed: !!captchaToken
       });
 
-      // 4. Validate session health immediately
-      const health = await AuthCleanup.validateSessionHealth();
-      
-      if (!health.isHealthy) {
-        console.error('❌ Session health check failed after sign-in:', health);
-        
-        // Try session recovery once
-        const recovered = await AuthCleanup.attemptSessionRecovery();
-        if (!recovered) {
-          return {
-            success: false,
-            error: `Session validation failed: ${health.error}`
-          };
-        }
-      }
-
-      console.log('✅ Session health validated successfully');
-
       return {
         success: true,
         user: data.user,
@@ -138,14 +90,8 @@ export class SimpleAuth {
   }> {
     try {
       console.log('🔐 Starting Google OAuth sign-in...');
-      
-      // 1. Emergency cleanup first
-      await AuthCleanup.emergencyAuthCleanup();
-      
-      // Wait a moment for cleanup to settle
-      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // 2. Start OAuth flow with proper callback URL
+      // Start OAuth flow with proper callback URL
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
