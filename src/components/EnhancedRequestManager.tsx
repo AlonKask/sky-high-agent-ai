@@ -222,48 +222,48 @@ const EnhancedRequestManager = () => {
         onClick={() => navigate(`/request/${request.id}`)}
       >
         <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full ${clientTypeInfo.color} flex items-center justify-center`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className={`w-10 h-10 rounded-full ${clientTypeInfo.color} flex items-center justify-center flex-shrink-0`}>
                 <ClientTypeIcon className="w-5 h-5" />
               </div>
-              <div>
-                <CardTitle className="text-lg">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg truncate">
                   {request.clients?.first_name} {request.clients?.last_name}
                 </CardTitle>
-                <CardDescription className="text-sm">
+                <CardDescription className="text-sm truncate">
                   {request.clients?.email}
                 </CardDescription>
               </div>
             </div>
-          <div className="flex items-center gap-2">
-            <Badge className={getPriorityColor(request.priority)}>
-              {request.priority}
-            </Badge>
-            <Badge className={getStatusColor(request.status)}>
-              {request.status.replace('_', ' ')}
-            </Badge>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Badge className={getPriorityColor(request.priority)}>
+                {request.priority}
+              </Badge>
+              <Badge className={getStatusColor(request.status)}>
+                {request.status.replace('_', ' ')}
+              </Badge>
+            </div>
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="w-4 h-4" />
-          <span>{request.origin} -&gt; {request.destination}</span>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">{request.origin} → {request.destination}</span>
         </div>
         
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
-            <Calendar className="w-4 h-4" />
-            <span>{new Date(request.departure_date).toLocaleDateString()}</span>
+            <Calendar className="w-4 h-4 flex-shrink-0" />
+            <span className="whitespace-nowrap">{new Date(request.departure_date).toLocaleDateString()}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Users className="w-4 h-4" />
-            <span>{request.passengers} passengers</span>
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span className="whitespace-nowrap">{request.passengers} passengers</span>
           </div>
           <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>{new Date(request.created_at).toLocaleDateString()}</span>
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span className="whitespace-nowrap">{new Date(request.created_at).toLocaleDateString()}</span>
           </div>
         </div>
       </CardContent>
@@ -357,21 +357,23 @@ const EnhancedRequestManager = () => {
                           setShowTakeRequestDropdown(false);
                         }}
                       >
-                        <div className="flex flex-col w-full">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">
+                        <div className="flex flex-col w-full min-w-0">
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <span className="font-medium truncate flex-1">
                               {request.clients?.first_name} {request.clients?.last_name}
                             </span>
                             <Badge variant="outline" className={
-                              request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' :
-                              request.clients?.client_type === 'return' ? 'border-green-200 text-green-600' :
-                              'border-purple-200 text-purple-600'
+                              `flex-shrink-0 ${
+                                request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' :
+                                request.clients?.client_type === 'return' ? 'border-green-200 text-green-600' :
+                                'border-purple-200 text-purple-600'
+                              }`
                             }>
                               {request.clients?.client_type}
                             </Badge>
                           </div>
-                          <span className="text-sm text-muted-foreground">
-                            {request.origin} -&gt; {request.destination}
+                          <span className="text-sm text-muted-foreground truncate">
+                            {request.origin} → {request.destination}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {new Date(request.departure_date).toLocaleDateString()}
@@ -406,7 +408,7 @@ const EnhancedRequestManager = () => {
             <h2 className="text-xl font-semibold">My Assigned Requests</h2>
             <Badge variant="secondary">{myAssignedRequests.length}</Badge>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-6">
             {myAssignedRequests.map((request) => (
               <RequestCard key={request.id} request={request} />
             ))}
@@ -436,7 +438,7 @@ const EnhancedRequestManager = () => {
             </Badge>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-6">
             {availableRequests.map((request) => (
               <RequestCard key={request.id} request={request} />
             ))}
