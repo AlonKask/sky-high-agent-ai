@@ -145,23 +145,34 @@ export class SimpleAuth {
       // Wait a moment for cleanup to settle
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // 2. Start OAuth flow
+      // 2. Start OAuth flow with proper callback URL
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
       if (error) {
         console.error('❌ Google OAuth failed:', error);
+        
+        // Enhanced error handling with user-friendly messages
+        let userMessage = error.message;
+        if (error.message.includes('Invalid login credentials')) {
+          userMessage = 'Google sign-in was cancelled or failed. Please try again.';
+        } else if (error.message.includes('network')) {
+          userMessage = 'Network error during Google sign-in. Please check your connection.';
+        } else if (error.message.includes('popup')) {
+          userMessage = 'Pop-up blocked. Please allow pop-ups and try again.';
+        }
+        
         return {
           success: false,
-          error: error.message
+          error: userMessage
         };
       }
 
-      console.log('✅ Google OAuth initiated successfully');
+      console.log('✅ Google OAuth initiated successfully - redirecting to Google...');
       
       return {
         success: true
@@ -169,9 +180,18 @@ export class SimpleAuth {
 
     } catch (error: any) {
       console.error('❌ Google OAuth sign-in failed:', error);
+      
+      // Enhanced error logging
+      let userMessage = 'Google sign-in failed. Please try again.';
+      if (error.message?.includes('popup')) {
+        userMessage = 'Pop-up was blocked or closed. Please allow pop-ups and try again.';
+      } else if (error.message?.includes('network')) {
+        userMessage = 'Network error. Please check your internet connection.';
+      }
+      
       return {
         success: false,
-        error: error.message || 'Google sign-in failed'
+        error: userMessage
       };
     }
   }
