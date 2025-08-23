@@ -84,18 +84,39 @@ export const getCompanyLogoUrl = async (): Promise<string> => {
     const logo = await getCompanyLogo();
     
     if (!logo) {
+      console.log('No company logo found in database');
       return '';
     }
 
+    console.log('Logo found:', logo);
+
     if (logo.asset_source === 'supabase_storage') {
-      const { data } = supabase.storage
-        .from('assets')
-        .getPublicUrl(logo.file_path);
-      
-      return data.publicUrl;
+      // Try signed URL first for better reliability
+      try {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('assets')
+          .createSignedUrl(logo.file_path, 7200); // 2 hours
+        
+        if (signedError) {
+          console.error('Signed URL error:', signedError);
+          // Fallback to public URL
+          const { data } = supabase.storage
+            .from('assets')
+            .getPublicUrl(logo.file_path);
+          console.log('Using public URL fallback:', data.publicUrl);
+          return data.publicUrl;
+        }
+        
+        console.log('Using signed URL:', signedData.signedUrl);
+        return signedData.signedUrl;
+      } catch (error) {
+        console.error('Error creating signed URL:', error);
+        return '';
+      }
     }
 
     // External URL
+    console.log('Using external URL:', logo.file_path);
     return logo.file_path;
   } catch (error) {
     console.error('Error getting company logo URL:', error);
