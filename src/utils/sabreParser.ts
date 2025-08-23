@@ -28,6 +28,13 @@ export interface FlightSegment {
   equipmentCode?: string;
 }
 
+export interface FlightDirection {
+  segments: FlightSegment[];
+  type: 'outbound' | 'return' | 'stopover';
+  totalDuration?: string;
+  connectionCount: number;
+}
+
 export interface ParsedItinerary {
   segments: FlightSegment[];
   totalSegments: number;
@@ -39,6 +46,7 @@ export interface ParsedItinerary {
     duration: number; // minutes
     terminal?: string;
   }>;
+  flightDirections?: FlightDirection[];
 }
 
 export class SabreParser {
@@ -154,6 +162,7 @@ export class SabreParser {
       const isRoundTrip = this.isRoundTrip(segments);
       const totalDuration = this.calculateTotalDuration(segments);
       const layoverInfo = this.getLayoverInfo(segments);
+      const flightDirections = this.analyzeFlightDirections(segments);
       
       console.log(`\n=== FINAL RESULT ===`);
       console.log(`✓ Successfully parsed ${segments.length} segments`);
@@ -167,7 +176,8 @@ export class SabreParser {
         route,
         isRoundTrip,
         totalDuration,
-        layoverInfo
+        layoverInfo,
+        flightDirections
       };
     } catch (error) {
       console.error("❌ Critical parser error:", error);
@@ -232,6 +242,85 @@ export class SabreParser {
   private static isRoundTrip(segments: FlightSegment[]): boolean {
     if (segments.length < 2) return false;
     return segments[0].departureAirport === segments[segments.length - 1].arrivalAirport;
+  }
+
+  private static analyzeFlightDirections(segments: FlightSegment[]): FlightDirection[] {
+    if (segments.length === 0) return [];
+    
+    const directions: FlightDirection[] = [];
+    let currentDirection: FlightSegment[] = [];
+    
+    for (let i = 0; i < segments.length; i++) {
+      currentDirection.push(segments[i]);
+      
+      // Check if this is end of direction (layover >= 24h or last segment)
+      const isLastSegment = i === segments.length - 1;
+      const hasLongLayover = segments[i].layoverTime && segments[i].layoverTime >= 1440; // 24 hours in minutes
+      
+      if (isLastSegment || hasLongLayover) {
+        const directionType = this.determineDirectionType(currentDirection, directions.length, segments);
+        const connectionCount = Math.max(0, currentDirection.length - 1);
+        
+        directions.push({
+          segments: [...currentDirection],
+          type: directionType,
+          connectionCount,
+          totalDuration: this.calculateDirectionDuration(currentDirection)
+        });
+        
+        currentDirection = [];
+      }
+    }
+    
+    return directions;
+  }
+
+  private static determineDirectionType(
+    directionSegments: FlightSegment[], 
+    directionIndex: number, 
+    allSegments: FlightSegment[]
+  ): 'outbound' | 'return' | 'stopover' {
+    if (directionIndex === 0) {
+      return 'outbound';
+    }
+    
+    // Check if this direction returns to origin
+    const origin = allSegments[0].departureAirport;
+    const finalDestination = directionSegments[directionSegments.length - 1].arrivalAirport;
+    
+    if (finalDestination === origin) {
+      return 'return';
+    }
+    
+    return 'stopover';
+  }
+
+  private static calculateDirectionDuration(segments: FlightSegment[]): string {
+    if (segments.length === 0) return '';
+    
+    const firstSegment = segments[0];
+    const lastSegment = segments[segments.length - 1];
+    
+    try {
+      const startTime = this.parseTimeWithDate(firstSegment.departureTime, firstSegment.flightDate);
+      const endDate = new Date(lastSegment.flightDate);
+      endDate.setDate(endDate.getDate() + (lastSegment.arrivalDayOffset || 0));
+      const endTime = this.parseTimeWithDate(lastSegment.arrivalTime, endDate.toISOString().split('T')[0]);
+      
+      const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = Math.round(durationMinutes % 60);
+      
+      return hours > 0 ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}` : `${minutes}m`;
+    } catch (error) {
+      console.warn('Error calculating direction duration:', error);
+      return '';
+    }
+  }
+
+  private static parseTimeWithDate(timeStr: string, dateStr: string): Date {
+    const time12h = timeStr.replace(/(\d{1,2})(\d{2})([AP])/, '$1:$2 $3M');
+    return new Date(`${dateStr} ${time12h}`);
   }
   
   private static parseFlightLineEnhanced(line: string): FlightSegment[] {

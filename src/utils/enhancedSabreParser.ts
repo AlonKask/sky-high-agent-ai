@@ -66,8 +66,14 @@ export class EnhancedSabreParser {
         // Enhance with database data
         await this.enhanceSegmentsWithDatabaseData(baseResult.segments);
         
+        // Re-analyze flight directions after database enhancement
+        if (baseResult.segments.length > 0) {
+          baseResult.flightDirections = (SabreParser as any).analyzeFlightDirections(baseResult.segments);
+        }
+        
         logger.info(`✅ VI parsing with database enhancement completed`, { 
           segments: baseResult.segments.length, 
+          directions: baseResult.flightDirections?.length || 0,
           operationId 
         });
         
@@ -175,42 +181,40 @@ export class EnhancedSabreParser {
           );
         }
         
-        // Enhanced post-processing with database data and error handling
-        try {
-          await PerformanceMonitor.measureAsync('database-enhancement', () =>
-            this.enhanceSegmentsWithDatabaseData(segments)
-          );
-        } catch (error) {
-          logger.warn('Database enhancement failed, continuing with basic data', { error: error.message, operationId });
-        }
+        // Enhance segments with database data
+        await this.enhanceSegmentsWithDatabaseData(segments);
         
-        try {
-          this.calculateLayoverTimes(segments);
-        } catch (error) {
-          logger.warn('Layover calculation failed', { error: error.message, operationId });
-        }
+        // Post-processing improvements
+        this.calculateLayoverTimes(segments);
+        this.enhanceSegmentsWithBasicData(segments);
         
+        // Generate final result
         const route = this.generateEnhancedRoute(segments);
         const isRoundTrip = this.isRoundTrip(segments);
         const totalDuration = this.calculateTotalDuration(segments);
         const layoverInfo = this.getLayoverInfo(segments);
-        
-        logger.info('Successfully completed Sabre parsing', {
-          segments: segments.length,
-          route,
-          isRoundTrip,
-          totalDuration,
-          operationId
-        });
-        
-        return {
+        const flightDirections = (SabreParser as any).analyzeFlightDirections(segments);
+
+        const result = {
           segments,
           totalSegments: segments.length,
           route,
           isRoundTrip,
           totalDuration,
-          layoverInfo
+          layoverInfo,
+          flightDirections
         };
+
+        logger.info('Successfully completed Sabre parsing', {
+          segments: segments.length,
+          directions: flightDirections?.length || 0,
+          route,
+          isRoundTrip,
+          totalDuration,
+          operationId
+        });
+
+        return result;
       } catch (error) {
         await ErrorHandler.handleError(error, 'enhanced-sabre-parsing');
         return null;
