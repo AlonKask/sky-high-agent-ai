@@ -130,7 +130,8 @@ export function AssetGallery({ searchTerm, category, pageContext, viewMode, onAs
       return asset.file_path;
     }
     if (asset.asset_source === 'supabase_storage') {
-      return `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/assets/${asset.file_path}`;
+      const { data } = supabase.storage.from('assets').getPublicUrl(asset.file_path);
+      return data.publicUrl;
     }
     return asset.file_path || '/placeholder.svg';
   };
