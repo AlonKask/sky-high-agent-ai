@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { withRateLimit } from '../_shared/rate-limiter.ts'
 
 // CORS headers - permissive for development
 const corsHeaders = {
@@ -55,18 +54,6 @@ serve(async (req) => {
     origin: origin,
     userAgent: req.headers.get('user-agent')
   });
-
-  // SECURITY: Apply rate limiting to user creation
-  return await withRateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 15, // Increased for testing
-    keyGenerator: (req) => {
-      // Use origin + IP for rate limiting to avoid CORS conflicts
-      const origin = req.headers.get('origin') || 'unknown';
-      const ip = req.headers.get('x-forwarded-for') || 'unknown';
-      return `${origin}-${ip}`;
-    }
-  }, async () => {
 
   try {
     console.log('=== CREATE USER FUNCTION START ===');
@@ -396,5 +383,4 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-  }); // Close withRateLimit
 });
