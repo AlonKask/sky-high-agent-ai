@@ -71,23 +71,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     setLogoLoading(true);
     getCompanyLogoUrl()
       .then((url) => {
-        console.log('SmartEmailBuilder received logo URL:', url);
-        if (url) {
-          // Test if the URL is actually accessible by trying to load it as an image
-          const testImg = new Image();
-          testImg.onload = () => {
-            console.log('Logo URL test successful, image loads correctly');
-            setCompanyLogoUrl(url);
-          };
-          testImg.onerror = () => {
-            console.error('Logo URL test failed, image cannot be loaded:', url);
-            setCompanyLogoUrl(''); // Don't use broken URL
-          };
-          testImg.src = url;
-        } else {
-          console.log('No logo URL received');
-          setCompanyLogoUrl('');
-        }
+        setCompanyLogoUrl(url || '');
       })
       .catch((error) => {
         console.error('Failed to load logo:', error);
