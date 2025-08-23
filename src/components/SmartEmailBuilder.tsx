@@ -71,7 +71,8 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     setLogoLoading(true);
     getCompanyLogoUrl()
       .then((url) => {
-        setCompanyLogoUrl(url);
+        console.log('Logo URL received in SmartEmailBuilder:', url);
+        setCompanyLogoUrl(url || '');
       })
       .catch((error) => {
         console.error('Failed to load logo:', error);
@@ -106,7 +107,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
       let emailHTML = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff; line-height: 1.6;">
           <div style="text-align: center; margin-bottom: 40px; padding: 30px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border-radius: 12px;">
-            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; margin-bottom: 20px; object-fit: contain; display: block; margin-left: auto; margin-right: auto;" onerror="this.style.display='none';" />` : '<div style="height: 20px; margin-bottom: 20px;"></div>'}
+            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; margin-bottom: 20px; object-fit: contain; display: block; margin-left: auto; margin-right: auto;" onerror="console.error('Logo failed to load:', this.src); this.style.display='none';" />` : '<div style="height: 20px; margin-bottom: 20px;"></div>'}
             <h1 style="margin: 0; font-size: 32px; font-weight: 700;">✈️ Flight Options</h1>
             <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Carefully selected for ${client.first_name} ${client.last_name}</p>
           </div>

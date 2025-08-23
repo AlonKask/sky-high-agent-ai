@@ -84,18 +84,54 @@ export const getCompanyLogoUrl = async (): Promise<string> => {
     const logo = await getCompanyLogo();
     
     if (!logo) {
+      console.log('No company logo found');
       return '';
     }
 
+    console.log('Logo found:', { id: logo.id, path: logo.file_path, source: logo.asset_source });
+
     if (logo.asset_source === 'supabase_storage') {
-      const { data } = supabase.storage
+      // First try public URL
+      const { data: publicData } = supabase.storage
         .from('assets')
         .getPublicUrl(logo.file_path);
       
-      return data.publicUrl;
+      console.log('Generated public URL:', publicData.publicUrl);
+      
+      // Test if the public URL actually works by making a simple fetch
+      try {
+        const response = await fetch(publicData.publicUrl, { method: 'HEAD' });
+        if (response.ok) {
+          console.log('Public URL accessible, using it');
+          return publicData.publicUrl;
+        }
+        console.warn('Public URL returned status:', response.status);
+      } catch (fetchError) {
+        console.warn('Public URL test failed:', fetchError);
+      }
+      
+      // Fallback to signed URL with longer expiration
+      try {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('assets')
+          .createSignedUrl(logo.file_path, 3600); // 1 hour expiration
+        
+        if (signedError) {
+          console.error('Error creating signed URL:', signedError);
+          return '';
+        }
+        
+        console.log('Using signed URL as fallback:', signedData.signedUrl);
+        return signedData.signedUrl;
+      } catch (signedUrlError) {
+        console.error('Signed URL generation failed:', signedUrlError);
+        return '';
+      }
     }
 
-    return logo.file_path; // External URL
+    // External URL
+    console.log('Using external URL:', logo.file_path);
+    return logo.file_path;
   } catch (error) {
     console.error('Error getting company logo URL:', error);
     return '';
