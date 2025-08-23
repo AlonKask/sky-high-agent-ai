@@ -147,10 +147,10 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Card key={i} className="animate-pulse">
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="aspect-square bg-muted rounded-lg mb-3"></div>
               <div className="h-4 bg-muted rounded mb-2"></div>
               <div className="h-3 bg-muted rounded w-2/3"></div>
@@ -265,10 +265,10 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
       {assets.map((asset) => (
         <Card key={asset.id} className="group hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="aspect-square rounded-lg overflow-hidden bg-muted mb-3 flex items-center justify-center">
               {isImage(asset.file_type) ? (
                 <img 
