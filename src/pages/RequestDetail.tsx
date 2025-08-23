@@ -888,7 +888,37 @@ const RequestDetail = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/client/${client.id}`)}
+                    onClick={async () => {
+                      try {
+                        // Verify client access before navigation
+                        const { data: clientData, error } = await supabase
+                          .from('clients')
+                          .select('id, first_name, last_name, email')
+                          .eq('id', client.id)
+                          .single();
+
+                        if (error) {
+                          console.error('Client access error:', error);
+                          toast({
+                            title: "Access Error",
+                            description: "Unable to access client profile",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+
+                        if (clientData) {
+                          navigate(`/client/${client.id}`);
+                        }
+                      } catch (error) {
+                        console.error('Navigation error:', error);
+                        toast({
+                          title: "Navigation Error", 
+                          description: "Failed to navigate to client profile",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
                   >
                     View Profile
                   </Button>
