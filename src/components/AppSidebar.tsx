@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Home, 
   Users, 
@@ -27,6 +27,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useRoleView } from "@/contexts/RoleViewContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   Sidebar,
@@ -108,6 +109,40 @@ export function AppSidebar() {
   const { selectedViewRole } = useRoleView();
   const { canAccess } = usePermissions();
 
+  // Company logo state
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+
+  // Fetch company logo from assets
+  useEffect(() => {
+    const fetchCompanyLogo = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('assets')
+          .select('*')
+          .in('asset_category', ['company_logo', 'logo'])
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          const logoAsset = data[0];
+          let logoUrl = '';
+          // Both supabase_storage and upload use the same 'assets' bucket
+          if (logoAsset.asset_source === 'supabase_storage' || logoAsset.asset_source === 'upload') {
+            logoUrl = `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/assets/${logoAsset.file_path}`;
+          } else {
+            logoUrl = logoAsset.file_path || logoAsset.external_url;
+          }
+          setCompanyLogoUrl(logoUrl);
+        }
+      } catch (error) {
+        console.error('Error fetching company logo:', error);
+      }
+    };
+
+    fetchCompanyLogo();
+  }, []);
+
   const isActive = (path: string) => {
     if (path === "/") {
       return currentPath === "/";
@@ -130,8 +165,17 @@ export function AppSidebar() {
     >
       <SidebarHeader className="border-b p-3">
         <div className="flex items-center justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-            <Plane className="h-5 w-5 text-primary" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 overflow-hidden">
+            {companyLogoUrl ? (
+              <img 
+                src={companyLogoUrl} 
+                alt="Company Logo" 
+                className="h-full w-full object-contain"
+                onError={() => setCompanyLogoUrl(null)}
+              />
+            ) : (
+              <Plane className="h-5 w-5 text-primary" />
+            )}
           </div>
           {!isCollapsed && (
             <div className="flex flex-col">
