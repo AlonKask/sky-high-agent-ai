@@ -15,10 +15,13 @@ interface Asset {
   file_type: string;
   file_size: number;
   asset_category: string;
+  asset_source: string;
+  external_url?: string;
   tags: any; // JSONB from Supabase
   alt_text?: string;
   is_public: boolean;
   usage_count: number;
+  metadata?: any;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +50,7 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
       let query = supabase
         .from('assets')
         .select('*')
+        .or(`user_id.eq.${user.id},is_public.eq.true`) // Show user's own assets or public assets
         .order('created_at', { ascending: false });
 
       if (category !== 'all') {
@@ -75,6 +79,17 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
 
   const deleteAsset = async (assetId: string) => {
     try {
+      // Find the asset to get file path for storage deletion
+      const asset = assets.find(a => a.id === assetId);
+      
+      // Delete from storage if it's an uploaded asset
+      if (asset && asset.asset_source === 'upload') {
+        await supabase.storage
+          .from('assets')
+          .remove([asset.file_path]);
+      }
+
+      // Delete from database
       const { error } = await supabase
         .from('assets')
         .delete()
@@ -95,6 +110,30 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
         variant: "destructive"
       });
     }
+  };
+
+  const getAssetUrl = (asset: Asset): string => {
+    if (asset.asset_source === 'external_cdn' && asset.external_url) {
+      return asset.external_url;
+    }
+    if (asset.asset_source === 'static') {
+      return asset.file_path;
+    }
+    if (asset.asset_source === 'upload') {
+      return `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/assets/${asset.file_path}`;
+    }
+    return asset.file_path || '/placeholder.svg';
+  };
+
+  const downloadAsset = (asset: Asset) => {
+    const url = getAssetUrl(asset);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = asset.file_name;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -150,9 +189,13 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
                     {isImage(asset.file_type) ? (
                       <img 
-                        src={asset.file_path} 
+                        src={getAssetUrl(asset)} 
                         alt={asset.alt_text || asset.file_name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/placeholder.svg';
+                        }}
                       />
                     ) : (
                       <FileImage className="h-6 w-6 text-muted-foreground" />
@@ -164,6 +207,9 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                       <Badge variant="outline" className="text-xs">
                         {asset.asset_category}
                       </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {asset.asset_source}
+                      </Badge>
                       <span className="text-sm text-muted-foreground">
                         {formatFileSize(asset.file_size)}
                       </span>
@@ -173,10 +219,18 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => window.open(getAssetUrl(asset), '_blank')}
+                    >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => downloadAsset(asset)}
+                    >
                       <Download className="h-4 w-4" />
                     </Button>
                     <AlertDialog>
@@ -218,9 +272,13 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
             <div className="aspect-square rounded-lg overflow-hidden bg-muted mb-3 flex items-center justify-center">
               {isImage(asset.file_type) ? (
                 <img 
-                  src={asset.file_path} 
+                  src={getAssetUrl(asset)} 
                   alt={asset.alt_text || asset.file_name}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/placeholder.svg';
+                  }}
                 />
               ) : (
                 <FileImage className="h-12 w-12 text-muted-foreground" />
@@ -236,6 +294,9 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
                 <Badge variant="outline" className="text-xs">
                   {asset.asset_category}
                 </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {asset.asset_source}
+                </Badge>
                 {asset.is_public && (
                   <Badge variant="secondary" className="text-xs">Public</Badge>
                 )}
@@ -246,10 +307,20 @@ export function AssetGallery({ searchTerm, category, viewMode }: AssetGalleryPro
               </p>
               
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0"
+                  onClick={() => window.open(getAssetUrl(asset), '_blank')}
+                >
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0"
+                  onClick={() => downloadAsset(asset)}
+                >
                   <Download className="h-4 w-4" />
                 </Button>
                 <AlertDialog>

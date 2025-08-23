@@ -590,14 +590,20 @@ export type Database = {
         Row: {
           alt_text: string | null
           asset_category: string
+          asset_source: string | null
           created_at: string
+          external_url: string | null
           file_name: string
           file_path: string
           file_size: number
           file_type: string
           id: string
           is_public: boolean
+          metadata: Json | null
+          mime_type: string | null
+          original_filename: string | null
           tags: Json | null
+          thumbnail_path: string | null
           updated_at: string
           usage_count: number
           user_id: string
@@ -605,14 +611,20 @@ export type Database = {
         Insert: {
           alt_text?: string | null
           asset_category?: string
+          asset_source?: string | null
           created_at?: string
+          external_url?: string | null
           file_name: string
           file_path: string
           file_size?: number
           file_type: string
           id?: string
           is_public?: boolean
+          metadata?: Json | null
+          mime_type?: string | null
+          original_filename?: string | null
           tags?: Json | null
+          thumbnail_path?: string | null
           updated_at?: string
           usage_count?: number
           user_id: string
@@ -620,14 +632,20 @@ export type Database = {
         Update: {
           alt_text?: string | null
           asset_category?: string
+          asset_source?: string | null
           created_at?: string
+          external_url?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
           file_type?: string
           id?: string
           is_public?: boolean
+          metadata?: Json | null
+          mime_type?: string | null
+          original_filename?: string | null
           tags?: Json | null
+          thumbnail_path?: string | null
           updated_at?: string
           usage_count?: number
           user_id?: string
@@ -3736,6 +3754,17 @@ export type Database = {
           name: string
         }[]
       }
+      get_asset_by_url: {
+        Args: { p_url: string }
+        Returns: {
+          asset_category: string
+          file_name: string
+          file_path: string
+          id: string
+          metadata: Json
+          tags: Json
+        }[]
+      }
       get_cities_with_airports: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -4131,6 +4160,10 @@ export type Database = {
           target_country: string
         }
         Returns: number
+      }
+      migrate_existing_assets: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       monitor_sensitive_access: {
         Args: {

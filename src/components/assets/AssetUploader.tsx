@@ -16,6 +16,18 @@ interface AssetUploaderProps {
   onUploadComplete: () => void;
 }
 
+// Enhanced asset categories
+const assetCategories = [
+  { value: 'general', label: 'General' },
+  { value: 'airline_logo', label: 'Airline Logo' },
+  { value: 'aircraft_icon', label: 'Aircraft Icon' },
+  { value: 'logo', label: 'Logo' },
+  { value: 'icon', label: 'Icon' },
+  { value: 'avatar', label: 'Avatar' },
+  { value: 'attachment', label: 'Attachment' },
+  { value: 'static_file', label: 'Static File' }
+];
+
 export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [category, setCategory] = useState('general');
@@ -25,14 +37,6 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const { user } = useSimpleAuth();
-
-  const categories = [
-    { value: 'general', label: 'General' },
-    { value: 'logo', label: 'Logo' },
-    { value: 'icon', label: 'Icon' },
-    { value: 'avatar', label: 'Avatar' },
-    { value: 'attachment', label: 'Attachment' }
-  ];
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -53,43 +57,50 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
     setFiles(files.filter((_, i) => i !== index));
   };
 
-  const formatFileSize = (bytes: number) => {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 Bytes';
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
   const uploadAssets = async () => {
     if (!user || files.length === 0) return;
 
     setUploading(true);
+    
     try {
-      const uploadPromises = files.map(async (file) => {
-        // For demo purposes, we'll use a placeholder URL
-        // In a real implementation, you'd upload to Supabase Storage
-        const filePath = `/lovable-uploads/${file.name}`;
+      for (const file of files) {
+        // Upload to Supabase Storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
         
-        const tagsArray = tags.split(',').map(tag => tag.trim()).filter(Boolean);
+        const { error: uploadError } = await supabase.storage
+          .from('assets')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        // Create asset record
+        const assetData = {
+          user_id: user.id,
+          file_name: file.name,
+          original_filename: file.name,
+          file_path: fileName,
+          file_type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document',
+          file_size: file.size,
+          asset_category: category,
+          asset_source: 'upload',
+          mime_type: file.type,
+          alt_text: altText,
+          tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+          is_public: isPublic,
+          metadata: {
+            uploaded_at: new Date().toISOString(),
+            original_name: file.name,
+            size_formatted: formatFileSize(file.size)
+          }
+        };
 
         const { error } = await supabase
           .from('assets')
-          .insert({
-            user_id: user.id,
-            file_name: file.name,
-            file_path: filePath,
-            file_type: file.type,
-            file_size: file.size,
-            asset_category: category,
-            tags: tagsArray,
-            alt_text: altText || null,
-            is_public: isPublic
-          });
+          .insert([assetData]);
 
         if (error) throw error;
-      });
-
-      await Promise.all(uploadPromises);
+      }
 
       toast({
         title: "Success",
@@ -97,16 +108,32 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
       });
 
       onUploadComplete();
+      
+      // Reset form
+      setFiles([]);
+      setCategory('general');
+      setAltText('');
+      setTags('');
+      setIsPublic(false);
+      
     } catch (error) {
       console.error('Error uploading assets:', error);
       toast({
         title: "Error",
-        description: "Failed to upload assets",
+        description: "Failed to upload assets. Please try again.",
         variant: "destructive"
       });
     } finally {
       setUploading(false);
     }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
@@ -175,18 +202,18 @@ export function AssetUploader({ onClose, onUploadComplete }: AssetUploaderProps)
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assetCategories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
             </div>
 
             <div className="space-y-2">

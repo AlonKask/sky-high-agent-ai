@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { AssetGallery } from '@/components/assets/AssetGallery';
 import { AssetUploader } from '@/components/assets/AssetUploader';
 import { AssetStats } from '@/components/assets/AssetStats';
+import { AssetMigrationTool } from '@/components/assets/AssetMigrationTool';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export default function Assets() {
@@ -20,9 +21,12 @@ export default function Assets() {
 
   const categories = [
     { value: 'all', label: 'All Assets' },
+    { value: 'airline_logo', label: 'Airline Logos' },
+    { value: 'aircraft_icon', label: 'Aircraft Icons' },
     { value: 'logo', label: 'Logos' },
     { value: 'icon', label: 'Icons' },
     { value: 'avatar', label: 'Avatars' },
+    { value: 'static_file', label: 'Static Files' },
     { value: 'attachment', label: 'Attachments' },
     { value: 'general', label: 'General' }
   ];
@@ -49,6 +53,9 @@ export default function Assets() {
           </Button>
         )}
       </div>
+
+      {/* Migration Tool */}
+      <AssetMigrationTool />
 
       {/* Stats */}
       <AssetStats />

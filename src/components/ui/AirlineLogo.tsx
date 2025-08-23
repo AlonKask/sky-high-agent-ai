@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AirlineLogoProps {
   logoUrl?: string;
@@ -26,12 +27,42 @@ export function AirlineLogo({
 }: AirlineLogoProps) {
   const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [assetUrl, setAssetUrl] = useState<string | null>(null);
+
+  // Try to get asset from assets table first
+  useEffect(() => {
+    const fetchAssetUrl = async () => {
+      if (logoUrl) {
+        try {
+          const { data } = await supabase.rpc('get_asset_by_url', { p_url: logoUrl });
+          if (data && data.length > 0) {
+            const asset = data[0];
+            // Prioritize assets from the assets table
+            if (asset.asset_category === 'airline_logo') {
+              setAssetUrl(asset.file_path);
+              return;
+            }
+          }
+        } catch (error) {
+          console.debug('Asset lookup failed, using fallback:', error);
+        }
+      }
+      setAssetUrl(null);
+    };
+
+    fetchAssetUrl();
+  }, [logoUrl, iataCode]);
 
   // Multi-source fallback strategy
   const getLogoSources = (): string[] => {
     const sources: string[] = [];
     
-    // Use provided logoUrl first if available
+    // Use asset URL if available (highest priority)
+    if (assetUrl) {
+      sources.push(assetUrl);
+    }
+    
+    // Use provided logoUrl
     if (logoUrl) {
       sources.push(logoUrl);
     }
