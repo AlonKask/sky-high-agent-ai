@@ -11,7 +11,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Search, Users, Clock, MapPin, User, UserPlus, Calendar, CheckCircle, ChevronDown, Inbox } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyStateCard } from "@/components/EmptyStateCard";
-import { AuthCleanup } from "@/utils/authCleanup";
 
 interface Request {
   id: string;
@@ -46,12 +45,12 @@ const EnhancedRequestManager = () => {
   const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [requests, setRequests] = useState<Request[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [availablePoolRequests, setAvailablePoolRequests] = useState<Request[]>([]);
+  const [myAssignedRequests, setMyAssignedRequests] = useState<Request[]>([]);
+  const [loadingPool, setLoadingPool] = useState(true);
+  const [loadingAssigned, setLoadingAssigned] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [takingRequest, setTakingRequest] = useState<string | null>(null);
   const [showTakeRequestDropdown, setShowTakeRequestDropdown] = useState(false);
-  const filterUserId = searchParams.get('user');
 
   const isLoading = authLoading || roleLoading;
 
@@ -69,66 +68,161 @@ const EnhancedRequestManager = () => {
   useEffect(() => {
     if (!isLoading && user) {
       console.log('Fetching requests for user:', user.id, 'with role:', role);
-      fetchRequests();
+      fetchAvailablePoolRequests();
+      fetchMyAssignedRequests();
     } else if (!isLoading && !user) {
       console.log('No user authenticated, skipping fetch');
-      setLoading(false);
+      setLoadingPool(false);
+      setLoadingAssigned(false);
     }
   }, [user, role, isLoading]);
 
-  const fetchRequests = async () => {
+  const fetchAvailablePoolRequests = async () => {
     if (!user) {
-      console.log('No user found, skipping request fetch');
-      setLoading(false);
+      console.log('No user found, skipping available requests fetch');
+      setLoadingPool(false);
       return;
     }
     
     try {
-      setLoading(true);
-      console.log('Fetching requests using secure function for user:', user.id, 'role:', role);
+      setLoadingPool(true);
+      console.log('Fetching available pool requests');
 
-      // Use the secure RPC function that bypasses RLS issues
-      const { data, error } = await supabase.rpc('get_user_requests', {
-        target_user_id: user.id
-      });
+      // Get all unassigned requests from the shared pool (like GDSExpertDashboard)
+      const { data, error } = await supabase
+        .from('requests')
+        .select(`
+          id,
+          client_id,
+          origin,
+          destination,
+          departure_date,
+          return_date,
+          adults_count,
+          children_count,
+          infants_count,
+          priority,
+          status,
+          assignment_status,
+          assigned_to,
+          created_at,
+          clients:client_id (
+            first_name,
+            last_name,
+            email,
+            client_type
+          )
+        `)
+        .eq('assignment_status', 'available')
+        .is('assigned_to', null)
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching requests:', error);
+        console.error('Error fetching available requests:', error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load requests"
+          description: "Failed to load available requests"
         });
         return;
       }
 
-      console.log('Fetched requests via RPC:', data?.length || 0, 'requests');
+      console.log('Fetched available pool requests:', data?.length || 0, 'requests');
       
-      // Phase 3: Transform the data to match the expected format with session recovery
+      // Transform the data to match the expected format
       const transformedRequests = data?.map(request => ({
         ...request,
-        // Backward compatibility mappings
-        origin: request.origin_airport,
-        destination: request.destination_airport,
+        // Keep existing mappings for consistency with interface
+        origin_airport: request.origin,
+        destination_airport: request.destination,
         passengers: (request.adults_count || 0) + (request.children_count || 0) + (request.infants_count || 0),
-        clients: {
-          first_name: request.client_first_name,
-          last_name: request.client_last_name,
-          email: request.client_email,
-          client_type: 'new' // Default since client_type not in RPC response
-        }
+        clients: Array.isArray(request.clients) ? request.clients[0] : request.clients
       })) || [];
       
-      setRequests(transformedRequests);
+      setAvailablePoolRequests(transformedRequests);
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      console.error('Error fetching available requests:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to load requests"
+        description: "Failed to load available requests"
       });
     } finally {
-      setLoading(false);
+      setLoadingPool(false);
+    }
+  };
+
+  const fetchMyAssignedRequests = async () => {
+    if (!user) {
+      console.log('No user found, skipping assigned requests fetch');
+      setLoadingAssigned(false);
+      return;
+    }
+    
+    try {
+      setLoadingAssigned(true);
+      console.log('Fetching assigned requests for user:', user.id);
+
+      // Get requests assigned to the current user (like GDSExpertDashboard)
+      const { data, error } = await supabase
+        .from('requests')
+        .select(`
+          id,
+          client_id,
+          origin,
+          destination,
+          departure_date,
+          return_date,
+          adults_count,
+          children_count,
+          infants_count,
+          priority,
+          status,
+          assignment_status,
+          assigned_to,
+          created_at,
+          clients:client_id (
+            first_name,
+            last_name,
+            email,
+            client_type
+          )
+        `)
+        .eq('assigned_to', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching assigned requests:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load assigned requests"
+        });
+        return;
+      }
+
+      console.log('Fetched assigned requests:', data?.length || 0, 'requests');
+      
+      // Transform the data to match the expected format
+      const transformedRequests = data?.map(request => ({
+        ...request,
+        // Keep existing mappings for consistency with interface
+        origin_airport: request.origin,
+        destination_airport: request.destination,
+        passengers: (request.adults_count || 0) + (request.children_count || 0) + (request.infants_count || 0),
+        clients: Array.isArray(request.clients) ? request.clients[0] : request.clients
+      })) || [];
+      
+      setMyAssignedRequests(transformedRequests);
+    } catch (error) {
+      console.error('Error fetching assigned requests:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load assigned requests"
+      });
+    } finally {
+      setLoadingAssigned(false);
     }
   };
 
@@ -157,7 +251,9 @@ const EnhancedRequestManager = () => {
         description: "Request assigned successfully"
       });
       
-      await fetchRequests(); // Refresh the list
+      // Refresh both lists
+      await fetchAvailablePoolRequests();
+      await fetchMyAssignedRequests();
       setShowTakeRequestDropdown(false);
     } catch (error) {
       console.error('Error taking request:', error);
@@ -169,18 +265,15 @@ const EnhancedRequestManager = () => {
     }
   };
 
-  const filteredRequests = requests.filter(request => {
+  const filteredAvailableRequests = availablePoolRequests.filter(request => {
     const searchString = `${request.clients?.first_name} ${request.clients?.last_name} ${request.origin} ${request.destination}`.toLowerCase();
     return searchString.includes(searchTerm.toLowerCase());
   });
 
-  const availableRequests = filteredRequests.filter(request => 
-    request.assignment_status === 'available'
-  );
-
-  const myAssignedRequests = filteredRequests.filter(request => 
-    request.assigned_to === user?.id
-  );
+  const filteredAssignedRequests = myAssignedRequests.filter(request => {
+    const searchString = `${request.clients?.first_name} ${request.clients?.last_name} ${request.origin} ${request.destination}`.toLowerCase();
+    return searchString.includes(searchTerm.toLowerCase());
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -271,6 +364,8 @@ const EnhancedRequestManager = () => {
     );
   };
 
+  const loading = loadingPool || loadingAssigned;
+  
   if (isLoading || loading) {
     return (
       <div className="space-y-6">
@@ -334,13 +429,13 @@ const EnhancedRequestManager = () => {
             </Button>
 
             {/* Take Request Button */}
-            {availableRequests.length > 0 && (
+            {filteredAvailableRequests.length > 0 && (
               <div className="relative">
                 <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="relative">
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Take Request ({availableRequests.length})
+                      Take Request ({filteredAvailableRequests.length})
                       <ChevronDown className="w-4 h-4 ml-2" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -348,7 +443,7 @@ const EnhancedRequestManager = () => {
                     align="end" 
                     className="w-80 max-h-60 overflow-y-auto z-[101] bg-popover border shadow-lg"
                   >
-                    {availableRequests.map((request) => (
+                    {filteredAvailableRequests.map((request) => (
                       <DropdownMenuItem
                         key={request.id}
                         className="p-3 cursor-pointer hover:bg-muted focus:bg-muted"
@@ -401,15 +496,15 @@ const EnhancedRequestManager = () => {
       </div>
 
       {/* My Assigned Requests (if any) */}
-      {myAssignedRequests.length > 0 && (
+      {filteredAssignedRequests.length > 0 && (
         <div className="space-y-4 mt-8">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
             <h2 className="text-xl font-semibold">My Assigned Requests</h2>
-            <Badge variant="secondary">{myAssignedRequests.length}</Badge>
+            <Badge variant="secondary">{filteredAssignedRequests.length}</Badge>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-6">
-            {myAssignedRequests.map((request) => (
+            {filteredAssignedRequests.map((request) => (
               <RequestCard key={request.id} request={request} />
             ))}
           </div>
@@ -417,7 +512,7 @@ const EnhancedRequestManager = () => {
       )}
 
       {/* Show empty state if no requests at all */}
-      {requests.length === 0 && !loading && (
+      {availablePoolRequests.length === 0 && myAssignedRequests.length === 0 && !loading && (
         <EmptyStateCard
           title="No Travel Requests Found"
           description={`No travel requests found for your account. ${role === 'agent' ? 'Available requests will appear here when they\'re submitted.' : 'Create your first request to get started.'}`}
@@ -426,7 +521,7 @@ const EnhancedRequestManager = () => {
       )}
 
       {/* Available Requests - Unified List */}
-      {availableRequests.length > 0 && (
+      {filteredAvailableRequests.length > 0 && (
         <div className="space-y-4 mt-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -434,12 +529,12 @@ const EnhancedRequestManager = () => {
             </div>
             <h2 className="text-xl font-semibold">Available Requests</h2>
             <Badge variant="outline" className="border-primary/20 text-primary">
-              {availableRequests.length}
+              {filteredAvailableRequests.length}
             </Badge>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 lg:gap-6">
-            {availableRequests.map((request) => (
+            {filteredAvailableRequests.map((request) => (
               <RequestCard key={request.id} request={request} />
             ))}
           </div>
