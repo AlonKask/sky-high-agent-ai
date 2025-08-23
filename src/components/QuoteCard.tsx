@@ -195,16 +195,6 @@ export function QuoteCard({
                 </div>
               </div>
 
-              {/* Center - Price */}
-              <div className="text-center px-4">
-                <div className="text-2xl font-bold text-primary">
-                  ${formatPrice(quote.total_price)}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Total Price
-                </div>
-              </div>
-
               {/* Right section - Action buttons */}
               <div className="flex items-center gap-1">
                 <Button
@@ -323,10 +313,10 @@ export function QuoteCard({
                   <DollarSign className="h-4 w-4" />
                   Pricing Details
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {/* Overall Pricing */}
                   <div className={cn(
-                    "grid gap-4 p-3 bg-muted/30 rounded-lg",
+                    "grid gap-3 p-2 bg-muted/30 rounded-lg",
                     quote.ck_fee_enabled ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-3"
                   )}>
                     <div>
@@ -353,12 +343,12 @@ export function QuoteCard({
                   {(quote.adult_net_price !== null && quote.adult_net_price !== undefined || 
                     quote.child_net_price !== null && quote.child_net_price !== undefined || 
                     quote.infant_net_price !== null && quote.infant_net_price !== undefined) && (
-                    <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-200">
+                    <div className="p-2 bg-blue-50/50 rounded-lg border border-blue-200">
                       <h5 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
                         <Users className="h-4 w-4" />
                         Passenger Breakdown
                       </h5>
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {quote.adult_net_price !== null && quote.adult_net_price !== undefined && safeParseInt(quote.adults_count) > 0 && (
                           <div className="flex items-center justify-between">
                             <div>

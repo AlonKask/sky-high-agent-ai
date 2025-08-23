@@ -412,7 +412,6 @@ export default function UnifiedEmailBuilder({
             
             return `
               <div style="margin-bottom:16px;">
-                <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">${directionTitle}</div>
                 <table style="width:100%;">${directionSegs}</table>
               </div>`;
           }).join('');
@@ -550,15 +549,10 @@ export default function UnifiedEmailBuilder({
                                 // Display individual flight segments with details
                                 if (quote.parsedItinerary?.flightDirections && quote.parsedItinerary.flightDirections.length > 0) {
                                   const directions = quote.parsedItinerary.flightDirections;
-                                  return directions.map((direction, dirIndex) => {
-                                    const directionTitle = direction.type === 'outbound' ? 'Outbound Journey' : 
-                                                         direction.type === 'return' ? 'Return Journey' : 'Continuing Journey';
-                                    
-                                    let segmentHtml = `
-                                      <div style="margin-bottom:16px;">
-                                        <div style="font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:#6E6E73;margin-bottom:8px;">
-                                          ${directionTitle}
-                                        </div>`;
+                                   return directions.map((direction, dirIndex) => {
+                                     
+                                     let segmentHtml = `
+                                       <div style="margin-bottom:16px;">`;
                                     
                                     // Display each individual segment
                                     direction.segments.forEach((segment, segIndex) => {
