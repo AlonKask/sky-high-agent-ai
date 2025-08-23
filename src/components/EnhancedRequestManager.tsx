@@ -310,78 +310,89 @@ const EnhancedRequestManager = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Request Management</h1>
-          <p className="text-muted-foreground">
-            Manage client travel requests and assignments
-          </p>
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Request Management</h1>
+            <p className="text-muted-foreground">
+              Manage client travel requests and assignments
+            </p>
+          </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          {/* Create Request Button */}
-          <Button 
-            onClick={() => navigate('/requests/new')}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Create Request
-          </Button>
+        {/* Action Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          {/* Left side - Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Create Request Button */}
+            <Button 
+              onClick={() => navigate('/requests/new')}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create Request
+            </Button>
 
-          {/* Take Request Button */}
-          {availableRequests.length > 0 && (
-            <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Take Request ({availableRequests.length})
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 max-h-60 overflow-y-auto">
-                {availableRequests.map((request) => (
-                  <DropdownMenuItem
-                    key={request.id}
-                    className="p-3 cursor-pointer"
-                    onClick={() => {
-                      handleTakeRequest(request.id);
-                      setShowTakeRequestDropdown(false);
-                    }}
+            {/* Take Request Button */}
+            {availableRequests.length > 0 && (
+              <div className="relative">
+                <DropdownMenu open={showTakeRequestDropdown} onOpenChange={setShowTakeRequestDropdown}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="relative">
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Take Request ({availableRequests.length})
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="end" 
+                    className="w-80 max-h-60 overflow-y-auto z-[101] bg-popover border shadow-lg"
                   >
-                    <div className="flex flex-col w-full">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">
-                          {request.clients?.first_name} {request.clients?.last_name}
-                        </span>
-                        <Badge variant="outline" className={
-                          request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' :
-                          request.clients?.client_type === 'return' ? 'border-green-200 text-green-600' :
-                          'border-purple-200 text-purple-600'
-                        }>
-                          {request.clients?.client_type}
-                        </Badge>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {request.origin} -&gt; {request.destination}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(request.departure_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+                    {availableRequests.map((request) => (
+                      <DropdownMenuItem
+                        key={request.id}
+                        className="p-3 cursor-pointer hover:bg-muted focus:bg-muted"
+                        onClick={() => {
+                          handleTakeRequest(request.id);
+                          setShowTakeRequestDropdown(false);
+                        }}
+                      >
+                        <div className="flex flex-col w-full">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              {request.clients?.first_name} {request.clients?.last_name}
+                            </span>
+                            <Badge variant="outline" className={
+                              request.clients?.client_type === 'new' ? 'border-blue-200 text-blue-600' :
+                              request.clients?.client_type === 'return' ? 'border-green-200 text-green-600' :
+                              'border-purple-200 text-purple-600'
+                            }>
+                              {request.clients?.client_type}
+                            </Badge>
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {request.origin} -&gt; {request.destination}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(request.departure_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
           
-          {/* Search */}
-          <div className="relative w-full lg:w-96">
+          {/* Right side - Search */}
+          <div className="relative flex-1 sm:flex-none sm:w-80">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search requests..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
         </div>
@@ -389,13 +400,13 @@ const EnhancedRequestManager = () => {
 
       {/* My Assigned Requests (if any) */}
       {myAssignedRequests.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-8">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
             <h2 className="text-xl font-semibold">My Assigned Requests</h2>
             <Badge variant="secondary">{myAssignedRequests.length}</Badge>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {myAssignedRequests.map((request) => (
               <RequestCard key={request.id} request={request} />
             ))}
@@ -414,7 +425,7 @@ const EnhancedRequestManager = () => {
 
       {/* Available Requests - Unified List */}
       {availableRequests.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
               <Inbox className="w-4 h-4 text-primary" />
@@ -425,7 +436,7 @@ const EnhancedRequestManager = () => {
             </Badge>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {availableRequests.map((request) => (
               <RequestCard key={request.id} request={request} />
             ))}
