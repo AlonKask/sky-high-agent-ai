@@ -67,16 +67,26 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     setSelectedQuotes(new Set(visibleQuotes.map(q => q.id)));
     setEmailSubject(`Flight Options for ${client.first_name} ${client.last_name}`);
     
-    // Load company logo
+    // Load company logo with enhanced error handling
+    console.log('🚀 Loading company logo...');
     setLogoLoading(true);
     
     getCompanyLogoUrl()
       .then((url) => {
+        console.log('✅ Logo loaded successfully:', url);
         setCompanyLogoUrl(url || '');
         setLogoLoading(false);
+        
+        // Test if the image actually loads
+        if (url) {
+          const testImg = new Image();
+          testImg.onload = () => console.log('✅ Logo image verified loadable');
+          testImg.onerror = () => console.error('❌ Logo image failed to load in browser');
+          testImg.src = url;
+        }
       })
       .catch((error) => {
-        console.error('Error loading logo:', error);
+        console.error('❌ Error loading logo:', error);
         setCompanyLogoUrl('');
         setLogoLoading(false);
       });
@@ -107,8 +117,9 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #ffffff; line-height: 1.6;">
           <div style="text-align: center; margin-bottom: 40px; padding: 30px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border-radius: 12px;">
             ${companyLogoUrl ? 
-              `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; width: auto; margin-bottom: 20px; object-fit: contain; display: block; margin-left: auto; margin-right: auto; border: 0;" />` : 
-              '<div style="height: 20px; margin-bottom: 20px;"></div>'
+              `<img src="${companyLogoUrl}" alt="Company Logo" style="max-height: 60px; width: auto; margin-bottom: 20px; object-fit: contain; display: block; margin-left: auto; margin-right: auto; border: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+               <div style="display: none; font-size: 24px; font-weight: 700; margin-bottom: 20px; color: white;">SELECT BUSINESS CLASS</div>` : 
+              '<div style="font-size: 24px; font-weight: 700; margin-bottom: 20px; color: white;">SELECT BUSINESS CLASS</div>'
             }
             <h1 style="margin: 0; font-size: 32px; font-weight: 700;">✈️ Flight Options</h1>
             <p style="margin: 15px 0 0 0; font-size: 18px; opacity: 0.95;">Carefully selected for ${client.first_name} ${client.last_name}</p>

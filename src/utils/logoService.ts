@@ -77,10 +77,12 @@ export const getCompanyLogo = async (): Promise<LogoAsset | null> => {
 };
 
 /**
- * Get company logo URL for use in HTML
- * Simplified version focused on generating correct URLs
+ * Get company logo URL for use in HTML with cache-busting
  */
 export const getCompanyLogoUrl = async (): Promise<string> => {
+  // Force fresh logo fetch
+  clearLogoCache();
+  
   try {
     const logo = await getCompanyLogo();
     
@@ -90,25 +92,32 @@ export const getCompanyLogoUrl = async (): Promise<string> => {
     }
 
     if (logo.asset_source === 'supabase_storage') {
-      // Generate public URL for Supabase storage with proper encoding
+      // Generate public URL for Supabase storage
       const { data } = supabase.storage
         .from('assets')
         .getPublicUrl(logo.file_path);
       
-      console.log('Generated logo URL:', data.publicUrl);
+      // Add cache-busting timestamp to force browser refresh
+      const cacheBuster = `?t=${Date.now()}`;
+      const finalUrl = data.publicUrl + cacheBuster;
       
-      // Check if it's PNG and suggest JPEG for better email compatibility
-      if (logo.file_path.toLowerCase().includes('.png')) {
-        console.warn('PNG logo detected - consider converting to JPEG for better email client compatibility');
-      }
+      console.log('🎯 Generated logo URL with cache-buster:', finalUrl);
+      console.log('📂 Logo asset details:', { 
+        id: logo.id, 
+        file_path: logo.file_path, 
+        asset_source: logo.asset_source 
+      });
       
-      return data.publicUrl;
+      return finalUrl;
     } else {
-      // External URL
-      return logo.file_path;
+      // External URL with cache-buster
+      const separator = logo.file_path.includes('?') ? '&' : '?';
+      const finalUrl = logo.file_path + separator + `t=${Date.now()}`;
+      console.log('🌐 External logo URL with cache-buster:', finalUrl);
+      return finalUrl;
     }
   } catch (error) {
-    console.error('Error getting company logo URL:', error);
+    console.error('❌ Error getting company logo URL:', error);
     return '';
   }
 };
