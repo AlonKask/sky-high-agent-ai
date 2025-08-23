@@ -8,12 +8,13 @@ import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, X, Send, Mail, AlertCircle, RotateCcw } from 'lucide-react';
+import { Loader2, X, Send, Mail, AlertCircle, RotateCcw, Building } from 'lucide-react';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { SabreParser } from '@/utils/sabreParser';
 import { DatabaseUtils } from '@/utils/databaseUtils';
 import { EmailTemplateGenerator, SabreOption } from '@/utils/emailTemplateGenerator';
+import { AssetPicker } from '@/components/assets/AssetPicker';
 import { LogoSelector } from '@/components/LogoSelector';
 
 interface Quote {
@@ -94,7 +95,18 @@ export default function UnifiedEmailBuilder({
           requestId ? supabase.from('requests').select('departure_date,return_date,adults_count,children_count,infants_count,origin,destination').eq('id', requestId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
         ]);
         if (!profileRes.error) setAgentProfile(profileRes.data as any);
-        if (!prefsRes.error) setUserPrefs(prefsRes.data as any);
+        if (!prefsRes.error) {
+          setUserPrefs(prefsRes.data as any);
+          // Load company logo asset if set in preferences
+          if (prefsRes.data?.company_logo_asset_id) {
+            const { data: assetData } = await supabase
+              .from('assets')
+              .select('id, file_path, asset_source')
+              .eq('id', prefsRes.data.company_logo_asset_id)
+              .maybeSingle();
+            if (assetData) setSelectedLogoAsset(assetData);
+          }
+        }
         if (!reqRes.error) setRequestInfo(reqRes.data as any);
       } catch (e) {
         console.error('Failed to load email context', e);
