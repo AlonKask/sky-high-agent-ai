@@ -401,7 +401,7 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
               {/* Debug: Show logo URL */}
               {companyLogoUrl && (
                 <div className="p-2 bg-blue-50 rounded text-xs">
-                  <strong>Debug - Logo URL:</strong> {companyLogoUrl}
+                  <strong>Debug - Logo loaded successfully:</strong> {companyLogoUrl}
                   <br />
                   <img src={companyLogoUrl} alt="Logo test" className="mt-1 max-h-8" />
                 </div>

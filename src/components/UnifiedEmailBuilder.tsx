@@ -611,6 +611,9 @@ export default function UnifiedEmailBuilder({
     const signatureEmail = agentProfile?.email || (await supabase.auth.getUser()).data.user?.email || 'support@selectbusinessclass.com';
     const signaturePhone = agentProfile?.phone || '';
 
+    // Get company logo URL
+    const companyLogoUrl = await getCompanyLogoUrl();
+
     return `<!doctype html>
 <html lang="en" style="margin:0;padding:0;">
 <head>
