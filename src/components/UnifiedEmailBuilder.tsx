@@ -647,7 +647,11 @@ export default function UnifiedEmailBuilder({
               <table role="presentation" width="100%">
                 <tr>
                   <td style="vertical-align:middle;">
-                    <img src="data: alt="Logo" style="height:32px;width:auto;" />
+                    ${companyLogoUrl ? 
+                      `<img src="${companyLogoUrl}" alt="Company Logo" style="height:32px;width:auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+                       <span style="display:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:600;color:#0B1220;">SELECT BUSINESS CLASS</span>` : 
+                      '<span style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;font-size:16px;font-weight:600;color:#0B1220;">SELECT BUSINESS CLASS</span>'
+                    }
                   </td>
                   <td align="right" class="hide-sm" style="vertical-align:middle;">
                     <a href="https://selectbusinessclass.com" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;text-decoration:none;">selectbusinessclass.com</a>
