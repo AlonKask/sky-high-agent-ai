@@ -92,7 +92,7 @@ export const getCompanyLogoUrl = async (): Promise<string> => {
     if (logo.asset_source === 'supabase_storage') {
       // Generate public URL for Supabase storage with proper encoding
       const { data } = supabase.storage
-        .from('CRM Assets')
+        .from('assets')
         .getPublicUrl(logo.file_path);
       
       console.log('Generated logo URL:', data.publicUrl);
