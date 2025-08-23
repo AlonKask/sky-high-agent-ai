@@ -17,6 +17,7 @@ interface AssetUploaderProps {
 // Enhanced asset categories
 const assetCategories = [
   { value: 'general', label: 'General' },
+  { value: 'company_logo', label: 'Company Logo' },
   { value: 'airline_logo', label: 'Airline Logo' },
   { value: 'aircraft_icon', label: 'Aircraft Icon' },
   { value: 'logo', label: 'Logo' },

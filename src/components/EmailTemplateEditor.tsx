@@ -718,7 +718,7 @@ export function EmailTemplateEditor({
         const { data, error } = await supabase
           .from('assets')
           .select('*')
-          .eq('asset_category', 'company_logo')
+          .in('asset_category', ['company_logo', 'logo'])
           .eq('is_public', true)
           .order('created_at', { ascending: false })
           .limit(1);
@@ -726,9 +726,8 @@ export function EmailTemplateEditor({
         if (data && data.length > 0) {
           const logoAsset = data[0];
           let logoUrl = '';
-          if (logoAsset.asset_source === 'supabase_storage') {
-            logoUrl = `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/CRM Assets/${logoAsset.file_path}`;
-          } else if (logoAsset.asset_source === 'upload') {
+          // Both supabase_storage and upload use the same 'assets' bucket
+          if (logoAsset.asset_source === 'supabase_storage' || logoAsset.asset_source === 'upload') {
             logoUrl = `https://ekrwjfdypqzequovmvjn.supabase.co/storage/v1/object/public/assets/${logoAsset.file_path}`;
           } else {
             logoUrl = logoAsset.file_path || logoAsset.external_url;
