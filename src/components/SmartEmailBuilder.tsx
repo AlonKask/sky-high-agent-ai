@@ -22,7 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { sanitizeText, sanitizeEmailContent } from '@/utils/sanitization';
 import { SafeHtmlRenderer } from './SafeHtmlRenderer';
-import { getCompanyLogoUrl } from '@/utils/logoService';
+import { clearLogoCache, getCompanyLogoUrl } from '@/utils/logoService';
 
 interface Quote {
   id: string;
@@ -69,6 +69,8 @@ export function SmartEmailBuilder({ client, quotes, requestId, onClose }: SmartE
     
     // Load company logo with better error handling
     setLogoLoading(true);
+    // Clear cache to ensure fresh logo data
+    clearLogoCache();
     getCompanyLogoUrl()
       .then((url) => {
         console.log('✅ Logo URL loaded for email:', url);
