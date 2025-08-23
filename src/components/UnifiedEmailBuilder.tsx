@@ -79,22 +79,33 @@ export default function UnifiedEmailBuilder({
   const [errors, setErrors] = useState<string[]>([]);
   const [previewContent, setPreviewContent] = useState('');
 
-  const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string } | null>(null);
+  const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string; avatar_url?: string } | null>(null);
   const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string; company_logo_asset_id?: string } | null>(null);
-  const [requestInfo, setRequestInfo] = useState<{ departure_date?: string; return_date?: string; adults_count?: number; children_count?: number; infants_count?: number; origin?: string; destination?: string } | null>(null);
+  const [requestInfo, setRequestInfo] = useState<{ departure_date?: string; return_date?: string; adults_count?: number; children_count?: number; infants_count?: number; origin?: string; destination?: string; assigned_to?: string; user_id?: string } | null>(null);
   const [airlineLogos, setAirlineLogos] = useState<Record<string, string>>({});
   const [selectedLogoAsset, setSelectedLogoAsset] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id;
       try {
-        const [profileRes, prefsRes, reqRes] = await Promise.all([
-          userId ? supabase.from('profiles').select('first_name,last_name,email,phone,company').eq('id', userId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
-          userId ? supabase.from('user_preferences').select('currency,timezone,date_format,company_logo_asset_id').eq('user_id', userId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
-          requestId ? supabase.from('requests').select('departure_date,return_date,adults_count,children_count,infants_count,origin,destination').eq('id', requestId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
+        // First load request info to get the correct agent ID
+        const reqRes = requestId ? 
+          await supabase.from('requests').select('departure_date,return_date,adults_count,children_count,infants_count,origin,destination,assigned_to,user_id').eq('id', requestId).maybeSingle() : 
+          { data: null, error: null };
+        
+        if (!reqRes.error && reqRes.data) {
+          setRequestInfo(reqRes.data as any);
+        }
+        
+        // Determine which agent to load: assigned_to takes priority, fallback to user_id, then current user
+        const agentId = reqRes.data?.assigned_to || reqRes.data?.user_id || user?.id;
+        
+        const [profileRes, prefsRes] = await Promise.all([
+          agentId ? supabase.from('profiles').select('first_name,last_name,email,phone,company,avatar_url').eq('id', agentId).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
+          user?.id ? supabase.from('user_preferences').select('currency,timezone,date_format,company_logo_asset_id').eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null, error: null } as any),
         ]);
+        
         if (!profileRes.error) setAgentProfile(profileRes.data as any);
         if (!prefsRes.error) {
           setUserPrefs(prefsRes.data as any);
@@ -108,7 +119,6 @@ export default function UnifiedEmailBuilder({
             if (assetData) setSelectedLogoAsset(assetData);
           }
         }
-        if (!reqRes.error) setRequestInfo(reqRes.data as any);
       } catch (e) {
         console.error('Failed to load email context', e);
       }
@@ -763,7 +773,17 @@ export default function UnifiedEmailBuilder({
                     }
                   </td>
                   <td align="right" class="hide-sm" style="vertical-align:middle;">
-                    <a href="https://selectbusinessclass.com" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;text-decoration:none;">selectbusinessclass.com</a>
+                    ${agentProfile ? `
+                      <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+                        ${agentProfile.avatar_url ? 
+                          `<img src="${agentProfile.avatar_url}" alt="${agentProfile.first_name} ${agentProfile.last_name}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none';" />` : 
+                          `<div style="width:24px;height:24px;border-radius:50%;background:#0B1220;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;">${(agentProfile.first_name?.[0] || '') + (agentProfile.last_name?.[0] || '')}</div>`
+                        }
+                        <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;font-weight:500;">${agentProfile.first_name} ${agentProfile.last_name}</span>
+                      </div>
+                    ` : `
+                      <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#0B1220;">Select Business Class</span>
+                    `}
                   </td>
                 </tr>
               </table>

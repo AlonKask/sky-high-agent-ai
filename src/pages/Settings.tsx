@@ -4,6 +4,7 @@ import { useUserRole, UserRole } from '@/hooks/useUserRole';
 import { useRoleView } from '@/contexts/RoleViewContext';
 import { useThemeSync } from '@/hooks/useThemeSync';
 import { RoleSelector } from '@/components/RoleSelector';
+import { AvatarUpload } from '@/components/AvatarUpload';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +60,8 @@ const Settings = () => {
     last_name: '',
     email: '',
     phone: '',
-    company: ''
+    company: '',
+    avatar_url: null as string | null
   });
   const [preferences, setPreferences] = useState<UserPreferences>({
     email_notifications: true,
@@ -99,7 +101,8 @@ const Settings = () => {
         last_name: profileData?.last_name || '',
         email: profileData?.email || user?.email || '',
         phone: profileData?.phone || '',
-        company: profileData?.company || ''
+        company: profileData?.company || '',
+        avatar_url: profileData?.avatar_url || null
       });
 
       // Fetch preferences
@@ -154,6 +157,7 @@ const Settings = () => {
           email: profile.email,
           phone: profile.phone,
           company: profile.company,
+          avatar_url: profile.avatar_url,
           updated_at: new Date().toISOString()
         });
 
@@ -530,6 +534,17 @@ const Settings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Avatar Upload */}
+            <div className="space-y-2">
+              <Label>Profile Photo</Label>
+              <AvatarUpload
+                currentAvatarUrl={profile.avatar_url}
+                onAvatarUpdate={(avatarUrl) => setProfile({...profile, avatar_url: avatarUrl})}
+                userInitials={`${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`}
+                size="md"
+              />
+            </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name">First Name</Label>
