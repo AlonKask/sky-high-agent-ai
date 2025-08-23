@@ -90,7 +90,7 @@ export const getCompanyLogoUrl = async (): Promise<string> => {
     if (logo.asset_source === 'supabase_storage') {
       // Use public URL directly - simpler and more reliable for HTML emails
       const { data } = supabase.storage
-        .from('assets')
+        .from('CRM Assets')
         .getPublicUrl(logo.file_path);
       return data.publicUrl;
     }
