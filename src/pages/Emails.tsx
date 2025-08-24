@@ -48,6 +48,7 @@ import { format } from 'date-fns';
 import { ManualGmailFix } from '@/components/ManualGmailFix';
 import { EmailsPageFix } from '@/components/EmailsPageFix';
 import { GmailDebugPanel } from '@/components/GmailDebugPanel';
+import { EnhancedGmailStatus } from '@/components/EnhancedGmailStatus';
 import { Switch } from '@/components/ui/switch';
 
 interface EmailExchange {
@@ -435,95 +436,96 @@ const Emails = () => {
         </Button>
 
         <div className="p-4">
-          {/* Gmail Connection Status and Controls */}
+          {/* Enhanced Gmail Connection Status */}
           {!isSidebarCollapsed && (
             <div className="mb-4">
-              {!authStatus.isConnected ? (
-                <Card className="bg-blue-50 border-blue-200">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Mail className="h-5 w-5 text-blue-600" />
-                      <h3 className="font-medium text-blue-900">Connect Gmail</h3>
+              <EnhancedGmailStatus />
+            </div>
+          )}
+
+          {/* Additional Sync Controls for Connected Users */}
+          {!isSidebarCollapsed && authStatus.isConnected && (
+            <div className="mb-4">
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-medium text-sm mb-3">Sync Settings</h3>
+                  
+                  <div className="space-y-3">
+                    {/* AI Processing Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">AI Processing</span>
+                      </div>
+                      <Switch
+                        checked={aiProcessingEnabled}
+                        onCheckedChange={setAiProcessingEnabled}
+                        size="sm"
+                      />
                     </div>
-                    <p className="text-sm text-blue-700 mb-3">
-                      Connect your Gmail account to sync and manage your emails.
-                    </p>
+
+                    {/* Auto Sync Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">Auto Sync</span>
+                      </div>
+                      <Switch
+                        checked={autoSyncEnabled}
+                        onCheckedChange={setAutoSyncEnabled}
+                        size="sm"
+                      />
+                    </div>
+
+                    {/* Manual Sync Button */}
                     <Button 
-                      onClick={connectGmail}
-                      disabled={authStatus.isLoading}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      onClick={async () => {
+                        setSyncing(true);
+                        try {
+                          await emailSyncManager.syncEmails({ 
+                            includeAIProcessing: aiProcessingEnabled, 
+                            showProgress: true 
+                          });
+                          await loadEmailsFromDB();
+                        } finally {
+                          setSyncing(false);
+                        }
+                      }}
+                      disabled={syncing}
+                      variant="outline"
                       size="sm"
+                      className="w-full"
                     >
-                      {authStatus.isLoading ? (
+                      {syncing ? (
                         <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Connecting...
+                          <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                          Syncing...
                         </>
                       ) : (
                         <>
-                          <Mail className="h-4 w-4 mr-2" />
-                          Connect Gmail
+                          <RefreshCw className="h-4 w-4 mr-1" />
+                          Sync
                         </>
                       )}
                     </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="bg-green-50 border-green-200">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Mail className="h-5 w-5 text-green-600" />
-                      <h3 className="font-medium text-green-900">Gmail Connected</h3>
-                    </div>
-                    <p className="text-xs text-green-700 mb-3">
-                      {authStatus.userEmail}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={async () => {
-                          setSyncing(true);
-                          try {
-                            await emailSyncManager.syncEmails({ 
-                              includeAIProcessing: aiProcessingEnabled, 
-                              showProgress: true 
-                            });
-                            await loadEmailsFromDB();
-                          } finally {
-                            setSyncing(false);
-                          }
-                        }}
-                        disabled={syncing}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                      >
-                        {syncing ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                            Syncing...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-1" />
-                            Sync
-                          </>
-                        )}
-                      </Button>
-                      <Button 
-                        onClick={disconnectGmail}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        Disconnect
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              <ManualGmailFix />
+                    
+                    <Button 
+                      onClick={disconnectGmail}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 w-full"
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
+
+          <div className="mb-4">
+            <ManualGmailFix />
+          </div>
 
           {/* Header - Email sync happens automatically */}
           <div className="flex items-center gap-2 mb-6">
