@@ -12,9 +12,9 @@ interface AirlineLogoProps {
 }
 
 const sizeClasses = {
-  sm: "w-8 h-8 text-xs",
-  md: "w-12 h-12 text-sm",
-  lg: "w-16 h-16 text-base"
+  sm: "w-10 h-10 text-xs",
+  md: "w-16 h-16 text-sm", 
+  lg: "w-21 h-21 text-base"
 };
 
 export function AirlineLogo({ 

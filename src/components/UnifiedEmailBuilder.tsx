@@ -384,7 +384,7 @@ export default function UnifiedEmailBuilder({
               // Get airline logo for this segment  
               const airlineCode = s.airlineCode || s.airlineName;
               const logoUrl = getAirlineLogo(airlineCode, s.icaoCode);
-              const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+              const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:21px;width:auto;vertical-align:middle;margin-right:8px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">` : '';
               
               const flightDetails = [
                 s.flightNumber || '',
@@ -431,7 +431,7 @@ export default function UnifiedEmailBuilder({
             
             const airlineCode = s.airlineCode || s.airlineName;
             const logoUrl = getAirlineLogo(airlineCode, s.icaoCode);
-            const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+            const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${s.airlineName || airlineCode}" style="height:21px;width:auto;vertical-align:middle;margin-right:8px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">` : '';
             
             const flightDetails = [
               s.flightNumber || '',
@@ -545,7 +545,7 @@ export default function UnifiedEmailBuilder({
                                     direction.segments.forEach((segment, segIndex) => {
                                       const airlineCode = segment.airlineCode || segment.airlineName;
                                       const logoUrl = getAirlineLogo(airlineCode, segment.icaoCode);
-                                      const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${segment.airlineName}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+                                       const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${segment.airlineName}" style="height:21px;width:auto;vertical-align:middle;margin-right:8px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">` : '';
                                       
                                       const flightNum = segment.flightNumber || '';
                                       const aircraft = segment.aircraftType || segment.equipment || '';
@@ -594,7 +594,7 @@ export default function UnifiedEmailBuilder({
                                     quote.segments.forEach((segment, index) => {
                                       const airlineCode = segment.airlineCode || segment.airlineName;
                                       const logoUrl = getAirlineLogo(airlineCode, segment.icaoCode);
-                                      const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${segment.airlineName}" style="height:16px;width:auto;vertical-align:middle;margin-right:6px;">` : '';
+                                      const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${segment.airlineName}" style="height:21px;width:auto;vertical-align:middle;margin-right:8px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">` : '';
                                       
                                       segmentHtml += `
                                         <div style="margin-bottom:12px;">
@@ -611,7 +611,7 @@ export default function UnifiedEmailBuilder({
                                     // Final fallback to original display
                                     const airlineCode = first.airlineCode || first.airlineName;
                                     const logoUrl = getAirlineLogo(airlineCode, first.icaoCode);
-                                    const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:18px;width:auto;vertical-align:middle;margin-right:8px;">` : '';
+                                    const airlineLogo = logoUrl ? `<img src="${logoUrl}" alt="${airline}" style="height:23px;width:auto;vertical-align:middle;margin-right:10px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">` : '';
                                     return `
                                        <div style="font-family:'SF Mono',SFMono-Regular,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:16px;font-weight:600;color:#1D1D1F;margin-bottom:4px;">
                                          ${first.departureTime || '—'} ——— ${last.arrivalTime || '—'}

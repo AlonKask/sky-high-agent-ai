@@ -2,8 +2,9 @@ import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plane, Clock, Calendar, Users, MapPin, CreditCard } from 'lucide-react';
+import { Clock, Calendar, Users, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
+import { FlightPathVisualization } from '@/components/ui/FlightPathVisualization';
 
 interface Segment {
   departure_city: string;
@@ -64,15 +65,31 @@ export const SharedItineraryCard: React.FC<SharedItineraryCardProps> = ({
     return `${hours}h ${minutes}m`;
   };
 
+  // Convert segments to FlightPathVisualization format
+  const flightPathSegments = quote.segments.map(segment => ({
+    airlineCode: segment.airline.substring(0, 2), // Extract IATA code
+    airlineName: segment.airline,
+    flightNumber: segment.flight_number,
+    duration: formatDuration(segment),
+    departureAirport: {
+      code: segment.departure_airport?.substring(0, 3) || segment.departure_city?.substring(0, 3) || 'DEP',
+      name: segment.departure_city
+    },
+    arrivalAirport: {
+      code: segment.arrival_airport?.substring(0, 3) || segment.arrival_city?.substring(0, 3) || 'ARR', 
+      name: segment.arrival_city
+    }
+  }));
+
   return (
     <Card className={`overflow-hidden bg-gradient-to-br from-background to-secondary/20 border-2 hover:border-primary/30 transition-all duration-300 hover:shadow-lg animate-fade-in ${className}`}>
       <CardHeader className="relative pb-4">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Plane className="h-5 w-5 text-primary" />
-              <h2 className="font-playfair text-2xl md:text-3xl font-bold tracking-tight text-foreground">{quote.route}</h2>
-            </div>
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+          <h2 className="font-playfair text-2xl md:text-3xl font-bold tracking-tight text-foreground">{quote.route}</h2>
+        </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
@@ -104,83 +121,46 @@ export const SharedItineraryCard: React.FC<SharedItineraryCardProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Flight Segments */}
-        <div className="space-y-4">
-          {quote.segments.map((segment, index) => (
-            <div key={index} className="relative">
-              {index > 0 && (
-                <div className="flex justify-center py-2">
-                  <Badge variant="outline" className="text-xs">
-                    Connection
-                  </Badge>
+        {/* Modern Flight Path Visualization */}
+        <div className="bg-gradient-to-br from-background/50 to-secondary/30 rounded-xl p-6 border">
+          <FlightPathVisualization 
+            segments={flightPathSegments}
+            showAirlineLogos={true}
+            className="mb-4"
+          />
+          
+          {/* Detailed Flight Information */}
+          <div className="space-y-3 mt-6">
+            {quote.segments.map((segment, index) => (
+              <div key={index} className="flex items-center justify-between py-2 px-3 bg-card/30 rounded-lg border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="text-sm font-mono text-muted-foreground">
+                    {segment.airline} {segment.flight_number}
+                  </div>
+                  {segment.aircraft_type && (
+                    <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                      {segment.aircraft_type}
+                    </div>
+                  )}
                 </div>
-              )}
-              
-              <div className="bg-card/50 rounded-lg p-4 border">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Plane className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-foreground">
-                        {segment.airline} {segment.flight_number}
-                      </div>
-                      {segment.aircraft_type && (
-                        <div className="text-xs text-muted-foreground">
-                          {segment.aircraft_type}
-                        </div>
-                      )}
-                    </div>
+                
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="text-right">
+                    <div className="font-medium">{formatTime(segment.departure_time)}</div>
+                    <div className="text-xs text-muted-foreground">{segment.departure_city}</div>
                   </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{formatDuration(segment)}</span>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span className="text-xs">{formatDuration(segment)}</span>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Departure */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      <span>Departure</span>
-                    </div>
-                    <div className="font-bold text-lg">{formatTime(segment.departure_time)}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {format(new Date(segment.departure_date), 'MMM dd, yyyy')}
-                    </div>
-                    <div className="text-sm font-medium">{segment.departure_city}</div>
-                    <div className="text-xs text-muted-foreground">{segment.departure_airport}</div>
-                  </div>
-
-                  {/* Flight Path */}
-                  <div className="flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="h-px bg-border flex-1"></div>
-                      <Plane className="h-4 w-4" />
-                      <div className="h-px bg-border flex-1"></div>
-                    </div>
-                  </div>
-
-                  {/* Arrival */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      <span>Arrival</span>
-                    </div>
-                    <div className="font-bold text-lg">{formatTime(segment.arrival_time)}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {format(new Date(segment.arrival_date), 'MMM dd, yyyy')}
-                    </div>
-                    <div className="text-sm font-medium">{segment.arrival_city}</div>
-                    <div className="text-xs text-muted-foreground">{segment.arrival_airport}</div>
+                  <div className="text-right">
+                    <div className="font-medium">{formatTime(segment.arrival_time)}</div>
+                    <div className="text-xs text-muted-foreground">{segment.arrival_city}</div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Validity Period */}
