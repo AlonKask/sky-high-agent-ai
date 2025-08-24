@@ -67,6 +67,8 @@ interface EmailExchange {
   attachments: any;
   created_at: string;
   updated_at: string;
+  display_date?: string; // Added for consistent date formatting
+  read?: boolean; // Added for read status
 }
 
 const Emails = () => {
@@ -131,80 +133,83 @@ const Emails = () => {
   });
 
   // Load emails from database with enhanced stats tracking and error recovery
-  const loadEmailsFromDB = async () => {
+  const loadEmailsFromDB = async (retryCount = 0) => {
     if (!user) return;
+    
+    const maxRetries = 3;
+    const retryDelay = 1000;
     
     try {
       setLoading(true);
-      console.log('📧 Loading emails from database...');
+      console.log(`📧 Loading emails from database (attempt ${retryCount + 1}/${maxRetries + 1})...`);
       
-      // Add retry logic for better reliability
-      let retryCount = 0;
-      const maxRetries = 3;
-      let emailData;
-      let error;
-      
-      while (retryCount < maxRetries) {
-        const result = await supabase
-          .from('email_exchanges')
-          .select('*')
-          .eq('user_id', user.id)
-          .order(sortBy, { ascending: sortOrder === 'asc', nullsFirst: false });
-          
-        emailData = result.data;
-        error = result.error;
-        
-        if (!error) break;
-        
-        retryCount++;
-        console.warn(`Database query attempt ${retryCount} failed:`, error);
-        
-        if (retryCount < maxRetries) {
-          // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-        }
-      }
+      const { data: emailData, error } = await supabase
+        .from('email_exchanges')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false, nullsFirst: false });
 
       if (error) {
-        console.error('Error loading emails after retries:', error);
-        toast({
-          title: "Error Loading Emails",
-          description: "Failed to load emails from database. Please refresh the page.",
-          variant: "destructive"
-        });
-        return;
+        console.error('❌ Database query error:', error);
+        throw error;
       }
 
-      console.log(`✅ Loaded ${emailData?.length || 0} emails from database`);
+      console.log(`✅ Successfully loaded ${emailData?.length || 0} emails from database`);
       
-      const emailsData = emailData || [];
-      setEmails(emailsData);
+      // Enhanced email processing with proper fallbacks
+      const emailsWithDefaults = (emailData || []).map((email: any) => ({
+        ...email,
+        // Provide proper fallbacks for missing data
+        sender_email: email.sender_email || 'Unknown Sender',
+        subject: email.subject || '(No Subject)',
+        read: Boolean(email.metadata?.isRead || false),
+        // Add display helper for consistent date formatting
+        display_date: safeEmailDateFormat(email.received_at, email.created_at)
+      }));
       
-      // Calculate enhanced statistics with null safety
-      const total = emailsData.length;
-      const unread = emailsData.filter(email => {
-        const metadata = (email.metadata as any) || {};
-        return !metadata.isRead;
-      }).length;
-      const sent = emailsData.filter(email => email.direction === 'outbound').length;
-      const received = emailsData.filter(email => email.direction === 'inbound').length;
+      setEmails(emailsWithDefaults);
       
-      // Check if we have fresh Gmail data vs legacy data
-      // Gmail synced emails will have specific metadata patterns
-      const legacy = emailsData.filter(email => {
-        const metadata = (email.metadata as any) || {};
-        // If Gmail is connected but email doesn't have Gmail metadata, it's legacy
-        return authStatus.isConnected && !metadata.gmail_labels && !metadata.message_id;
-      }).length;
+      // Calculate comprehensive email statistics
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       
-      setEmailStats({ total, unread, sent, received, legacy });
+      const stats = {
+        total: emailsWithDefaults.length,
+        unread: emailsWithDefaults.filter(e => !e.read).length,
+        sent: emailsWithDefaults.filter(e => e.direction === 'outbound').length,
+        received: emailsWithDefaults.filter(e => e.direction === 'inbound').length,
+        legacy: emailsWithDefaults.filter(email => {
+          const metadata = email.metadata || {};
+          return authStatus.isConnected && !metadata.gmail_labels && !metadata.message_id;
+        }).length
+      };
       
-      console.log(`📊 Email stats: ${total} total, ${unread} unread, ${sent} sent, ${received} received, ${legacy} legacy`);
+      console.log('📊 Email statistics calculated:', stats);
+      setEmailStats(stats);
       
-    } catch (error) {
-      console.error('Error in loadEmailsFromDB:', error);
+    } catch (error: any) {
+      console.error(`❌ Email loading failed (attempt ${retryCount + 1}):`, error);
+      
+      if (retryCount < maxRetries) {
+        console.log(`🔄 Retrying in ${retryDelay * (retryCount + 1)}ms...`);
+        setTimeout(() => {
+          loadEmailsFromDB(retryCount + 1);
+        }, retryDelay * (retryCount + 1));
+      } else {
+        console.error('❌ All email loading attempts exhausted');
+        toast({
+          title: "Email Loading Failed",
+          description: `Unable to load emails after ${maxRetries + 1} attempts: ${error.message}`,
+          variant: "destructive"
+        });
+        setEmails([]);
+        setEmailStats({ total: 0, unread: 0, sent: 0, received: 0, legacy: 0 });
+      }
     } finally {
-      setLoading(false);
+      // Only set loading to false if this is not a retry
+      if (retryCount === 0) {
+        setLoading(false);
+      }
     }
   };
 
@@ -466,33 +471,32 @@ const Emails = () => {
   };
 
   const filteredEmails = getFilteredEmails(emails, selectedFolder)
+    .filter(email => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return email.subject?.toLowerCase().includes(query) ||
+             email.sender_email?.toLowerCase().includes(query) ||
+             email.body?.toLowerCase().includes(query);
+    })
     .sort((a, b) => {
       if (sortBy === 'received_at') {
-        // Handle nullable received_at properly - use created_at as fallback with enhanced null safety
-        const aDate = a.received_at || a.created_at;
-        const bDate = b.received_at || b.created_at;
-        
-        if (!aDate && !bDate) return 0;
-        if (!aDate) return sortOrder === 'asc' ? 1 : -1;
-        if (!bDate) return sortOrder === 'asc' ? -1 : 1;
-        
-        const aTime = new Date(aDate).getTime();
-        const bTime = new Date(bDate).getTime();
+        // Enhanced null-safe date sorting - use actual date objects
+        const aDate = a.received_at ? new Date(a.received_at) : (a.created_at ? new Date(a.created_at) : new Date(0));
+        const bDate = b.received_at ? new Date(b.received_at) : (b.created_at ? new Date(b.created_at) : new Date(0));
         
         // Handle invalid dates gracefully
-        if (isNaN(aTime) && isNaN(bTime)) return 0;
-        if (isNaN(aTime)) return sortOrder === 'asc' ? 1 : -1;
-        if (isNaN(bTime)) return sortOrder === 'asc' ? -1 : 1;
-        return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
+        const aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+        const bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+        
+        return sortOrder === 'desc' ? bTime - aTime : aTime - bTime;
       }
       
       // Enhanced null-safe string sorting with case-insensitive comparison
       const aValue = (a[sortBy] as string) || '';
       const bValue = (b[sortBy] as string) || '';
       
-      return sortOrder === 'asc' 
-        ? aValue.localeCompare(bValue, undefined, { sensitivity: 'base' })
-        : bValue.localeCompare(aValue, undefined, { sensitivity: 'base' });
+      const comparison = aValue.localeCompare(bValue, undefined, { sensitivity: 'base' });
+      return sortOrder === 'desc' ? -comparison : comparison;
     });
 
   // Handle URL parameters for filtering
@@ -850,9 +854,9 @@ const Emails = () => {
                                </p>
                                <div className="flex items-center gap-1">
                                  {email.direction === 'outbound' && <Send className="h-3 w-3 text-blue-500" />}
-                                 <span className="text-xs text-muted-foreground">
-                                   {safeEmailDateFormat(email.received_at, email.created_at)}
-                                 </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {email.display_date || safeEmailDateFormat(email.received_at, email.created_at, 'MMM d, h:mm a')}
+                                  </span>
                                </div>
                             </div>
                              <p className={`text-sm mb-1 truncate ${(() => {
