@@ -46,88 +46,61 @@ export const useGmailIntegration = () => {
       console.log('👤 Checking Gmail status for authenticated user:', session.user.id);
       console.log('🔑 Session access token exists:', !!session.access_token);
 
-      // Make RPC call with explicit session context
-      const { data: gmailData, error: gmailError } = await supabase.rpc('get_gmail_integration_status');
-      
-      if (gmailError) {
-        console.error('❌ Gmail status RPC failed:', {
-          message: gmailError.message,
-          details: gmailError.details,
-          hint: gmailError.hint,
-          code: gmailError.code
-        });
+      // Try direct query first to check gmail_credentials table
+      const { data: credentialsData, error: credentialsError } = await supabase
+        .from('gmail_credentials')
+        .select('user_id, gmail_user_email, token_expires_at, last_sync_at, is_active')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (credentialsError) {
+        console.error('❌ Direct gmail_credentials query failed:', credentialsError);
         
-        // Enhanced error handling with specific retry logic
-        if (gmailError.message?.includes('not authenticated') || gmailError.code === '42501') {
-          console.log('🔄 Authentication issue detected, attempting session refresh...');
+        // Fallback to RPC if direct query fails
+        console.log('🔄 Falling back to RPC call...');
+        const { data: gmailData, error: gmailError } = await supabase.rpc('get_gmail_integration_status');
+        
+        if (!gmailError && gmailData) {
+          console.log('✅ RPC fallback succeeded:', gmailData);
+          const statusData = gmailData as { 
+            connected: boolean; 
+            user_email?: string; 
+            last_sync?: string; 
+            error?: string; 
+          };
           
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          if (!refreshError && refreshData.session) {
-            console.log('✅ Session refreshed successfully, retrying Gmail status check...');
-            
-            // Retry after refresh with small delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const { data: retryData, error: retryError } = await supabase.rpc('get_gmail_integration_status');
-            
-            if (!retryError && retryData) {
-              console.log('✅ Gmail status check succeeded after retry');
-              const retryStatusData = retryData as { 
-                connected: boolean; 
-                user_email?: string; 
-                last_sync?: string; 
-                debug_info?: any;
-              };
-              
-              setAuthStatus({
-                isConnected: retryStatusData.connected || false,
-                userEmail: retryStatusData.user_email || null,
-                isLoading: false,
-                lastSync: retryStatusData.last_sync ? new Date(retryStatusData.last_sync) : null,
-              });
-              return;
-            } else {
-              console.error('❌ Retry also failed:', retryError);
-            }
-          } else {
-            console.error('❌ Session refresh failed:', refreshError);
-          }
+          setAuthStatus({
+            isConnected: statusData?.connected || false,
+            userEmail: statusData?.user_email || null,
+            isLoading: false,
+            lastSync: statusData?.last_sync ? new Date(statusData.last_sync) : null,
+          });
+          return;
         }
         
-        // If all else fails, throw the original error
-        throw gmailError;
+        // If both direct query and RPC fail, throw error
+        console.error('❌ Both direct query and RPC failed');
+        throw credentialsError;
       }
 
-      console.log('✅ Gmail status received:', gmailData);
-
-      const statusData = gmailData as { 
-        connected: boolean; 
-        user_email?: string; 
-        last_sync?: string; 
-        error?: string; 
-        authenticated_user_id?: string;
-        debug_info?: any;
-      };
+      // Process direct credentials data
+      console.log('✅ Gmail credentials found:', credentialsData);
       
-      // Enhanced status processing with debug info
-      if (statusData.error) {
-        console.error('❌ Gmail status returned error:', statusData.error);
-        if (statusData.debug_info) {
-          console.log('🐛 Debug info:', statusData.debug_info);
-        }
-        
-        toast({
-          title: "Gmail Status Error",
-          description: statusData.error,
-          variant: "destructive"
+      if (credentialsData && credentialsData.is_active) {
+        setAuthStatus({
+          isConnected: true,
+          userEmail: credentialsData.gmail_user_email,
+          isLoading: false,
+          lastSync: credentialsData.last_sync_at ? new Date(credentialsData.last_sync_at) : null,
+        });
+      } else {
+        setAuthStatus({
+          isConnected: false,
+          userEmail: null,
+          isLoading: false,
+          lastSync: null,
         });
       }
-      
-      setAuthStatus({
-        isConnected: statusData?.connected || false,
-        userEmail: statusData?.user_email || null,
-        isLoading: false,
-        lastSync: statusData?.last_sync ? new Date(statusData.last_sync) : null,
-      });
 
       console.log('✅ Gmail status check completed successfully');
 
@@ -192,9 +165,17 @@ export const useGmailIntegration = () => {
           hint: error.hint
         });
         
-        // Enhanced error handling for specific cases
+        // Enhanced error handling for specific configuration issues
+        if (error.message?.includes('Google OAuth credentials not configured')) {
+          throw new Error('Gmail integration is not configured. Please contact your administrator.');
+        }
+        
         if (error.message?.includes('Authentication required') || error.message?.includes('Invalid authentication token')) {
           throw new Error('Session expired. Please refresh the page and try again.');
+        }
+        
+        if (error.message?.includes('Server configuration error')) {
+          throw new Error('Gmail service is temporarily unavailable. Please try again later.');
         }
         
         throw new Error(error.message || 'Gmail OAuth service failed');

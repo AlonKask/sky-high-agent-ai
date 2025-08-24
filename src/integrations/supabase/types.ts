@@ -4335,6 +4335,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      test_gmail_oauth_setup: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       update_agent_performance_metrics: {
         Args: Record<PropertyKey, never>
         Returns: undefined

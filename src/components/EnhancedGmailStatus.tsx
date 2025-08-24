@@ -54,10 +54,25 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
       console.log('✅ Gmail connection completed successfully');
     } catch (error: any) {
       console.error('❌ Gmail connection failed:', error);
-      const errorMessage = error.message || "Failed to connect Gmail. Please try again.";
+      
+      let errorTitle = "Gmail Connection Failed";
+      let errorMessage = error.message || "Failed to connect Gmail. Please try again.";
+      
+      // Enhanced error handling for specific error types
+      if (error.message?.includes('not configured') || error.message?.includes('administrator')) {
+        errorTitle = "Configuration Required";
+        errorMessage = "Gmail integration needs to be configured by your administrator.";
+      } else if (error.message?.includes('Session expired') || error.message?.includes('refresh')) {
+        errorTitle = "Session Expired";
+        errorMessage = "Please refresh the page and try again.";
+      } else if (error.message?.includes('temporarily unavailable')) {
+        errorTitle = "Service Unavailable";
+        errorMessage = "Gmail service is temporarily unavailable. Please try again in a few minutes.";
+      }
+      
       toast({
-        title: "Gmail Connection Failed",
-        description: `${errorMessage} (Check console for details)`,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -121,16 +136,50 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
         const isOAuthReady = healthData.oauth_ready;
         const envCheck = healthData.environment_check;
         
+        // Create detailed status message
+        const missingSecrets = Object.entries(envCheck)
+          .filter(([key, value]) => !value)
+          .map(([key]) => key.replace('google_', '').toUpperCase());
+        
+        let statusMessage = '';
+        let variant: 'default' | 'destructive' = 'default';
+        
+        if (isOAuthReady) {
+          statusMessage = '✅ Gmail OAuth system is fully operational and ready to use';
+        } else if (missingSecrets.length > 0) {
+          statusMessage = `❌ Missing configuration: ${missingSecrets.join(', ')}. Please contact your administrator.`;
+          variant = 'destructive';
+        } else {
+          statusMessage = '⚠️ Configuration issues detected. Check the console for details.';
+          variant = 'destructive';
+        }
+        
         toast({
-          title: isOAuthReady ? "✅ System Healthy" : "⚠️ Configuration Issues",
-          description: isOAuthReady 
-            ? "Gmail OAuth system is fully operational" 
-            : `Missing: ${Object.entries(envCheck).filter(([key, value]) => !value).map(([key]) => key).join(', ')}`,
-          variant: isOAuthReady ? "default" : "destructive"
+          title: isOAuthReady ? "System Healthy" : "Configuration Issues",
+          description: statusMessage,
+          variant: variant
         });
         
         // Log detailed environment status for debugging
-        console.log('🔍 Environment check results:', envCheck);
+        console.log('🔍 Environment check results:', {
+          oauth_ready: isOAuthReady,
+          missing_secrets: missingSecrets,
+          full_env_check: envCheck
+        });
+        
+        // If OAuth is ready, also test a quick function call
+        if (isOAuthReady) {
+          try {
+            const { data: testData, error: testError } = await supabase.rpc('test_gmail_oauth_setup');
+            if (!testError && testData) {
+              console.log('✅ Test function call succeeded:', testData);
+            } else {
+              console.log('⚠️ Test function call failed:', testError);
+            }
+          } catch (testErr) {
+            console.log('⚠️ Test function call exception:', testErr);
+          }
+        }
         
       } else {
         console.error('❌ Health check returned unexpected data:', data);
