@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { secureAuthManager } from '@/utils/secureAuthManager';
-import { enhancedSecurityMonitoring } from '@/utils/enhancedSecurityMonitoring';
 
 interface SimpleAuthContextType {
   user: User | null;
@@ -106,10 +104,23 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
   }, []);
 
   const signOut = async () => {
-    console.log('🔓 Secure signOut called');
+    console.log('🔓 Simple signOut called');
     
-    // Use secure auth manager for enhanced sign-out
-    await secureAuthManager.secureSignOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ Sign out error:', error);
+      } else {
+        console.log('✅ Successfully signed out');
+        // Clear state
+        setSession(null);
+        setUser(null);
+        // Redirect to auth page
+        window.location.href = '/auth';
+      }
+    } catch (error) {
+      console.error('❌ Sign out error:', error);
+    }
   };
 
   return (
