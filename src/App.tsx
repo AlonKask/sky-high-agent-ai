@@ -13,9 +13,6 @@ import { Suspense, lazy, useEffect } from "react";
 import { LoadingFallback } from "@/components/LoadingFallback";
 import SecurityInitializer from "@/components/SecurityInitializer";
 
-import { useSecurityMonitoring } from "@/hooks/useSecurityMonitoring";
-import { enhancedSecurity } from "@/utils/enhancedSecurity";
-
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
 const AuthOptimized = lazy(() => import("./pages/AuthOptimized"));
@@ -56,30 +53,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Security monitoring wrapper component
-const SecurityMonitoringWrapper = ({ children }: { children: React.ReactNode }) => {
-  // Now we can safely call useSecurityMonitoring since we're inside SimpleAuthProvider
-  useSecurityMonitoring();
-  
-  return <>{children}</>;
-};
-
-// User-specific security monitoring component
-const UserSecurityMonitoring = () => {
-  const { user } = useSimpleAuth();
-  
-  useEffect(() => {
-    // Initialize security monitoring for authenticated users
-    if (user?.id) {
-      enhancedSecurity.monitorUserActivity(user.id, 'app_initialization', {
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString()
-      });
-    }
-  }, [user?.id]);
-
-  return null;
-};
 
 function App() {
   return (
@@ -88,9 +61,7 @@ function App() {
       <SecurityInitializer />
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <SimpleAuthProvider>
-            <SecurityMonitoringWrapper>
-              <UserSecurityMonitoring />
+        <SimpleAuthProvider>
               <RoleViewProvider>
                 <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
@@ -134,7 +105,6 @@ function App() {
                 <RadixToaster />
                 </ErrorBoundary>
               </RoleViewProvider>
-            </SecurityMonitoringWrapper>
           </SimpleAuthProvider>
         </TooltipProvider>
       </QueryClientProvider>

@@ -57,15 +57,9 @@ export const useSecurityMonitoring = () => {
         }
       };
 
-      // Monitor Supabase calls (simplified approach)
-      const originalFrom = supabase.from;
-      supabase.from = (...args) => {
-        checkAccessPattern();
-        return originalFrom.apply(supabase, args);
-      };
-
+      // Skip monitoring Supabase calls to avoid breaking authentication
       return () => {
-        supabase.from = originalFrom;
+        // No cleanup needed
       };
     };
 
