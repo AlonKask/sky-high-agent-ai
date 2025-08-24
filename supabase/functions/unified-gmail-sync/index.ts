@@ -385,6 +385,20 @@ async function syncGmailEmails(
       storedCount = finalEmails.length;
     }
 
+    // Update gmail_credentials to trigger last_sync_at update
+    if (storedCount > 0 || processedCount > 0) {
+      const { error: credUpdateError } = await supabaseClient
+        .from('gmail_credentials')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+      
+      if (credUpdateError) {
+        console.warn('Failed to update credentials timestamp:', credUpdateError);
+      } else {
+        console.log('✅ Updated credentials timestamp for sync tracking');
+      }
+    }
+
     // Update sync status
     const { error: syncError } = await supabaseClient.rpc('handle_email_sync_status', {
       p_user_id: userId,

@@ -130,15 +130,27 @@ export const useGmailIntegration = () => {
 
       console.log('✅ Enhanced Gmail status check completed successfully');
 
-    } catch (error) {
-      console.error('❌ Gmail status check failed with exception:', error);
+    } catch (error: any) {
+      console.error('Gmail status check failed with exception:', error);
       
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Exception details:', errorMessage);
+      // Provide more specific error messages based on error type
+      let userFriendlyMessage = 'Gmail integration check failed';
+      
+      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        userFriendlyMessage = 'Network connection issue - please check your internet and try again';
+      } else if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
+        userFriendlyMessage = 'Authentication issue - please sign in again';
+      } else if (error.message?.includes('RPC') || error.message?.includes('function')) {
+        userFriendlyMessage = 'Database connection issue - please refresh and try again';
+      } else if (error.message?.includes('timeout')) {
+        userFriendlyMessage = 'Request timed out - please try again';
+      }
+      
+      console.error('Final error message:', userFriendlyMessage);
       
       toast({
         title: "Gmail Status Check Failed",
-        description: errorMessage,
+        description: userFriendlyMessage,
         variant: "destructive"
       });
       
@@ -280,14 +292,20 @@ export const useGmailIntegration = () => {
       console.error('Gmail connection error:', error);
       
       // Provide more specific error messages based on error type
-      let userFriendlyMessage = error.message;
+      let userFriendlyMessage = 'Gmail connection failed';
       
-      if (error.message?.includes('fetch')) {
+      if (error.message?.includes('popup')) {
+        userFriendlyMessage = 'Popup blocked - please allow popups for this site and try again';
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
         userFriendlyMessage = 'Network error - please check your connection and try again';
-      } else if (error.message?.includes('credentials')) {
+      } else if (error.message?.includes('credentials') || error.message?.includes('OAuth')) {
         userFriendlyMessage = 'Gmail integration not properly configured - please contact support';
-      } else if (error.message?.includes('Authentication')) {
+      } else if (error.message?.includes('Authentication') || error.message?.includes('token')) {
         userFriendlyMessage = 'Please sign in again and retry Gmail connection';
+      } else if (error.message?.includes('cancelled') || error.message?.includes('closed')) {
+        userFriendlyMessage = 'Gmail connection was cancelled - please try again';
+      } else if (error.message?.includes('timeout')) {
+        userFriendlyMessage = 'Connection timed out - please try again';
       }
       
       toast({
