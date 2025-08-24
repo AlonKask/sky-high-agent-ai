@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
@@ -451,7 +452,7 @@ const Emails = () => {
                   <h3 className="font-medium text-sm mb-3">Sync Settings</h3>
                   
                   <div className="space-y-3">
-                    {/* AI Processing Toggle */}
+                    {/* AI Processing Toggle - Fixed: removed size prop */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Bot className="h-4 w-4 text-muted-foreground" />
@@ -460,11 +461,10 @@ const Emails = () => {
                       <Switch
                         checked={aiProcessingEnabled}
                         onCheckedChange={setAiProcessingEnabled}
-                        size="sm"
                       />
                     </div>
 
-                    {/* Auto Sync Toggle */}
+                    {/* Auto Sync Toggle - Fixed: removed size prop */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <RefreshCw className="h-4 w-4 text-muted-foreground" />
@@ -473,7 +473,6 @@ const Emails = () => {
                       <Switch
                         checked={autoSyncEnabled}
                         onCheckedChange={setAutoSyncEnabled}
-                        size="sm"
                       />
                     </div>
 
