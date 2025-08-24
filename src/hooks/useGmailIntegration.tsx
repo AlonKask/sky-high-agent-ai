@@ -162,24 +162,13 @@ export const useGmailIntegration = () => {
       // Call the oauth function with enhanced error capture
       console.log('📡 Initiating gmail-oauth function call...');
       
-      let functionCall;
-      let callError = null;
-      
-      try {
-        functionCall = supabase.functions.invoke('gmail-oauth', {
-          body: { 
-            action: 'start',
-            userId: user.id,
-            timestamp: new Date().toISOString()
-          }
-        });
-        
-        console.log('📡 Function call object created, awaiting response...');
-        const result = await functionCall;
-        
-        console.log('📨 Raw function response received:', result);
-        
-        const { data, error } = result;
+      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
+        body: { 
+          action: 'start',
+          userId: user.id,
+          timestamp: new Date().toISOString()
+        }
+      });
       
       console.log('📨 gmail-oauth function response:', { data, error });
 
