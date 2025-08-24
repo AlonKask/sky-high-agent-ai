@@ -53,15 +53,14 @@ interface EmailExchange {
   id: string;
   message_id: string;
   user_id: string;
-  client_id: string;
+  client_id: string | null;
   subject: string;
   sender_email: string;
   recipient_emails: string[];
   cc_emails: string[];
   bcc_emails: string[];
   body: string;
-  received_at: string;
-  sent_at: string | null;
+  received_at: string | null; // Fixed: can be null in database
   direction: string;
   email_type: string;
   metadata: any;
@@ -140,7 +139,7 @@ const Emails = () => {
         .from('email_exchanges')
         .select('*')
         .eq('user_id', user.id)
-        .order('received_at', { ascending: false });
+        .order('created_at', { ascending: false }); // Fixed: use created_at instead of received_at for ordering
 
       // Apply search filter first
       if (searchQuery.trim()) {
@@ -388,21 +387,21 @@ const Emails = () => {
     }
   };
 
-  // Filter and sort emails using the unified filter function
-  const filteredEmails = getFilteredEmails(emails, selectedFolder)
-    .sort((a, b) => {
-      if (sortBy === 'received_at') {
-        const aTime = new Date(a.received_at).getTime();
-        const bTime = new Date(b.received_at).getTime();
-        return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
-      }
-      
-      const aValue = a[sortBy] as string;
-      const bValue = b[sortBy] as string;
-      
-      const comparison = aValue.localeCompare(bValue);
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
+      const filteredEmails = getFilteredEmails(emails, selectedFolder)
+        .sort((a, b) => {
+          if (sortBy === 'received_at') {
+            // Handle nullable received_at properly
+            const aTime = a.received_at ? new Date(a.received_at).getTime() : new Date(a.created_at).getTime();
+            const bTime = b.received_at ? new Date(b.received_at).getTime() : new Date(b.created_at).getTime();
+            return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
+          }
+          
+          const aValue = a[sortBy] as string;
+          const bValue = b[sortBy] as string;
+          
+          const comparison = aValue.localeCompare(bValue);
+          return sortOrder === 'asc' ? comparison : -comparison;
+        });
 
   // Handle URL parameters for filtering
   useEffect(() => {
@@ -748,7 +747,7 @@ const Emails = () => {
                               <div className="flex items-center gap-1">
                                 {email.direction === 'outbound' && <Send className="h-3 w-3 text-blue-500" />}
                                 <span className="text-xs text-muted-foreground">
-                                  {format(new Date(email.received_at), 'MMM d')}
+                                  {format(new Date(email.received_at || email.created_at), 'MMM d')}
                                 </span>
                               </div>
                             </div>
@@ -806,7 +805,7 @@ const Emails = () => {
                 <div className="text-sm text-muted-foreground">
                   <div>From: {selectedEmail.sender_email}</div>
                   <div>To: {selectedEmail.recipient_emails.join(', ')}</div>
-                  <div>Date: {format(new Date(selectedEmail.received_at), 'PPP p')}</div>
+                  <div>Date: {format(new Date(selectedEmail.received_at || selectedEmail.created_at), 'PPP p')}</div>
                 </div>
               </div>
               

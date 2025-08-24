@@ -3890,7 +3890,7 @@ export type Database = {
         Returns: Json
       }
       get_gmail_integration_status: {
-        Args: { p_user_id: string }
+        Args: Record<PropertyKey, never> | { p_user_id: string }
         Returns: {
           created_at: string
           gmail_user_email: string

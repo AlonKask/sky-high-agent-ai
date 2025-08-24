@@ -21,69 +21,56 @@ export const useGmailIntegration = () => {
   });
 
   const checkGmailStatus = useCallback(async () => {
-    if (!user) {
-      setAuthStatus({
-        isConnected: false,
-        userEmail: null,
-        isLoading: false,
-        lastSync: null
-      });
-      return;
-    }
-
     try {
       setAuthStatus(prev => ({ ...prev, isLoading: true }));
       
-      console.log('🔍 Checking Gmail integration status for user:', user.id);
-      
-      const { data, error } = await supabase
-        .rpc('get_gmail_integration_status', { p_user_id: user.id });
-
-      if (error) {
-        console.error('❌ RPC Error checking Gmail status:', error);
-        throw error;
-      }
-
-      console.log('📊 Gmail integration RPC response:', {
-        dataLength: data?.length,
-        firstRecord: data?.[0],
-        rawData: data
-      });
-
-      const statusRecord = data?.[0];
-      
-      if (statusRecord && statusRecord.is_connected !== null) {
-        console.log('✅ Found Gmail credentials record:', {
-          isConnected: statusRecord.is_connected,
-          userEmail: statusRecord.gmail_user_email,
-          tokenExpiry: statusRecord.token_expires_at
-        });
-        
-        setAuthStatus({
-          isConnected: statusRecord.is_connected || false,
-          userEmail: statusRecord.gmail_user_email || null,
-          isLoading: false,
-          lastSync: statusRecord.updated_at ? new Date(statusRecord.updated_at) : null
-        });
-      } else {
-        console.log('📭 No Gmail credentials found for user');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         setAuthStatus({
           isConnected: false,
           userEmail: null,
           isLoading: false,
-          lastSync: null
+          lastSync: null,
         });
+        return;
       }
+
+      // Call the RPC function to check Gmail integration status
+      const { data, error } = await supabase.rpc('get_gmail_integration_status');
+
+      if (error) {
+        console.error('Gmail status check error:', error);
+        setAuthStatus({
+          isConnected: false,
+          userEmail: null,
+          isLoading: false,
+          lastSync: null,
+        });
+        return;
+      }
+
+      console.log('📊 RPC response data:', data);
+
+      // Handle the RPC response properly with unknown type first
+      const statusData = data as unknown as { connected: boolean; gmail_user_email?: string; last_sync?: string; error?: string };
+      
+      setAuthStatus({
+        isConnected: statusData?.connected || false,
+        userEmail: statusData?.gmail_user_email || null,
+        isLoading: false,
+        lastSync: statusData?.last_sync ? new Date(statusData.last_sync) : null,
+      });
+
     } catch (error) {
-      console.error('❌ Error in checkGmailStatus:', error);
+      console.error('Gmail status check error:', error);
       setAuthStatus({
         isConnected: false,
         userEmail: null,
         isLoading: false,
-        lastSync: null
+        lastSync: null,
       });
     }
-  }, [user]);
+  }, []);
 
   const connectGmail = useCallback(async () => {
     if (!user?.id) {

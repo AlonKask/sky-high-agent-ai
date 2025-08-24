@@ -69,6 +69,8 @@ export class EmailSyncManager {
 
       console.log('📧 Email sync response:', { data, error });
 
+      console.log('📧 Email sync response:', { data, error });
+
       if (error) {
         throw error;
       }
