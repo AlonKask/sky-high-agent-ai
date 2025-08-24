@@ -227,7 +227,7 @@ export function QuoteCard({
                       {origin} -&gt; {destination}
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
-                      {quote.total_segments} segment{quote.total_segments > 1 ? 's' : ''}
+                      {quote.total_segments}
                     </Badge>
                     <Badge 
                       variant={quote.fare_type === 'award' ? 'default' : 'outline'}
