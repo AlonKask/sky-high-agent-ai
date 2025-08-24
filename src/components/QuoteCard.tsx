@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -125,6 +126,36 @@ const transformSegmentsForVisualization = (segments: any[]) => {
   }));
 };
 
+// Helper function to determine route display using segment logic
+const getRouteDisplay = (quote: Quote, parsedSegments: any[]) => {
+  // Extract route info for collapsed view
+  const routeParts = quote.route.split(' -> ');
+  let origin = routeParts[0] || '';
+  let destination = routeParts[routeParts.length - 1] || '';
+
+  // If round-trip like A -> B -> A, show final outbound destination (B)
+  if (destination === origin && routeParts.length > 1) {
+    destination = routeParts[routeParts.length - 2] || destination;
+  }
+
+  // Use parsed segments (from content or existing segments) to determine true outbound destination
+  const activeSegments = parsedSegments.length > 0 ? parsedSegments : quote.segments;
+  if (activeSegments && activeSegments.length > 0) {
+    const originFromSeg = activeSegments[0]?.departureAirport || origin;
+    let outboundIndex = 0;
+    for (let i = 0; i < activeSegments.length; i++) {
+      const arr = activeSegments[i]?.arrivalAirport;
+      if (arr && arr !== originFromSeg) {
+        outboundIndex = i; // keep last arrival that isn't the origin
+      }
+    }
+    const segDest = activeSegments[outboundIndex]?.arrivalAirport;
+    if (segDest) destination = segDest;
+  }
+
+  return { origin, destination };
+};
+
 export function QuoteCard({
   quote,
   isSelected,
@@ -175,30 +206,9 @@ export function QuoteCard({
     parseContentData();
   }, [quote.segments, quote.content]);
   
-  // Extract route info for collapsed view
-  const routeParts = quote.route.split(' -> ');
-  const origin = routeParts[0] || '';
-  let destination = routeParts[routeParts.length - 1] || '';
+  // Get route display using the same logic as expanded view
+  const { origin, destination } = getRouteDisplay(quote, parsedSegments);
 
-  // If round-trip like A -> B -> A, show final outbound destination (B)
-  if (destination === origin && routeParts.length > 1) {
-    destination = routeParts[routeParts.length - 2] || destination;
-  }
-
-  // Use parsed segments (from content or existing segments) to determine true outbound destination
-  const activeSegments = parsedSegments.length > 0 ? parsedSegments : quote.segments;
-  if (activeSegments && activeSegments.length > 0) {
-    const originFromSeg = activeSegments[0]?.departureAirport || origin;
-    let outboundIndex = 0;
-    for (let i = 0; i < activeSegments.length; i++) {
-      const arr = activeSegments[i]?.arrivalAirport;
-      if (arr && arr !== originFromSeg) {
-        outboundIndex = i; // keep last arrival that isn't the origin
-      }
-    }
-    const segDest = activeSegments[outboundIndex]?.arrivalAirport;
-    if (segDest) destination = segDest;
-  }
   return (
     <Card className={cn(
       "transition-all duration-200 hover:shadow-md",
@@ -224,7 +234,7 @@ export function QuoteCard({
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="text-xs font-medium">
                       <MapPin className="h-3 w-3 mr-1" />
-                      {origin} -&gt; {destination}
+                      {origin} → {destination}
                     </Badge>
                     <Badge 
                       variant={quote.fare_type === 'award' ? 'default' : 'outline'}
