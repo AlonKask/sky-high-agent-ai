@@ -3637,6 +3637,10 @@ export type Database = {
         }
         Returns: string
       }
+      debug_gmail_credentials_state: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       decrypt_gmail_token: {
         Args: { encrypted_token: string }
         Returns: string
