@@ -226,9 +226,6 @@ export function QuoteCard({
                       <MapPin className="h-3 w-3 mr-1" />
                       {origin} -&gt; {destination}
                     </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      {quote.total_segments}
-                    </Badge>
                     <Badge 
                       variant={quote.fare_type === 'award' ? 'default' : 'outline'}
                       className="text-xs"
