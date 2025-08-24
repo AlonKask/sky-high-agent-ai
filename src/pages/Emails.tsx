@@ -3,9 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
 import SafeEmailRenderer from '@/components/SafeEmailRenderer';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
-import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { supabase } from '@/integrations/supabase/client';
-import { EmailSyncManager } from '@/utils/emailSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,18 +19,12 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Star,
   Archive,
-  Filter,
   SortAsc,
   SortDesc,
   Mail,
-  MailOpen,
   ArrowLeft,
-  Plus,
-  Bot,
-  Sparkles,
-  Settings
+  Plus
 } from 'lucide-react';
 import {
   Dialog,
@@ -43,11 +35,9 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { toastHelpers, toast } from '@/utils/toastHelpers';
-import { safeDateFormat, safeEmailDateFormat } from '@/utils/dateHelpers';
+import { toast } from '@/hooks/use-toast';
+import { safeEmailDateFormat } from '@/utils/dateHelpers';
 import { EnhancedGmailStatus } from '@/components/EnhancedGmailStatus';
-import { LegacyEmailNotice } from '@/components/LegacyEmailNotice';
-import { Switch } from '@/components/ui/switch';
 
 interface EmailExchange {
   id: string;
@@ -60,15 +50,15 @@ interface EmailExchange {
   cc_emails: string[];
   bcc_emails: string[];
   body: string;
-  received_at: string | null; // Fixed: can be null in database
+  received_at: string | null;
   direction: string;
   email_type: string;
   metadata: any;
   attachments: any;
   created_at: string;
   updated_at: string;
-  display_date?: string; // Added for consistent date formatting
-  read?: boolean; // Added for read status
+  display_date?: string;
+  read?: boolean;
 }
 
 const Emails = () => {
@@ -91,25 +81,17 @@ const Emails = () => {
   }
   
   const [searchParams] = useSearchParams();
-  const { authStatus, connectGmail, disconnectGmail, triggerSync } = useGmailIntegration();
-  const emailSyncManager = EmailSyncManager.getInstance();
   
   // Core state
-  const [emails, setEmails] = useState<any[]>([]);
-  const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
+  const [emails, setEmails] = useState<EmailExchange[]>([]);
+  const [selectedEmail, setSelectedEmail] = useState<EmailExchange | null>(null);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFolder, setSelectedFolder] = useState('inbox');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  
-  // Enhanced sync options
-  const [aiProcessingEnabled, setAiProcessingEnabled] = useState(true);
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
-  const [useRichEmailView, setUseRichEmailView] = useState(true);
   
   // Filter and sorting state
   const [sortBy, setSortBy] = useState<'received_at' | 'subject' | 'sender_email'>('received_at');
@@ -123,13 +105,12 @@ const Emails = () => {
     body: ''
   });
   
-  // Email statistics - unified version
+  // Email statistics
   const [emailStats, setEmailStats] = useState({
     total: 0,
     unread: 0,
     sent: 0,
-    received: 0,
-    legacy: 0
+    received: 0
   });
 
   // Load emails from database with enhanced stats tracking and error recovery
@@ -169,19 +150,12 @@ const Emails = () => {
       
       setEmails(emailsWithDefaults);
       
-      // Calculate comprehensive email statistics
-      const now = new Date();
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      
+      // Calculate email statistics
       const stats = {
         total: emailsWithDefaults.length,
         unread: emailsWithDefaults.filter(e => !e.read).length,
         sent: emailsWithDefaults.filter(e => e.direction === 'outbound').length,
-        received: emailsWithDefaults.filter(e => e.direction === 'inbound').length,
-        legacy: emailsWithDefaults.filter(email => {
-          const metadata = email.metadata || {};
-          return authStatus.isConnected && !metadata.gmail_labels && !metadata.message_id;
-        }).length
+        received: emailsWithDefaults.filter(e => e.direction === 'inbound').length
       };
       
       console.log('📊 Email statistics calculated:', stats);
@@ -203,7 +177,7 @@ const Emails = () => {
           variant: "destructive"
         });
         setEmails([]);
-        setEmailStats({ total: 0, unread: 0, sent: 0, received: 0, legacy: 0 });
+        setEmailStats({ total: 0, unread: 0, sent: 0, received: 0 });
       }
     } finally {
       // Only set loading to false if this is not a retry
@@ -213,36 +187,10 @@ const Emails = () => {
     }
   };
 
-  // Enhanced manual sync with better error handling
-  const handleManualSync = async () => {
-    if (!authStatus.isConnected) {
-      toast({
-        title: "Gmail Not Connected", 
-        description: "Please connect Gmail first to sync emails",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setSyncing(true);
-      console.log('🔄 Starting manual email sync...');
-      
-      await triggerSync();
-      await loadEmailsFromDB();
-      
-      console.log('✅ Manual sync completed');
-      
-    } catch (error) {
-      console.error('❌ Manual sync failed:', error);
-      toast({
-        title: "Sync Failed",
-        description: "Failed to sync emails. Please try again or check your Gmail connection.",
-        variant: "destructive"
-      });
-    } finally {
-      setSyncing(false);
-    }
+  // Callback for Gmail status component to trigger email refresh
+  const handleEmailRefresh = async () => {
+    console.log('🔄 Refreshing emails after Gmail operation...');
+    await loadEmailsFromDB();
   };
 
   // Mark email as read with enhanced error handling
@@ -389,35 +337,12 @@ const Emails = () => {
     }
   };
 
-  // Initialize automatic email syncing when user is authenticated
+  // Load emails on mount
   useEffect(() => {
     if (user) {
-      // Start background email sync
       loadEmailsFromDB();
-      
-      // Set up periodic sync every 5 minutes
-      const intervalId = setInterval(async () => {
-        if (authStatus.isConnected && autoSyncEnabled) {
-          try {
-            console.log('🔄 Starting background email sync...');
-            await emailSyncManager.syncEmails({ 
-              includeAIProcessing: aiProcessingEnabled, 
-              showProgress: false 
-            });
-            await loadEmailsFromDB();
-            console.log('✅ Background sync completed');
-          } catch (error) {
-            console.error('❌ Background sync failed:', error);
-            // Don't show error toasts for background sync failures
-          }
-        } else {
-          loadEmailsFromDB();
-        }
-      }, 5 * 60 * 1000);
-      
-      return () => clearInterval(intervalId);
     }
-  }, [user, authStatus.isConnected]);
+  }, [user]);
 
   // Folder definitions
   const folders = [
@@ -513,7 +438,7 @@ const Emails = () => {
     }
   }, [searchParams]);
 
-  // Load emails on component mount and dependencies change
+  // Refresh emails when folder or search changes
   useEffect(() => {
     if (user) {
       loadEmailsFromDB();
@@ -538,85 +463,7 @@ const Emails = () => {
           {/* Enhanced Gmail Connection Status */}
           {!isSidebarCollapsed && (
             <div className="mb-4">
-              <EnhancedGmailStatus />
-            </div>
-          )}
-
-          {/* Legacy Email Notice */}
-          {!isSidebarCollapsed && emailStats.legacy > 0 && (
-            <LegacyEmailNotice 
-              legacyCount={emailStats.legacy}
-              isGmailConnected={authStatus.isConnected}
-              onConnectGmail={connectGmail}
-              onSyncEmails={handleManualSync}
-              isSyncing={syncing}
-            />
-          )}
-
-          {/* Additional Sync Controls for Connected Users */}
-          {!isSidebarCollapsed && authStatus.isConnected && (
-            <div className="mb-4">
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="font-medium text-sm mb-3">Sync Settings</h3>
-                  
-                  <div className="space-y-3">
-                    {/* AI Processing Toggle */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Bot className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">AI Processing</span>
-                      </div>
-                      <Switch
-                        checked={aiProcessingEnabled}
-                        onCheckedChange={setAiProcessingEnabled}
-                      />
-                    </div>
-
-                    {/* Auto Sync Toggle */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Auto Sync</span>
-                      </div>
-                      <Switch
-                        checked={autoSyncEnabled}
-                        onCheckedChange={setAutoSyncEnabled}
-                      />
-                    </div>
-
-                    {/* Manual Sync Button */}
-                    <Button 
-                      onClick={handleManualSync}
-                      disabled={syncing}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                    >
-                      {syncing ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-1" />
-                          Sync
-                        </>
-                      )}
-                    </Button>
-                    
-                    <Button 
-                      onClick={disconnectGmail}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700 w-full"
-                    >
-                      Disconnect
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <EnhancedGmailStatus onEmailRefresh={handleEmailRefresh} />
             </div>
           )}
 
@@ -735,12 +582,6 @@ const Emails = () => {
                   <span>Received:</span>
                   <span>{emailStats.received}</span>
                 </div>
-                {emailStats.legacy > 0 && (
-                  <div className="flex justify-between text-blue-600">
-                    <span>Legacy:</span>
-                    <span>{emailStats.legacy}</span>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -898,13 +739,6 @@ const Emails = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setUseRichEmailView(!useRichEmailView)}
-                    >
-                      {useRichEmailView ? <FileText className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                    </Button>
-                    <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleArchiveEmails([selectedEmail.id])}
@@ -922,21 +756,12 @@ const Emails = () => {
               
               {/* Email Body */}
               <ScrollArea className="flex-1 p-4">
-                {useRichEmailView ? (
-                  <SafeEmailRenderer 
-                    emailBody={selectedEmail.body}
-                    subject={selectedEmail.subject}
-                    showRawContent={false}
-                    onToggleRaw={() => setUseRichEmailView(false)}
-                  />
-                ) : (
-                  <div className="prose max-w-none">
-                    <SafeHtmlRenderer 
-                      html={selectedEmail.body}
-                      type="email"
-                    />
-                  </div>
-                )}
+                <SafeEmailRenderer 
+                  emailBody={selectedEmail.body}
+                  subject={selectedEmail.subject}
+                  showRawContent={false}
+                  onToggleRaw={() => {}}
+                />
               </ScrollArea>
             </div>
           </div>

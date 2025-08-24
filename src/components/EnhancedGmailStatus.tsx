@@ -17,7 +17,11 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-export const EnhancedGmailStatus = () => {
+interface EnhancedGmailStatusProps {
+  onEmailRefresh?: () => Promise<void>;
+}
+
+export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps) => {
   const { user } = useSimpleAuth();
   const { authStatus, connectGmail, disconnectGmail, refreshStatus, triggerSync } = useGmailIntegration();
 
@@ -34,6 +38,12 @@ export const EnhancedGmailStatus = () => {
     try {
       console.log('🔄 Starting Gmail connection process...');
       await connectGmail();
+      
+      // Call refresh callback if provided
+      if (onEmailRefresh) {
+        await onEmailRefresh();
+      }
+      
       toast({
         title: "Gmail Connected",
         description: "Gmail integration enabled successfully",
@@ -61,13 +71,25 @@ export const EnhancedGmailStatus = () => {
     }
 
     try {
+      console.log('🔄 Starting Gmail sync...');
       await triggerSync();
-      // Success message is handled in triggerSync hook
+      
+      // Call refresh callback if provided
+      if (onEmailRefresh) {
+        await onEmailRefresh();
+      }
+      
+      toast({
+        title: "Sync Completed",
+        description: "Emails synced successfully",
+      });
+      console.log('✅ Gmail sync completed successfully');
     } catch (error: any) {
-      console.error('Sync failed:', error);
+      console.error('❌ Gmail sync failed:', error);
+      const errorMessage = error.message || "Failed to sync Gmail. Please try again.";
       toast({
         title: "Sync Failed",
-        description: "Failed to sync emails. Please try again.",
+        description: `${errorMessage} (Check console for details)`,
         variant: "destructive"
       });
     }
