@@ -374,6 +374,8 @@ serve(async (req) => {
             refresh_token_encrypted: encryptedRefreshToken,
             token_expires_at: tokenExpiresAt,
             gmail_user_email: userInfo.email,
+            scope: 'https://www.googleapis.com/auth/gmail.modify',
+            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'

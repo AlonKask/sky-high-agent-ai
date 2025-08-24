@@ -50,7 +50,7 @@ export const useGmailIntegration = () => {
 
       if (error) {
         console.error('Error fetching Gmail status:', error);
-        // Don't throw error immediately, try fallback
+        // Set disconnected state on error
         setAuthStatus({
           isConnected: false,
           userEmail: null,

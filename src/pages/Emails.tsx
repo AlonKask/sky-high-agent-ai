@@ -46,6 +46,8 @@ import { Label } from '@/components/ui/label';
 import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { format } from 'date-fns';
 import { ManualGmailFix } from '@/components/ManualGmailFix';
+import { EmailsPageFix } from '@/components/EmailsPageFix';
+import { GmailDebugPanel } from '@/components/GmailDebugPanel';
 import { Switch } from '@/components/ui/switch';
 
 interface EmailExchange {
@@ -71,6 +73,11 @@ interface EmailExchange {
 
 const Emails = () => {
   const { user } = useSimpleAuth();
+  
+  // Add debug component at the top for troubleshooting
+  if (!user) {
+    return <EmailsPageFix />;
+  }
   
   const [searchParams] = useSearchParams();
   const { authStatus, connectGmail, disconnectGmail } = useGmailIntegration();
@@ -410,6 +417,11 @@ const Emails = () => {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      {/* Debug Panel - Remove this after fixing */}
+      <div className="absolute top-4 right-4 z-50 w-96">
+        <GmailDebugPanel />
+      </div>
+      
       {/* Sidebar */}
       <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative flex-shrink-0`}>
         {/* Collapse Toggle */}
