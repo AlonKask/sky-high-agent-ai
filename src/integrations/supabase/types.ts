@@ -3774,6 +3774,7 @@ export type Database = {
       }
       get_analytics_data: {
         Args:
+          | { p_agent_id?: string; p_end_date?: string; p_start_date?: string }
           | {
               p_end_date: string
               p_start_date: string

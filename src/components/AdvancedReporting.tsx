@@ -40,15 +40,19 @@ import { DateRange } from "react-day-picker";
 
 interface ReportData {
   totalRevenue: number;
-  totalBookings: number;
   totalQuotes: number;
+  totalBookings: number;
   totalClients: number;
   conversionRate: number;
   avgTicketPrice: number;
-  revenueGrowth: number;
-  monthlyData: Array<{ month: string; revenue: number; bookings: number; quotes: number }>;
-  topRoutes: Array<{ route: string; count: number; revenue: number }>;
-  agentPerformance: Array<{ name: string; revenue: number; bookings: number; conversionRate: number }>;
+  monthlyData: { month: string; revenue: number; bookings: number; quotes: number }[];
+  topRoutes: { route: string; count: number; revenue: number }[];
+  agentPerformance: { 
+    agent_name: string; 
+    revenue: number; 
+    bookings: number; 
+    quotes: number; 
+  }[];
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -107,23 +111,12 @@ const AdvancedReporting = () => {
     try {
       setLoading(true);
 
-      // Determine the period for analytics data
-      const timeDiff = dateRange.to.getTime() - dateRange.from.getTime();
-      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-      
-      let selectedPeriod = 'month';
-      if (daysDiff <= 7) selectedPeriod = 'week';
-      else if (daysDiff <= 31) selectedPeriod = 'month';
-      else if (daysDiff <= 90) selectedPeriod = 'quarter';
-      else selectedPeriod = 'year';
-
-      // Use the analytics SQL function
+      // Use the analytics SQL function with correct parameters
       const { data: analyticsData, error } = await supabase
         .rpc('get_analytics_data', {
           p_start_date: dateRange.from.toISOString().split('T')[0],
           p_end_date: dateRange.to.toISOString().split('T')[0],
-          p_user_id: selectedAgent !== 'all' ? selectedAgent : user.id,
-          p_user_role: role || 'user'
+          p_agent_id: selectedAgent !== 'all' ? selectedAgent : null
         });
 
       if (error) {
@@ -132,8 +125,10 @@ const AdvancedReporting = () => {
         return;
       }
 
-      const data = analyticsData as any;
-      if (!data) {
+      // Handle case where we get an array with a single result
+      const data = Array.isArray(analyticsData) ? analyticsData[0] : analyticsData;
+      
+      if (!data || typeof data !== 'object') {
         setReportData({
           totalRevenue: 0,
           totalBookings: 0,
@@ -141,7 +136,6 @@ const AdvancedReporting = () => {
           totalClients: 0,
           conversionRate: 0,
           avgTicketPrice: 0,
-          revenueGrowth: 0,
           monthlyData: [],
           topRoutes: [],
           agentPerformance: []
@@ -149,17 +143,29 @@ const AdvancedReporting = () => {
         return;
       }
 
+      // Type cast the data object properly
+      const typedData = data as {
+        total_revenue?: number;
+        total_bookings?: number;
+        total_quotes?: number;
+        total_clients?: number;
+        conversion_rate?: number;
+        avg_ticket_price?: number;
+        monthly_data?: any[];
+        top_routes?: any[];
+        agent_performance?: any[];
+      };
+
       setReportData({
-        totalRevenue: data.total_revenue || 0,
-        totalBookings: data.total_bookings || 0,
-        totalQuotes: data.total_quotes || 0,
-        totalClients: data.total_clients || 0,
-        conversionRate: data.conversion_rate || 0,
-        avgTicketPrice: data.avg_ticket_price || 0,
-        revenueGrowth: data.revenue_growth || 0,
-        monthlyData: data.monthly_data || [],
-        topRoutes: data.top_routes || [],
-        agentPerformance: data.agent_performance || []
+        totalRevenue: Number(typedData.total_revenue) || 0,
+        totalBookings: Number(typedData.total_bookings) || 0,
+        totalQuotes: Number(typedData.total_quotes) || 0,
+        totalClients: Number(typedData.total_clients) || 0,
+        conversionRate: Number(typedData.conversion_rate) || 0,
+        avgTicketPrice: Number(typedData.avg_ticket_price) || 0,
+        monthlyData: typedData.monthly_data || [],
+        topRoutes: typedData.top_routes || [],
+        agentPerformance: typedData.agent_performance || []
       });
 
     } catch (error) {
@@ -458,7 +464,7 @@ const AdvancedReporting = () => {
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={reportData?.agentPerformance || []}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="agent_name" />
                     <YAxis />
                     <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']} />
                     <Bar dataKey="revenue" fill="#8884d8" />
