@@ -108,8 +108,8 @@ export const useGmailIntegration = () => {
         throw new Error('Please refresh the page and sign in again');
       }
       
-      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
-        body: { action: 'start' }
+      const { data, error } = await supabase.functions.invoke('gmail-oauth?action=start', {
+        body: {}
       });
 
       if (error) {
