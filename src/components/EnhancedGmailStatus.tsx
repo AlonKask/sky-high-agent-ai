@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Mail, 
   RefreshCw, 
@@ -14,10 +15,10 @@ import {
   Settings,
   Zap,
   Loader2,
-  Stethoscope
+  Stethoscope,
+  Activity
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { testGmailOAuthHealth } from '@/utils/testGmailHealth';
 
 interface EnhancedGmailStatusProps {
   onEmailRefresh?: () => Promise<void>;
@@ -98,35 +99,53 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
   };
 
   const handleHealthCheck = async () => {
+    console.log('🏥 Starting Gmail OAuth health check...');
+    
     try {
-      const result = await testGmailOAuthHealth();
+      const { data, error } = await supabase.functions.invoke('gmail-oauth-health');
       
-      if (result.success && result.data?.data) {
-        const healthData = result.data.data;
-        const allHealthy = healthData.oauth_ready && healthData.status === 'healthy';
-        
-        toast({
-          title: allHealthy ? "✅ System Healthy" : "⚠️ System Issues Detected",
-          description: allHealthy 
-            ? "Gmail OAuth system is fully operational" 
-            : `OAuth Ready: ${healthData.oauth_ready ? 'Yes' : 'No'} - Status: ${healthData.status}`,
-          variant: allHealthy ? "default" : "destructive"
-        });
-        
-        console.log('🏥 Health check details:', healthData);
-      } else {
+      if (error) {
+        console.error('❌ Health check function failed:', error);
         toast({
           title: "Health Check Failed",
-          description: result.error || "Unknown health check error",
+          description: `Unable to reach health check service: ${error.message}`,
           variant: "destructive"
         });
-        console.error('❌ Health check failed:', result);
+        return;
       }
-    } catch (error) {
+      
+      console.log('✅ Health check response:', data);
+      
+      if (data?.success && data?.data) {
+        const healthData = data.data;
+        const isOAuthReady = healthData.oauth_ready;
+        const envCheck = healthData.environment_check;
+        
+        toast({
+          title: isOAuthReady ? "✅ System Healthy" : "⚠️ Configuration Issues",
+          description: isOAuthReady 
+            ? "Gmail OAuth system is fully operational" 
+            : `Missing: ${Object.entries(envCheck).filter(([key, value]) => !value).map(([key]) => key).join(', ')}`,
+          variant: isOAuthReady ? "default" : "destructive"
+        });
+        
+        // Log detailed environment status for debugging
+        console.log('🔍 Environment check results:', envCheck);
+        
+      } else {
+        console.error('❌ Health check returned unexpected data:', data);
+        toast({
+          title: "Health Check Issue",
+          description: "Health check completed but returned unexpected data",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error: any) {
       console.error('❌ Health check exception:', error);
       toast({
-        title: "Health Check Failed",
-        description: "Unable to perform health check",
+        title: "Health Check Error",
+        description: `System health check failed: ${error.message}`,
         variant: "destructive"
       });
     }
@@ -214,8 +233,9 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
                     variant="outline"
                     size="sm"
                     className="text-xs"
+                    title="Test system health"
                   >
-                    <Stethoscope className="h-3 w-3" />
+                    <Activity className="h-3 w-3" />
                   </Button>
                 </>
               ) : (

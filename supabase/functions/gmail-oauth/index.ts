@@ -328,20 +328,34 @@ serve(async (req) => {
       const userInfo = await userInfoResponse.json();
       console.log(`📧 User info obtained for: ${userInfo.email}`);
 
-      // Store tokens with proper encryption
+      // Enhanced token storage with comprehensive error handling and validation
       let storedSuccessfully = false;
       let storageError = null;
       
       try {
         console.log(`💾 Storing encrypted tokens for user: ${userId}`);
+        console.log(`📧 User email from Google: ${userInfo.email}`);
+        console.log(`⏰ Token expires in: ${tokens.expires_in} seconds`);
+        
+        // Enhanced token validation
+        if (!tokens.access_token) {
+          throw new Error('No access token received from Google');
+        }
+        
+        if (!userInfo.email) {
+          throw new Error('No email address received from Google');
+        }
         
         // Simple base64 encoding for token storage (proper encryption should be used in production)
         const encryptedAccessToken = btoa(tokens.access_token);
         const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
-        const tokenExpiresAt = new Date(Date.now() + (tokens.expires_in * 1000)).toISOString();
+        const tokenExpiresAt = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000)).toISOString();
         
-        // Store in gmail_credentials table with proper encryption
-        const { error: upsertError } = await supabaseServiceClient
+        console.log(`🔑 Encrypted tokens prepared, upserting to database...`);
+        console.log(`📅 Token expiration set to: ${tokenExpiresAt}`);
+        
+        // Store in gmail_credentials table with enhanced error handling
+        const { data: upsertData, error: upsertError } = await supabaseServiceClient
           .from('gmail_credentials')
           .upsert({
             user_id: userId,
@@ -351,17 +365,41 @@ serve(async (req) => {
             gmail_user_email: userInfo.email,
             scope: 'https://www.googleapis.com/auth/gmail.modify',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            last_sync_at: null  // Will be updated on first sync
           }, {
-            onConflict: 'user_id'
+            onConflict: 'user_id',
+            count: 'exact'
           });
           
         if (upsertError) {
-          console.error(`❌ Gmail credentials storage failed:`, upsertError);
-          storageError = `Failed to store Gmail credentials: ${upsertError.message}`;
+          console.error(`❌ Gmail credentials upsert failed:`, {
+            message: upsertError.message,
+            details: upsertError.details,
+            hint: upsertError.hint,
+            code: upsertError.code
+          });
+          storageError = `Database storage failed: ${upsertError.message}`;
         } else {
-          storedSuccessfully = true;
-          console.log(`✅ Gmail tokens stored successfully for: ${userInfo.email}`);
+          console.log(`✅ Upsert completed. Data:`, upsertData);
+          
+          // Verify the storage by reading back the record
+          const { data: verifyData, error: verifyError } = await supabaseServiceClient
+            .from('gmail_credentials')
+            .select('user_id, gmail_user_email, created_at')
+            .eq('user_id', userId)
+            .single();
+            
+          if (verifyError) {
+            console.error(`❌ Storage verification failed:`, verifyError);
+            storageError = `Storage verification failed: ${verifyError.message}`;
+          } else if (verifyData) {
+            console.log(`✅ Storage verified successfully:`, verifyData);
+            storedSuccessfully = true;
+          } else {
+            console.error(`❌ No data found after storage`);
+            storageError = 'Storage completed but verification failed';
+          }
         }
         
         // Trigger immediate email sync if storage was successful
@@ -379,17 +417,19 @@ serve(async (req) => {
             
             if (syncResponse.error) {
               console.error(`❌ Initial sync failed:`, syncResponse.error);
+              // Don't fail OAuth for sync errors, but log them
             } else {
-              console.log(`✅ Initial sync completed successfully`);
+              console.log(`✅ Initial sync completed successfully:`, syncResponse.data);
             }
           } catch (syncError) {
-            console.error(`❌ Error triggering initial sync:`, syncError);
+            console.error(`❌ Exception during initial sync:`, syncError);
             // Don't fail the OAuth flow for sync errors
           }
         }
+        
       } catch (error) {
-        console.error(`❌ Error in token storage process:`, error);
-        storageError = error.message;
+        console.error(`❌ Exception in token storage process:`, error);
+        storageError = `Storage exception: ${error.message}`;
       }
 
       // Return success page that notifies parent window
