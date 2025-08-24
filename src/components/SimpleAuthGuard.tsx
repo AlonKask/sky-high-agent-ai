@@ -1,6 +1,5 @@
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { LoadingFallback } from '@/components/LoadingFallback';
-import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { useEffect } from 'react';
 
 interface SimpleAuthGuardProps {
@@ -9,9 +8,6 @@ interface SimpleAuthGuardProps {
 
 export const SimpleAuthGuard = ({ children }: SimpleAuthGuardProps) => {
   const { user, loading } = useSimpleAuth();
-  
-  // Add session timeout management
-  useSessionTimeout();
 
   useEffect(() => {
     if (!loading && !user) {

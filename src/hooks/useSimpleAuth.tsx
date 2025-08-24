@@ -35,7 +35,6 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
       
       if (error || !newSession) {
         console.error('❌ Session refresh failed:', error);
-        await clearAuthState();
         return false;
       }
       
@@ -45,21 +44,7 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
       return true;
     } catch (error) {
       console.error('❌ Session refresh error:', error);
-      await clearAuthState();
       return false;
-    }
-  };
-
-  const clearAuthState = async () => {
-    console.log('🧹 Clearing authentication state');
-    setSession(null);
-    setUser(null);
-    
-    // Clear any stored auth tokens
-    try {
-      await supabase.auth.signOut({ scope: 'local' });
-    } catch (error) {
-      console.error('Error during local signout:', error);
     }
   };
 
@@ -91,7 +76,6 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
         
         if (error) {
           console.error('❌ Initial session check failed:', error);
-          await clearAuthState();
           setLoading(false);
           return;
         }
@@ -107,7 +91,8 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
         setUser(session?.user ?? null);
       } catch (error) {
         console.error('❌ Session check error:', error);
-        await clearAuthState();
+        setSession(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }

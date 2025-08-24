@@ -78,7 +78,6 @@ const EnhancedClientManager = () => {
   const [creating, setCreating] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [showAIInsights, setShowAIInsights] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
   const [isFetchingClients, setIsFetchingClients] = useState(false);
   
   // Form state
@@ -109,7 +108,6 @@ const EnhancedClientManager = () => {
     try {
       setIsFetchingClients(true);
       setLoading(true);
-      setAuthError(null);
 
       console.log('🔍 Fetching clients for user:', {
         userId: user.id,
@@ -125,19 +123,15 @@ const EnhancedClientManager = () => {
       if (error) {
         console.error('❌ Database error:', error);
         
-        // Handle authentication/RLS failures
+        // Handle authentication/RLS failures with simple redirect
         if (error.code === '42501' || 
             error.message.includes('permission denied') ||
             error.message.includes('RLS') ||
             error.message.toLowerCase().includes('policy')) {
           
           console.log('🔒 Authentication failure detected - redirecting to sign in');
-          setAuthError('Your session has expired. Please sign in again to continue.');
-          
-          // Immediate redirect to avoid confusion
-          setTimeout(() => {
-            window.location.href = '/auth';
-          }, 1500);
+          toastHelpers.error('Session expired. Redirecting to sign in...');
+          window.location.href = '/auth';
           return;
         }
         
@@ -355,25 +349,6 @@ const EnhancedClientManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* Authentication Error Alert */}
-      {authError && (
-        <Alert className="border-red-200 bg-red-50 dark:bg-red-900/20">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Authentication Required</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>{authError}</span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => window.location.href = '/auth'}
-              className="ml-4"
-            >
-              Sign In Again
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
