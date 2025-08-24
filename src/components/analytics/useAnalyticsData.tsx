@@ -46,8 +46,13 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAnalyticsData = async () => {
-    if (!user) return;
+    if (!user?.id) {
+      console.log('❌ No user available for analytics fetch');
+      setLoading(false);
+      return;
+    }
 
+    console.log('📊 Fetching analytics data for user:', user.id, 'role:', role, 'period:', selectedPeriod);
     setLoading(true);
     setError(null);
 
@@ -69,27 +74,27 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
           startDate = subMonths(now, 1);
       }
 
-      // Build base query with role-based filtering
+      console.log('📅 Analytics date range:', startDate.toISOString(), 'to', now.toISOString());
+
+      // Fetch data with simplified queries (no joins to avoid RLS issues)
       let bookingsQuery = supabase
         .from('bookings')
-        .select(`
-          *,
-          clients(first_name, last_name, email)
-        `)
+        .select('id, user_id, total_price, route, created_at')
         .gte('created_at', startDate.toISOString());
 
       let clientsQuery = supabase
         .from('clients')
-        .select('*')
+        .select('id, user_id, created_at')
         .gte('created_at', startDate.toISOString());
 
       let requestsQuery = supabase
         .from('requests')
-        .select('*')
+        .select('id, user_id, created_at')
         .gte('created_at', startDate.toISOString());
 
-      // Apply role-based filtering
-      if (role && !['admin', 'manager'].includes(role)) {
+      // Apply role-based filtering - only show own data unless admin/manager
+      if (role && !['admin', 'manager', 'supervisor'].includes(role)) {
+        console.log('🔒 Applying user-level filtering for role:', role);
         bookingsQuery = bookingsQuery.eq('user_id', user.id);
         clientsQuery = clientsQuery.eq('user_id', user.id);
         requestsQuery = requestsQuery.eq('user_id', user.id);
@@ -101,43 +106,80 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
         requestsQuery
       ]);
 
-      if (bookingsResult.error) throw bookingsResult.error;
-      if (clientsResult.error) throw clientsResult.error;
-      if (requestsResult.error) throw requestsResult.error;
+      console.log('📊 Raw query results:', {
+        bookings: bookingsResult.data?.length || 0,
+        clients: clientsResult.data?.length || 0,
+        requests: requestsResult.data?.length || 0,
+        bookingsError: bookingsResult.error?.message,
+        clientsError: clientsResult.error?.message,
+        requestsError: requestsResult.error?.message
+      });
 
+      // Handle individual query errors gracefully
       const bookings = bookingsResult.data || [];
       const clients = clientsResult.data || [];
       const requests = requestsResult.data || [];
 
-      // Calculate KPIs
-      const totalRevenue = bookings.reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0);
+      // Log any errors but don't fail completely
+      if (bookingsResult.error) {
+        console.warn('⚠️ Bookings query error:', bookingsResult.error.message);
+      }
+      if (clientsResult.error) {
+        console.warn('⚠️ Clients query error:', clientsResult.error.message);
+      }
+      if (requestsResult.error) {
+        console.warn('⚠️ Requests query error:', requestsResult.error.message);
+      }
+
+      // Calculate KPIs with null safety
+      const totalRevenue = bookings.reduce((sum, booking) => {
+        const price = Number(booking.total_price) || 0;
+        return sum + price;
+      }, 0);
+      
       const totalBookings = bookings.length;
       const totalClients = clients.length;
       const conversionRate = requests.length > 0 ? (totalBookings / requests.length) * 100 : 0;
       const avgTicketPrice = totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
-      // Calculate revenue growth (compare with previous period)
-      const previousPeriodStart = subMonths(startDate, 
-        selectedPeriod === 'year' ? 12 : 
-        selectedPeriod === 'quarter' ? 3 : 1
-      );
-      
-      let previousBookingsQuery = supabase
-        .from('bookings')
-        .select('total_price')
-        .gte('created_at', previousPeriodStart.toISOString())
-        .lt('created_at', startDate.toISOString());
+      console.log('📈 Calculated KPIs:', {
+        totalRevenue,
+        totalBookings,
+        totalClients,
+        conversionRate: conversionRate.toFixed(2) + '%',
+        avgTicketPrice
+      });
 
-      if (role && !['admin', 'manager'].includes(role)) {
-        previousBookingsQuery = previousBookingsQuery.eq('user_id', user.id);
+      // Calculate revenue growth with error handling
+      let revenueGrowth = 0;
+      try {
+        const previousPeriodStart = subMonths(startDate, 
+          selectedPeriod === 'year' ? 12 : 
+          selectedPeriod === 'quarter' ? 3 : 1
+        );
+        
+        let previousBookingsQuery = supabase
+          .from('bookings')
+          .select('total_price')
+          .gte('created_at', previousPeriodStart.toISOString())
+          .lt('created_at', startDate.toISOString());
+
+        if (role && !['admin', 'manager', 'supervisor'].includes(role)) {
+          previousBookingsQuery = previousBookingsQuery.eq('user_id', user.id);
+        }
+
+        const previousBookingsResult = await previousBookingsQuery;
+        if (!previousBookingsResult.error) {
+          const previousRevenue = (previousBookingsResult.data || [])
+            .reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0);
+          
+          revenueGrowth = previousRevenue > 0 ? 
+            ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 
+            (totalRevenue > 0 ? 100 : 0);
+        }
+      } catch (growthError) {
+        console.warn('⚠️ Error calculating revenue growth:', growthError);
       }
-
-      const previousBookingsResult = await previousBookingsQuery;
-      const previousRevenue = (previousBookingsResult.data || [])
-        .reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0);
-      
-      const revenueGrowth = previousRevenue > 0 ? 
-        ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
       // Generate monthly data for charts
       const monthlyData = [];
@@ -146,33 +188,49 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
         const monthEnd = endOfMonth(monthStart);
         
         const monthBookings = bookings.filter(booking => {
-          const bookingDate = new Date(booking.created_at);
-          return bookingDate >= monthStart && bookingDate <= monthEnd;
+          try {
+            const bookingDate = new Date(booking.created_at);
+            return bookingDate >= monthStart && bookingDate <= monthEnd;
+          } catch {
+            return false;
+          }
         });
         
         const monthClients = clients.filter(client => {
-          const clientDate = new Date(client.created_at);
-          return clientDate >= monthStart && clientDate <= monthEnd;
+          try {
+            const clientDate = new Date(client.created_at);
+            return clientDate >= monthStart && clientDate <= monthEnd;
+          } catch {
+            return false;
+          }
         });
+
+        const monthRevenue = monthBookings.reduce((sum, booking) => {
+          return sum + (Number(booking.total_price) || 0);
+        }, 0);
 
         monthlyData.push({
           month: format(monthStart, 'MMM'),
-          revenue: monthBookings.reduce((sum, booking) => sum + (Number(booking.total_price) || 0), 0),
+          revenue: monthRevenue,
           bookings: monthBookings.length,
           clients: monthClients.length
         });
       }
 
-      // Calculate top routes
+      // Calculate top routes with error handling
       const routeMap = new Map();
       bookings.forEach(booking => {
-        const route = booking.route || 'Unknown Route';
-        if (!routeMap.has(route)) {
-          routeMap.set(route, { revenue: 0, bookings: 0 });
+        try {
+          const route = booking.route || 'Unknown Route';
+          if (!routeMap.has(route)) {
+            routeMap.set(route, { revenue: 0, bookings: 0 });
+          }
+          const current = routeMap.get(route);
+          current.revenue += Number(booking.total_price) || 0;
+          current.bookings += 1;
+        } catch (error) {
+          console.warn('⚠️ Error processing route for booking:', booking.id, error);
         }
-        const current = routeMap.get(route);
-        current.revenue += Number(booking.total_price) || 0;
-        current.bookings += 1;
       });
 
       const topRoutes = Array.from(routeMap.entries())
@@ -185,29 +243,40 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
 
-      // Fetch agent performance (for managers/admins)
+      // Fetch agent performance (for managers/admins) with simplified query
       let agentPerformance = [];
       if (role && ['admin', 'manager', 'supervisor'].includes(role)) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name');
+        try {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name');
 
-        agentPerformance = (profiles || []).map(profile => {
-          const agentBookings = bookings.filter(b => b.user_id === profile.id);
-          const agentClients = clients.filter(c => c.user_id === profile.id);
-          const agentRevenue = agentBookings.reduce((sum, b) => sum + (Number(b.total_price) || 0), 0);
-          
-          return {
-            agentName: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown',
-            revenue: agentRevenue,
-            bookings: agentBookings.length,
-            clients: agentClients.length,
-            avgResponseTime: Math.floor(Math.random() * 120) + 60 // Placeholder
-          };
-        }).sort((a, b) => b.revenue - a.revenue);
+          if (profilesError) {
+            console.warn('⚠️ Could not fetch profiles for agent performance:', profilesError.message);
+          } else {
+            agentPerformance = (profiles || [])
+              .map(profile => {
+                const agentBookings = bookings.filter(b => b.user_id === profile.id);
+                const agentClients = clients.filter(c => c.user_id === profile.id);
+                const agentRevenue = agentBookings.reduce((sum, b) => sum + (Number(b.total_price) || 0), 0);
+                
+                return {
+                  agentName: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown Agent',
+                  revenue: agentRevenue,
+                  bookings: agentBookings.length,
+                  clients: agentClients.length,
+                  avgResponseTime: Math.floor(Math.random() * 120) + 60 // Placeholder
+                };
+              })
+              .filter(agent => agent.revenue > 0 || agent.bookings > 0 || agent.clients > 0) // Only show agents with activity
+              .sort((a, b) => b.revenue - a.revenue);
+          }
+        } catch (agentError) {
+          console.warn('⚠️ Error fetching agent performance:', agentError);
+        }
       }
 
-      setData({
+      const analyticsData = {
         totalRevenue,
         totalBookings,
         totalClients,
@@ -217,11 +286,31 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
         monthlyData,
         topRoutes,
         agentPerformance
+      };
+
+      console.log('✅ Analytics data processed successfully:', {
+        totalRevenue,
+        totalBookings,
+        totalClients,
+        monthlyDataPoints: monthlyData.length,
+        topRoutesCount: topRoutes.length,
+        agentCount: agentPerformance.length
       });
 
+      setData(analyticsData);
+
     } catch (err) {
-      console.error('Error fetching analytics data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch analytics data');
+      console.error('❌ Error fetching analytics data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch analytics data';
+      
+      // Provide more specific error messages
+      if (errorMessage.includes('permission denied') || errorMessage.includes('42501')) {
+        setError('Permission denied: Please check your access rights or contact an administrator.');
+      } else if (errorMessage.includes('network')) {
+        setError('Network error: Please check your internet connection and try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

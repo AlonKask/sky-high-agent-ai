@@ -65,15 +65,75 @@ export const ComprehensiveAnalytics = () => {
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center">
-            <p className="text-destructive mb-4">Error loading analytics: {error}</p>
-            <Button onClick={refetch}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
+          <div className="text-center space-y-4">
+            <div className="text-destructive">
+              <h3 className="font-semibold mb-2">Analytics Unavailable</h3>
+              <p className="text-sm">{error}</p>
+            </div>
+            <div className="space-y-2">
+              <Button onClick={refetch} variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Try Again
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                If this problem persists, try creating some sample data first
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  // Handle empty data state
+  if (!loading && data && data.totalBookings === 0 && data.totalClients === 0) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+            <p className="text-muted-foreground">
+              Get started by creating your first booking or client
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-8">
+            <div className="text-center space-y-6">
+              <div>
+                <TrendingUp className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Analytics Data Available</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Your analytics dashboard will show insights once you have bookings and clients. 
+                  Start by creating your first client or processing a booking.
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={() => window.location.href = '/clients'} variant="default">
+                  <Users className="h-4 w-4 mr-2" />
+                  Add First Client
+                </Button>
+                <Button onClick={() => window.location.href = '/requests'} variant="outline">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Create Request
+                </Button>
+              </div>
+              
+              <div className="text-xs text-muted-foreground">
+                <p>Analytics will automatically populate as you:</p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Add clients to your database</li>
+                  <li>Process flight bookings</li>
+                  <li>Handle customer requests</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -131,19 +191,24 @@ export const ComprehensiveAnalytics = () => {
       </div>
 
       {/* KPI Cards */}
-      {data && (
-        <AnalyticsKPICards 
-          data={{
-            totalRevenue: data.totalRevenue,
-            totalBookings: data.totalBookings,
-            totalClients: data.totalClients,
-            conversionRate: data.conversionRate,
-            avgTicketPrice: data.avgTicketPrice,
-            revenueGrowth: data.revenueGrowth
-          }}
-          loading={loading}
-        />
-      )}
+      <AnalyticsKPICards 
+        data={data ? {
+          totalRevenue: data.totalRevenue,
+          totalBookings: data.totalBookings,
+          totalClients: data.totalClients,
+          conversionRate: data.conversionRate,
+          avgTicketPrice: data.avgTicketPrice,
+          revenueGrowth: data.revenueGrowth
+        } : {
+          totalRevenue: 0,
+          totalBookings: 0,
+          totalClients: 0,
+          conversionRate: 0,
+          avgTicketPrice: 0,
+          revenueGrowth: 0
+        }}
+        loading={loading}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -157,26 +222,11 @@ export const ComprehensiveAnalytics = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          {data ? (
-            <AnalyticsCharts 
-              monthlyData={data.monthlyData}
-              topRoutes={data.topRoutes}
-              loading={loading}
-            />
-          ) : loading ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <div className="h-5 w-32 bg-muted animate-pulse rounded" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 bg-muted animate-pulse rounded" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : null}
+          <AnalyticsCharts 
+            monthlyData={data?.monthlyData || []}
+            topRoutes={data?.topRoutes || []}
+            loading={loading}
+          />
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-4">
