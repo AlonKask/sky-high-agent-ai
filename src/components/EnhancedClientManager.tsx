@@ -78,7 +78,6 @@ const EnhancedClientManager = () => {
   const [creating, setCreating] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [showAIInsights, setShowAIInsights] = useState(false);
-  const [isFetchingClients, setIsFetchingClients] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -100,28 +99,14 @@ const EnhancedClientManager = () => {
   }, [user]);
 
   const fetchClients = async () => {
-    if (!user || !session || isFetchingClients) {
-      console.log('🚫 Cannot fetch clients:', { user: !!user, session: !!session, isFetching: isFetchingClients });
+    if (!user) {
+      console.log('🚫 No user available for clients fetch');
       return;
     }
     
     try {
-      setIsFetchingClients(true);
       setLoading(true);
-
-      console.log('🔍 Fetching clients for user:', {
-        userId: user.id,
-        sessionExpiry: session.expires_at ? new Date(session.expires_at * 1000) : null,
-        accessToken: session.access_token ? 'present' : 'missing'
-      });
-
-      // Test auth state before making database call
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      console.log('🔍 Current auth state before DB call:', {
-        frontendUserId: user.id,
-        supabaseUserId: currentUser?.id,
-        tokensMatch: user.id === currentUser?.id
-      });
+      console.log('🔍 Fetching clients for user:', user.id);
 
       const { data, error } = await supabase
         .from('clients')
@@ -130,41 +115,6 @@ const EnhancedClientManager = () => {
 
       if (error) {
         console.error('❌ Database error:', error);
-        
-        // Handle authentication/RLS failures - try refreshing session first
-        if (error.code === '42501' || 
-            error.message.includes('permission denied') ||
-            error.message.includes('RLS') ||
-            error.message.toLowerCase().includes('policy')) {
-          
-          console.log('🔄 Token mismatch detected - attempting session refresh');
-          
-          try {
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshedSession && !refreshError) {
-              console.log('✅ Session refreshed successfully - retrying client fetch');
-              // Retry the fetch with refreshed session
-              const { data: retryData, error: retryError } = await supabase
-                .from('clients')
-                .select('*')
-                .eq('user_id', user.id);
-                
-              if (!retryError) {
-                console.log('✅ Client fetch successful after refresh');
-                setClients(retryData || []);
-                return;
-              }
-            }
-          } catch (refreshError) {
-            console.error('❌ Session refresh failed:', refreshError);
-          }
-          
-          console.log('🔒 Authentication failure - redirecting to sign in');
-          toastHelpers.error('Session expired. Please sign in again.');
-          window.location.href = '/auth';
-          return;
-        }
-        
         toastHelpers.error('Failed to load clients', error);
         return;
       }
@@ -176,7 +126,6 @@ const EnhancedClientManager = () => {
       toastHelpers.error('An unexpected error occurred while loading clients', error);
     } finally {
       setLoading(false);
-      setIsFetchingClients(false);
     }
   };
 

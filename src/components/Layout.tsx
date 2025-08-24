@@ -1,4 +1,3 @@
-import { AuthGuard } from "@/components/AuthGuard";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -9,20 +8,18 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   return (
-    <AuthGuard>
-      <SidebarProvider>
-        <div className="flex h-screen w-full">
-          <AppSidebar />
-          <main className="flex-1 overflow-hidden">
-            <div className="h-full overflow-auto relative">
-              <NotificationCenter />
-              <div className="p-6">
-                {children}
-              </div>
+    <SidebarProvider>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <main className="flex-1 overflow-hidden">
+          <div className="h-full overflow-auto relative">
+            <NotificationCenter />
+            <div className="p-6">
+              {children}
             </div>
-          </main>
-        </div>
-      </SidebarProvider>
-    </AuthGuard>
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
   );
 };
