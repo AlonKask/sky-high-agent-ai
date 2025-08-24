@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
+import { FlightPathVisualization } from '@/components/ui/FlightPathVisualization';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -102,6 +103,17 @@ const calculateCKFee = (quote: Quote): number => {
   // Calculate 3.5% of net price + markup when amount is 0 but enabled
   const basePrice = safeParseFloat(quote.net_price) + safeParseFloat(quote.markup);
   return basePrice * 0.035;
+};
+
+// Transform segments for FlightPathVisualization
+const transformSegmentsForVisualization = (segments: Segment[]) => {
+  return segments.map(segment => ({
+    airlineCode: segment.airlineCode,
+    flightNumber: segment.flightNumber,
+    duration: segment.duration,
+    departureAirport: { code: segment.departureAirport },
+    arrivalAirport: { code: segment.arrivalAirport }
+  }));
 };
 
 export function QuoteCard({
@@ -249,62 +261,19 @@ export function QuoteCard({
           {/* Expanded Content */}
           <CollapsibleContent className="border-t">
             <div className="p-4 space-y-4">
-              {/* Flight Segments */}
+              {/* Flight Route Visualization */}
               <div>
                 <h4 className="font-medium mb-3 flex items-center gap-2">
                   <Plane className="h-4 w-4" />
-                  Flight Details
+                  Flight Route
                 </h4>
-                <div className="space-y-3">
-                  {quote.segments?.map((segment, index) => (
-                    <div key={index} className="p-3 bg-muted/30 rounded-lg border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {segment.flightNumber}
-                          </Badge>
-                          <span className="font-medium text-sm">
-                            {segment.departureAirport} -&gt; {segment.arrivalAirport}
-                          </span>
-                          <Badge variant="outline" className="text-xs">
-                            {segment.cabinClass}
-                          </Badge>
-                        </div>
-                        {segment.aircraftType && (
-                          <Badge variant="outline" className="text-xs">
-                            {segment.aircraftType}
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">Departure:</span>
-                          <span className="font-medium">{segment.departureTime}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">Arrival:</span>
-                          <span className="font-medium">
-                            {segment.arrivalTime}
-                            {segment.arrivalDayOffset > 0 && (
-                              <span className="text-orange-600 ml-1">
-                                +{segment.arrivalDayOffset}d
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
-                      {segment.duration && (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          Duration: {segment.duration}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                {quote.segments && quote.segments.length > 0 && (
+                  <FlightPathVisualization
+                    segments={transformSegmentsForVisualization(quote.segments)}
+                    className="mb-4"
+                    showAirlineLogos={true}
+                  />
+                )}
               </div>
 
               {/* Pricing Breakdown */}
