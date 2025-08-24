@@ -101,22 +101,21 @@ const EnhancedClientManager = () => {
   }, [user]);
 
   const fetchClients = async () => {
-    if (!user || !session || isFetchingClients) return;
+    if (!user || !session || isFetchingClients) {
+      console.log('🚫 Cannot fetch clients:', { user: !!user, session: !!session, isFetching: isFetchingClients });
+      return;
+    }
     
     try {
       setIsFetchingClients(true);
       setLoading(true);
       setAuthError(null);
 
-      console.log('🔍 Fetching clients for user:', user.id);
-      
-      // Validate session before database call
-      const now = Math.floor(Date.now() / 1000);
-      if (session.expires_at && now >= session.expires_at) {
-        console.log('❌ Session expired before database call');
-        setAuthError('Your session has expired. Please sign in again to continue.');
-        return;
-      }
+      console.log('🔍 Fetching clients for user:', {
+        userId: user.id,
+        sessionExpiry: session.expires_at ? new Date(session.expires_at * 1000) : null,
+        accessToken: session.access_token ? 'present' : 'missing'
+      });
 
       const { data, error } = await supabase
         .from('clients')
@@ -124,38 +123,33 @@ const EnhancedClientManager = () => {
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('❌ Error fetching clients:', error);
+        console.error('❌ Database error:', error);
         
-        // Handle RLS policy failures (auth.uid() returning null)
+        // Handle authentication/RLS failures
         if (error.code === '42501' || 
             error.message.includes('permission denied') ||
             error.message.includes('RLS') ||
             error.message.toLowerCase().includes('policy')) {
-          console.log('🔒 RLS policy failure - likely session/token mismatch');
-          setAuthError('Authentication error detected. Your session has expired or become invalid.');
           
-          // Clear the invalid session state
+          console.log('🔒 Authentication failure detected - redirecting to sign in');
+          setAuthError('Your session has expired. Please sign in again to continue.');
+          
+          // Immediate redirect to avoid confusion
           setTimeout(() => {
             window.location.href = '/auth';
-          }, 2000);
+          }, 1500);
           return;
         }
         
-        toastHelpers.error('Failed to load clients. Please try again.', error);
+        toastHelpers.error('Failed to load clients', error);
         return;
       }
 
-      console.log('✅ Clients fetched successfully:', data?.length || 0);
+      console.log('✅ Clients fetched successfully:', data?.length || 0, 'clients');
       setClients(data || []);
     } catch (error) {
-      console.error('❌ Unexpected error fetching clients:', error);
-      
-      // Handle network or other unexpected errors
-      if (error instanceof Error && error.message.includes('fetch')) {
-        setAuthError('Connection error. Please check your internet connection and try again.');
-      } else {
-        toastHelpers.error('An unexpected error occurred while loading clients.', error);
-      }
+      console.error('❌ Unexpected error:', error);
+      toastHelpers.error('An unexpected error occurred while loading clients', error);
     } finally {
       setLoading(false);
       setIsFetchingClients(false);
