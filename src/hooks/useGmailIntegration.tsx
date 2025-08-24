@@ -22,10 +22,17 @@ export const useGmailIntegration = () => {
 
   const checkGmailStatus = useCallback(async () => {
     try {
+      console.log('🔍 Starting Gmail status check...');
       setAuthStatus(prev => ({ ...prev, isLoading: true }));
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('❌ Error getting user:', userError);
+        throw userError;
+      }
+      
       if (!user) {
+        console.log('⚠️ No authenticated user found');
         setAuthStatus({
           isConnected: false,
           userEmail: null,
@@ -34,12 +41,25 @@ export const useGmailIntegration = () => {
         });
         return;
       }
+
+      console.log('👤 Checking Gmail status for user:', user.id);
 
       // Call the RPC function to check Gmail integration status
       const { data, error } = await supabase.rpc('get_gmail_integration_status');
 
+      console.log('📊 RPC call result:', { data, error });
+
       if (error) {
-        console.error('Gmail status check error:', error);
+        console.error('❌ Gmail status RPC error:', error);
+        
+        // Provide specific error feedback
+        const errorMessage = error.message || 'Failed to check Gmail connection status';
+        toast({
+          title: "Gmail Status Check Failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        
         setAuthStatus({
           isConnected: false,
           userEmail: null,
@@ -49,10 +69,22 @@ export const useGmailIntegration = () => {
         return;
       }
 
-      console.log('📊 RPC response data:', data);
+      console.log('✅ Gmail status data received:', data);
 
-      // Handle the RPC response properly with unknown type first
-      const statusData = data as unknown as { connected: boolean; gmail_user_email?: string; last_sync?: string; error?: string };
+      // Handle the RPC response properly - it returns JSONB
+      const statusData = data as { connected: boolean; gmail_user_email?: string; last_sync?: string; error?: string; email_count?: number };
+      
+      console.log('📋 Parsed status data:', {
+        connected: statusData?.connected,
+        email: statusData?.gmail_user_email,
+        lastSync: statusData?.last_sync,
+        emailCount: statusData?.email_count,
+        hasError: !!statusData?.error
+      });
+
+      if (statusData?.error) {
+        console.error('❌ Status data contains error:', statusData.error);
+      }
       
       setAuthStatus({
         isConnected: statusData?.connected || false,
@@ -61,8 +93,15 @@ export const useGmailIntegration = () => {
         lastSync: statusData?.last_sync ? new Date(statusData.last_sync) : null,
       });
 
+      console.log('✅ Gmail status check completed successfully');
+
     } catch (error) {
-      console.error('Gmail status check error:', error);
+      console.error('❌ Gmail status check failed:', error);
+      
+      // More specific error messaging
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error details:', errorMessage);
+      
       setAuthStatus({
         isConnected: false,
         userEmail: null,
@@ -83,29 +122,56 @@ export const useGmailIntegration = () => {
       return;
     }
 
+    console.log(`🔐 Starting Gmail OAuth process for user: ${user.id}`);
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
     try {
-      console.log(`🚀 Starting Gmail OAuth for user: ${user.id}`);
-      
+      console.log('📋 Checking session validity...');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError || !session?.access_token) {
-        console.error('❌ Invalid session for OAuth:', sessionError);
-        throw new Error('Please refresh the page and sign in again');
+      if (sessionError) {
+        console.error('❌ Session error:', sessionError);
+        throw new Error(`Session error: ${sessionError.message}`);
       }
       
-      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
+      if (!session?.access_token) {
+        console.error('❌ No access token in session:', { session });
+        throw new Error('No valid session found. Please refresh the page and sign in again.');
+      }
+      
+      console.log('✅ Valid session found, calling gmail-oauth function...');
+      
+      // Call the oauth function with detailed logging
+      const functionCall = supabase.functions.invoke('gmail-oauth', {
         body: { action: 'start' }
       });
+      
+      console.log('📡 gmail-oauth function call initiated...');
+      const { data, error } = await functionCall;
+      
+      console.log('📨 gmail-oauth function response:', { data, error });
 
       if (error) {
-        console.error(`❌ OAuth function error:`, error);
-        throw new Error(error.message || 'Failed to initialize OAuth');
+        console.error('❌ OAuth function error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+          fullError: error
+        });
+        throw new Error(`OAuth function failed: ${error.message || 'Unknown error'}`);
       }
 
-      if (!data?.success || !data?.authUrl) {
-        throw new Error(data?.error || 'Failed to generate authorization URL');
+      console.log('📊 OAuth function data:', data);
+
+      if (!data?.success) {
+        const errorMsg = data?.error || 'Failed to generate authorization URL';
+        console.error('❌ OAuth function returned failure:', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      if (!data?.authUrl) {
+        console.error('❌ No auth URL received from function:', data);
+        throw new Error('No authorization URL received from server');
       }
 
       console.log(`✅ Authorization URL received, opening popup...`);

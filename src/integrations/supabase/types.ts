@@ -3890,15 +3890,8 @@ export type Database = {
         Returns: Json
       }
       get_gmail_integration_status: {
-        Args: Record<PropertyKey, never> | { p_user_id: string }
-        Returns: {
-          created_at: string
-          gmail_user_email: string
-          is_connected: boolean
-          token_expires_at: string
-          updated_at: string
-          user_id: string
-        }[]
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_option_reviews_by_token: {
         Args: { p_client_token: string }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SafeHtmlRenderer } from '@/components/SafeHtmlRenderer';
@@ -47,6 +46,7 @@ import { Label } from '@/components/ui/label';
 import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { format } from 'date-fns';
 import { EnhancedGmailStatus } from '@/components/EnhancedGmailStatus';
+import { LegacyEmailNotice } from '@/components/LegacyEmailNotice';
 import { Switch } from '@/components/ui/switch';
 
 interface EmailExchange {
@@ -89,7 +89,7 @@ const Emails = () => {
   }
   
   const [searchParams] = useSearchParams();
-  const { authStatus, connectGmail, disconnectGmail } = useGmailIntegration();
+  const { authStatus, connectGmail, disconnectGmail, triggerSync } = useGmailIntegration();
   const emailSyncManager = EmailSyncManager.getInstance();
   
   // Core state
@@ -121,61 +121,98 @@ const Emails = () => {
     body: ''
   });
   
-  // Email statistics
+  // Email statistics - unified version
   const [emailStats, setEmailStats] = useState({
     total: 0,
     unread: 0,
     sent: 0,
-    received: 0
+    received: 0,
+    legacy: 0
   });
 
-  // Load emails from database with proper folder filtering
+  // Load emails from database with enhanced stats tracking
   const loadEmailsFromDB = async () => {
     if (!user) return;
     
-    setLoading(true);
     try {
-      let query = supabase
+      setLoading(true);
+      console.log('📧 Loading emails from database...');
+      
+      const { data: emailData, error } = await supabase
         .from('email_exchanges')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false }); // Fixed: use created_at instead of received_at for ordering
+        .order(sortBy, { ascending: sortOrder === 'asc' });
 
-      // Apply search filter first
-      if (searchQuery.trim()) {
-        query = query.or(`subject.ilike.%${searchQuery}%,sender_email.ilike.%${searchQuery}%,body.ilike.%${searchQuery}%`);
-      }
-
-      const { data, error } = await query.limit(200);
-      
       if (error) {
-        console.error('Database query error:', error);
-        throw error;
+        console.error('Error loading emails:', error);
+        toast({
+          title: "Error Loading Emails",
+          description: "Failed to load emails from database",
+          variant: "destructive"
+        });
+        return;
       }
+
+      console.log(`✅ Loaded ${emailData?.length || 0} emails from database`);
       
-      setEmails(data || []);
-      updateEmailStats(data || []);
+      const emailsData = emailData || [];
+      setEmails(emailsData);
+      
+      // Calculate enhanced statistics
+      const total = emailsData.length;
+      const unread = emailsData.filter(email => {
+        const metadata = email.metadata as any;
+        return !metadata?.isRead;
+      }).length;
+      const sent = emailsData.filter(email => email.direction === 'outbound').length;
+      const received = emailsData.filter(email => email.direction === 'inbound').length;
+      
+      // Assume all current emails are legacy since no Gmail is connected
+      // This will be more sophisticated once we track sync timestamps properly
+      const legacy = authStatus.isConnected ? 0 : total;
+      
+      setEmailStats({ total, unread, sent, received, legacy });
+      
+      console.log(`📊 Email stats: ${total} total, ${unread} unread, ${sent} sent, ${received} received, ${legacy} legacy`);
       
     } catch (error) {
-      console.error('Error loading emails:', error);
-      toast({
-        title: "Error",
-        description: `Failed to load emails: ${error?.message || 'Unknown error'}`,
-        variant: "destructive"
-      });
+      console.error('Error in loadEmailsFromDB:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Update email statistics
-  const updateEmailStats = (emailList: any[]) => {
-    setEmailStats({
-      total: emailList.length,
-      unread: emailList.filter(email => !email.metadata?.isRead).length,
-      sent: emailList.filter(email => email.direction === 'outbound').length,
-      received: emailList.filter(email => email.direction === 'inbound').length
-    });
+  // Enhanced manual sync with better error handling
+  const handleManualSync = async () => {
+    if (!authStatus.isConnected) {
+      toast({
+        title: "Gmail Not Connected", 
+        description: "Please connect Gmail first to sync emails",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setSyncing(true);
+      console.log('🔄 Starting manual email sync...');
+      
+      await triggerSync();
+      await loadEmailsFromDB();
+      
+      console.log('✅ Manual sync completed');
+      
+    } catch (error) {
+      console.error('❌ Manual sync failed:', error);
+      toast({
+        title: "Sync Failed",
+        description: "Failed to sync emails. Please try again or check your Gmail connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setSyncing(false);
+    }
   };
 
   // Mark email as read
@@ -211,7 +248,8 @@ const Emails = () => {
   // Handle email selection
   const handleEmailSelect = (email: any) => {
     setSelectedEmail(email);
-    if (!email.metadata?.isRead) {
+    const metadata = email.metadata as any;
+    if (!metadata?.isRead) {
       markEmailAsRead(email.id);
     }
   };
@@ -387,21 +425,21 @@ const Emails = () => {
     }
   };
 
-      const filteredEmails = getFilteredEmails(emails, selectedFolder)
-        .sort((a, b) => {
-          if (sortBy === 'received_at') {
-            // Handle nullable received_at properly
-            const aTime = a.received_at ? new Date(a.received_at).getTime() : new Date(a.created_at).getTime();
-            const bTime = b.received_at ? new Date(b.received_at).getTime() : new Date(b.created_at).getTime();
-            return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
-          }
-          
-          const aValue = a[sortBy] as string;
-          const bValue = b[sortBy] as string;
-          
-          const comparison = aValue.localeCompare(bValue);
-          return sortOrder === 'asc' ? comparison : -comparison;
-        });
+  const filteredEmails = getFilteredEmails(emails, selectedFolder)
+    .sort((a, b) => {
+      if (sortBy === 'received_at') {
+        // Handle nullable received_at properly
+        const aTime = a.received_at ? new Date(a.received_at).getTime() : new Date(a.created_at).getTime();
+        const bTime = b.received_at ? new Date(b.received_at).getTime() : new Date(b.created_at).getTime();
+        return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
+      }
+      
+      const aValue = a[sortBy] as string;
+      const bValue = b[sortBy] as string;
+      
+      const comparison = aValue.localeCompare(bValue);
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   // Handle URL parameters for filtering
   useEffect(() => {
@@ -446,6 +484,17 @@ const Emails = () => {
             </div>
           )}
 
+          {/* Legacy Email Notice */}
+          {!isSidebarCollapsed && emailStats.legacy > 0 && (
+            <LegacyEmailNotice 
+              legacyCount={emailStats.legacy}
+              isGmailConnected={authStatus.isConnected}
+              onConnectGmail={connectGmail}
+              onSyncEmails={handleManualSync}
+              isSyncing={syncing}
+            />
+          )}
+
           {/* Additional Sync Controls for Connected Users */}
           {!isSidebarCollapsed && authStatus.isConnected && (
             <div className="mb-4">
@@ -454,7 +503,7 @@ const Emails = () => {
                   <h3 className="font-medium text-sm mb-3">Sync Settings</h3>
                   
                   <div className="space-y-3">
-                    {/* AI Processing Toggle - Fixed: removed size prop */}
+                    {/* AI Processing Toggle */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Bot className="h-4 w-4 text-muted-foreground" />
@@ -466,7 +515,7 @@ const Emails = () => {
                       />
                     </div>
 
-                    {/* Auto Sync Toggle - Fixed: removed size prop */}
+                    {/* Auto Sync Toggle */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <RefreshCw className="h-4 w-4 text-muted-foreground" />
@@ -480,18 +529,7 @@ const Emails = () => {
 
                     {/* Manual Sync Button */}
                     <Button 
-                      onClick={async () => {
-                        setSyncing(true);
-                        try {
-                          await emailSyncManager.syncEmails({ 
-                            includeAIProcessing: aiProcessingEnabled, 
-                            showProgress: true 
-                          });
-                          await loadEmailsFromDB();
-                        } finally {
-                          setSyncing(false);
-                        }
-                      }}
+                      onClick={handleManualSync}
                       disabled={syncing}
                       variant="outline"
                       size="sm"
@@ -524,7 +562,7 @@ const Emails = () => {
             </div>
           )}
 
-          {/* Header - Email sync happens automatically */}
+          {/* Header */}
           <div className="flex items-center gap-2 mb-6">
             <Mail className="h-6 w-6 text-primary" />
             {!isSidebarCollapsed && <h1 className="text-xl font-bold">Emails</h1>}
@@ -639,6 +677,12 @@ const Emails = () => {
                   <span>Received:</span>
                   <span>{emailStats.received}</span>
                 </div>
+                {emailStats.legacy > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>Legacy:</span>
+                    <span>{emailStats.legacy}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -725,8 +769,11 @@ const Emails = () => {
                       key={email.id}
                       className={`cursor-pointer transition-colors hover:bg-accent ${
                         selectedEmail?.id === email.id ? 'bg-accent' : ''
-                      } ${!email.metadata?.isRead ? 'border-l-4 border-l-primary' : ''}`}
-                      onClick={() => handleEmailSelect(email)}
+                       } ${(() => {
+                         const metadata = email.metadata as any;
+                         return !metadata?.isRead ? 'border-l-4 border-l-primary' : '';
+                       })()} `}
+                       onClick={() => handleEmailSelect(email)}
                     >
                       <CardContent className="p-3">
                         <div className="flex items-start gap-3">
@@ -740,10 +787,13 @@ const Emails = () => {
                             className="mt-1"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className={`text-sm truncate ${!email.metadata?.isRead ? 'font-semibold' : ''}`}>
-                                {email.sender_email}
-                              </p>
+                             <div className="flex items-center justify-between mb-1">
+                               <p className={`text-sm truncate ${(() => {
+                                 const metadata = email.metadata as any;
+                                 return !metadata?.isRead ? 'font-semibold' : '';
+                               })()}`}>
+                                 {email.sender_email}
+                               </p>
                               <div className="flex items-center gap-1">
                                 {email.direction === 'outbound' && <Send className="h-3 w-3 text-blue-500" />}
                                 <span className="text-xs text-muted-foreground">
@@ -751,9 +801,12 @@ const Emails = () => {
                                 </span>
                               </div>
                             </div>
-                            <p className={`text-sm mb-1 truncate ${!email.metadata?.isRead ? 'font-medium' : ''}`}>
-                              {email.subject}
-                            </p>
+                             <p className={`text-sm mb-1 truncate ${(() => {
+                               const metadata = email.metadata as any;
+                               return !metadata?.isRead ? 'font-medium' : '';
+                             })()}`}>
+                               {email.subject}
+                             </p>
                             <p className="text-xs text-muted-foreground truncate">
                               {email.body.substring(0, 100)}...
                             </p>
