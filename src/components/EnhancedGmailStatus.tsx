@@ -12,7 +12,8 @@ import {
   XCircle,
   ExternalLink,
   Settings,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -33,14 +34,25 @@ export const EnhancedGmailStatus = () => {
     try {
       await connectGmail();
       toast({
-        title: "Gmail Connected",
-        description: "Successfully connected to Gmail account",
+        title: "Gmail Connected Successfully", 
+        description: "Your Gmail account has been connected and emails will be synced shortly",
       });
-    } catch (error) {
-      console.error('Gmail connection error:', error);
+    } catch (error: any) {
+      console.error('Gmail connection failed:', error);
+      
+      // Better error handling with specific messages
+      let errorMessage = "Failed to connect Gmail. Please try again.";
+      if (error.message?.includes('popup')) {
+        errorMessage = "Please allow popups and try again.";
+      } else if (error.message?.includes('cancelled')) {
+        errorMessage = "Gmail connection was cancelled.";
+      } else if (error.message?.includes('configuration')) {
+        errorMessage = "Gmail is not properly configured. Please contact support.";
+      }
+      
       toast({
-        title: "Connection Failed", 
-        description: error instanceof Error ? error.message : "Failed to connect Gmail",
+        title: "Gmail Connection Failed",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -49,7 +61,7 @@ export const EnhancedGmailStatus = () => {
   const handleSync = async () => {
     if (!authStatus.isConnected) {
       toast({
-        title: "Gmail Not Connected",
+        title: "Gmail Not Connected", 
         description: "Please connect Gmail first before syncing",
         variant: "destructive"
       });
@@ -58,15 +70,12 @@ export const EnhancedGmailStatus = () => {
 
     try {
       await triggerSync();
-      toast({
-        title: "Sync Completed",
-        description: "Gmail emails synced successfully",
-      });
-    } catch (error) {
-      console.error('Gmail sync error:', error);
+      // Success message is handled in triggerSync hook
+    } catch (error: any) {
+      console.error('Sync failed:', error);
       toast({
         title: "Sync Failed",
-        description: error instanceof Error ? error.message : "Failed to sync Gmail emails",
+        description: "Failed to sync emails. Please try again.",
         variant: "destructive"
       });
     }
@@ -157,7 +166,11 @@ export const EnhancedGmailStatus = () => {
                     variant="outline"
                     className="text-xs"
                   >
-                    <Zap className="h-3 w-3 mr-1" />
+                    {authStatus.isLoading ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Zap className="h-3 w-3 mr-1" />
+                    )}
                     Sync Now
                   </Button>
                   <Button 
@@ -167,7 +180,11 @@ export const EnhancedGmailStatus = () => {
                     variant="ghost"
                     className="text-xs"
                   >
-                    <RefreshCw className="h-3 w-3 mr-1" />
+                    {authStatus.isLoading ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                    )}
                     Refresh
                   </Button>
                 </>

@@ -46,9 +46,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toastHelpers, toast } from '@/utils/toastHelpers';
 import { format } from 'date-fns';
-import { ManualGmailFix } from '@/components/ManualGmailFix';
-import { EmailsPageFix } from '@/components/EmailsPageFix';
-import { GmailDebugPanel } from '@/components/GmailDebugPanel';
 import { EnhancedGmailStatus } from '@/components/EnhancedGmailStatus';
 import { Switch } from '@/components/ui/switch';
 
@@ -76,9 +73,20 @@ interface EmailExchange {
 const Emails = () => {
   const { user } = useSimpleAuth();
   
-  // Add debug component at the top for troubleshooting
   if (!user) {
-    return <EmailsPageFix />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card className="w-96">
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-yellow-500" />
+            <h2 className="text-lg font-semibold mb-2">Authentication Required</h2>
+            <p className="text-sm text-muted-foreground">
+              Please sign in to access your emails
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
   
   const [searchParams] = useSearchParams();
@@ -419,11 +427,6 @@ const Emails = () => {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Debug Panel - Remove this after fixing */}
-      <div className="absolute top-4 right-4 z-50 w-96">
-        <GmailDebugPanel />
-      </div>
-      
       {/* Sidebar */}
       <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r bg-card relative flex-shrink-0`}>
         {/* Collapse Toggle */}
@@ -521,10 +524,6 @@ const Emails = () => {
               </Card>
             </div>
           )}
-
-          <div className="mb-4">
-            <ManualGmailFix />
-          </div>
 
           {/* Header - Email sync happens automatically */}
           <div className="flex items-center gap-2 mb-6">
