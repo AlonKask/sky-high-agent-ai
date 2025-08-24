@@ -3475,6 +3475,10 @@ export type Database = {
         Args: { p_block_duration?: unknown; p_ip_address: unknown }
         Returns: boolean
       }
+      calculate_agent_performance: {
+        Args: { p_agent_id: string; p_end_date: string; p_start_date: string }
+        Returns: Json
+      }
       calculate_passenger_totals: {
         Args: {
           p_adult_markup?: number
@@ -3767,6 +3771,15 @@ export type Database = {
           logo_url: string
           name: string
         }[]
+      }
+      get_analytics_data: {
+        Args: {
+          p_end_date: string
+          p_start_date: string
+          p_user_id: string
+          p_user_role: string
+        }
+        Returns: Json
       }
       get_asset_by_url: {
         Args: { p_url: string }
