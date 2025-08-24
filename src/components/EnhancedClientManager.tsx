@@ -101,7 +101,7 @@ const EnhancedClientManager = () => {
   }, [user]);
 
   const fetchClients = async () => {
-    if (!user || isFetchingClients) return;
+    if (!user || !session || isFetchingClients) return;
     
     try {
       setIsFetchingClients(true);
@@ -109,6 +109,14 @@ const EnhancedClientManager = () => {
       setAuthError(null);
 
       console.log('🔍 Fetching clients for user:', user.id);
+      
+      // Validate session before database call
+      const now = Math.floor(Date.now() / 1000);
+      if (session.expires_at && now >= session.expires_at) {
+        console.log('❌ Session expired before database call');
+        setAuthError('Your session has expired. Please sign in again to continue.');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('clients')
@@ -118,9 +126,18 @@ const EnhancedClientManager = () => {
       if (error) {
         console.error('❌ Error fetching clients:', error);
         
-        // Handle authentication errors with clear user guidance
-        if (error.code === '42501' || error.message.includes('permission denied')) {
-          setAuthError('Your session has expired. Please sign in again to continue.');
+        // Handle RLS policy failures (auth.uid() returning null)
+        if (error.code === '42501' || 
+            error.message.includes('permission denied') ||
+            error.message.includes('RLS') ||
+            error.message.toLowerCase().includes('policy')) {
+          console.log('🔒 RLS policy failure - likely session/token mismatch');
+          setAuthError('Authentication error detected. Your session has expired or become invalid.');
+          
+          // Clear the invalid session state
+          setTimeout(() => {
+            window.location.href = '/auth';
+          }, 2000);
           return;
         }
         
@@ -132,7 +149,13 @@ const EnhancedClientManager = () => {
       setClients(data || []);
     } catch (error) {
       console.error('❌ Unexpected error fetching clients:', error);
-      toastHelpers.error('An unexpected error occurred while loading clients.', error);
+      
+      // Handle network or other unexpected errors
+      if (error instanceof Error && error.message.includes('fetch')) {
+        setAuthError('Connection error. Please check your internet connection and try again.');
+      } else {
+        toastHelpers.error('An unexpected error occurred while loading clients.', error);
+      }
     } finally {
       setLoading(false);
       setIsFetchingClients(false);

@@ -27,93 +27,142 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Rate limiting protection
-  let isRefreshing = false;
-  let lastRefreshAttempt = 0;
-  const RATE_LIMIT_DELAY = 5000; // 5 seconds between refresh attempts
-
-  const refreshSession = async () => {
-    const now = Date.now();
-    
-    // Prevent concurrent refreshes and rate limiting
-    if (isRefreshing || (now - lastRefreshAttempt < RATE_LIMIT_DELAY)) {
-      console.log('⏳ Refresh already in progress or rate limited');
-      return;
+  // Validate session before database operations
+  const validateSession = async (): Promise<boolean> => {
+    if (!session) {
+      console.log('❌ No session available for validation');
+      return false;
     }
 
+    // Check if session is expired
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = session.expires_at;
+    
+    if (expiresAt && now >= expiresAt) {
+      console.log('❌ Session has expired, clearing auth state');
+      await clearAuthState();
+      return false;
+    }
+
+    return true;
+  };
+
+  const clearAuthState = async () => {
+    console.log('🧹 Clearing authentication state');
+    setSession(null);
+    setUser(null);
+    
+    // Clear any stored auth tokens
     try {
-      isRefreshing = true;
-      lastRefreshAttempt = now;
-      
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (error) {
+      console.error('Error during local signout:', error);
+    }
+  };
+
+  const refreshSession = async () => {
+    // Simplified refresh without rate limiting complexity
+    try {
       console.log('🔄 Refreshing session...');
-      const { data: { session }, error } = await supabase.auth.refreshSession();
+      const { data: { session: newSession }, error } = await supabase.auth.refreshSession();
       
-      if (error) {
+      if (error || !newSession) {
         console.error('❌ Session refresh failed:', error);
-        
-        // Handle rate limiting specifically
-        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-          console.log('⏳ Rate limited, backing off...');
-          return;
-        }
-        
-        // Clear auth state on other errors
-        setSession(null);
-        setUser(null);
-        return;
+        await clearAuthState();
+        return false;
       }
       
       console.log('✅ Session refreshed successfully');
-      setSession(session);
-      setUser(session?.user ?? null);
+      setSession(newSession);
+      setUser(newSession.user);
+      return true;
     } catch (error) {
       console.error('❌ Session refresh error:', error);
-      setSession(null);
-      setUser(null);
-    } finally {
-      isRefreshing = false;
+      await clearAuthState();
+      return false;
     }
   };
 
   useEffect(() => {
     console.log('🔄 SimpleAuthProvider initializing...');
 
-    // Set up auth state listener - SIMPLIFIED to prevent loops
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('🔄 Auth state change:', { 
           event, 
           hasSession: !!session, 
-          hasUser: !!session?.user
+          hasUser: !!session?.user,
+          userId: session?.user?.id
         });
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+        if (event === 'SIGNED_OUT') {
+          console.log('👋 User signed out, clearing state');
+          setSession(null);
+          setUser(null);
+        } else if (event === 'SIGNED_IN' && session) {
+          console.log('👋 User signed in, setting session');
+          setSession(session);
+          setUser(session.user);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          console.log('🔄 Token refreshed, updating session');
+          setSession(session);
+          setUser(session.user);
+        } else if (!session) {
+          console.log('❌ No session in auth state change, clearing state');
+          setSession(null);
+          setUser(null);
+        }
         
-        // REMOVED: TOKEN_REFRESHED handler that caused loops
+        setLoading(false);
       }
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('❌ Initial session check failed:', error);
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('❌ Initial session check failed:', error);
+          await clearAuthState();
+          setLoading(false);
+          return;
+        }
+
+        console.log('🔍 Initial session check:', { 
+          hasSession: !!session, 
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at ? new Date(session.expires_at * 1000) : null
+        });
+
+        if (session) {
+          // Validate the session is still valid
+          const now = Math.floor(Date.now() / 1000);
+          if (session.expires_at && now >= session.expires_at) {
+            console.log('❌ Session expired, attempting refresh');
+            const refreshed = await refreshSession();
+            if (!refreshed) {
+              await clearAuthState();
+            }
+          } else {
+            setSession(session);
+            setUser(session.user);
+          }
+        } else {
+          setSession(null);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('❌ Session check error:', error);
+        await clearAuthState();
+      } finally {
         setLoading(false);
-        return;
       }
+    };
 
-      console.log('🔍 Initial session check:', { 
-        hasSession: !!session, 
-        hasUser: !!session?.user,
-        userId: session?.user?.id
-      });
-
-      // SIMPLIFIED: Just set the session, let auto-refresh handle expiration
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    checkSession();
 
     return () => {
       subscription.unsubscribe();
@@ -134,7 +183,12 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
         session, 
         loading, 
         signOut,
-        refreshSession
+        refreshSession: async () => {
+          const isValid = await validateSession();
+          if (!isValid) {
+            await refreshSession();
+          }
+        }
       }}
     >
       {children}
