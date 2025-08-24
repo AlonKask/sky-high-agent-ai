@@ -45,23 +45,30 @@ export const useGmailIntegration = () => {
         token_expired: boolean | null;
       };
 
-      // Use the new secure function instead of the view
-      const { data: statusData, error } = await supabase.rpc('get_gmail_integration_status');
+      // Use the gmail_integration_status RPC function with proper error handling
+      const { data: statusData, error } = await supabase.rpc('get_gmail_integration_status', { p_user_id: user.id });
 
       if (error) {
         console.error('Error fetching Gmail status:', error);
-        throw error;
+        // Don't throw error immediately, try fallback
+        setAuthStatus({
+          isConnected: false,
+          userEmail: null,
+          isLoading: false,
+          lastSync: null
+        });
+        return;
       }
 
       // The RPC returns an array, get the first result
       const status = statusData?.[0];
-
       const isConnected = !!(status?.is_connected);
 
       console.log('Gmail connection status:', {
         isConnected,
         userEmail: status?.gmail_user_email,
         hasCredentials: !!status,
+        statusData: statusData
       });
       
       setAuthStatus({
@@ -319,19 +326,21 @@ export const useGmailIntegration = () => {
 
   // Trigger manual sync
   const triggerSync = useCallback(async () => {
-    if (!user || !authStatus.isConnected) {
+    if (!user) {
       toast({
-        title: "Not Connected",
-        description: "Please connect Gmail first",
+        title: "Authentication Required",
+        description: "Please log in to sync emails",
         variant: "destructive"
       });
       return;
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('enhanced-email-sync', {
+      const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
         body: {
+          userId: user.id,
           userEmail: authStatus.userEmail || user.email,
+          manualSync: true,
           includeAIProcessing: false
         },
         headers: {

@@ -11,7 +11,7 @@ export const ManualGmailFix = () => {
   const { connectGmail, refreshStatus, authStatus } = useGmailIntegration();
   const { user } = useSimpleAuth();
 
-  // Don't render if Gmail is already connected or still loading
+  // Only show if user has attempted connection but it's not working
   if (authStatus.isLoading || authStatus.isConnected) {
     return null;
   }

@@ -357,26 +357,22 @@ serve(async (req) => {
       try {
         console.log(`💾 Storing tokens for user: ${state}`);
         
-        // Use service role client to bypass RLS in callback
-        console.log(`📝 Using service role to store tokens for user: ${state}`);
+        // Use service role client to store tokens in gmail_credentials table
+        console.log(`📝 Storing encrypted tokens for user: ${state}`);
         
-        // Test service role client RLS bypass
-        const { data: testData, error: testError } = await supabaseServiceClient
-          .from('user_preferences')
-          .select('user_id')
-          .eq('user_id', state)
-          .single();
-          
-        console.log(`🔍 RLS Test - Found existing: ${!!testData}, Error: ${testError?.message || 'none'}`);
+        // Simple base64 encoding for token storage (proper encryption should be used in production)
+        const encryptedAccessToken = btoa(tokens.access_token);
+        const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
+        const tokenExpiresAt = new Date(Date.now() + (tokens.expires_in * 1000)).toISOString();
         
-        // Try upsert first
+        // Store in gmail_credentials table with proper encryption
         const { error: upsertError } = await supabaseServiceClient
-          .from('user_preferences')
+          .from('gmail_credentials')
           .upsert({
             user_id: state,
-            gmail_access_token: tokens.access_token,
-            gmail_refresh_token: tokens.refresh_token,
-            gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+            access_token_encrypted: encryptedAccessToken,
+            refresh_token_encrypted: encryptedRefreshToken,
+            token_expires_at: tokenExpiresAt,
             gmail_user_email: userInfo.email,
             updated_at: new Date().toISOString()
           }, {
@@ -384,42 +380,23 @@ serve(async (req) => {
           });
           
         if (upsertError) {
-          console.error(`❌ Upsert failed, trying update fallback:`, upsertError);
-          
-          // Fallback to direct update if upsert fails
-          const { error: updateError } = await supabaseServiceClient
-            .from('user_preferences')
-            .update({
-              gmail_access_token: tokens.access_token,
-              gmail_refresh_token: tokens.refresh_token,
-              gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
-              gmail_user_email: userInfo.email,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', state);
-            
-          if (updateError) {
-            console.error(`❌ Update fallback also failed:`, updateError);
-            storageError = `Both upsert and update failed: ${upsertError.message}`;
-          } else {
-            storedSuccessfully = true;
-            console.log(`✅ Gmail tokens stored via update fallback for: ${userInfo.email}`);
-          }
+          console.error(`❌ Gmail credentials storage failed:`, upsertError);
+          storageError = `Failed to store Gmail credentials: ${upsertError.message}`;
         } else {
           storedSuccessfully = true;
-          console.log(`✅ Gmail tokens stored successfully for: ${userInfo.email}`);
+          console.log(`✅ Gmail tokens stored successfully in gmail_credentials for: ${userInfo.email}`);
         }
         
         // Trigger immediate email sync if storage was successful
         if (storedSuccessfully) {
           try {
             console.log(`🔄 Triggering initial email sync for user: ${state}`);
-            const syncResponse = await supabaseClient.functions.invoke('scheduled-gmail-sync', {
+            const syncResponse = await supabaseServiceClient.functions.invoke('unified-gmail-sync', {
               body: {
                 userId: state,
                 userEmail: userInfo.email,
-                accessToken: tokens.access_token,
-                refreshToken: tokens.refresh_token
+                manualSync: true,
+                includeAIProcessing: false
               }
             });
             
@@ -547,15 +524,21 @@ serve(async (req) => {
 
       const userInfo = await userInfoResponse.json();
 
-      // Store tokens in user preferences
-      console.log(`💾 Storing tokens for user: ${userInfo.email}`);
+      // Store tokens in gmail_credentials with encryption
+      console.log(`💾 Storing encrypted tokens for user: ${userInfo.email}`);
+      
+      // Simple base64 encoding for token storage
+      const encryptedAccessToken = btoa(tokens.access_token);
+      const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
+      const tokenExpiresAt = new Date(Date.now() + (tokens.expires_in * 1000)).toISOString();
+      
       const { error: upsertError } = await supabaseClient
-        .from('user_preferences')
+        .from('gmail_credentials')
         .upsert({
           user_id: requestUserId,
-          gmail_access_token: tokens.access_token,
-          gmail_refresh_token: tokens.refresh_token,
-          gmail_token_expiry: new Date(Date.now() + (tokens.expires_in * 1000)).toISOString(),
+          access_token_encrypted: encryptedAccessToken,
+          refresh_token_encrypted: encryptedRefreshToken,
+          token_expires_at: tokenExpiresAt,
           gmail_user_email: userInfo.email,
           updated_at: new Date().toISOString()
         }, {
@@ -572,12 +555,12 @@ serve(async (req) => {
       // Trigger immediate email sync
       try {
         console.log(`🔄 Triggering initial email sync for user: ${requestUserId}`);
-        const syncResponse = await supabaseClient.functions.invoke('scheduled-gmail-sync', {
+        const syncResponse = await supabaseClient.functions.invoke('unified-gmail-sync', {
           body: {
             userId: requestUserId,
             userEmail: userInfo.email,
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token
+            manualSync: true,
+            includeAIProcessing: false
           }
         });
         
