@@ -86,8 +86,12 @@ const RequestDetail = () => {
   };
 
   useEffect(() => {
+    console.log('📍 RequestDetail mounted, checking request ID:', id);
     if (id) {
+      console.log('🔄 Starting fetchRequestDetails for ID:', id);
       fetchRequestDetails();
+    } else {
+      console.log('❌ No request ID provided');
     }
   }, [id]);
 
@@ -106,6 +110,7 @@ const RequestDetail = () => {
   }, [request]);
 
   const fetchRequestDetails = async () => {
+    console.log('🚀 fetchRequestDetails called for request ID:', id);
     try {
       // Use the new secure RPC function to fetch all details
       const { data, error } = await supabase.rpc('get_request_details', {
@@ -162,13 +167,34 @@ const RequestDetail = () => {
       };
 
       // For now, fetch quotes separately as RPC doesn't return them
+      console.log('🔍 Fetching quotes for request ID:', id);
       const { data: quotesData, error: quotesError } = await supabase
         .from('quotes')
         .select('*')
         .eq('request_id', id)
         .order('created_at', { ascending: false });
         
+      if (quotesError) {
+        console.error('❌ Error fetching quotes:', quotesError);
+        toast({
+          title: "Warning",
+          description: "Some quote data may not load properly",
+          variant: "default"
+        });
+      }
+        
       const quotes = quotesData || [];
+      console.log('📊 Fetched quotes for request:', { 
+        requestId: id, 
+        quotesCount: quotes.length, 
+        quotes: quotes.map(q => ({ 
+          id: q.id, 
+          status: q.status, 
+          route: q.route, 
+          total_price: q.total_price,
+          hasContent: !!q.content 
+        }))
+      });
 
       setRequest(requestData);
       setClient(clientData);
@@ -748,7 +774,12 @@ const RequestDetail = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button 
-                      onClick={() => setShowEmailBuilder(true)}
+                      onClick={() => {
+                        console.log('🚀 Send Options button clicked!');
+                        console.log('📊 Current quotes state:', { quotesCount: quotes.length, quotes });
+                        console.log('🎯 Request info:', { requestId: id, clientId: request.client_id });
+                        setShowEmailBuilder(true);
+                      }}
                       variant="outline"
                       size="sm"
                       className="flex items-center"

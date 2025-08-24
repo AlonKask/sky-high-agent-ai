@@ -69,6 +69,13 @@ export default function UnifiedEmailBuilder({
   onClose, 
   onEmailSent 
 }: UnifiedEmailBuilderProps) {
+  console.log('🚀 UnifiedEmailBuilder rendered with:', { 
+    clientId, 
+    requestId, 
+    quotesCount: quotes.length, 
+    quotes: quotes.map(q => ({ id: q.id, status: (q as any).status })),
+    clientName: `${client.first_name} ${client.last_name}` 
+  });
   const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState(`Flight Options for ${client.first_name}`);
   const [personalMessage, setPersonalMessage] = useState('');
@@ -126,8 +133,12 @@ export default function UnifiedEmailBuilder({
   }, [requestId]);
 
   useEffect(() => {
+    console.log('🔄 UnifiedEmailBuilder quotes useEffect triggered:', { quotesLength: quotes.length });
     if (quotes.length > 0) {
+      console.log('📋 Processing quotes:', quotes.map(q => ({ id: q.id, status: (q as any).status, route: q.route })));
       processQuotes();
+    } else {
+      console.log('⚠️ No quotes to process - array is empty');
     }
   }, [quotes]);
 
@@ -1196,7 +1207,16 @@ export default function UnifiedEmailBuilder({
     return () => document.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
-  const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
+  const processedQuotesDisplay = useMemo(() => {
+    console.log('📋 Processing quotes display:', { 
+      processedCount: processedQuotes.length,
+      selectedCount: selectedQuotes.length,
+      processed: processedQuotes.map(q => ({ id: q.id, status: (q as any).status, route: q.route }))
+    });
+    return processedQuotes;
+  }, [processedQuotes, selectedQuotes]);
+
+  const selectedQuoteData = processedQuotesDisplay.filter(q => selectedQuotes.includes(q.id));
   const totalPrice = selectedQuoteData.reduce((sum, quote) => sum + quote.total_price, 0);
 
   return (
