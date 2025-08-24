@@ -108,8 +108,8 @@ export const useGmailIntegration = () => {
         throw new Error('Please refresh the page and sign in again');
       }
       
-      const { data, error } = await supabase.functions.invoke('gmail-oauth?action=start', {
-        body: {}
+      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
+        body: { action: 'start' }
       });
 
       if (error) {
@@ -171,7 +171,25 @@ export const useGmailIntegration = () => {
 
     } catch (error: any) {
       console.error('Gmail connection error:', error);
-      throw error;
+      
+      // Provide more specific error messages based on error type
+      let userFriendlyMessage = error.message;
+      
+      if (error.message?.includes('fetch')) {
+        userFriendlyMessage = 'Network error - please check your connection and try again';
+      } else if (error.message?.includes('credentials')) {
+        userFriendlyMessage = 'Gmail integration not properly configured - please contact support';
+      } else if (error.message?.includes('Authentication')) {
+        userFriendlyMessage = 'Please sign in again and retry Gmail connection';
+      }
+      
+      toast({
+        title: "Gmail Connection Failed",
+        description: userFriendlyMessage,
+        variant: "destructive"
+      });
+      
+      throw new Error(userFriendlyMessage);
     } finally {
       setAuthStatus(prev => ({ ...prev, isLoading: false }));
     }

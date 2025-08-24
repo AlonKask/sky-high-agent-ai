@@ -23,9 +23,22 @@ serve(async (req) => {
   }
 
   try {
-    // Parse action from URL params
+    // Parse action from URL params or request body
     const url = new URL(req.url);
-    const action = url.searchParams.get('action') || 'start';
+    let action = url.searchParams.get('action') || 'start';
+    
+    // Also check request body for action (for new client calls)
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        if (body?.action) {
+          action = body.action;
+        }
+      } catch (e) {
+        // If body parsing fails, continue with URL param action
+        console.log('📝 Using URL param action, body parsing failed:', e.message);
+      }
+    }
     
     console.log(`🎯 Action: ${action}`);
 
