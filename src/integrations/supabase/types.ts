@@ -4325,6 +4325,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      test_function_connectivity: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       update_agent_performance_metrics: {
         Args: Record<PropertyKey, never>
         Returns: undefined
