@@ -3,6 +3,12 @@ project_id = "ekrwjfdypqzequovmvjn"
 [functions.verify-captcha]
 verify_jwt = false
 
+[functions.gmail-oauth-health]
+verify_jwt = false
+
+[functions.unified-gmail-sync]
+verify_jwt = true
+
 [functions.captcha-health-check]
 verify_jwt = false
 

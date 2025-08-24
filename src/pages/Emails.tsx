@@ -44,7 +44,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toastHelpers, toast } from '@/utils/toastHelpers';
-import { format } from 'date-fns';
+import { safeDateFormat, safeEmailDateFormat } from '@/utils/dateHelpers';
 import { EnhancedGmailStatus } from '@/components/EnhancedGmailStatus';
 import { LegacyEmailNotice } from '@/components/LegacyEmailNotice';
 import { Switch } from '@/components/ui/switch';
@@ -130,7 +130,7 @@ const Emails = () => {
     legacy: 0
   });
 
-  // Load emails from database with enhanced stats tracking
+  // Load emails from database with enhanced stats tracking and error recovery
   const loadEmailsFromDB = async () => {
     if (!user) return;
     
@@ -138,17 +138,38 @@ const Emails = () => {
       setLoading(true);
       console.log('📧 Loading emails from database...');
       
-      const { data: emailData, error } = await supabase
-        .from('email_exchanges')
-        .select('*')
-        .eq('user_id', user.id)
-        .order(sortBy, { ascending: sortOrder === 'asc' });
+      // Add retry logic for better reliability
+      let retryCount = 0;
+      const maxRetries = 3;
+      let emailData;
+      let error;
+      
+      while (retryCount < maxRetries) {
+        const result = await supabase
+          .from('email_exchanges')
+          .select('*')
+          .eq('user_id', user.id)
+          .order(sortBy, { ascending: sortOrder === 'asc', nullsFirst: false });
+          
+        emailData = result.data;
+        error = result.error;
+        
+        if (!error) break;
+        
+        retryCount++;
+        console.warn(`Database query attempt ${retryCount} failed:`, error);
+        
+        if (retryCount < maxRetries) {
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        }
+      }
 
       if (error) {
-        console.error('Error loading emails:', error);
+        console.error('Error loading emails after retries:', error);
         toast({
           title: "Error Loading Emails",
-          description: "Failed to load emails from database",
+          description: "Failed to load emails from database. Please refresh the page.",
           variant: "destructive"
         });
         return;
@@ -827,12 +848,12 @@ const Emails = () => {
                                })()}`}>
                                  {email.sender_email}
                                </p>
-                              <div className="flex items-center gap-1">
-                                {email.direction === 'outbound' && <Send className="h-3 w-3 text-blue-500" />}
-                                <span className="text-xs text-muted-foreground">
-                                  {format(new Date(email.received_at || email.created_at), 'MMM d')}
-                                </span>
-                              </div>
+                               <div className="flex items-center gap-1">
+                                 {email.direction === 'outbound' && <Send className="h-3 w-3 text-blue-500" />}
+                                 <span className="text-xs text-muted-foreground">
+                                   {safeEmailDateFormat(email.received_at, email.created_at)}
+                                 </span>
+                               </div>
                             </div>
                              <p className={`text-sm mb-1 truncate ${(() => {
                                const metadata = email.metadata as any;
@@ -888,11 +909,11 @@ const Emails = () => {
                     </Button>
                   </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  <div>From: {selectedEmail.sender_email}</div>
-                  <div>To: {selectedEmail.recipient_emails.join(', ')}</div>
-                  <div>Date: {format(new Date(selectedEmail.received_at || selectedEmail.created_at), 'PPP p')}</div>
-                </div>
+                 <div className="text-sm text-muted-foreground">
+                   <div>From: {selectedEmail.sender_email}</div>
+                   <div>To: {selectedEmail.recipient_emails.join(', ')}</div>
+                   <div>Date: {safeEmailDateFormat(selectedEmail.received_at, selectedEmail.created_at, 'PPP p', 'Date unknown')}</div>
+                 </div>
               </div>
               
               {/* Email Body */}
