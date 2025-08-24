@@ -32,27 +32,19 @@ export const EnhancedGmailStatus = () => {
     }
 
     try {
+      console.log('🔄 Starting Gmail connection process...');
       await connectGmail();
       toast({
-        title: "Gmail Connected Successfully", 
-        description: "Your Gmail account has been connected and emails will be synced shortly",
+        title: "Gmail Connected",
+        description: "Gmail integration enabled successfully",
       });
+      console.log('✅ Gmail connection completed successfully');
     } catch (error: any) {
-      console.error('Gmail connection failed:', error);
-      
-      // Better error handling with specific messages
-      let errorMessage = "Failed to connect Gmail. Please try again.";
-      if (error.message?.includes('popup')) {
-        errorMessage = "Please allow popups and try again.";
-      } else if (error.message?.includes('cancelled')) {
-        errorMessage = "Gmail connection was cancelled.";
-      } else if (error.message?.includes('configuration')) {
-        errorMessage = "Gmail is not properly configured. Please contact support.";
-      }
-      
+      console.error('❌ Gmail connection failed:', error);
+      const errorMessage = error.message || "Failed to connect Gmail. Please try again.";
       toast({
         title: "Gmail Connection Failed",
-        description: errorMessage,
+        description: `${errorMessage} (Check console for details)`,
         variant: "destructive"
       });
     }
