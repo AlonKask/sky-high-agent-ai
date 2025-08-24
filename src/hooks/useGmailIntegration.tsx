@@ -162,7 +162,8 @@ export const useGmailIntegration = () => {
         console.error('❌ OAuth function invocation failed:', {
           message: error.message,
           details: error.details,
-          hint: error.hint
+          hint: error.hint,
+          context: error.context || 'Unknown context'
         });
         
         // Enhanced error handling for specific configuration issues
@@ -176,6 +177,10 @@ export const useGmailIntegration = () => {
         
         if (error.message?.includes('Server configuration error')) {
           throw new Error('Gmail service is temporarily unavailable. Please try again later.');
+        }
+        
+        if (error.message?.includes('Failed to send a request to the Edge Function')) {
+          throw new Error('Gmail service is not responding. Please try again or contact support.');
         }
         
         throw new Error(error.message || 'Gmail OAuth service failed');
@@ -201,8 +206,8 @@ export const useGmailIntegration = () => {
       return new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           cleanup();
-          reject(new Error('OAuth process timed out after 5 minutes'));
-        }, 5 * 60 * 1000); // 5 minute timeout
+          reject(new Error('OAuth process timed out after 10 minutes. Please try again.'));
+        }, 10 * 60 * 1000); // Extended to 10 minute timeout
 
         const cleanup = () => {
           clearTimeout(timeout);
@@ -226,7 +231,7 @@ export const useGmailIntegration = () => {
               setTimeout(() => {
                 console.log('🔄 Refreshing Gmail status after successful OAuth...');
                 checkGmailStatus();
-              }, 3000);
+              }, 5000); // Extended wait time
               
               resolve();
             } else {
@@ -236,7 +241,16 @@ export const useGmailIntegration = () => {
           } else if (event.data.type === 'gmail_auth_error') {
             cleanup();
             console.error('❌ OAuth authorization failed:', event.data.error);
-            reject(new Error(event.data.error || 'Authorization failed'));
+            
+            // Enhanced error categorization
+            let errorMessage = event.data.error || 'Authorization failed';
+            if (errorMessage.includes('Invalid or expired OAuth state token')) {
+              errorMessage = 'Security validation failed. Please try again.';
+            } else if (errorMessage.includes('Missing authentication state')) {
+              errorMessage = 'Authentication state error. Please refresh and try again.';
+            }
+            
+            reject(new Error(errorMessage));
           }
         };
 
@@ -257,7 +271,8 @@ export const useGmailIntegration = () => {
       
       // Enhanced user feedback with specific error types
       const isSessionError = error.message?.includes('session') || error.message?.includes('refresh');
-      const isNetworkError = error.message?.includes('fetch') || error.message?.includes('network');
+      const isNetworkError = error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('not responding');
+      const isConfigError = error.message?.includes('not configured') || error.message?.includes('administrator');
       
       toast({
         title: "Gmail Connection Failed",
@@ -265,7 +280,9 @@ export const useGmailIntegration = () => {
           ? "Please refresh the page and try again" 
           : isNetworkError
             ? "Network error. Please check your connection and try again"
-            : error.message || 'Connection failed',
+            : isConfigError
+              ? "System configuration required. Please contact your administrator."
+              : error.message || 'Connection failed',
         variant: "destructive"
       });
       

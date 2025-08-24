@@ -81,20 +81,57 @@ serve(async (req) => {
         );
       }
       
-      // Validate OAuth state token and get user ID
+      // Enhanced OAuth state token validation with detailed logging
       try {
+        console.log(`🔍 Validating OAuth state token: ${state.substring(0, 8)}...`);
+        
         const { data: validatedUserId, error: validationError } = await supabaseServiceClient
           .rpc('validate_oauth_state_token', { p_state_token: state });
         
-        if (validationError || !validatedUserId) {
-          console.error(`❌ Invalid OAuth state token:`, validationError);
+        if (validationError) {
+          console.error(`❌ State validation RPC error:`, {
+            message: validationError.message,
+            details: validationError.details,
+            hint: validationError.hint,
+            code: validationError.code,
+            stateTokenLength: state.length,
+            stateTokenFormat: /^[0-9a-f]+$/.test(state)
+          });
+          
+          // Enhanced error message based on validation error
+          let errorMessage = 'Invalid or expired authentication state';
+          if (validationError.message?.includes('not found')) {
+            errorMessage = 'Authentication state expired. Please try connecting again.';
+          } else if (validationError.message?.includes('already used')) {
+            errorMessage = 'Authentication state already used. Please start a new connection.';
+          } else if (validationError.message?.includes('invalid format')) {
+            errorMessage = 'Corrupted authentication state. Please try again.';
+          }
+          
           return new Response(
-            `<html><body><h1>Security Error</h1><p>Invalid or expired authentication state. Please restart the authentication process.</p><script>
+            `<html><body><h1>Security Error</h1><p>${errorMessage}</p><script>
               if (window.opener) {
                 window.opener.postMessage({
                   type: 'gmail_auth_error',
                   success: false,
-                  error: 'Invalid authentication state'
+                  error: '${errorMessage}'
+                }, '*');
+              }
+              window.close();
+            </script></body></html>`,
+            { headers: { 'Content-Type': 'text/html' } }
+          );
+        }
+        
+        if (!validatedUserId) {
+          console.error(`❌ State validation returned null user ID`);
+          return new Response(
+            `<html><body><h1>Security Error</h1><p>Authentication validation failed - no user ID returned.</p><script>
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: 'gmail_auth_error',
+                  success: false,
+                  error: 'Authentication validation failed'
                 }, '*');
               }
               window.close();
@@ -104,16 +141,23 @@ serve(async (req) => {
         }
         
         userId = validatedUserId;
-        console.log(`👤 Validated user ID from secure state: ${userId}`);
+        console.log(`✅ Successfully validated user ID: ${userId}`);
+        
       } catch (error) {
-        console.error(`❌ State validation failed:`, error);
+        console.error(`❌ State validation exception:`, {
+          message: error.message,
+          stack: error.stack,
+          stateToken: state.substring(0, 8) + '...',
+          stateTokenLength: state.length
+        });
+        
         return new Response(
           `<html><body><h1>Security Error</h1><p>Authentication state validation failed. Please try again.</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'gmail_auth_error',
                 success: false,
-                error: 'State validation failed'
+                error: 'State validation exception occurred'
               }, '*');
             }
             window.close();

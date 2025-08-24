@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { GmailDiagnostics } from './GmailDiagnostics';
 import { 
   Mail, 
   RefreshCw, 
@@ -16,7 +17,8 @@ import {
   Zap,
   Loader2,
   Stethoscope,
-  Activity
+  Activity,
+  Wrench
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -27,6 +29,7 @@ interface EnhancedGmailStatusProps {
 export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps) => {
   const { user } = useSimpleAuth();
   const { authStatus, connectGmail, disconnectGmail, refreshStatus, triggerSync } = useGmailIntegration();
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const handleConnect = async () => {
     if (!user) {
@@ -286,6 +289,15 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
                   >
                     <Activity className="h-3 w-3" />
                   </Button>
+                  <Button 
+                    onClick={() => setShowDiagnostics(!showDiagnostics)}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    title="Run full diagnostics"
+                  >
+                    <Wrench className="h-3 w-3" />
+                  </Button>
                 </>
               ) : (
                 <>
@@ -332,6 +344,15 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
           </div>
         </div>
       </CardContent>
+      
+      {/* Diagnostics Panel */}
+      {showDiagnostics && (
+        <CardContent className="pt-0">
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <GmailDiagnostics />
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 };
