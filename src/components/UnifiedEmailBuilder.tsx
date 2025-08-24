@@ -77,7 +77,7 @@ export default function UnifiedEmailBuilder({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
-  const [previewContent, setPreviewContent] = useState('');
+  const [previewContent, setPreviewContent] = useState('<div style="padding: 40px; text-align: center; color: #666;">Loading preview...</div>');
 
   const [agentProfile, setAgentProfile] = useState<{ first_name?: string; last_name?: string; email?: string; phone?: string; company?: string; avatar_url?: string } | null>(null);
   const [userPrefs, setUserPrefs] = useState<{ currency?: string; timezone?: string; date_format?: string; company_logo_asset_id?: string } | null>(null);
@@ -1124,14 +1124,20 @@ export default function UnifiedEmailBuilder({
   };
 
   // Email preview content - now uses the same function as sending
-  const [previewHtml, setPreviewHtml] = useState('<div style="padding: 40px; text-align: center; color: #666;">Select quotes to preview your email</div>');
-  
   useEffect(() => {
     const updatePreview = async () => {
-      if (selectedQuotes.length === 0) {
-        setPreviewHtml('<div style="padding: 40px; text-align: center; color: #666;">Select quotes to preview your email</div>');
+      // Handle case when no quotes are available
+      if (processedQuotes.length === 0) {
+        setPreviewContent('<div style="padding: 40px; text-align: center; color: #666;"><h3>No flight options available</h3><p>Please add quotes first to send email options to the client.</p></div>');
         return;
       }
+
+      // Handle case when quotes exist but none are selected
+      if (selectedQuotes.length === 0) {
+        setPreviewContent('<div style="padding: 40px; text-align: center; color: #666;"><h3>Select quotes to preview email</h3><p>Choose one or more flight options from the left panel to preview the email content.</p></div>');
+        return;
+      }
+
       try {
         const html = await generateEmailHTML();
         const previewToken = 'preview';
@@ -1153,13 +1159,11 @@ export default function UnifiedEmailBuilder({
         // Ensure links open outside the sandboxed preview
         replaced = replaced.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
 
-        setPreviewHtml(replaced);
         setPreviewContent(replaced);
       } catch (error) {
         console.error('Preview generation error:', error);
         const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
         const basic = generateBasicEmailHTML(selectedQuoteData).replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
-        setPreviewHtml(basic);
         setPreviewContent(basic);
       }
     };
@@ -1169,7 +1173,7 @@ export default function UnifiedEmailBuilder({
   // Auto-save functionality with debouncing
   const debouncedSave = useCallback((content: string) => {
     const timeoutId = setTimeout(() => {
-      setPreviewHtml(content);
+      // Content is already updated in previewContent via handleContentEdit
     }, 500);
     
     return () => clearTimeout(timeoutId);
@@ -1337,7 +1341,7 @@ export default function UnifiedEmailBuilder({
               </Button>
               <Button 
                 onClick={handleSendEmail} 
-                disabled={isLoading || selectedQuotes.length === 0}
+                disabled={isLoading || selectedQuotes.length === 0 || processedQuotes.length === 0}
                 className="min-w-[120px]"
               >
                 {isLoading ? (
