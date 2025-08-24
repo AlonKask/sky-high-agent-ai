@@ -113,8 +113,13 @@ const transformSegmentsForVisualization = (segments: any[]) => {
   return segments.map(segment => ({
     airlineCode: segment.airlineCode,
     airlineName: segment.airlineName,
+    icaoCode: segment.icaoCode,
+    logoUrl: segment.logoUrl,
     flightNumber: segment.flightNumber,
     duration: segment.duration,
+    departureTime: segment.departureTime,
+    arrivalTime: segment.arrivalTime,
+    arrivalDayOffset: segment.arrivalDayOffset || 0,
     departureAirport: { 
       code: segment.departureAirport,
       name: segment.departureAirportName 

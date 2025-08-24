@@ -17,6 +17,7 @@ interface FlightSegment {
   duration?: string;
   departureTime?: string;
   arrivalTime?: string;
+  arrivalDayOffset?: number;
 }
 
 interface FlightPathVisualizationProps {
@@ -25,38 +26,82 @@ interface FlightPathVisualizationProps {
   showAirlineLogos?: boolean;
 }
 
-// Helper function to calculate layover duration
-const calculateLayoverDuration = (arrivalTime: string, departureTime: string): string => {
+// Enhanced time parsing function to handle multiple formats
+const parseTime = (timeStr: string): { hours: number; minutes: number; valid: boolean } => {
+  if (!timeStr) return { hours: 0, minutes: 0, valid: false };
+  
+  const cleanTime = timeStr.replace(/\s+/g, ' ').trim();
+  
+  // Format 1: "8:15 AM" or "11:30 PM" 
+  let match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (match) {
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const period = match[3].toLowerCase();
+    
+    if (period === 'pm' && hours !== 12) hours += 12;
+    if (period === 'am' && hours === 12) hours = 0;
+    
+    return { hours, minutes, valid: true };
+  }
+  
+  // Format 2: "15:45" (24-hour format)
+  match = cleanTime.match(/(\d{1,2}):(\d{2})$/);
+  if (match) {
+    const hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return { hours, minutes, valid: true };
+    }
+  }
+  
+  // Format 3: "345P" or "1130A" (Sabre format)
+  match = cleanTime.match(/(\d{3,4})([AP])/i);
+  if (match) {
+    const timeNum = match[1].padStart(4, '0');
+    let hours = parseInt(timeNum.substring(0, 2));
+    const minutes = parseInt(timeNum.substring(2, 4));
+    const period = match[2].toLowerCase();
+    
+    if (period === 'p' && hours !== 12) hours += 12;
+    if (period === 'a' && hours === 12) hours = 0;
+    
+    return { hours, minutes, valid: true };
+  }
+  
+  return { hours: 0, minutes: 0, valid: false };
+};
+
+// Helper function to calculate layover duration with enhanced day offset support
+const calculateLayoverDuration = (
+  arrivalTime: string, 
+  departureTime: string, 
+  arrivalDayOffset: number = 0,
+  departureDayOffset: number = 0
+): string => {
   if (!arrivalTime || !departureTime) return '';
   
   try {
-    // Parse times like "8:15 AM" or "11:30 PM"
-    const parseTime = (timeStr: string): Date => {
-      const cleanTime = timeStr.replace(/\s+/g, ' ').trim();
-      const match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-      if (!match) return new Date();
-      
-      let hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
-      const period = match[3].toLowerCase();
-      
-      if (period === 'pm' && hours !== 12) hours += 12;
-      if (period === 'am' && hours === 12) hours = 0;
-      
-      const date = new Date();
-      date.setHours(hours, minutes, 0, 0);
-      return date;
-    };
+    const arrivalParsed = parseTime(arrivalTime);
+    const departureParsed = parseTime(departureTime);
     
-    const arrival = parseTime(arrivalTime);
-    const departure = parseTime(departureTime);
+    if (!arrivalParsed.valid || !departureParsed.valid) return '';
     
-    // Calculate difference in minutes
-    let diffMinutes = (departure.getTime() - arrival.getTime()) / (1000 * 60);
+    // Convert to total minutes from start of journey
+    const arrivalMinutes = (arrivalDayOffset * 24 * 60) + (arrivalParsed.hours * 60) + arrivalParsed.minutes;
+    const departureMinutes = (departureDayOffset * 24 * 60) + (departureParsed.hours * 60) + departureParsed.minutes;
     
-    // Handle next day scenario
+    let diffMinutes = departureMinutes - arrivalMinutes;
+    
+    // Handle edge cases
     if (diffMinutes < 0) {
+      // If still negative, assume next day departure
       diffMinutes += 24 * 60;
+    }
+    
+    // Validate reasonable layover time (5 minutes to 48 hours)
+    if (diffMinutes < 5 || diffMinutes > (48 * 60)) {
+      return '';
     }
     
     const hours = Math.floor(diffMinutes / 60);
@@ -94,7 +139,9 @@ export function FlightPathVisualization({
       // Calculate layover duration between current arrival and next departure
       layoverDuration = calculateLayoverDuration(
         segment.arrivalTime || '',
-        segments[index + 1].departureTime || ''
+        segments[index + 1].departureTime || '',
+        segment.arrivalDayOffset || 0,
+        segments[index + 1].arrivalDayOffset || 0
       );
     }
     
