@@ -159,18 +159,22 @@ const Emails = () => {
       const emailsData = emailData || [];
       setEmails(emailsData);
       
-      // Calculate enhanced statistics
+      // Calculate enhanced statistics with null safety
       const total = emailsData.length;
       const unread = emailsData.filter(email => {
-        const metadata = email.metadata as any;
-        return !metadata?.isRead;
+        const metadata = (email.metadata as any) || {};
+        return !metadata.isRead;
       }).length;
       const sent = emailsData.filter(email => email.direction === 'outbound').length;
       const received = emailsData.filter(email => email.direction === 'inbound').length;
       
-      // Assume all current emails are legacy since no Gmail is connected
-      // This will be more sophisticated once we track sync timestamps properly
-      const legacy = authStatus.isConnected ? 0 : total;
+      // Check if we have fresh Gmail data vs legacy data
+      // Gmail synced emails will have specific metadata patterns
+      const legacy = emailsData.filter(email => {
+        const metadata = (email.metadata as any) || {};
+        // If Gmail is connected but email doesn't have Gmail metadata, it's legacy
+        return authStatus.isConnected && !metadata.gmail_labels && !metadata.message_id;
+      }).length;
       
       setEmailStats({ total, unread, sent, received, legacy });
       
@@ -215,15 +219,24 @@ const Emails = () => {
     }
   };
 
-  // Mark email as read
+  // Mark email as read with enhanced error handling
   const markEmailAsRead = async (emailId: string) => {
     if (!user) return;
     
     try {
+      const email = emails.find(e => e.id === emailId);
+      if (!email) {
+        console.error('Email not found for read marking:', emailId);
+        return;
+      }
+
+      const currentMetadata = (email.metadata as any) || {};
+      const updatedMetadata = { ...currentMetadata, isRead: true };
+
       const { error } = await supabase
         .from('email_exchanges')
         .update({ 
-          metadata: { isRead: true },
+          metadata: updatedMetadata,
           updated_at: new Date().toISOString()
         })
         .eq('id', emailId)
@@ -235,7 +248,7 @@ const Emails = () => {
       setEmails(prevEmails => 
         prevEmails.map(email => 
           email.id === emailId 
-            ? { ...email, metadata: { ...email.metadata, isRead: true } }
+            ? { ...email, metadata: updatedMetadata }
             : email
         )
       );
@@ -391,37 +404,43 @@ const Emails = () => {
 
   // Unified filter function for consistent filtering logic
   const getFilteredEmails = (emails: EmailExchange[], folder: string) => {
+    if (!emails || emails.length === 0) return [];
+    
     switch (folder) {
       case 'sent':
         return emails.filter(email => email.direction === 'outbound');
       case 'archived':
-        return emails.filter(email => 
-          email.metadata?.gmail_labels?.includes('ARCHIVED') || 
-          email.metadata?.archived === true ||
-          email.metadata?.labels?.includes('ARCHIVED')
-        );
+        return emails.filter(email => {
+          const metadata = email.metadata || {};
+          return metadata.gmail_labels?.includes('ARCHIVED') || 
+                 metadata.archived === true ||
+                 metadata.labels?.includes('ARCHIVED');
+        });
       case 'drafts':
-        return emails.filter(email => 
-          email.metadata?.gmail_labels?.includes('DRAFT') ||
-          email.metadata?.labels?.includes('DRAFT')
-        );
+        return emails.filter(email => {
+          const metadata = email.metadata || {};
+          return metadata.gmail_labels?.includes('DRAFT') ||
+                 metadata.labels?.includes('DRAFT');
+        });
       case 'trash':
-        return emails.filter(email => 
-          email.metadata?.gmail_labels?.includes('TRASH') ||
-          email.metadata?.labels?.includes('TRASH')
-        );
+        return emails.filter(email => {
+          const metadata = email.metadata || {};
+          return metadata.gmail_labels?.includes('TRASH') ||
+                 metadata.labels?.includes('TRASH');
+        });
       case 'inbox':
       default:
-        return emails.filter(email => 
-          email.direction === 'inbound' && 
-          !email.metadata?.gmail_labels?.includes('ARCHIVED') &&
-          !email.metadata?.gmail_labels?.includes('TRASH') &&
-          !email.metadata?.gmail_labels?.includes('DRAFT') &&
-          !email.metadata?.labels?.includes('ARCHIVED') &&
-          !email.metadata?.labels?.includes('TRASH') &&
-          !email.metadata?.labels?.includes('DRAFT') &&
-          !email.metadata?.archived
-        );
+        return emails.filter(email => {
+          const metadata = email.metadata || {};
+          return email.direction === 'inbound' && 
+                 !metadata.gmail_labels?.includes('ARCHIVED') &&
+                 !metadata.gmail_labels?.includes('TRASH') &&
+                 !metadata.gmail_labels?.includes('DRAFT') &&
+                 !metadata.labels?.includes('ARCHIVED') &&
+                 !metadata.labels?.includes('TRASH') &&
+                 !metadata.labels?.includes('DRAFT') &&
+                 !metadata.archived;
+        });
     }
   };
 
