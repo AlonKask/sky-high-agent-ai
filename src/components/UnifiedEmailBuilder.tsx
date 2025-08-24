@@ -843,22 +843,82 @@ export default function UnifiedEmailBuilder({
           </div>
         </div>
 
-        <div style="background: #f7fafc; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+        <!-- Flight Route Visualization -->
+        <div style="background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%); padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h4 style="margin: 0; color: #1a202c; font-size: 16px; font-weight: 600;">Flight Itinerary</h4>
+          </div>
+          
+          <!-- Flight Path with Airports -->
+          <div style="position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 0 20px;">
+            <!-- Connecting Line -->
+            <div style="position: absolute; left: 20px; right: 20px; top: 50%; height: 2px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); z-index: 1;"></div>
+            
+            ${quote.segments && quote.segments.length > 0 ? (() => {
+              const airports = [];
+              airports.push(quote.segments[0].departureAirport);
+              quote.segments.forEach(seg => airports.push(seg.arrivalAirport));
+              
+              return airports.map((airport, index) => {
+                const isOrigin = index === 0;
+                const isDestination = index === airports.length - 1;
+                const isLayover = !isOrigin && !isDestination;
+                
+                return `
+                  <div style="position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center;">
+                    <div style="width: ${isLayover ? '16px' : '24px'}; height: ${isLayover ? '16px' : '24px'}; background: ${isOrigin ? '#667eea' : isDestination ? '#48bb78' : '#f1f5f9'}; border: 2px solid ${isOrigin ? '#667eea' : isDestination ? '#48bb78' : '#cbd5e1'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                      <span style="font-size: ${isLayover ? '8px' : '10px'}; font-weight: 600; color: ${isLayover ? '#64748b' : 'white'};">${airport}</span>
+                    </div>
+                    <div style="text-align: center;">
+                      <div style="font-size: ${isLayover ? '11px' : '13px'}; font-weight: 600; color: ${isOrigin ? '#667eea' : isDestination ? '#48bb78' : '#64748b'};">${airport}</div>
+                      ${isLayover ? `<div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">Layover</div>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            })() : ''}
+          </div>
+          
+          <!-- Flight Segments Details -->
+          ${quote.segments ? quote.segments.map((segment, segIndex) => `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; margin-bottom: 12px; background: rgba(102, 126, 234, 0.05); border-radius: 10px; border-left: 3px solid #667eea;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <!-- Airline Logo Placeholder (30% larger) -->
+                <div style="width: 42px; height: 42px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; color: white; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">
+                  ${segment.airlineCode}
+                </div>
+                <div>
+                  <div style="font-size: 14px; font-weight: 600; color: #1a202c; margin-bottom: 2px;">
+                    ${segment.flightNumber} • ${segment.departureAirport} → ${segment.arrivalAirport}
+                  </div>
+                  <div style="font-size: 12px; color: #64748b;">
+                    ${segment.departureTime} - ${segment.arrivalTime}${segment.arrivalDayOffset > 0 ? ` <span style="color: #f59e0b;">+${segment.arrivalDayOffset}d</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 11px; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">${segment.cabinClass}</div>
+                ${segment.duration ? `<div style="font-size: 11px; color: #94a3b8;">${segment.duration}</div>` : ''}
+              </div>
+            </div>
+          `).join('') : ''}
+          
+          <!-- Summary Stats -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
             <div style="text-align: center;">
-              <div style="font-size: 24px; margin-bottom: 5px;">⏱️</div>
-              <div style="font-size: 12px; color: #718096; font-weight: 600; text-transform: uppercase;">Duration</div>
-              <div style="font-size: 14px; color: #1a202c; font-weight: 600;">${formatDuration(quote.segments)}</div>
+              <div style="font-size: 20px; margin-bottom: 4px;">⏱️</div>
+              <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Total Duration</div>
+              <div style="font-size: 13px; color: #1a202c; font-weight: 600;">${formatDuration(quote.segments)}</div>
             </div>
             <div style="text-align: center;">
-              <div style="font-size: 24px; margin-bottom: 5px;">👥</div>
-              <div style="font-size: 12px; color: #718096; font-weight: 600; text-transform: uppercase;">Passengers</div>
-              <div style="font-size: 14px; color: #1a202c; font-weight: 600;">${quote.adults_count || 1} Adult${(quote.adults_count || 1) > 1 ? 's' : ''}${quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}${quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
+              <div style="font-size: 20px; margin-bottom: 4px;">👥</div>
+              <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Passengers</div>
+              <div style="font-size: 13px; color: #1a202c; font-weight: 600;">${quote.adults_count || 1} Adult${(quote.adults_count || 1) > 1 ? 's' : ''}${quote.children_count ? `, ${quote.children_count} Child${quote.children_count > 1 ? 'ren' : ''}` : ''}${quote.infants_count ? `, ${quote.infants_count} Infant${quote.infants_count > 1 ? 's' : ''}` : ''}</div>
             </div>
             <div style="text-align: center;">
-              <div style="font-size: 24px; margin-bottom: 5px;">✈️</div>
-              <div style="font-size: 12px; color: #718096; font-weight: 600; text-transform: uppercase;">Class</div>
-              <div style="font-size: 14px; color: #1a202c; font-weight: 600;">Business</div>
+              <div style="font-size: 20px; margin-bottom: 4px;">✈️</div>
+              <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Cabin</div>
+              <div style="font-size: 13px; color: #1a202c; font-weight: 600;">Business</div>
             </div>
           </div>
         </div>
