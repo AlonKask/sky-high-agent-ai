@@ -2118,6 +2118,8 @@ export type Database = {
           created_at: string | null
           gmail_user_email: string
           id: string
+          is_active: boolean | null
+          last_sync_at: string | null
           refresh_token_encrypted: string | null
           scope: string | null
           token_expires_at: string | null
@@ -2129,6 +2131,8 @@ export type Database = {
           created_at?: string | null
           gmail_user_email: string
           id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
           refresh_token_encrypted?: string | null
           scope?: string | null
           token_expires_at?: string | null
@@ -2140,6 +2144,8 @@ export type Database = {
           created_at?: string | null
           gmail_user_email?: string
           id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
           refresh_token_encrypted?: string | null
           scope?: string | null
           token_expires_at?: string | null

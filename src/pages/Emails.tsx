@@ -428,14 +428,15 @@ const Emails = () => {
   const filteredEmails = getFilteredEmails(emails, selectedFolder)
     .sort((a, b) => {
       if (sortBy === 'received_at') {
-        // Handle nullable received_at properly
+        // Handle nullable received_at properly - use created_at as fallback
         const aTime = a.received_at ? new Date(a.received_at).getTime() : new Date(a.created_at).getTime();
         const bTime = b.received_at ? new Date(b.received_at).getTime() : new Date(b.created_at).getTime();
         return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
       }
       
-      const aValue = a[sortBy] as string;
-      const bValue = b[sortBy] as string;
+      // Add null checks for other sort fields
+      const aValue = (a[sortBy] as string) || '';
+      const bValue = (b[sortBy] as string) || '';
       
       const comparison = aValue.localeCompare(bValue);
       return sortOrder === 'asc' ? comparison : -comparison;

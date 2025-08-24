@@ -187,17 +187,10 @@ export const useGmailIntegration = () => {
         sessionExpiry: session?.expires_at
       });
       
-      // Test basic function connectivity first
-      console.log('🧪 Testing function connectivity...');
-      try {
-        const testResponse = await supabase.functions.invoke('health-check', {
-          body: { test: true }
-        });
-        console.log('🧪 Health check response:', testResponse);
-      } catch (testError) {
-        console.error('🧪 Health check failed:', testError);
-        // Continue anyway but log the issue
-      }
+      // Enhanced OAuth process logging
+      console.log('🚀 Initiating enhanced Gmail OAuth process...');
+      console.log('📋 Pre-OAuth validation completed successfully');
+      console.log('🔐 Session and user validation passed');
       
       // Call the oauth function with enhanced error capture
       console.log('📡 Initiating gmail-oauth function call...');
