@@ -255,6 +255,25 @@ export function QuoteCard({
                       </div>
                     )}
                   </div>
+                  
+                  {/* Price Breakdown - Compact View */}
+                  <div className="flex items-center gap-4 mt-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-semibold text-primary">${formatPrice(quote.total_price)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span>Net: ${formatPrice(quote.net_price)}</span>
+                      <span>•</span>
+                      <span>Markup: ${formatPrice(quote.markup)}</span>
+                      {quote.ck_fee_enabled && (
+                        <>
+                          <span>•</span>
+                          <span>CK Fee: ${calculateCKFee(quote).toFixed(2)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
