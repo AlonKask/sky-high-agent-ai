@@ -212,9 +212,9 @@ async function handleManualSync(supabaseClient: any, requestBody: any) {
 async function handleScheduledSync(supabaseClient: any) {
   // Get all users with Gmail tokens that need syncing
   const { data: usersWithGmail, error: usersError } = await supabaseClient
-    .from('user_preferences')
-    .select('user_id, gmail_access_token, gmail_refresh_token, gmail_user_email, gmail_token_expiry')
-    .not('gmail_access_token', 'is', null)
+    .from('gmail_credentials')
+    .select('user_id, access_token_encrypted, refresh_token_encrypted, gmail_user_email, token_expires_at')
+    .not('access_token_encrypted', 'is', null)
     .not('gmail_user_email', 'is', null);
 
   if (usersError) {
@@ -239,19 +239,37 @@ async function handleScheduledSync(supabaseClient: any) {
     try {
       console.log(`🔄 Syncing emails for user: ${userPrefs.gmail_user_email}`);
 
+      // Decrypt access token
+      const { data: decryptedToken, error: decryptError } = await supabaseClient.rpc(
+        'decrypt_gmail_token', 
+        { encrypted_token: userPrefs.access_token_encrypted }
+      );
+      
+      if (decryptError || !decryptedToken) {
+        console.log(`❌ Failed to decrypt token for user: ${userPrefs.gmail_user_email}`);
+        continue;
+      }
+      
       // Check if token is expired (if we have expiry info)
       let needsRefresh = false;
-      if (userPrefs.gmail_token_expiry) {
-        const expiryDate = new Date(userPrefs.gmail_token_expiry);
+      if (userPrefs.token_expires_at) {
+        const expiryDate = new Date(userPrefs.token_expires_at);
         const now = new Date();
         // Refresh if token expires within 10 minutes
         needsRefresh = (expiryDate.getTime() - now.getTime()) < (10 * 60 * 1000);
       }
 
-      let accessToken = userPrefs.gmail_access_token;
+      let accessToken = decryptedToken;
 
-      // Refresh token if needed
-      if (needsRefresh && userPrefs.gmail_refresh_token) {
+      // Refresh token if needed  
+      if (needsRefresh && userPrefs.refresh_token_encrypted) {
+        // Decrypt refresh token
+        const { data: decryptedRefreshToken, error: refreshDecryptError } = await supabaseClient.rpc(
+          'decrypt_gmail_token', 
+          { encrypted_token: userPrefs.refresh_token_encrypted }
+        );
+        
+        if (!refreshDecryptError && decryptedRefreshToken) {
         try {
           console.log(`🔄 Refreshing token for user: ${userPrefs.gmail_user_email}`);
           
@@ -261,7 +279,7 @@ async function handleScheduledSync(supabaseClient: any) {
             body: new URLSearchParams({
               client_id: Deno.env.get('GOOGLE_CLIENT_ID') ?? '',
               client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '',
-              refresh_token: userPrefs.gmail_refresh_token,
+              refresh_token: decryptedRefreshToken,
               grant_type: 'refresh_token',
             }),
           });
@@ -270,12 +288,12 @@ async function handleScheduledSync(supabaseClient: any) {
             const refreshData = await refreshResponse.json();
             accessToken = refreshData.access_token;
             
-            // Update the stored token
-            await supabaseClient
-              .from('user_preferences')
+            // Update the stored token (re-encrypt new access token)
+            const { error: updateError } = await supabaseClient
+              .from('gmail_credentials')
               .update({
-                gmail_access_token: accessToken,
-                gmail_token_expiry: new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString(),
+                access_token_encrypted: btoa(accessToken), // Simple encoding for now
+                token_expires_at: new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString(),
                 updated_at: new Date().toISOString()
               })
               .eq('user_id', userPrefs.user_id);
@@ -299,6 +317,10 @@ async function handleScheduledSync(supabaseClient: any) {
             success: false,
             error: 'Token refresh error'
           });
+          continue;
+        }
+        } else {
+          console.log(`❌ Failed to decrypt refresh token for user: ${userPrefs.gmail_user_email}`);
           continue;
         }
       }

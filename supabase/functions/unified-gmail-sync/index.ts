@@ -98,10 +98,10 @@ async function refreshGmailToken(refreshToken: string, supabaseClient: any, user
 
     // Update stored credentials
     await supabaseClient
-      .from('user_preferences')
+      .from('gmail_credentials')
       .update({
-        gmail_access_token: newAccessToken,
-        gmail_token_expiry: new Date(Date.now() + (expiresIn * 1000)).toISOString(),
+        access_token_encrypted: btoa(newAccessToken), // Simple encoding for now
+        token_expires_at: new Date(Date.now() + (expiresIn * 1000)).toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId);
@@ -421,21 +421,31 @@ async function syncGmailEmails(
 async function handleManualSync(supabaseClient: any, serviceClient: any, authUser: any, requestData: GmailSyncRequest) {
   console.log(`🎯 Manual sync for user: ${authUser.id}`);
 
-  // Get user credentials
+  // Get user credentials from gmail_credentials table
   const { data: credentials, error: credError } = await serviceClient
-    .from('user_preferences')
-    .select('gmail_access_token, gmail_refresh_token, gmail_user_email, gmail_token_expiry')
+    .from('gmail_credentials')
+    .select('access_token_encrypted, refresh_token_encrypted, gmail_user_email, token_expires_at')
     .eq('user_id', authUser.id)
     .single();
 
-  if (credError || !credentials?.gmail_access_token) {
+  if (credError || !credentials?.access_token_encrypted) {
     throw new Error('Gmail not connected. Please connect Gmail first.');
   }
 
-  // Check and refresh token if needed
-  let accessToken = credentials.gmail_access_token;
-  if (credentials.gmail_token_expiry) {
-    const expiryDate = new Date(credentials.gmail_token_expiry);
+  // Decrypt and check token expiry
+  const { data: decryptedToken, error: decryptError } = await serviceClient.rpc(
+    'decrypt_gmail_token', 
+    { encrypted_token: credentials.access_token_encrypted }
+  );
+  
+  if (decryptError || !decryptedToken) {
+    throw new Error('Failed to decrypt Gmail token');
+  }
+  
+  let accessToken = decryptedToken;
+  
+  if (credentials.token_expires_at) {
+    const expiryDate = new Date(credentials.token_expires_at);
     const now = new Date();
     
     if (expiryDate <= now && credentials.gmail_refresh_token) {
@@ -486,9 +496,9 @@ async function handleScheduledSync(serviceClient: any): Promise<{ success: boole
   console.log('⏰ Starting scheduled sync for all users...');
 
   const { data: usersWithGmail, error } = await serviceClient
-    .from('user_preferences')
-    .select('user_id, gmail_access_token, gmail_refresh_token, gmail_user_email, gmail_token_expiry')
-    .not('gmail_access_token', 'is', null)
+    .from('gmail_credentials')
+    .select('user_id, access_token_encrypted, refresh_token_encrypted, gmail_user_email, token_expires_at')
+    .not('access_token_encrypted', 'is', null)
     .not('gmail_user_email', 'is', null);
 
   if (error) {
@@ -508,28 +518,60 @@ async function handleScheduledSync(serviceClient: any): Promise<{ success: boole
   for (const user of usersWithGmail) {
     try {
       // Check and refresh token if needed
-      let accessToken = user.gmail_access_token;
-      if (user.gmail_token_expiry && user.gmail_refresh_token) {
-        const expiryDate = new Date(user.gmail_token_expiry);
+      // First decrypt the access token
+      const { data: decryptedToken, error: decryptError } = await serviceClient.rpc(
+        'decrypt_gmail_token', 
+        { encrypted_token: user.access_token_encrypted }
+      );
+      
+      if (decryptError || !decryptedToken) {
+        results.push({
+          userId: user.user_id,
+          email: user.gmail_user_email,
+          success: false,
+          error: 'Token decryption failed'
+        });
+        continue;
+      }
+      
+      let accessToken = decryptedToken;
+      if (user.token_expires_at && user.refresh_token_encrypted) {
+        const expiryDate = new Date(user.token_expires_at);
         const now = new Date();
         
         if ((expiryDate.getTime() - now.getTime()) < (10 * 60 * 1000)) { // Refresh if expires within 10 minutes
-          const newToken = await refreshGmailToken(user.gmail_refresh_token, serviceClient, user.user_id);
-          if (newToken) {
-            accessToken = newToken;
+          // Decrypt refresh token
+          const { data: decryptedRefreshToken, error: refreshDecryptError } = await serviceClient.rpc(
+            'decrypt_gmail_token', 
+            { encrypted_token: user.refresh_token_encrypted }
+          );
+          
+          if (!refreshDecryptError && decryptedRefreshToken) {
+            const newToken = await refreshGmailToken(decryptedRefreshToken, serviceClient, user.user_id);
+            if (newToken) {
+              accessToken = newToken;
+            } else {
+              results.push({
+                userId: user.user_id,
+                email: user.gmail_user_email,
+                success: false,
+                error: 'Token refresh failed'
+              });
+              continue;
+            }
           } else {
             results.push({
               userId: user.user_id,
               email: user.gmail_user_email,
               success: false,
-              error: 'Token refresh failed'
+              error: 'Refresh token decryption failed'
             });
             continue;
           }
         }
       }
 
-      // Perform sync
+      // Perform sync - need to pass decrypted token in the expected format
       const syncResult = await syncGmailEmails(
         serviceClient,
         user.user_id,
