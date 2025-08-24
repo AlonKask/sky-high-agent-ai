@@ -22,7 +22,7 @@ export const useGmailIntegration = () => {
 
   const checkGmailStatus = useCallback(async () => {
     try {
-      console.log('🔍 Starting Gmail status check...');
+      console.log('🔍 Starting enhanced Gmail status check...');
       setAuthStatus(prev => ({ ...prev, isLoading: true }));
       
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -42,24 +42,53 @@ export const useGmailIntegration = () => {
         return;
       }
 
-      console.log('👤 Checking Gmail status for user:', user.id);
+      console.log('👤 Checking Gmail status for authenticated user:', user.id);
 
-      // Call the RPC function to check Gmail integration status
-      const { data, error } = await supabase.rpc('get_gmail_integration_status');
-
-      console.log('📊 RPC call result:', { data, error });
-
-      if (error) {
-        console.error('❌ Gmail status RPC error:', error);
-        
-        // Provide specific error feedback
-        const errorMessage = error.message || 'Failed to check Gmail connection status';
+      // PHASE 1: Test basic RPC connectivity
+      console.log('🧪 Testing basic RPC function connectivity...');
+      const { data: testData, error: testError } = await supabase.rpc('test_function_connectivity');
+      
+      console.log('🧪 RPC connectivity test result:', { 
+        success: !testError, 
+        data: testData, 
+        error: testError?.message 
+      });
+      
+      if (testError) {
+        console.error('❌ RPC connectivity test failed:', testError);
         toast({
-          title: "Gmail Status Check Failed",
-          description: errorMessage,
+          title: "Database Connection Failed", 
+          description: `RPC connectivity test failed: ${testError.message}`,
           variant: "destructive"
         });
-        
+        setAuthStatus({
+          isConnected: false,
+          userEmail: null,
+          isLoading: false,
+          lastSync: null,
+        });
+        return;
+      } else {
+        console.log('✅ RPC connectivity test passed:', testData);
+      }
+
+      // PHASE 2: Test Gmail-specific RPC function  
+      console.log('📧 Testing Gmail integration status RPC...');
+      const { data: gmailData, error: gmailError } = await supabase.rpc('get_gmail_integration_status');
+      
+      console.log('📧 Gmail RPC status result:', { 
+        success: !gmailError, 
+        data: gmailData, 
+        error: gmailError?.message 
+      });
+      
+      if (gmailError) {
+        console.error('❌ Gmail status RPC failed:', gmailError);
+        toast({
+          title: "Gmail Status Check Failed",
+          description: `Gmail RPC failed: ${gmailError.message}`,
+          variant: "destructive"
+        });
         setAuthStatus({
           isConnected: false,
           userEmail: null,
@@ -69,16 +98,22 @@ export const useGmailIntegration = () => {
         return;
       }
 
-      console.log('✅ Gmail status data received:', data);
+      console.log('✅ Gmail status data received:', gmailData);
 
-      // Handle the RPC response properly - it returns JSONB
-      const statusData = data as { connected: boolean; gmail_user_email?: string; last_sync?: string; error?: string; email_count?: number };
+      // PHASE 3: Parse and apply status from RPC result
+      const statusData = gmailData as { 
+        connected: boolean; 
+        user_email?: string; 
+        last_sync?: string; 
+        error?: string; 
+        authenticated_user_id?: string;
+      };
       
-      console.log('📋 Parsed status data:', {
+      console.log('📋 Parsed Gmail status:', {
         connected: statusData?.connected,
-        email: statusData?.gmail_user_email,
+        userEmail: statusData?.user_email,
         lastSync: statusData?.last_sync,
-        emailCount: statusData?.email_count,
+        authenticatedUserId: statusData?.authenticated_user_id,
         hasError: !!statusData?.error
       });
 
@@ -88,19 +123,24 @@ export const useGmailIntegration = () => {
       
       setAuthStatus({
         isConnected: statusData?.connected || false,
-        userEmail: statusData?.gmail_user_email || null,
+        userEmail: statusData?.user_email || null,
         isLoading: false,
         lastSync: statusData?.last_sync ? new Date(statusData.last_sync) : null,
       });
 
-      console.log('✅ Gmail status check completed successfully');
+      console.log('✅ Enhanced Gmail status check completed successfully');
 
     } catch (error) {
-      console.error('❌ Gmail status check failed:', error);
+      console.error('❌ Gmail status check failed with exception:', error);
       
-      // More specific error messaging
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error details:', errorMessage);
+      console.error('Exception details:', errorMessage);
+      
+      toast({
+        title: "Gmail Status Check Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
       
       setAuthStatus({
         isConnected: false,
