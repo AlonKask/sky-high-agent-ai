@@ -39,17 +39,25 @@ import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { DateRange } from "react-day-picker";
 
 interface ReportData {
-  totalRevenue: number;
+  totalRevenue: number; // Actual revenue from bookings
   totalQuotes: number;
   totalBookings: number;
   totalClients: number;
   conversionRate: number;
   avgTicketPrice: number;
-  monthlyData: { month: string; revenue: number; bookings: number; quotes: number }[];
+  pipelineValue: number; // Potential revenue from quotes
+  monthlyData: { 
+    month: string; 
+    revenue: number; // Actual revenue from bookings
+    pipeline_value: number; // Pipeline value from quotes
+    bookings: number; 
+    quotes: number; 
+  }[];
   topRoutes: { route: string; count: number; revenue: number }[];
   agentPerformance: { 
     agent_name: string; 
-    revenue: number; 
+    revenue: number; // Actual revenue from bookings
+    pipeline_value: number; // Pipeline value from quotes
     bookings: number; 
     quotes: number; 
   }[];
@@ -136,6 +144,7 @@ const AdvancedReporting = () => {
           totalClients: 0,
           conversionRate: 0,
           avgTicketPrice: 0,
+          pipelineValue: 0,
           monthlyData: [],
           topRoutes: [],
           agentPerformance: []
@@ -151,6 +160,7 @@ const AdvancedReporting = () => {
         total_clients?: number;
         conversion_rate?: number;
         avg_ticket_price?: number;
+        pipeline_value?: number;
         monthly_data?: any[];
         top_routes?: any[];
         agent_performance?: any[];
@@ -163,6 +173,7 @@ const AdvancedReporting = () => {
         totalClients: Number(typedData.total_clients) || 0,
         conversionRate: Number(typedData.conversion_rate) || 0,
         avgTicketPrice: Number(typedData.avg_ticket_price) || 0,
+        pipelineValue: Number(typedData.pipeline_value) || 0,
         monthlyData: typedData.monthly_data || [],
         topRoutes: typedData.top_routes || [],
         agentPerformance: typedData.agent_performance || []
@@ -278,15 +289,31 @@ const AdvancedReporting = () => {
 
       {/* Key Metrics */}
       {reportData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Revenue</p>
+                  <p className="text-sm text-muted-foreground">Actual Revenue</p>
                   <p className="text-2xl font-bold">${reportData.totalRevenue.toLocaleString()}</p>
+                  {reportData.totalRevenue === 0 && reportData.pipelineValue > 0 && (
+                    <p className="text-xs text-muted-foreground">No bookings yet</p>
+                  )}
                 </div>
                 <DollarSign className="w-8 h-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pipeline Value</p>
+                  <p className="text-2xl font-bold">${reportData.pipelineValue.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Potential from quotes</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-amber-600" />
               </div>
             </CardContent>
           </Card>
@@ -405,18 +432,23 @@ const AdvancedReporting = () => {
         <TabsContent value="trends" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Performance</CardTitle>
+              <CardTitle>Monthly Performance - Actual vs Pipeline</CardTitle>
             </CardHeader>
             <CardContent>
                <ResponsiveContainer width="100%" height={400}>
                 <BarChart data={reportData?.monthlyData || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis yAxisId="revenue" orientation="left" />
-                  <YAxis yAxisId="bookings" orientation="right" />
-                  <Tooltip />
-                  <Bar yAxisId="revenue" dataKey="revenue" fill="#8884d8" name="Revenue" />
-                  <Bar yAxisId="bookings" dataKey="bookings" fill="#82ca9d" name="Bookings" />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      `$${Number(value).toLocaleString()}`, 
+                      name === 'revenue' ? 'Actual Revenue' : 
+                      name === 'pipeline_value' ? 'Pipeline Value' : name
+                    ]} 
+                  />
+                  <Bar dataKey="revenue" fill="#00C49F" name="Actual Revenue" />
+                  <Bar dataKey="pipeline_value" fill="#FFBB28" name="Pipeline Value" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
