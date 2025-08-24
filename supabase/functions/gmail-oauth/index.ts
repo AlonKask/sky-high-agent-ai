@@ -10,17 +10,19 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
+  
+  // Handle CORS preflight requests first
+  if (req.method === 'OPTIONS') {
+    console.log('📝 Handling CORS preflight request');
+    return new Response(null, { headers: corsHeaders });
+  }
+
   // SECURITY: Apply rate limiting to OAuth endpoint
   return await withRateLimit(req, {
     windowMs: 15 * 60 * 1000, // 15 minutes
     maxRequests: 10, // Increased from 5 to 10 OAuth attempts per 15 minutes per IP
   }, async () => {
-    console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
-  
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
 
   try {
     // Parse action from URL params or request body

@@ -447,18 +447,31 @@ const Emails = () => {
   const filteredEmails = getFilteredEmails(emails, selectedFolder)
     .sort((a, b) => {
       if (sortBy === 'received_at') {
-        // Handle nullable received_at properly - use created_at as fallback
-        const aTime = a.received_at ? new Date(a.received_at).getTime() : new Date(a.created_at).getTime();
-        const bTime = b.received_at ? new Date(b.received_at).getTime() : new Date(b.created_at).getTime();
+        // Handle nullable received_at properly - use created_at as fallback with enhanced null safety
+        const aDate = a.received_at || a.created_at;
+        const bDate = b.received_at || b.created_at;
+        
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return sortOrder === 'asc' ? 1 : -1;
+        if (!bDate) return sortOrder === 'asc' ? -1 : 1;
+        
+        const aTime = new Date(aDate).getTime();
+        const bTime = new Date(bDate).getTime();
+        
+        // Handle invalid dates gracefully
+        if (isNaN(aTime) && isNaN(bTime)) return 0;
+        if (isNaN(aTime)) return sortOrder === 'asc' ? 1 : -1;
+        if (isNaN(bTime)) return sortOrder === 'asc' ? -1 : 1;
         return sortOrder === 'asc' ? aTime - bTime : bTime - aTime;
       }
       
-      // Add null checks for other sort fields
+      // Enhanced null-safe string sorting with case-insensitive comparison
       const aValue = (a[sortBy] as string) || '';
       const bValue = (b[sortBy] as string) || '';
       
-      const comparison = aValue.localeCompare(bValue);
-      return sortOrder === 'asc' ? comparison : -comparison;
+      return sortOrder === 'asc' 
+        ? aValue.localeCompare(bValue, undefined, { sensitivity: 'base' })
+        : bValue.localeCompare(aValue, undefined, { sensitivity: 'base' });
     });
 
   // Handle URL parameters for filtering

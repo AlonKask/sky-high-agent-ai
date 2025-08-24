@@ -178,35 +178,9 @@ export const useGmailIntegration = () => {
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
     try {
-      console.log('📋 Checking session validity...');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('🚀 Initiating Gmail OAuth process...');
       
-      if (sessionError) {
-        console.error('❌ Session error:', sessionError);
-        throw new Error(`Session error: ${sessionError.message}`);
-      }
-      
-      if (!session?.access_token) {
-        console.error('❌ No access token in session:', { session });
-        throw new Error('No valid session found. Please refresh the page and sign in again.');
-      }
-      
-      console.log('✅ Valid session found, calling gmail-oauth function...');
-      console.log('🔍 Session details:', {
-        hasSession: !!session,
-        hasAccessToken: !!session?.access_token,
-        userId: user.id,
-        sessionExpiry: session?.expires_at
-      });
-      
-      // Enhanced OAuth process logging
-      console.log('🚀 Initiating enhanced Gmail OAuth process...');
-      console.log('📋 Pre-OAuth validation completed successfully');
-      console.log('🔐 Session and user validation passed');
-      
-      // Call the oauth function with enhanced error capture
-      console.log('📡 Initiating gmail-oauth function call...');
-      
+      // Call the oauth function with simplified error handling
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
         body: { 
           action: 'start',
@@ -215,25 +189,14 @@ export const useGmailIntegration = () => {
         }
       });
       
-      console.log('📨 gmail-oauth function response:', { data, error });
+      console.log('📨 OAuth function response:', { data, error });
 
       if (error) {
-        console.error('❌ OAuth function error details:', {
-          message: error.message,
-          name: error.name,
-          stack: error.stack,
-          fullError: error
-        });
-        throw new Error(`OAuth function failed: ${error.message || 'Unknown error'}`);
+        console.error('❌ OAuth function failed:', error);
+        throw new Error(`Gmail OAuth failed: ${error.message || 'Unknown error'}`);
       }
 
       console.log('📊 OAuth function data:', data);
-
-      if (!data?.success) {
-        const errorMsg = data?.error || 'Failed to generate authorization URL';
-        console.error('❌ OAuth function returned failure:', errorMsg);
-        throw new Error(errorMsg);
-      }
 
       if (!data?.authUrl) {
         console.error('❌ No auth URL received from function:', data);
@@ -294,18 +257,18 @@ export const useGmailIntegration = () => {
       // Provide more specific error messages based on error type
       let userFriendlyMessage = 'Gmail connection failed';
       
-      if (error.message?.includes('popup')) {
-        userFriendlyMessage = 'Popup blocked - please allow popups for this site and try again';
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        userFriendlyMessage = 'Network error - please check your connection and try again';
-      } else if (error.message?.includes('credentials') || error.message?.includes('OAuth')) {
-        userFriendlyMessage = 'Gmail integration not properly configured - please contact support';
-      } else if (error.message?.includes('Authentication') || error.message?.includes('token')) {
-        userFriendlyMessage = 'Please sign in again and retry Gmail connection';
-      } else if (error.message?.includes('cancelled') || error.message?.includes('closed')) {
-        userFriendlyMessage = 'Gmail connection was cancelled - please try again';
+      if (error.message?.includes('popup') || error.message?.includes('Popup')) {
+        userFriendlyMessage = 'Popup blocked - please allow popups and try again';
+      } else if (error.message?.includes('cancelled')) {
+        userFriendlyMessage = 'Gmail connection cancelled - please try again when ready';
       } else if (error.message?.includes('timeout')) {
         userFriendlyMessage = 'Connection timed out - please try again';
+      } else if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        userFriendlyMessage = 'Network error - check connection and try again';
+      } else if (error.message?.includes('OAuth')) {
+        userFriendlyMessage = 'Gmail OAuth service unavailable - please try again later';
+      } else {
+        userFriendlyMessage = error.message || 'Unknown error occurred';
       }
       
       toast({

@@ -145,19 +145,29 @@ const EnhancedEmailCard = ({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'No date';
     
-    if (diffInHours < 1) {
-      return `${Math.floor(diffInHours * 60)}m ago`;
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
-    } else if (diffInHours < 168) { // 7 days
-      return `${Math.floor(diffInHours / 24)}d ago`;
-    } else {
-      return date.toLocaleDateString();
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      const now = new Date();
+      const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+      
+      if (diffInHours < 1) {
+        const minutes = Math.max(1, Math.floor(diffInHours * 60));
+        return `${minutes}m ago`;
+      } else if (diffInHours < 24) {
+        return `${Math.floor(diffInHours)}h ago`;
+      } else if (diffInHours < 168) { // 7 days
+        return `${Math.floor(diffInHours / 24)}d ago`;
+      } else {
+        return date.toLocaleDateString();
+      }
+    } catch (error) {
+      console.warn('Date formatting error:', error);
+      return 'Unknown date';
     }
   };
 
