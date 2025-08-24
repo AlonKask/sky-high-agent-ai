@@ -337,10 +337,15 @@ const Emails = () => {
     }
   };
 
-  // Load emails on mount
+  // Load emails on mount and when user changes (SINGLE useEffect to prevent duplicates)
   useEffect(() => {
     if (user) {
+      console.log('📧 User authenticated, loading emails...');
       loadEmailsFromDB();
+    } else {
+      console.log('⚠️ No user found, clearing emails');
+      setEmails([]);
+      setEmailStats({ total: 0, unread: 0, sent: 0, received: 0 });
     }
   }, [user]);
 
@@ -424,26 +429,16 @@ const Emails = () => {
       return sortOrder === 'desc' ? -comparison : comparison;
     });
 
-  // Handle URL parameters for filtering
+  // Handle URL parameters for filtering (optimized - no unnecessary re-renders)
   useEffect(() => {
     const view = searchParams.get('view');
     const metric = searchParams.get('metric');
-    const status = searchParams.get('status');
-    const period = searchParams.get('period');
     
     if (view === 'team-analytics' && metric === 'reply-rate') {
-      console.log('Filtering emails for team reply rate analytics');
-    } else if (status === 'resolved' && period === 'today') {
-      console.log('Filtering resolved emails for today');
+      console.log('📊 Filtering emails for team reply rate analytics');
+      // Apply any specific filtering logic here if needed
     }
   }, [searchParams]);
-
-  // Refresh emails when folder or search changes
-  useEffect(() => {
-    if (user) {
-      loadEmailsFromDB();
-    }
-  }, [user, selectedFolder, searchQuery]);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

@@ -25,14 +25,15 @@ export const useGmailIntegration = () => {
       console.log('🔍 Checking Gmail integration status...');
       setAuthStatus(prev => ({ ...prev, isLoading: true }));
       
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.error('❌ Error getting user:', userError);
-        throw userError;
+      // Ensure we have an authenticated session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('❌ Error getting session:', sessionError);
+        throw sessionError;
       }
       
-      if (!user) {
-        console.log('⚠️ No authenticated user found');
+      if (!session?.user) {
+        console.log('⚠️ No authenticated session found');
         setAuthStatus({
           isConnected: false,
           userEmail: null,
@@ -42,13 +43,39 @@ export const useGmailIntegration = () => {
         return;
       }
 
-      console.log('👤 Checking Gmail status for user:', user.id);
+      console.log('👤 Checking Gmail status for authenticated user:', session.user.id);
 
-      // Check Gmail integration status
+      // Check Gmail integration status with proper authentication context
       const { data: gmailData, error: gmailError } = await supabase.rpc('get_gmail_integration_status');
       
       if (gmailError) {
         console.error('❌ Gmail status check failed:', gmailError);
+        
+        // Handle specific authentication errors
+        if (gmailError.message?.includes('not authenticated')) {
+          console.log('🔄 Attempting session refresh...');
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError) {
+            // Retry after refresh
+            const { data: retryData, error: retryError } = await supabase.rpc('get_gmail_integration_status');
+            if (!retryError && retryData) {
+              const retryStatusData = retryData as { 
+                connected: boolean; 
+                user_email?: string; 
+                last_sync?: string; 
+              };
+              setAuthStatus({
+                isConnected: retryStatusData.connected || false,
+                userEmail: retryStatusData.user_email || null,
+                isLoading: false,
+                lastSync: retryStatusData.last_sync ? new Date(retryStatusData.last_sync) : null,
+              });
+              console.log('✅ Gmail status check completed after retry');
+              return;
+            }
+          }
+        }
+        
         throw gmailError;
       }
 
@@ -103,6 +130,12 @@ export const useGmailIntegration = () => {
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
     try {
+      // Ensure we have a fresh session before starting OAuth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No valid session found. Please refresh and try again.');
+      }
+
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
         body: { 
           action: 'start',
@@ -132,9 +165,19 @@ export const useGmailIntegration = () => {
       }
 
       return new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('OAuth process timed out after 5 minutes'));
+        }, 5 * 60 * 1000); // 5 minute timeout
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+          window.removeEventListener('message', handleMessage);
+        };
+
         const handleMessage = (event: MessageEvent) => {
           if (event.data.type === 'gmail_auth_success') {
-            window.removeEventListener('message', handleMessage);
+            cleanup();
             
             if (event.data.success) {
               console.log('✅ Gmail connected:', event.data.userEmail);
@@ -142,13 +185,14 @@ export const useGmailIntegration = () => {
                 title: "Gmail Connected",
                 description: `Connected to ${event.data.userEmail}`,
               });
-              setTimeout(() => checkGmailStatus(), 1000);
+              // Wait a bit longer for the database to be updated
+              setTimeout(() => checkGmailStatus(), 2000);
               resolve();
             } else {
               reject(new Error(event.data.error || 'Connection failed'));
             }
           } else if (event.data.type === 'gmail_auth_error') {
-            window.removeEventListener('message', handleMessage);
+            cleanup();
             reject(new Error(event.data.error || 'Authorization failed'));
           }
         };
@@ -158,7 +202,7 @@ export const useGmailIntegration = () => {
         const checkClosed = setInterval(() => {
           if (popup.closed) {
             clearInterval(checkClosed);
-            window.removeEventListener('message', handleMessage);
+            cleanup();
             reject(new Error('Authorization window was closed'));
           }
         }, 1000);

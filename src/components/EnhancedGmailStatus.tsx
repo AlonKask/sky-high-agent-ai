@@ -98,14 +98,38 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
   };
 
   const handleHealthCheck = async () => {
-    const result = await testGmailOAuthHealth();
-    toast({
-      title: result.success ? "Health Check Passed" : "Health Check Failed",
-      description: result.success 
-        ? `OAuth ready: ${result.data?.data?.oauth_ready}`
-        : result.error,
-      variant: result.success ? "default" : "destructive"
-    });
+    try {
+      const result = await testGmailOAuthHealth();
+      
+      if (result.success && result.data?.data) {
+        const healthData = result.data.data;
+        const allHealthy = healthData.oauth_ready && healthData.status === 'healthy';
+        
+        toast({
+          title: allHealthy ? "✅ System Healthy" : "⚠️ System Issues Detected",
+          description: allHealthy 
+            ? "Gmail OAuth system is fully operational" 
+            : `OAuth Ready: ${healthData.oauth_ready ? 'Yes' : 'No'} - Status: ${healthData.status}`,
+          variant: allHealthy ? "default" : "destructive"
+        });
+        
+        console.log('🏥 Health check details:', healthData);
+      } else {
+        toast({
+          title: "Health Check Failed",
+          description: result.error || "Unknown health check error",
+          variant: "destructive"
+        });
+        console.error('❌ Health check failed:', result);
+      }
+    } catch (error) {
+      console.error('❌ Health check exception:', error);
+      toast({
+        title: "Health Check Failed",
+        description: "Unable to perform health check",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusInfo = () => {
