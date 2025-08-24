@@ -36,7 +36,11 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
         return false;
       }
       
-      console.log('✅ Session refreshed successfully');
+      console.log('✅ Session refreshed successfully', {
+        userId: newSession.user.id,
+        hasAccessToken: !!newSession.access_token,
+        expiresAt: newSession.expires_at ? new Date(newSession.expires_at * 1000) : null
+      });
       setSession(newSession);
       setUser(newSession.user);
       return true;
@@ -82,6 +86,7 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
           hasSession: !!session, 
           hasUser: !!session?.user,
           userId: session?.user?.id,
+          hasAccessToken: !!session?.access_token,
           expiresAt: session?.expires_at ? new Date(session.expires_at * 1000) : null
         });
 

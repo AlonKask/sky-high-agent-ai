@@ -34,7 +34,7 @@ interface Client {
   last_trip_date?: string;
   created_at: string;
   notes?: string;
-  preferred_class: string;
+  preferred_class?: string;
 }
 
 interface ClientIntelligence {
@@ -99,31 +99,59 @@ const EnhancedClientManager = () => {
   }, [user]);
 
   const fetchClients = async () => {
-    if (!user) {
-      console.log('🚫 No user available for clients fetch');
+    if (!user?.id) {
+      console.log('❌ No user found, skipping client fetch');
       return;
     }
+
+    console.log('🔍 Fetching clients for user:', user.id);
     
     try {
       setLoading(true);
-      console.log('🔍 Fetching clients for user:', user.id);
+      
+      // Log session details for debugging
+      console.log('🔍 Session debug info:', {
+        hasUser: !!user,
+        userId: user.id,
+        hasSession: !!session,
+        hasAccessToken: !!session?.access_token
+      });
 
       const { data, error } = await supabase
         .from('clients')
-        .select('*')
-        .eq('user_id', user.id);
+        .select(`
+          id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          client_type,
+          total_bookings,
+          total_spent,
+          last_trip_date,
+          notes,
+          created_at
+        `);
 
       if (error) {
         console.error('❌ Database error:', error);
-        toastHelpers.error('Failed to load clients', error);
+        
+        if (error.code === '42501') {
+          toastHelpers.error(
+            'Authentication Error', 
+            'Session token issue detected. Please sign out and sign back in.'
+          );
+        } else {
+          toastHelpers.error('Error loading clients', error);
+        }
         return;
       }
 
-      console.log('✅ Clients fetched successfully:', data?.length || 0, 'clients');
+      console.log('✅ Clients fetched successfully:', data?.length || 0);
       setClients(data || []);
     } catch (error) {
       console.error('❌ Unexpected error:', error);
-      toastHelpers.error('An unexpected error occurred while loading clients', error);
+      toastHelpers.error('Unexpected error occurred while loading clients', error);
     } finally {
       setLoading(false);
     }
