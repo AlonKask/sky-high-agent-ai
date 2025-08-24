@@ -85,8 +85,8 @@ export const ComprehensiveAnalytics = () => {
     );
   }
 
-  // Handle empty data state
-  if (!loading && data && data.totalBookings === 0 && data.totalClients === 0) {
+  // Handle empty data state - check for both bookings and quotes
+  if (!loading && data && data.totalBookings === 0 && data.totalQuotes === 0 && data.totalClients === 0) {
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -106,8 +106,8 @@ export const ComprehensiveAnalytics = () => {
                 <TrendingUp className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">No Analytics Data Available</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Your analytics dashboard will show insights once you have bookings and clients. 
-                  Start by creating your first client or processing a booking.
+                  Your analytics dashboard will show insights once you have quotes, bookings and clients. 
+                  Start by creating your first client or processing a quote.
                 </p>
               </div>
               
@@ -126,7 +126,8 @@ export const ComprehensiveAnalytics = () => {
                 <p>Analytics will automatically populate as you:</p>
                 <ul className="list-disc list-inside mt-2 space-y-1">
                   <li>Add clients to your database</li>
-                  <li>Process flight bookings</li>
+                  <li>Generate quotes for clients</li>
+                  <li>Process confirmed bookings</li>
                   <li>Handle customer requests</li>
                 </ul>
               </div>
@@ -195,6 +196,7 @@ export const ComprehensiveAnalytics = () => {
         data={data ? {
           totalRevenue: data.totalRevenue,
           totalBookings: data.totalBookings,
+          totalQuotes: data.totalQuotes,
           totalClients: data.totalClients,
           conversionRate: data.conversionRate,
           avgTicketPrice: data.avgTicketPrice,
@@ -202,6 +204,7 @@ export const ComprehensiveAnalytics = () => {
         } : {
           totalRevenue: 0,
           totalBookings: 0,
+          totalQuotes: 0,
           totalClients: 0,
           conversionRate: 0,
           avgTicketPrice: 0,
@@ -321,9 +324,9 @@ export const ComprehensiveAnalytics = () => {
                         </Badge>
                         <div>
                           <p className="font-medium">{route.route}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {route.bookings} booking{route.bookings !== 1 ? 's' : ''}
-                          </p>
+                    <p className="text-sm text-muted-foreground">
+                      {route.quotes} quote{route.quotes !== 1 ? 's' : ''} • {route.bookings} booking{route.bookings !== 1 ? 's' : ''}
+                    </p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -338,9 +341,9 @@ export const ComprehensiveAnalytics = () => {
               ) : (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">No route data available</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Route performance will appear once bookings are created
-                  </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Route performance will appear once quotes and bookings are created
+                    </p>
                 </div>
               )}
             </CardContent>
@@ -368,7 +371,7 @@ export const ComprehensiveAnalytics = () => {
                           <div>
                             <p className="font-medium">{agent.agentName}</p>
                             <p className="text-sm text-muted-foreground">
-                              {agent.bookings} bookings • {agent.clients} clients
+                              {agent.quotes} quotes • {agent.bookings} bookings • {agent.clients} clients
                             </p>
                           </div>
                         </div>
@@ -386,7 +389,7 @@ export const ComprehensiveAnalytics = () => {
                     <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No team data available</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Team performance will appear once team members create bookings
+                      Team performance will appear once team members create quotes and bookings
                     </p>
                   </div>
                 )}

@@ -3773,12 +3773,19 @@ export type Database = {
         }[]
       }
       get_analytics_data: {
-        Args: {
-          p_end_date: string
-          p_start_date: string
-          p_user_id: string
-          p_user_role: string
-        }
+        Args:
+          | {
+              p_end_date: string
+              p_start_date: string
+              p_user_id: string
+              p_user_role: string
+            }
+          | {
+              p_end_date?: string
+              p_start_date?: string
+              p_user_id: string
+              p_user_role?: string
+            }
         Returns: Json
       }
       get_asset_by_url: {

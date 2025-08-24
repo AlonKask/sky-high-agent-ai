@@ -4,6 +4,7 @@ import { TrendingUp, Users, Calendar, DollarSign } from "lucide-react";
 interface KPIData {
   totalRevenue: number;
   totalBookings: number;
+  totalQuotes: number;
   totalClients: number;
   conversionRate: number;
   avgTicketPrice: number;
@@ -25,11 +26,18 @@ export const AnalyticsKPICards = ({ data, loading }: AnalyticsKPICardsProps) => 
       trendUp: data.revenueGrowth > 0
     },
     {
-      title: "Total Bookings",
+      title: "Confirmed Bookings",
       value: data.totalBookings?.toString() || '0',
       icon: Calendar,
-      trend: "This period",
+      trend: "Actual bookings",
       trendUp: true
+    },
+    {
+      title: "Quotes Generated",
+      value: data.totalQuotes?.toString() || '0',
+      icon: TrendingUp,
+      trend: `${data.conversionRate?.toFixed(1) || '0'}% conversion`,
+      trendUp: data.conversionRate > 15
     },
     {
       title: "Active Clients",
@@ -37,13 +45,6 @@ export const AnalyticsKPICards = ({ data, loading }: AnalyticsKPICardsProps) => 
       icon: Users,
       trend: "Total clients",
       trendUp: true
-    },
-    {
-      title: "Avg Ticket Price",
-      value: `$${data.avgTicketPrice?.toLocaleString() || '0'}`,
-      icon: TrendingUp,
-      trend: `${data.conversionRate?.toFixed(1) || '0'}% conversion`,
-      trendUp: data.conversionRate > 15
     }
   ];
 

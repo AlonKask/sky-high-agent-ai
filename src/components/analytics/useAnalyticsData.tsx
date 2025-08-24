@@ -6,33 +6,37 @@ import { addMonths, subMonths, format, startOfMonth, endOfMonth } from 'date-fns
 
 export interface AnalyticsData {
   // KPI Data
-  totalRevenue: number;
-  totalBookings: number; // Now represents total quotes (revenue generating items)
+  totalRevenue: number; // From actual bookings
+  totalBookings: number; // Actual confirmed bookings
+  totalQuotes: number; // Quotes generated (sales pipeline)
   totalClients: number;
   conversionRate: number; // Requests to quotes conversion rate
-  avgTicketPrice: number;
+  avgTicketPrice: number; // From bookings
   revenueGrowth: number;
   
   // Chart Data
   monthlyData: Array<{
     month: string;
-    revenue: number;
-    bookings: number; // quotes count
+    revenue: number; // From bookings
+    bookings: number; // Actual bookings count
+    quotes: number; // Quotes count
     clients: number;
   }>;
   
   topRoutes: Array<{
     route: string;
-    revenue: number;
-    bookings: number; // quotes count
+    revenue: number; // Revenue potential from quotes
+    quotes: number; // Quotes count for this route
+    bookings: number; // Actual bookings for this route
     avgPrice: number;
   }>;
   
   // Performance Data
   agentPerformance: Array<{
     agentName: string;
-    revenue: number;
-    bookings: number; // quotes count
+    revenue: number; // From bookings
+    bookings: number; // Actual bookings closed
+    quotes: number; // Quotes generated
     clients: number;
     avgResponseTime: number;
   }>;
@@ -93,6 +97,31 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
         if (analyticsResult) {
           console.log('✅ Analytics data from function:', analyticsResult);
           
+          // Type assertion for the analytics result
+          const result = analyticsResult as {
+            total_revenue: number;
+            total_bookings: number;
+            total_quotes: number;
+            total_clients: number;
+            total_requests: number;
+            conversion_rate: number;
+            avg_ticket_price: number;
+            top_routes: Array<{
+              route: string;
+              revenue: number;
+              bookings: number;
+              avg_price: number;
+            }>;
+            agent_performance: Array<{
+              agent_name: string;
+              revenue: number;
+              quotes: number;
+              bookings: number;
+              clients: number;
+              avg_response_time: number;
+            }>;
+          };
+          
           // Calculate revenue growth
           let revenueGrowth = 0;
           try {
@@ -108,9 +137,10 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
               p_end_date: startDate.toISOString()
             });
             
-            if (previousResult?.total_revenue) {
-              const previousRevenue = Number(previousResult.total_revenue);
-              const currentRevenue = Number(analyticsResult.total_revenue);
+            if (previousResult && typeof previousResult === 'object') {
+              const prev = previousResult as { total_revenue: number };
+              const previousRevenue = Number(prev.total_revenue);
+              const currentRevenue = Number(result.total_revenue);
               revenueGrowth = previousRevenue > 0 ? 
                 ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 
                 (currentRevenue > 0 ? 100 : 0);
@@ -133,11 +163,14 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
                 p_end_date: monthEnd.toISOString()
               });
 
+              const monthData = monthResult as typeof result;
+              
               monthlyData.push({
                 month: format(monthStart, 'MMM'),
-                revenue: Number(monthResult?.total_revenue || 0),
-                bookings: Number(monthResult?.total_quotes || 0),
-                clients: Number(monthResult?.total_clients || 0)
+                revenue: Number(monthData?.total_revenue || 0),
+                bookings: Number(monthData?.total_bookings || 0),
+                quotes: Number(monthData?.total_quotes || 0),
+                clients: Number(monthData?.total_clients || 0)
               });
             } catch (monthError) {
               console.warn('⚠️ Error fetching month data:', monthError);
@@ -145,29 +178,33 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
                 month: format(monthStart, 'MMM'),
                 revenue: 0,
                 bookings: 0,
+                quotes: 0,
                 clients: 0
               });
             }
           }
 
           const analyticsData: AnalyticsData = {
-            totalRevenue: Number(analyticsResult.total_revenue || 0),
-            totalBookings: Number(analyticsResult.total_quotes || 0),
-            totalClients: Number(analyticsResult.total_clients || 0),
-            conversionRate: Number(analyticsResult.conversion_rate || 0),
-            avgTicketPrice: Number(analyticsResult.avg_ticket_price || 0),
+            totalRevenue: Number(result.total_revenue || 0),
+            totalBookings: Number(result.total_bookings || 0),
+            totalQuotes: Number(result.total_quotes || 0),
+            totalClients: Number(result.total_clients || 0),
+            conversionRate: Number(result.conversion_rate || 0),
+            avgTicketPrice: Number(result.avg_ticket_price || 0),
             revenueGrowth,
             monthlyData,
-            topRoutes: (analyticsResult.top_routes || []).map((route: any) => ({
+            topRoutes: (result.top_routes || []).map((route: any) => ({
               route: route.route || 'Unknown Route',
               revenue: Number(route.revenue || 0),
-              bookings: Number(route.bookings || 0),
+              quotes: Number(route.bookings || 0), // This is actually quotes from the query
+              bookings: 0, // No actual bookings yet
               avgPrice: Number(route.avg_price || 0)
             })),
-            agentPerformance: (analyticsResult.agent_performance || []).map((agent: any) => ({
+            agentPerformance: (result.agent_performance || []).map((agent: any) => ({
               agentName: agent.agent_name || 'Unknown Agent',
               revenue: Number(agent.revenue || 0),
-              bookings: Number(agent.quotes || 0),
+              bookings: Number(agent.bookings || 0),
+              quotes: Number(agent.quotes || 0),
               clients: Number(agent.clients || 0),
               avgResponseTime: Number(agent.avg_response_time || 150)
             }))
@@ -239,20 +276,19 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
         console.warn('⚠️ Requests query error:', requestsResult.error.message);
       }
 
-      // Calculate KPIs with null safety using quotes data
-      const totalRevenue = quotes.reduce((sum, quote) => {
-        const price = Number(quote.total_price) || 0;
-        return sum + price;
-      }, 0);
-      
-      const totalBookings = quotes.length; // Now represents quotes count
+      // Calculate KPIs with null safety
+      // Revenue should come from actual bookings (currently 0)
+      const totalRevenue = 0; // No bookings yet, so no revenue
+      const totalBookings = 0; // No actual bookings yet
+      const totalQuotes = quotes.length; // Current quotes count
       const totalClients = clients.length;
-      const conversionRate = requests.length > 0 ? (totalBookings / requests.length) * 100 : 0;
+      const conversionRate = requests.length > 0 ? (totalQuotes / requests.length) * 100 : 0;
       const avgTicketPrice = totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
       console.log('📈 Calculated KPIs:', {
         totalRevenue,
         totalBookings,
+        totalQuotes,
         totalClients,
         conversionRate: conversionRate.toFixed(2) + '%',
         avgTicketPrice
@@ -319,8 +355,9 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
 
         monthlyData.push({
           month: format(monthStart, 'MMM'),
-          revenue: monthRevenue,
-          bookings: monthQuotes.length, // Now represents quotes count
+          revenue: 0, // No revenue yet (from bookings)
+          bookings: 0, // No actual bookings yet
+          quotes: monthQuotes.length, // Quotes count
           clients: monthClients.length
         });
       }
@@ -344,8 +381,9 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
       const topRoutes = Array.from(routeMap.entries())
         .map(([route, data]) => ({
           route,
-          revenue: data.revenue,
-          bookings: data.bookings, // Now represents quotes count
+          revenue: data.revenue, // Potential revenue from quotes
+          quotes: data.bookings, // This is actually quotes count
+          bookings: 0, // No actual bookings yet
           avgPrice: data.bookings > 0 ? data.revenue / data.bookings : 0
         }))
         .sort((a, b) => b.revenue - a.revenue)
@@ -375,13 +413,14 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
                 
                 return {
                   agentName: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown Agent',
-                  revenue: agentRevenue,
-                  bookings: agentQuotes.length, // Now represents quotes count
+                  revenue: 0, // No revenue from bookings yet
+                  bookings: 0, // No actual bookings yet
+                  quotes: agentQuotes.length, // Quotes generated
                   clients: agentClients.length,
                   avgResponseTime
                 };
               })
-              .filter(agent => agent.revenue > 0 || agent.bookings > 0 || agent.clients > 0) // Only show agents with activity
+              .filter(agent => agent.revenue > 0 || agent.bookings > 0 || agent.quotes > 0 || agent.clients > 0) // Only show agents with activity
               .sort((a, b) => b.revenue - a.revenue);
           }
         } catch (agentError) {
@@ -392,6 +431,7 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
       const analyticsData = {
         totalRevenue,
         totalBookings,
+        totalQuotes,
         totalClients,
         conversionRate,
         avgTicketPrice,
@@ -403,7 +443,8 @@ export const useAnalyticsData = (selectedPeriod: string = 'month') => {
 
       console.log('✅ Analytics data processed successfully (fallback):', {
         totalRevenue,
-        totalBookings: totalBookings, // Now quotes count
+        totalBookings,
+        totalQuotes,
         totalClients,
         monthlyDataPoints: monthlyData.length,
         topRoutesCount: topRoutes.length,
