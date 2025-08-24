@@ -64,7 +64,7 @@ interface CommunicationHistory {
 
 const EnhancedClientManager = () => {
   const navigate = useNavigate();
-  const { user, session, refreshSession } = useAuth();
+  const { user, session } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const filterUserId = searchParams.get('user');
@@ -79,6 +79,7 @@ const EnhancedClientManager = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [showAIInsights, setShowAIInsights] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isFetchingClients, setIsFetchingClients] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -100,72 +101,41 @@ const EnhancedClientManager = () => {
   }, [user]);
 
   const fetchClients = async () => {
-    if (!user) return;
+    if (!user || isFetchingClients) return;
     
     try {
+      setIsFetchingClients(true);
       setLoading(true);
       setAuthError(null);
 
-      console.log('🔍 Fetching clients - Auth Status:', {
-        hasUser: !!user,
-        userId: user?.id,
-        hasSession: !!session,
-        sessionExpiry: session?.expires_at ? new Date(session.expires_at * 1000) : null
-      });
+      console.log('🔍 Fetching clients for user:', user.id);
 
-      // SECURITY FIX: Use standard client access - RLS handles security
       const { data, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('user_id', user.id)  // Enforced: only own data
+        .eq('user_id', user.id);
 
       if (error) {
-        console.error('❌ Error fetching clients:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
+        console.error('❌ Error fetching clients:', error);
         
-        // Handle authentication-specific errors
+        // Handle authentication errors with clear user guidance
         if (error.code === '42501' || error.message.includes('permission denied')) {
-          console.warn('🚨 Authentication issue detected - attempting session refresh');
-          setAuthError('Authentication issue detected. Attempting to refresh session...');
-          
-          try {
-            await refreshSession();
-            // Retry the request after refresh
-            setTimeout(() => {
-              setAuthError(null);
-              fetchClients();
-            }, 1000);
-            return;
-          } catch (refreshError) {
-            console.error('❌ Session refresh failed:', refreshError);
-            setAuthError('Session expired. Please sign in again.');
-            setTimeout(() => {
-              window.location.href = '/auth';
-            }, 3000);
-            return;
-          }
+          setAuthError('Your session has expired. Please sign in again to continue.');
+          return;
         }
         
         toastHelpers.error('Failed to load clients. Please try again.', error);
         return;
       }
 
-      console.log('✅ Clients fetched successfully:', {
-        count: data?.length || 0,
-        hasData: !!data
-      });
-
-      // Use data directly - no transformation needed
+      console.log('✅ Clients fetched successfully:', data?.length || 0);
       setClients(data || []);
     } catch (error) {
       console.error('❌ Unexpected error fetching clients:', error);
       toastHelpers.error('An unexpected error occurred while loading clients.', error);
     } finally {
       setLoading(false);
+      setIsFetchingClients(false);
     }
   };
 
@@ -370,14 +340,19 @@ const EnhancedClientManager = () => {
     <div className="space-y-6">
       {/* Authentication Error Alert */}
       {authError && (
-        <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20">
+        <Alert className="border-red-200 bg-red-50 dark:bg-red-900/20">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Authentication Issue</AlertTitle>
+          <AlertTitle>Authentication Required</AlertTitle>
           <AlertDescription className="flex items-center justify-between">
             <span>{authError}</span>
-            {authError.includes('Attempting') && (
-              <RefreshCw className="h-4 w-4 animate-spin ml-2" />
-            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.href = '/auth'}
+              className="ml-4"
+            >
+              Sign In Again
+            </Button>
           </AlertDescription>
         </Alert>
       )}

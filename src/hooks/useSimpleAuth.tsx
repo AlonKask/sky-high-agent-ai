@@ -26,22 +26,40 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Rate limiting protection
+  let isRefreshing = false;
+  let lastRefreshAttempt = 0;
+  const RATE_LIMIT_DELAY = 5000; // 5 seconds between refresh attempts
 
   const refreshSession = async () => {
+    const now = Date.now();
+    
+    // Prevent concurrent refreshes and rate limiting
+    if (isRefreshing || (now - lastRefreshAttempt < RATE_LIMIT_DELAY)) {
+      console.log('⏳ Refresh already in progress or rate limited');
+      return;
+    }
+
     try {
+      isRefreshing = true;
+      lastRefreshAttempt = now;
+      
       console.log('🔄 Refreshing session...');
       const { data: { session }, error } = await supabase.auth.refreshSession();
       
       if (error) {
         console.error('❌ Session refresh failed:', error);
-        // If refresh fails, try to get current session
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (!currentSession) {
-          // No valid session, clear state and redirect to auth
-          setSession(null);
-          setUser(null);
-          window.location.href = '/auth';
+        
+        // Handle rate limiting specifically
+        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+          console.log('⏳ Rate limited, backing off...');
+          return;
         }
+        
+        // Clear auth state on other errors
+        setSession(null);
+        setUser(null);
         return;
       }
       
@@ -52,32 +70,28 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
       console.error('❌ Session refresh error:', error);
       setSession(null);
       setUser(null);
-      window.location.href = '/auth';
+    } finally {
+      isRefreshing = false;
     }
   };
 
   useEffect(() => {
     console.log('🔄 SimpleAuthProvider initializing...');
 
-    // Set up auth state listener
+    // Set up auth state listener - SIMPLIFIED to prevent loops
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('🔄 Auth state change:', { 
           event, 
           hasSession: !!session, 
-          hasUser: !!session?.user,
-          sessionExpiry: session?.expires_at ? new Date(session.expires_at * 1000) : null
+          hasUser: !!session?.user
         });
         
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // If we get a TOKEN_REFRESHED event but no session, there might be an issue
-        if (event === 'TOKEN_REFRESHED' && !session) {
-          console.warn('⚠️ Token refresh event but no session - attempting recovery');
-          setTimeout(() => refreshSession(), 100);
-        }
+        // REMOVED: TOKEN_REFRESHED handler that caused loops
       }
     );
 
@@ -92,20 +106,12 @@ export const SimpleAuthProvider = ({ children }: { children: React.ReactNode }) 
       console.log('🔍 Initial session check:', { 
         hasSession: !!session, 
         hasUser: !!session?.user,
-        userId: session?.user?.id,
-        sessionExpiry: session?.expires_at ? new Date(session.expires_at * 1000) : null,
-        isExpired: session?.expires_at ? Date.now() / 1000 > session.expires_at : false
+        userId: session?.user?.id
       });
 
-      // If session is expired or about to expire, refresh it
-      if (session?.expires_at && (Date.now() / 1000 > session.expires_at - 60)) {
-        console.log('🔄 Session expired or expiring soon, refreshing...');
-        refreshSession();
-      } else {
-        setSession(session);
-        setUser(session?.user ?? null);
-      }
-      
+      // SIMPLIFIED: Just set the session, let auto-refresh handle expiration
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
     });
 
