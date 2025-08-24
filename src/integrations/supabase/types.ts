@@ -3745,7 +3745,7 @@ export type Database = {
         Returns: string
       }
       generate_oauth_state_token: {
-        Args: { p_user_id: string }
+        Args: Record<PropertyKey, never> | { p_user_id: string }
         Returns: string
       }
       generate_sample_dashboard_data: {
@@ -4420,7 +4420,7 @@ export type Database = {
       }
       validate_oauth_state_token: {
         Args: { p_state_token: string }
-        Returns: string
+        Returns: boolean
       }
       validate_password_strength: {
         Args: { password: string }
