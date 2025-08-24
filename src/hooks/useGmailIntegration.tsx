@@ -140,14 +140,46 @@ export const useGmailIntegration = () => {
       }
       
       console.log('✅ Valid session found, calling gmail-oauth function...');
-      
-      // Call the oauth function with detailed logging
-      const functionCall = supabase.functions.invoke('gmail-oauth', {
-        body: { action: 'start' }
+      console.log('🔍 Session details:', {
+        hasSession: !!session,
+        hasAccessToken: !!session?.access_token,
+        userId: user.id,
+        sessionExpiry: session?.expires_at
       });
       
-      console.log('📡 gmail-oauth function call initiated...');
-      const { data, error } = await functionCall;
+      // Test basic function connectivity first
+      console.log('🧪 Testing function connectivity...');
+      try {
+        const testResponse = await supabase.functions.invoke('health-check', {
+          body: { test: true }
+        });
+        console.log('🧪 Health check response:', testResponse);
+      } catch (testError) {
+        console.error('🧪 Health check failed:', testError);
+        // Continue anyway but log the issue
+      }
+      
+      // Call the oauth function with enhanced error capture
+      console.log('📡 Initiating gmail-oauth function call...');
+      
+      let functionCall;
+      let callError = null;
+      
+      try {
+        functionCall = supabase.functions.invoke('gmail-oauth', {
+          body: { 
+            action: 'start',
+            userId: user.id,
+            timestamp: new Date().toISOString()
+          }
+        });
+        
+        console.log('📡 Function call object created, awaiting response...');
+        const result = await functionCall;
+        
+        console.log('📨 Raw function response received:', result);
+        
+        const { data, error } = result;
       
       console.log('📨 gmail-oauth function response:', { data, error });
 
