@@ -22,7 +22,7 @@ export const useGmailIntegration = () => {
 
   const checkGmailStatus = useCallback(async () => {
     try {
-      console.log('🔍 Starting enhanced Gmail status check...');
+      console.log('🔍 Checking Gmail integration status...');
       setAuthStatus(prev => ({ ...prev, isLoading: true }));
       
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -42,65 +42,18 @@ export const useGmailIntegration = () => {
         return;
       }
 
-      console.log('👤 Checking Gmail status for authenticated user:', user.id);
+      console.log('👤 Checking Gmail status for user:', user.id);
 
-      // PHASE 1: Test basic RPC connectivity
-      console.log('🧪 Testing basic RPC function connectivity...');
-      const { data: testData, error: testError } = await supabase.rpc('test_function_connectivity');
-      
-      console.log('🧪 RPC connectivity test result:', { 
-        success: !testError, 
-        data: testData, 
-        error: testError?.message 
-      });
-      
-      if (testError) {
-        console.error('❌ RPC connectivity test failed:', testError);
-        toast({
-          title: "Database Connection Failed", 
-          description: `RPC connectivity test failed: ${testError.message}`,
-          variant: "destructive"
-        });
-        setAuthStatus({
-          isConnected: false,
-          userEmail: null,
-          isLoading: false,
-          lastSync: null,
-        });
-        return;
-      } else {
-        console.log('✅ RPC connectivity test passed:', testData);
-      }
-
-      // PHASE 2: Test Gmail-specific RPC function  
-      console.log('📧 Testing Gmail integration status RPC...');
+      // Check Gmail integration status
       const { data: gmailData, error: gmailError } = await supabase.rpc('get_gmail_integration_status');
       
-      console.log('📧 Gmail RPC status result:', { 
-        success: !gmailError, 
-        data: gmailData, 
-        error: gmailError?.message 
-      });
-      
       if (gmailError) {
-        console.error('❌ Gmail status RPC failed:', gmailError);
-        toast({
-          title: "Gmail Status Check Failed",
-          description: `Gmail RPC failed: ${gmailError.message}`,
-          variant: "destructive"
-        });
-        setAuthStatus({
-          isConnected: false,
-          userEmail: null,
-          isLoading: false,
-          lastSync: null,
-        });
-        return;
+        console.error('❌ Gmail status check failed:', gmailError);
+        throw gmailError;
       }
 
-      console.log('✅ Gmail status data received:', gmailData);
+      console.log('✅ Gmail status received:', gmailData);
 
-      // PHASE 3: Parse and apply status from RPC result
       const statusData = gmailData as { 
         connected: boolean; 
         user_email?: string; 
@@ -109,18 +62,6 @@ export const useGmailIntegration = () => {
         authenticated_user_id?: string;
       };
       
-      console.log('📋 Parsed Gmail status:', {
-        connected: statusData?.connected,
-        userEmail: statusData?.user_email,
-        lastSync: statusData?.last_sync,
-        authenticatedUserId: statusData?.authenticated_user_id,
-        hasError: !!statusData?.error
-      });
-
-      if (statusData?.error) {
-        console.error('❌ Status data contains error:', statusData.error);
-      }
-      
       setAuthStatus({
         isConnected: statusData?.connected || false,
         userEmail: statusData?.user_email || null,
@@ -128,29 +69,14 @@ export const useGmailIntegration = () => {
         lastSync: statusData?.last_sync ? new Date(statusData.last_sync) : null,
       });
 
-      console.log('✅ Enhanced Gmail status check completed successfully');
+      console.log('✅ Gmail status check completed');
 
     } catch (error: any) {
-      console.error('Gmail status check failed with exception:', error);
-      
-      // Provide more specific error messages based on error type
-      let userFriendlyMessage = 'Gmail integration check failed';
-      
-      if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        userFriendlyMessage = 'Network connection issue - please check your internet and try again';
-      } else if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
-        userFriendlyMessage = 'Authentication issue - please sign in again';
-      } else if (error.message?.includes('RPC') || error.message?.includes('function')) {
-        userFriendlyMessage = 'Database connection issue - please refresh and try again';
-      } else if (error.message?.includes('timeout')) {
-        userFriendlyMessage = 'Request timed out - please try again';
-      }
-      
-      console.error('Final error message:', userFriendlyMessage);
+      console.error('Gmail status check failed:', error);
       
       toast({
         title: "Gmail Status Check Failed",
-        description: userFriendlyMessage,
+        description: error.message || 'Failed to check Gmail status',
         variant: "destructive"
       });
       
@@ -165,7 +91,6 @@ export const useGmailIntegration = () => {
 
   const connectGmail = useCallback(async () => {
     if (!user?.id) {
-      console.error('❌ No user found for Gmail connection');
       toast({
         title: "Authentication Required",
         description: "Please log in to connect Gmail",
@@ -174,36 +99,27 @@ export const useGmailIntegration = () => {
       return;
     }
 
-    console.log(`🔐 Starting Gmail OAuth process for user: ${user.id}`);
+    console.log(`🔐 Starting Gmail OAuth for user: ${user.id}`);
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
     try {
-      console.log('🚀 Initiating Gmail OAuth process...');
-      
-      // Call the oauth function with simplified error handling
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
         body: { 
           action: 'start',
-          userId: user.id,
-          timestamp: new Date().toISOString()
+          userId: user.id
         }
       });
       
-      console.log('📨 OAuth function response:', { data, error });
-
       if (error) {
         console.error('❌ OAuth function failed:', error);
-        throw new Error(`Gmail OAuth failed: ${error.message || 'Unknown error'}`);
+        throw new Error(error.message || 'Gmail OAuth failed');
       }
-
-      console.log('📊 OAuth function data:', data);
 
       if (!data?.authUrl) {
-        console.error('❌ No auth URL received from function:', data);
-        throw new Error('No authorization URL received from server');
+        throw new Error('No authorization URL received');
       }
 
-      console.log(`✅ Authorization URL received, opening popup...`);
+      console.log('✅ Opening OAuth popup...');
 
       const popup = window.open(
         data.authUrl,
@@ -212,41 +128,38 @@ export const useGmailIntegration = () => {
       );
 
       if (!popup) {
-        throw new Error('Failed to open authorization window. Please allow popups and try again.');
+        throw new Error('Please allow popups and try again');
       }
 
       return new Promise<void>((resolve, reject) => {
         const handleMessage = (event: MessageEvent) => {
-          console.log('📨 Received OAuth message:', event.data);
-          
           if (event.data.type === 'gmail_auth_success') {
             window.removeEventListener('message', handleMessage);
             
             if (event.data.success) {
-              console.log('✅ Gmail OAuth completed successfully for:', event.data.userEmail);
-              setTimeout(() => {
-                checkGmailStatus();
-              }, 1500);
+              console.log('✅ Gmail connected:', event.data.userEmail);
+              toast({
+                title: "Gmail Connected",
+                description: `Connected to ${event.data.userEmail}`,
+              });
+              setTimeout(() => checkGmailStatus(), 1000);
               resolve();
             } else {
-              reject(new Error(event.data.error || 'Gmail connection failed during token storage'));
+              reject(new Error(event.data.error || 'Connection failed'));
             }
           } else if (event.data.type === 'gmail_auth_error') {
             window.removeEventListener('message', handleMessage);
-            reject(new Error(event.data.error || 'Gmail authorization failed'));
+            reject(new Error(event.data.error || 'Authorization failed'));
           }
         };
 
         window.addEventListener('message', handleMessage);
 
-        const checkPopupClosed = setInterval(() => {
+        const checkClosed = setInterval(() => {
           if (popup.closed) {
-            clearInterval(checkPopupClosed);
+            clearInterval(checkClosed);
             window.removeEventListener('message', handleMessage);
-            
-            setTimeout(() => {
-              reject(new Error('Gmail connection cancelled - authorization window was closed'));
-            }, 500);
+            reject(new Error('Authorization window was closed'));
           }
         }, 1000);
       });
@@ -254,30 +167,13 @@ export const useGmailIntegration = () => {
     } catch (error: any) {
       console.error('Gmail connection error:', error);
       
-      // Provide more specific error messages based on error type
-      let userFriendlyMessage = 'Gmail connection failed';
-      
-      if (error.message?.includes('popup') || error.message?.includes('Popup')) {
-        userFriendlyMessage = 'Popup blocked - please allow popups and try again';
-      } else if (error.message?.includes('cancelled')) {
-        userFriendlyMessage = 'Gmail connection cancelled - please try again when ready';
-      } else if (error.message?.includes('timeout')) {
-        userFriendlyMessage = 'Connection timed out - please try again';
-      } else if (error.message?.includes('fetch') || error.message?.includes('network')) {
-        userFriendlyMessage = 'Network error - check connection and try again';
-      } else if (error.message?.includes('OAuth')) {
-        userFriendlyMessage = 'Gmail OAuth service unavailable - please try again later';
-      } else {
-        userFriendlyMessage = error.message || 'Unknown error occurred';
-      }
-      
       toast({
         title: "Gmail Connection Failed",
-        description: userFriendlyMessage,
+        description: error.message || 'Connection failed',
         variant: "destructive"
       });
       
-      throw new Error(userFriendlyMessage);
+      throw error;
     } finally {
       setAuthStatus(prev => ({ ...prev, isLoading: false }));
     }

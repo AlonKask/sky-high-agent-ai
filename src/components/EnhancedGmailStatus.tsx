@@ -13,9 +13,11 @@ import {
   ExternalLink,
   Settings,
   Zap,
-  Loader2
+  Loader2,
+  Stethoscope
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { testGmailOAuthHealth } from '@/utils/testGmailHealth';
 
 interface EnhancedGmailStatusProps {
   onEmailRefresh?: () => Promise<void>;
@@ -95,6 +97,17 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
     }
   };
 
+  const handleHealthCheck = async () => {
+    const result = await testGmailOAuthHealth();
+    toast({
+      title: result.success ? "Health Check Passed" : "Health Check Failed",
+      description: result.success 
+        ? `OAuth ready: ${result.data?.data?.oauth_ready}`
+        : result.error,
+      variant: result.success ? "default" : "destructive"
+    });
+  };
+
   const getStatusInfo = () => {
     if (authStatus.isLoading) {
       return {
@@ -153,24 +166,34 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-2">
               {!authStatus.isConnected ? (
-                <Button 
-                  onClick={handleConnect}
-                  disabled={authStatus.isLoading || !user}
-                  size="sm"
-                  className="text-xs"
-                >
-                  {authStatus.isLoading ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="h-3 w-3 mr-1" />
-                      Connect Gmail
-                    </>
-                  )}
-                </Button>
+                <>
+                  <Button 
+                    onClick={handleConnect}
+                    disabled={authStatus.isLoading || !user}
+                    size="sm"
+                    className="text-xs flex-1"
+                  >
+                    {authStatus.isLoading ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-3 w-3 mr-1" />
+                        Connect Gmail
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    onClick={handleHealthCheck}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    <Stethoscope className="h-3 w-3" />
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button 
