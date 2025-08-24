@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FlightPathVisualization } from '@/components/ui/FlightPathVisualization';
+import { EnhancedSabreParser } from '@/utils/enhancedSabreParser';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -48,6 +49,7 @@ interface Quote {
   ck_fee_enabled?: boolean;
   ck_fee_amount?: string;
   segments: Segment[];
+  content?: string; // Raw Sabre data when segments array is empty
   adults_count?: number;
   children_count?: number;
   infants_count?: number;
@@ -105,14 +107,21 @@ const calculateCKFee = (quote: Quote): number => {
   return basePrice * 0.035;
 };
 
-// Transform segments for FlightPathVisualization
-const transformSegmentsForVisualization = (segments: Segment[]) => {
+// Transform segments for FlightPathVisualization 
+const transformSegmentsForVisualization = (segments: any[]) => {
   return segments.map(segment => ({
     airlineCode: segment.airlineCode,
+    airlineName: segment.airlineName,
     flightNumber: segment.flightNumber,
     duration: segment.duration,
-    departureAirport: { code: segment.departureAirport },
-    arrivalAirport: { code: segment.arrivalAirport }
+    departureAirport: { 
+      code: segment.departureAirport,
+      name: segment.departureAirportName 
+    },
+    arrivalAirport: { 
+      code: segment.arrivalAirport,
+      name: segment.arrivalAirportName 
+    }
   }));
 };
 
@@ -129,8 +138,42 @@ export function QuoteCard({
   generateIFormatDisplay,
   selectable = true,
 }: QuoteCardProps) {
+  const [parsedSegments, setParsedSegments] = useState<any[]>([]);
+  const [isParsingContent, setIsParsingContent] = useState(false);
+  
   const totalPrice = safeParseFloat(quote.total_price);
   const fareTypeDisplay = quote.fare_type.replace('_', ' ').toUpperCase();
+  
+  // Parse Sabre content when segments are empty but content exists
+  useEffect(() => {
+    const parseContentData = async () => {
+      if ((!quote.segments || quote.segments.length === 0) && quote.content && quote.content.trim()) {
+        setIsParsingContent(true);
+        try {
+          const format = EnhancedSabreParser.detectFormat(quote.content);
+          let parsed;
+          
+          if (format === "VI") {
+            parsed = await EnhancedSabreParser.parseVIFormatWithDatabase(quote.content);
+          } else {
+            parsed = await EnhancedSabreParser.parseIFormatWithDatabase(quote.content);
+          }
+          
+          if (parsed?.segments) {
+            setParsedSegments(parsed.segments);
+          }
+        } catch (error) {
+          console.error('Failed to parse quote content:', error);
+        } finally {
+          setIsParsingContent(false);
+        }
+      } else if (quote.segments && quote.segments.length > 0) {
+        setParsedSegments(quote.segments);
+      }
+    };
+    
+    parseContentData();
+  }, [quote.segments, quote.content]);
   
   // Extract route info for collapsed view
   const routeParts = quote.route.split(' -> ');
@@ -142,17 +185,18 @@ export function QuoteCard({
     destination = routeParts[routeParts.length - 2] || destination;
   }
 
-  // Prefer segments when available to determine true outbound destination
-  if (quote.segments && quote.segments.length > 0) {
-    const originFromSeg = quote.segments[0]?.departureAirport || origin;
+  // Use parsed segments (from content or existing segments) to determine true outbound destination
+  const activeSegments = parsedSegments.length > 0 ? parsedSegments : quote.segments;
+  if (activeSegments && activeSegments.length > 0) {
+    const originFromSeg = activeSegments[0]?.departureAirport || origin;
     let outboundIndex = 0;
-    for (let i = 0; i < quote.segments.length; i++) {
-      const arr = quote.segments[i]?.arrivalAirport;
+    for (let i = 0; i < activeSegments.length; i++) {
+      const arr = activeSegments[i]?.arrivalAirport;
       if (arr && arr !== originFromSeg) {
         outboundIndex = i; // keep last arrival that isn't the origin
       }
     }
-    const segDest = quote.segments[outboundIndex]?.arrivalAirport;
+    const segDest = activeSegments[outboundIndex]?.arrivalAirport;
     if (segDest) destination = segDest;
   }
   return (
@@ -267,12 +311,23 @@ export function QuoteCard({
                   <Plane className="h-4 w-4" />
                   Flight Route
                 </h4>
-                {quote.segments && quote.segments.length > 0 && (
+                {isParsingContent && (
+                  <div className="flex items-center justify-center py-8 text-muted-foreground">
+                    <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                    Parsing flight data...
+                  </div>
+                )}
+                {!isParsingContent && parsedSegments.length > 0 && (
                   <FlightPathVisualization
-                    segments={transformSegmentsForVisualization(quote.segments)}
+                    segments={transformSegmentsForVisualization(parsedSegments)}
                     className="mb-4"
                     showAirlineLogos={true}
                   />
+                )}
+                {!isParsingContent && parsedSegments.length === 0 && (quote.segments?.length > 0 || quote.content) && (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No flight data available for visualization
+                  </div>
                 )}
               </div>
 
