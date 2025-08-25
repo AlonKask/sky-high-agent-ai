@@ -13,7 +13,9 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  const url = new URL(req.url);
   console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
+  console.log(`📍 URL Parameters:`, Object.fromEntries(url.searchParams));
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -28,8 +30,13 @@ serve(async (req) => {
 
   try {
     // Parse action from URL params or request body
-    const url = new URL(req.url);
     let action = url.searchParams.get('action') || 'start';
+    
+    // CRITICAL FIX: Handle Google OAuth callback - Google sends GET requests to callback URL
+    if (req.method === 'GET' && (url.searchParams.has('code') || url.searchParams.has('error'))) {
+      action = 'callback';
+      console.log(`🔄 Detected OAuth callback via GET request with ${url.searchParams.has('code') ? 'code' : 'error'}`);
+    }
     
     // Also check request body for action (for new client calls)
     if (req.method === 'POST') {
@@ -248,7 +255,8 @@ serve(async (req) => {
       const error = url.searchParams.get('error');
       const state = url.searchParams.get('state');
 
-      console.log(`📞 OAuth callback - code: ${!!code}, state: ${state}, error: ${error}`);
+      console.log(`📞 OAuth callback - method: ${req.method}, code: ${!!code}, state: ${state}, error: ${error}`);
+      console.log(`📍 Full callback URL: ${req.url}`);
 
       if (error) {
         console.error(`❌ OAuth error: ${error}`);
@@ -334,6 +342,9 @@ serve(async (req) => {
       console.log('📦 Storing credentials for user:', userId);
       
       try {
+        // CRITICAL: Log callback execution for debugging
+        console.log('🎯 OAuth callback reached successfully - storing credentials');
+        
         // Log OAuth success for monitoring
         await supabaseServiceClient.rpc('log_oauth_operation', {
           p_user_id: userId,
@@ -343,7 +354,9 @@ serve(async (req) => {
             gmail_email: userInfo.email,
             access_token_length: tokens.access_token?.length || 0,
             refresh_token_length: tokens.refresh_token?.length || 0,
-            expires_in: tokens.expires_in
+            expires_in: tokens.expires_in,
+            callback_method: req.method,
+            callback_url: req.url
           }
         });
         
@@ -375,7 +388,8 @@ serve(async (req) => {
           expires_at: credentialData.token_expires_at
         });
         
-        // Enhanced storage with detailed logging
+        // CRITICAL FIX: Use service role client with better error handling
+        console.log('💾 Attempting credential storage with service role client...');
         const { data: insertData, error: storageError } = await supabaseServiceClient
           .from('gmail_credentials')
           .upsert(credentialData, {
@@ -385,8 +399,14 @@ serve(async (req) => {
 
         if (storageError) {
           console.error('❌ Credential storage failed:', storageError);
+          console.error('❌ Storage error details:', {
+            message: storageError.message,
+            code: storageError.code,
+            details: storageError.details,
+            hint: storageError.hint
+          });
           
-          // Log storage failure
+          // Log storage failure with detailed info
           await supabaseServiceClient.rpc('log_oauth_operation', {
             p_user_id: userId,
             p_operation: 'credential_storage',
@@ -394,12 +414,17 @@ serve(async (req) => {
             p_details: {
               error: storageError.message,
               error_code: storageError.code,
-              gmail_email: userInfo.email
+              error_details: storageError.details,
+              error_hint: storageError.hint,
+              gmail_email: userInfo.email,
+              service_role_used: true
             }
           });
           
           throw new Error(`Credential storage failed: ${storageError.message}`);
         }
+        
+        console.log('✅ Credentials stored successfully:', insertData);
         
         // PHASE 2: Enhanced Verification with New Verification Function
         console.log('🔍 Verifying credential storage using verification function...');
@@ -449,20 +474,53 @@ serve(async (req) => {
           token_valid: verifyData.token_valid
         });
         
-        // Log successful storage
+        // Log successful storage and verification
         await supabaseServiceClient.rpc('log_oauth_operation', {
           p_user_id: userId,
           p_operation: 'credential_storage',
           p_success: true,
           p_details: {
             gmail_email: userInfo.email,
-            verification_passed: true
+            verification_passed: true,
+            credentials_stored: true,
+            callback_completed: true
           }
         });
 
       } catch (storageError) {
         console.error('🚨 Credential storage process failed:', storageError);
-        throw new Error(`Credential storage failed: ${storageError.message}`);
+
+        // Log detailed failure for debugging
+        try {
+          await supabaseServiceClient.rpc('log_oauth_operation', {
+            p_user_id: userId,
+            p_operation: 'credential_storage_error',
+            p_success: false,
+            p_details: {
+              error_message: storageError.message,
+              error_stack: storageError.stack,
+              gmail_email: userInfo.email,
+              callback_method: req.method,
+              callback_reached: true
+            }
+          });
+        } catch (logError) {
+          console.error('Failed to log storage error:', logError);
+        }
+
+        return new Response(
+          `<html><body><h1>OAuth Error</h1><p>Failed to store Gmail credentials: ${storageError.message}</p><script>
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'GMAIL_AUTH_ERROR',
+                success: false,
+                error: 'Failed to store credentials: ${storageError.message}'
+              }, '*');
+            }
+            window.close();
+          </script></body></html>`,
+          { headers: { 'Content-Type': 'text/html' } }
+        );
       }
 
       // PHASE 3: Gmail API Compliance - Enhanced Initial Sync

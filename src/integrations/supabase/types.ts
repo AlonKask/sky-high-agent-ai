@@ -4180,7 +4180,7 @@ export type Database = {
         Args: {
           p_details?: Json
           p_operation: string
-          p_success: boolean
+          p_success?: boolean
           p_user_id: string
         }
         Returns: undefined
