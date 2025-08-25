@@ -360,82 +360,94 @@ serve(async (req) => {
           }
         });
         
-        // CRITICAL FIX: Use Deno-compatible base64 encoding instead of btoa()
-        const encoder = new TextEncoder();
-        const encryptedAccessToken = btoa(String.fromCharCode(...encoder.encode(tokens.access_token)));
-        const encryptedRefreshToken = tokens.refresh_token ? btoa(String.fromCharCode(...encoder.encode(tokens.refresh_token))) : null;
+        // CRITICAL FIX: Use Deno-native base64 encoding (compatible with Deno runtime)
+        console.log('🔧 Encoding tokens using Deno base64...');
+        try {
+          const encryptedAccessToken = btoa(tokens.access_token);
+          const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
+          
+          console.log('✅ Token encoding successful');
+          console.log('📊 Encoded token lengths:', {
+            access_token_length: encryptedAccessToken?.length,
+            refresh_token_length: encryptedRefreshToken?.length
+          });
         
-        // Calculate token expiration
-        const tokenExpirationTime = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000));
-        
-        // Simplified credential data structure
-        const credentialData = {
-          user_id: userId,
-          gmail_user_email: userInfo.email,
-          access_token_encrypted: encryptedAccessToken,
-          refresh_token_encrypted: encryptedRefreshToken,
-          token_expires_at: tokenExpirationTime.toISOString(),
-          is_active: true,
-          scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
-          last_sync_at: new Date().toISOString(),
-        };
-        
-        console.log('💾 Storing credential data for:', userInfo.email);
-        console.log('📝 Credential data structure:', {
-          user_id: credentialData.user_id,
-          gmail_user_email: credentialData.gmail_user_email,
-          has_access_token: !!credentialData.access_token_encrypted,
-          has_refresh_token: !!credentialData.refresh_token_encrypted,
-          expires_at: credentialData.token_expires_at
-        });
-        
-        // CRITICAL FIX: Enhanced credential storage with validation
-        console.log('💾 Attempting credential storage with service role client...');
-        
-        // Validate required fields before storage
-        if (!credentialData.user_id || !credentialData.gmail_user_email || !credentialData.access_token_encrypted) {
-          throw new Error('Missing required credential fields for storage');
-        }
-        
-        // First, check if user already has credentials and deactivate them
-        await supabaseServiceClient
-          .from('gmail_credentials')
-          .update({ is_active: false })
-          .eq('user_id', userId);
-        
-        const { data: insertData, error: storageError } = await supabaseServiceClient
-          .from('gmail_credentials')
-          .insert(credentialData)
-          .select('id, gmail_user_email, created_at, is_active');
+          // Calculate token expiration
+          const tokenExpirationTime = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000));
+          
+          // Simplified credential data structure
+          const credentialData = {
+            user_id: userId,
+            gmail_user_email: userInfo.email,
+            access_token_encrypted: encryptedAccessToken,
+            refresh_token_encrypted: encryptedRefreshToken,
+            token_expires_at: tokenExpirationTime.toISOString(),
+            is_active: true,
+            scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
+            last_sync_at: new Date().toISOString(),
+          };
+          
+          console.log('💾 Storing credential data for:', userInfo.email);
+          console.log('📝 Credential data structure:', {
+            user_id: credentialData.user_id,
+            gmail_user_email: credentialData.gmail_user_email,
+            has_access_token: !!credentialData.access_token_encrypted,
+            has_refresh_token: !!credentialData.refresh_token_encrypted,
+            expires_at: credentialData.token_expires_at
+          });
+          
+          // CRITICAL FIX: Enhanced credential storage with validation
+          console.log('💾 Attempting credential storage with service role client...');
+          
+          // Validate required fields before storage
+          if (!credentialData.user_id || !credentialData.gmail_user_email || !credentialData.access_token_encrypted) {
+            throw new Error('Missing required credential fields for storage');
+          }
+          
+          // First, check if user already has credentials and deactivate them
+          await supabaseServiceClient
+            .from('gmail_credentials')
+            .update({ is_active: false })
+            .eq('user_id', userId);
+          
+          const { data: insertData, error: storageError } = await supabaseServiceClient
+            .from('gmail_credentials')
+            .insert(credentialData)
+            .select('id, gmail_user_email, created_at, is_active');
 
-        if (storageError) {
-          console.error('❌ Credential storage failed:', storageError);
-          console.error('❌ Storage error details:', {
-            message: storageError.message,
-            code: storageError.code,
-            details: storageError.details,
-            hint: storageError.hint
-          });
+          if (storageError) {
+            console.error('❌ Credential storage failed:', storageError);
+            console.error('❌ Storage error details:', {
+              message: storageError.message,
+              code: storageError.code,
+              details: storageError.details,
+              hint: storageError.hint
+            });
+            
+            // Log storage failure with detailed info
+            await supabaseServiceClient.rpc('log_oauth_operation', {
+              p_user_id: userId,
+              p_operation: 'credential_storage',
+              p_success: false,
+              p_details: {
+                error: storageError.message,
+                error_code: storageError.code,
+                error_details: storageError.details,
+                error_hint: storageError.hint,
+                gmail_email: userInfo.email,
+                service_role_used: true
+              }
+            });
+            
+            throw new Error(`Credential storage failed: ${storageError.message}`);
+          }
           
-          // Log storage failure with detailed info
-          await supabaseServiceClient.rpc('log_oauth_operation', {
-            p_user_id: userId,
-            p_operation: 'credential_storage',
-            p_success: false,
-            p_details: {
-              error: storageError.message,
-              error_code: storageError.code,
-              error_details: storageError.details,
-              error_hint: storageError.hint,
-              gmail_email: userInfo.email,
-              service_role_used: true
-            }
-          });
+          console.log('✅ Credentials stored successfully:', insertData);
           
-          throw new Error(`Credential storage failed: ${storageError.message}`);
+        } catch (encodingError) {
+          console.error('❌ Token encoding failed:', encodingError);
+          throw new Error(`Token encoding failed: ${encodingError.message}`);
         }
-        
-        console.log('✅ Credentials stored successfully:', insertData);
         
         // PHASE 2: Enhanced Verification with New Verification Function
         console.log('🔍 Verifying credential storage using verification function...');
