@@ -289,10 +289,12 @@ async function handleScheduledSync(supabaseClient: any) {
             accessToken = refreshData.access_token;
             
             // Update the stored token (re-encrypt new access token)
+            const encoder = new TextEncoder();
+            const encodedToken = btoa(String.fromCharCode(...encoder.encode(accessToken)));
             const { error: updateError } = await supabaseClient
               .from('gmail_credentials')
               .update({
-                access_token_encrypted: btoa(accessToken), // Simple encoding for now
+                access_token_encrypted: encodedToken, // Deno-compatible encoding
                 token_expires_at: new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString(),
                 updated_at: new Date().toISOString()
               })

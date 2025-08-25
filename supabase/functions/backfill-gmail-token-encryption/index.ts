@@ -12,7 +12,10 @@ function base64Encode(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
+  // Use Deno-compatible base64 encoding
+  const encoder = new TextEncoder();
+  const encoded = encoder.encode(binary);
+  return btoa(String.fromCharCode(...encoded));
 }
 
 function normalizeKey(secret: string): Uint8Array {

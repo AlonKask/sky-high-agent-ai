@@ -250,7 +250,10 @@ async function sendEmail(accessToken: string, emailData: any) {
     messageParts.push(body);
 
     const message = messageParts.join('\r\n');
-    const encodedMessage = btoa(unescape(encodeURIComponent(message)))
+    // Use Deno-compatible base64 encoding
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(unescape(encodeURIComponent(message)));
+    const encodedMessage = btoa(String.fromCharCode(...encoded))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');

@@ -89,10 +89,11 @@ serve(async (req) => {
         encoder.encode(data)
       )
 
-      // Combine IV and encrypted data, then base64 encode
+      // Combine IV and encrypted data, then base64 encode using Deno-compatible method
       const combined = new Uint8Array(iv.length + encrypted.byteLength)
       combined.set(iv)
       combined.set(new Uint8Array(encrypted), iv.length)
+      // Use Deno-compatible base64 encoding
       result = btoa(String.fromCharCode(...combined))
 
     } else if (action === 'decrypt') {

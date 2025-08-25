@@ -79,7 +79,7 @@ class RingCentralAPI {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${btoa(`${this.config.clientId}:${this.config.clientSecret}`)}`,
+          Authorization: `Basic ${btoa(String.fromCharCode(...new TextEncoder().encode(`${this.config.clientId}:${this.config.clientSecret}`)))}`,
         },
         body: new URLSearchParams({
           grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
