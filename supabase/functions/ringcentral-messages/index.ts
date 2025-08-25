@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -79,7 +80,7 @@ class RingCentralAPI {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${btoa(String.fromCharCode(...new TextEncoder().encode(`${this.config.clientId}:${this.config.clientSecret}`)))}`,
+          Authorization: `Basic ${encodeBase64(`${this.config.clientId}:${this.config.clientSecret}`)}`
         },
         body: new URLSearchParams({
           grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",

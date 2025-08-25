@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -10,12 +11,7 @@ const corsHeaders = {
 
 function base64Encode(buf: ArrayBuffer | Uint8Array): string {
   const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  // Use Deno-compatible base64 encoding
-  const encoder = new TextEncoder();
-  const encoded = encoder.encode(binary);
-  return btoa(String.fromCharCode(...encoded));
+  return encodeBase64(bytes);
 }
 
 function normalizeKey(secret: string): Uint8Array {

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 // Secure CORS headers with origin validation
@@ -289,12 +290,11 @@ async function handleScheduledSync(supabaseClient: any) {
             accessToken = refreshData.access_token;
             
             // Update the stored token (re-encrypt new access token)
-            const encoder = new TextEncoder();
-            const encodedToken = btoa(String.fromCharCode(...encoder.encode(accessToken)));
+            const encodedToken = encodeBase64(accessToken);
             const { error: updateError } = await supabaseClient
               .from('gmail_credentials')
               .update({
-                access_token_encrypted: encodedToken, // Deno-compatible encoding
+                access_token_encrypted: encodedToken, // Deno standard library encoding
                 token_expires_at: new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString(),
                 updated_at: new Date().toISOString()
               })

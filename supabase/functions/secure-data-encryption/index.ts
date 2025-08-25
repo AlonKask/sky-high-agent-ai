@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // Phase 2: Tighten CORS security - specific origin instead of wildcard
@@ -89,18 +90,16 @@ serve(async (req) => {
         encoder.encode(data)
       )
 
-      // Combine IV and encrypted data, then base64 encode using Deno-compatible method
+      // Combine IV and encrypted data, then base64 encode using Deno standard library
       const combined = new Uint8Array(iv.length + encrypted.byteLength)
       combined.set(iv)
       combined.set(new Uint8Array(encrypted), iv.length)
-      // Use Deno-compatible base64 encoding
-      result = btoa(String.fromCharCode(...combined))
+      // Use Deno standard library base64 encoding
+      result = encodeBase64(combined)
 
     } else if (action === 'decrypt') {
       // Decode base64 and extract IV and encrypted data
-      const combined = new Uint8Array(
-        atob(data).split('').map(c => c.charCodeAt(0))
-      )
+      const combined = decodeBase64(data)
       const iv = combined.slice(0, 12)
       const encryptedData = combined.slice(12)
 

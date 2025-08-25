@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 
@@ -360,12 +361,11 @@ serve(async (req) => {
           }
         });
         
-        // CRITICAL FIX: Use Deno-native base64 encoding (compatible with Deno runtime)
-        console.log('🔧 Encoding tokens using Deno base64...');
+        // CRITICAL FIX: Use Deno standard library base64 encoding
+        console.log('🔧 Encoding tokens using Deno std/encoding/base64...');
         try {
-          const encoder = new TextEncoder();
-          const encryptedAccessToken = btoa(String.fromCharCode(...encoder.encode(tokens.access_token)));
-          const encryptedRefreshToken = tokens.refresh_token ? btoa(String.fromCharCode(...encoder.encode(tokens.refresh_token))) : null;
+          const encryptedAccessToken = encodeBase64(tokens.access_token);
+          const encryptedRefreshToken = tokens.refresh_token ? encodeBase64(tokens.refresh_token) : null;
           
           console.log('✅ Token encoding successful');
           console.log('📊 Encoded token lengths:', {

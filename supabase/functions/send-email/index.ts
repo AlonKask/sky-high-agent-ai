@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -153,10 +154,8 @@ const handler = async (req: Request): Promise<Response> => {
     messageParts.push(body.replace(/\n/g, '<br>'));
 
     const message = messageParts.join('\r\n');
-    // Use Deno-compatible base64 encoding
-    const encoder = new TextEncoder();
-    const encoded = encoder.encode(unescape(encodeURIComponent(message)));
-    const encodedMessage = btoa(String.fromCharCode(...encoded))
+    // Use Deno standard library base64 encoding
+    const encodedMessage = encodeBase64(unescape(encodeURIComponent(message)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
