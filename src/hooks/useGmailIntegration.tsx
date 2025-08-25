@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSimpleAuth } from './useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { invokeSupabaseFunction, retryWithExponentialBackoff, categorizeNetworkError, NetworkError } from '@/utils/gmailNetworkUtils';
 
 interface GmailAuthStatus {
   isConnected: boolean;
@@ -263,33 +264,22 @@ export const useGmailIntegration = () => {
                 console.log(`🔄 Verifying credentials with verification function (attempt ${attempt}/${maxAttempts})`);
                 
                 try {
-                  // PHASE 1: Network resilience for credential verification
-                  const verifyWithRetry = async (retryAttempt = 1): Promise<any> => {
-                    try {
-                      const { data: verificationResult, error } = await supabase
-                        .rpc('verify_gmail_credentials', { p_user_id: user?.id });
-                      
-                      if (error) {
-                        console.error('❌ Credential verification RPC error:', error);
-                        if (retryAttempt < 3) {
-                          await new Promise(resolve => setTimeout(resolve, 500 * retryAttempt));
-                          return verifyWithRetry(retryAttempt + 1);
-                        }
-                        throw error;
-                      }
-                      
-                      return verificationResult;
-                    } catch (error) {
-                      if (retryAttempt < 3) {
-                        console.log(`🔄 Retrying credential verification (${retryAttempt + 1}/3)...`);
-                        await new Promise(resolve => setTimeout(resolve, 500 * retryAttempt));
-                        return verifyWithRetry(retryAttempt + 1);
-                      }
-                      throw error;
+                  // PHASE 2: Enhanced credential verification with network resilience
+                  const verificationResult = await retryWithExponentialBackoff(async () => {
+                    const { data: result, error } = await supabase
+                      .rpc('verify_gmail_credentials', { p_user_id: user?.id });
+                    
+                    if (error) {
+                      console.error('❌ Credential verification RPC error:', error);
+                      throw new NetworkError('Credential verification failed', true);
                     }
-                  };
-                  
-                  const verificationResult = await verifyWithRetry();
+                    
+                    return result;
+                  }, {
+                    maxAttempts: 3,
+                    initialDelay: 500,
+                    timeout: 10000
+                  });
                   
                   // Type assertion for RPC result
                   const result = verificationResult as any;

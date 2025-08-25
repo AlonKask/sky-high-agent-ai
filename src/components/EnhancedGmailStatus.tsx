@@ -30,79 +30,56 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
   const { user } = useSimpleAuth();
   const { authStatus, connectGmail, disconnectGmail, refreshStatus, triggerSync, forceRefresh } = useGmailIntegration();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // PHASE 4: Enhanced connection handler with detailed status updates and retry capability
   const handleConnect = async (isRetry = false) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in first to connect Gmail",
-        variant: "destructive"
-      });
-      return;
-    }
-
+    setIsConnecting(true);
     try {
-      console.log(`🔄 ${isRetry ? 'Retrying' : 'Starting'} Gmail connection process...`);
-      
-      // PHASE 4: Show immediate feedback to user
-      if (isRetry) {
-        toast({
-          title: "Retrying Connection",
-          description: "Attempting to connect to Gmail again...",
-        });
-      }
-      
       await connectGmail();
       
-      // Call refresh callback if provided
-      if (onEmailRefresh) {
-        await onEmailRefresh();
-      }
+      // PHASE 3: Enhanced success verification
+      console.log('🔄 Verifying Gmail connection after successful OAuth...');
       
-      // PHASE 4: Enhanced success confirmation
-      toast({
-        title: "Gmail Connected Successfully!",
-        description: "Gmail integration is now active. Your emails will be synced automatically.",
-      });
-      console.log('✅ Gmail connection completed successfully');
+      // Wait a moment for credentials to be stored, then verify
+      setTimeout(async () => {
+        try {
+          await refreshStatus();
+          toast({
+            title: "Gmail Connected Successfully!",
+            description: "Your Gmail account is now connected and ready to sync emails.",
+          });
+        } catch (verifyError) {
+          console.warn('⚠️ Connection succeeded but verification failed:', verifyError);
+          toast({
+            title: "Connection Completed",
+            description: "Gmail connected. Refresh the page if status doesn't update.",
+          });
+        }
+      }, 2000);
       
     } catch (error: any) {
-      console.error('❌ Gmail connection failed:', error);
+      console.error('Gmail connection error:', error);
       
-      // PHASE 4: Enhanced error categorization and user guidance
-      let errorTitle = "Gmail Connection Failed";
-      let errorMessage = error.message || "Failed to connect Gmail. Please try again.";
-      let showRetryButton = false;
+      // Enhanced error handling using network utilities
+      let errorMessage = error.message || 'Failed to connect to Gmail';
+      let showRetry = false;
       
-      if (error.message?.includes('not configured') || error.message?.includes('administrator')) {
-        errorTitle = "Configuration Required";
-        errorMessage = "Gmail integration needs to be configured by your administrator. Please contact support.";
-      } else if (error.message?.includes('Session expired') || error.message?.includes('refresh')) {
-        errorTitle = "Session Expired";
-        errorMessage = "Your session has expired. Please refresh the page and try again.";
-      } else if (error.message?.includes('temporarily unavailable') || error.message?.includes('not ready')) {
-        errorTitle = "Service Unavailable";
-        errorMessage = "Gmail service is temporarily unavailable. Please try again in a few minutes.";
-        showRetryButton = true;
-      } else if (error.message?.includes('network') || error.message?.includes('timeout') || error.message?.includes('not responding')) {
-        errorTitle = "Network Error";
-        errorMessage = "Network connection issue detected. Please check your internet connection and try again.";
-        showRetryButton = true;
+      if (error.message?.includes('network') || error.message?.includes('timeout')) {
+        errorMessage = 'Network connection issue. Please check your internet and try again.';
+        showRetry = true;
       } else if (error.message?.includes('popup') || error.message?.includes('blocked')) {
-        errorTitle = "Popup Blocked";
-        errorMessage = "Please allow popups for this site and try again.";
-        showRetryButton = true;
-      } else {
-        // Generic errors that might be retryable
-        showRetryButton = !isRetry; // Only show retry if this wasn't already a retry
+        errorMessage = 'Popup blocked. Please allow popups for this site and try again.';
+        showRetry = true;
+      } else if (error.message?.includes('not configured')) {
+        errorMessage = 'Gmail integration needs to be configured by your administrator.';
       }
       
       toast({
-        title: errorTitle,
+        title: "Connection Failed",
         description: errorMessage,
         variant: "destructive",
-        action: showRetryButton ? (
+        action: showRetry ? (
           <Button 
             variant="outline" 
             size="sm" 
@@ -112,6 +89,14 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
           </Button>
         ) : undefined
       });
+      
+      // Auto-retry for transient network issues
+      if (showRetry && !isRetry) {
+        console.log('🔄 Auto-retrying connection in 3 seconds...');
+        setTimeout(() => handleConnect(true), 3000);
+      }
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -298,11 +283,11 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
                 <>
                   <Button 
                     onClick={() => handleConnect(false)}
-                    disabled={authStatus.isLoading || !user}
+                    disabled={isConnecting || authStatus.isLoading || !user}
                     size="sm"
                     className="text-xs flex-1"
                   >
-                    {authStatus.isLoading ? (
+                     {isConnecting || authStatus.isLoading ? (
                       <>
                         <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                         Connecting...
