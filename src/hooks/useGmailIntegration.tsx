@@ -114,6 +114,23 @@ export const useGmailIntegration = () => {
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
     try {
+      // PHASE 2: Connection health check before starting OAuth
+      console.log('🏥 Performing connection health check...');
+      
+      try {
+        const { data: healthData, error: healthError } = await supabase.functions.invoke('gmail-oauth-health');
+        
+        if (healthError) {
+          console.warn('⚠️ Health check failed, proceeding anyway:', healthError);
+        } else if (!healthData?.success || !healthData?.data?.oauth_ready) {
+          throw new Error('Gmail integration service is not ready. Please contact your administrator.');
+        }
+        
+        console.log('✅ Health check passed, OAuth service is ready');
+      } catch (healthErr) {
+        console.warn('⚠️ Health check unavailable, proceeding with OAuth:', healthErr);
+      }
+
       // Ensure we have a valid session with JWT token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session?.access_token) {
@@ -123,14 +140,51 @@ export const useGmailIntegration = () => {
 
       console.log('🔑 Session validated, invoking OAuth function...');
 
-      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        },
-        body: { 
-          action: 'start'
+      // PHASE 1: Network resilience with retry logic and timeout
+      const invokeWithRetry = async (attempt = 1, maxAttempts = 3): Promise<any> => {
+        const timeout = 30000; // 30 second timeout
+        
+        try {
+          console.log(`🌐 OAuth function call attempt ${attempt}/${maxAttempts}...`);
+          
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout after 30 seconds')), timeout);
+          });
+          
+          const invokePromise = supabase.functions.invoke('gmail-oauth', {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            },
+            body: { 
+              action: 'start'
+            }
+          });
+          
+          const result = await Promise.race([invokePromise, timeoutPromise]);
+          return result;
+          
+        } catch (error: any) {
+          console.error(`❌ OAuth function call attempt ${attempt} failed:`, error);
+          
+          // Check if it's a network error that we can retry
+          const isRetryableError = 
+            error.message?.includes('timeout') ||
+            error.message?.includes('fetch') ||
+            error.message?.includes('network') ||
+            error.message?.includes('Failed to send a request');
+          
+          if (isRetryableError && attempt < maxAttempts) {
+            const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+            console.log(`🔄 Retrying OAuth call in ${retryDelay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            return invokeWithRetry(attempt + 1, maxAttempts);
+          }
+          
+          throw error;
         }
-      });
+      };
+
+      const { data, error } = await invokeWithRetry();
       
       console.log('📊 OAuth function response:', { data, error });
       
@@ -204,54 +258,101 @@ export const useGmailIntegration = () => {
                 description: `Connected to ${event.data.userEmail || 'your Gmail account'}. Verifying...`,
               });
               
-              // Enhanced polling using the new verification function
-              const pollForCredentials = async (attempt = 1, maxAttempts = 8): Promise<void> => {
+              // PHASE 2 & 3: Enhanced polling with immediate verification and real-time updates
+              const pollForCredentials = async (attempt = 1, maxAttempts = 12): Promise<void> => {
                 console.log(`🔄 Verifying credentials with verification function (attempt ${attempt}/${maxAttempts})`);
                 
                 try {
-                  const { data: verificationResult } = await supabase
-                    .rpc('verify_gmail_credentials', { p_user_id: user?.id });
+                  // PHASE 1: Network resilience for credential verification
+                  const verifyWithRetry = async (retryAttempt = 1): Promise<any> => {
+                    try {
+                      const { data: verificationResult, error } = await supabase
+                        .rpc('verify_gmail_credentials', { p_user_id: user?.id });
+                      
+                      if (error) {
+                        console.error('❌ Credential verification RPC error:', error);
+                        if (retryAttempt < 3) {
+                          await new Promise(resolve => setTimeout(resolve, 500 * retryAttempt));
+                          return verifyWithRetry(retryAttempt + 1);
+                        }
+                        throw error;
+                      }
+                      
+                      return verificationResult;
+                    } catch (error) {
+                      if (retryAttempt < 3) {
+                        console.log(`🔄 Retrying credential verification (${retryAttempt + 1}/3)...`);
+                        await new Promise(resolve => setTimeout(resolve, 500 * retryAttempt));
+                        return verifyWithRetry(retryAttempt + 1);
+                      }
+                      throw error;
+                    }
+                  };
+                  
+                  const verificationResult = await verifyWithRetry();
                   
                   // Type assertion for RPC result
                   const result = verificationResult as any;
                   
-                  if (result?.exists && result?.connected) {
+                  if (result?.exists && result?.connected && result?.token_valid) {
                     console.log('🎉 Credentials verified successfully!', {
                       gmail_email: result.user_email,
                       has_tokens: result.has_access_token && result.has_refresh_token,
-                      token_valid: result.token_valid
+                      token_valid: result.token_valid,
+                      last_sync: result.last_sync
                     });
                     
-                    await checkGmailStatus(); // Refresh UI status
+                    // PHASE 3: Real-time status update with immediate UI refresh
+                    await checkGmailStatus();
                     
+                    // PHASE 4: Enhanced success confirmation with user details
                     toast({
-                      title: "Gmail Connected!",
-                      description: `Successfully connected to ${result.user_email}`,
+                      title: "Gmail Successfully Connected!",
+                      description: `Successfully connected to ${result.user_email}. You can now sync your emails.`,
                     });
                     
                     return;
                   }
                   
+                  // PHASE 3: Adaptive polling intervals with progressive delays
+                  const getPollingDelay = (attemptNum: number): number => {
+                    if (attemptNum <= 3) return 800;  // Fast polling first 3 attempts
+                    if (attemptNum <= 6) return 1200; // Medium polling next 3 attempts  
+                    return 2000; // Slower polling for remaining attempts
+                  };
+                  
                   if (attempt < maxAttempts) {
-                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), 1000);
+                    const delay = getPollingDelay(attempt);
+                    console.log(`⏱️ Credentials not ready yet, retrying in ${delay}ms (${attempt}/${maxAttempts})`);
+                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), delay);
                   } else {
                     console.warn('⚠️ Credential verification timeout, forcing final status refresh');
+                    
+                    // PHASE 3: Final status check with fallback mechanism
                     await checkGmailStatus();
                     
+                    // PHASE 4: Timeout handling with actionable guidance
                     toast({
-                      title: "Gmail Connected",
-                      description: "Connection established, but verification is taking longer than usual",
+                      title: "Connection Status Unclear",
+                      description: "Gmail connection may have succeeded. Please use the refresh button to check your status.",
+                      variant: "destructive"
                     });
                   }
                 } catch (error) {
                   console.error('❌ Error during credential verification:', error);
+                  
                   if (attempt < maxAttempts) {
-                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), 1500);
+                    const delay = 1500 + (attempt * 300); // Progressive delay on errors
+                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), delay);
                   } else {
+                    // PHASE 3: Fallback status refresh on verification failure
                     await checkGmailStatus();
+                    
+                    // PHASE 4: Error recovery guidance
                     toast({
-                      title: "Gmail Connected",
-                      description: "Connection may have succeeded - please check your status",
+                      title: "Verification Issues",
+                      description: "Gmail connection completed but verification failed. Please check your connection status.",
+                      variant: "destructive"
                     });
                   }
                 }

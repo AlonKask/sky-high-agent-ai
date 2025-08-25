@@ -2,11 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 
+// PHASE 1: Enhanced CORS handling with better browser compatibility
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, accept-language, content-language',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
   'Access-Control-Allow-Credentials': 'true',
+  'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
+  'Vary': 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers',
 };
 
 serve(async (req) => {
@@ -21,10 +24,17 @@ serve(async (req) => {
   });
   
   
-  // Handle CORS preflight requests first
+  // PHASE 1: Enhanced CORS preflight handling with detailed logging
   if (req.method === 'OPTIONS') {
     console.log('📝 Handling CORS preflight request');
-    return new Response(null, { headers: corsHeaders });
+    console.log('🌐 Origin:', req.headers.get('origin'));
+    console.log('📋 Requested Headers:', req.headers.get('access-control-request-headers'));
+    console.log('🔧 Requested Method:', req.headers.get('access-control-request-method'));
+    
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 200
+    });
   }
 
   // SECURITY: Apply rate limiting to OAuth endpoint

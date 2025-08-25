@@ -31,7 +31,8 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
   const { authStatus, connectGmail, disconnectGmail, refreshStatus, triggerSync, forceRefresh } = useGmailIntegration();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  const handleConnect = async () => {
+  // PHASE 4: Enhanced connection handler with detailed status updates and retry capability
+  const handleConnect = async (isRetry = false) => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -42,7 +43,16 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
     }
 
     try {
-      console.log('🔄 Starting Gmail connection process...');
+      console.log(`🔄 ${isRetry ? 'Retrying' : 'Starting'} Gmail connection process...`);
+      
+      // PHASE 4: Show immediate feedback to user
+      if (isRetry) {
+        toast({
+          title: "Retrying Connection",
+          description: "Attempting to connect to Gmail again...",
+        });
+      }
+      
       await connectGmail();
       
       // Call refresh callback if provided
@@ -50,33 +60,57 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
         await onEmailRefresh();
       }
       
+      // PHASE 4: Enhanced success confirmation
       toast({
-        title: "Gmail Connected",
-        description: "Gmail integration enabled successfully",
+        title: "Gmail Connected Successfully!",
+        description: "Gmail integration is now active. Your emails will be synced automatically.",
       });
       console.log('✅ Gmail connection completed successfully');
+      
     } catch (error: any) {
       console.error('❌ Gmail connection failed:', error);
       
+      // PHASE 4: Enhanced error categorization and user guidance
       let errorTitle = "Gmail Connection Failed";
       let errorMessage = error.message || "Failed to connect Gmail. Please try again.";
+      let showRetryButton = false;
       
-      // Enhanced error handling for specific error types
       if (error.message?.includes('not configured') || error.message?.includes('administrator')) {
         errorTitle = "Configuration Required";
-        errorMessage = "Gmail integration needs to be configured by your administrator.";
+        errorMessage = "Gmail integration needs to be configured by your administrator. Please contact support.";
       } else if (error.message?.includes('Session expired') || error.message?.includes('refresh')) {
         errorTitle = "Session Expired";
-        errorMessage = "Please refresh the page and try again.";
-      } else if (error.message?.includes('temporarily unavailable')) {
+        errorMessage = "Your session has expired. Please refresh the page and try again.";
+      } else if (error.message?.includes('temporarily unavailable') || error.message?.includes('not ready')) {
         errorTitle = "Service Unavailable";
         errorMessage = "Gmail service is temporarily unavailable. Please try again in a few minutes.";
+        showRetryButton = true;
+      } else if (error.message?.includes('network') || error.message?.includes('timeout') || error.message?.includes('not responding')) {
+        errorTitle = "Network Error";
+        errorMessage = "Network connection issue detected. Please check your internet connection and try again.";
+        showRetryButton = true;
+      } else if (error.message?.includes('popup') || error.message?.includes('blocked')) {
+        errorTitle = "Popup Blocked";
+        errorMessage = "Please allow popups for this site and try again.";
+        showRetryButton = true;
+      } else {
+        // Generic errors that might be retryable
+        showRetryButton = !isRetry; // Only show retry if this wasn't already a retry
       }
       
       toast({
         title: errorTitle,
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        action: showRetryButton ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleConnect(true)}
+          >
+            Retry
+          </Button>
+        ) : undefined
       });
     }
   };
@@ -263,7 +297,7 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
               {!authStatus.isConnected ? (
                 <>
                   <Button 
-                    onClick={handleConnect}
+                    onClick={() => handleConnect(false)}
                     disabled={authStatus.isLoading || !user}
                     size="sm"
                     className="text-xs flex-1"
