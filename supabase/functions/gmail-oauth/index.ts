@@ -363,8 +363,9 @@ serve(async (req) => {
         // CRITICAL FIX: Use Deno-native base64 encoding (compatible with Deno runtime)
         console.log('🔧 Encoding tokens using Deno base64...');
         try {
-          const encryptedAccessToken = btoa(tokens.access_token);
-          const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
+          const encoder = new TextEncoder();
+          const encryptedAccessToken = btoa(String.fromCharCode(...encoder.encode(tokens.access_token)));
+          const encryptedRefreshToken = tokens.refresh_token ? btoa(String.fromCharCode(...encoder.encode(tokens.refresh_token))) : null;
           
           console.log('✅ Token encoding successful');
           console.log('📊 Encoded token lengths:', {
