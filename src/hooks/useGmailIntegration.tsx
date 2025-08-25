@@ -435,11 +435,18 @@ export const useGmailIntegration = () => {
     checkGmailStatus();
   }, [checkGmailStatus]);
 
+  // Manual refresh function for immediate status check
+  const forceRefresh = useCallback(async () => {
+    setAuthStatus(prev => ({ ...prev, isLoading: true }));
+    await checkGmailStatus();
+  }, [checkGmailStatus]);
+
   return {
     authStatus,
     connectGmail,
     disconnectGmail,
     triggerSync,
-    refreshStatus: checkGmailStatus
+    refreshStatus: checkGmailStatus,
+    forceRefresh
   };
 };
