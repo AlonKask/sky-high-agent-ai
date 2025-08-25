@@ -338,79 +338,54 @@ const Emails = () => {
     }
   };
 
-  // PHASE 4: Enhanced email loading with improved Gmail integration
+  // Simplified email loading with Gmail integration
   useEffect(() => {
     if (user) {
-      console.log('📧 User authenticated, loading emails...');
+      console.log('📧 Loading emails for user...');
       
-      // PHASE 4: Enhanced email loading with improved Gmail integration
-      const loadEmailsWithGmailCheck = async () => {
+      const loadEmails = async () => {
+        // Load emails from database
+        await loadEmailsFromDB();
+        
+        // Check Gmail connection and trigger background sync if needed
         try {
-          // Load emails from database first (faster UX)
-          await loadEmailsFromDB();
-          
-          // Check Gmail connection status in background
-          const { data: gmailStatus, error: verifyError } = await supabase
+          const { data: gmailStatus } = await supabase
             .rpc('verify_gmail_credentials', { p_user_id: user.id });
           
-          if (!verifyError && gmailStatus && typeof gmailStatus === 'object') {
-            const result = gmailStatus as any;
-            if (result?.exists && result?.connected) {
-              console.log('✅ Gmail connected, checking for fresh emails...');
+          const result = gmailStatus as any;
+          if (result?.exists && result?.connected && emails.length === 0) {
+            console.log('📥 No emails found, triggering background sync...');
+            
+            // Trigger background sync with session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              const { data: syncResult } = await supabase.functions.invoke('unified-gmail-sync', {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+                body: { user_id: user.id }
+              });
               
-              // Only trigger sync if we have few or no emails
-              if (emails.length < 5) {
-                console.log('📥 Triggering background sync for fresh emails...');
-                try {
-                  // Use enhanced sync with proper parameters
-                  const { data: syncResult } = await supabase.functions.invoke('unified-gmail-sync', {
-                    body: { 
-                      user_id: user.id, 
-                      force_sync: false,
-                      maxResults: 25 
-                    }
-                  });
-                  
-                  if (syncResult?.success) {
-                    console.log(`🔄 Background sync completed, ${syncResult.emails_synced || 0} emails synced`);
-                    // Reload emails after sync with delay
-                    setTimeout(() => loadEmailsFromDB(), 2000);
-                  }
-                } catch (syncError) {
-                  console.log('⚠️ Background sync failed:', syncError);
-                }
-              } else {
-                console.log('📧 Sufficient emails already loaded, skipping background sync');
+              if (syncResult?.success && syncResult.emails_synced > 0) {
+                console.log(`✅ Synced ${syncResult.emails_synced} emails`);
+                // Reload emails after sync
+                setTimeout(() => loadEmailsFromDB(), 1500);
               }
-            } else {
-              console.log('⚠️ Gmail not connected or verification failed');
             }
-          } else {
-            console.log('⚠️ Gmail status verification failed:', verifyError?.message);
           }
-          
         } catch (error) {
-          console.error('❌ Error in email loading process:', error);
-          // Always ensure we load whatever emails we have
-          await loadEmailsFromDB();
+          console.log('Background sync not available:', error);
         }
       };
       
-      loadEmailsWithGmailCheck();
+      loadEmails();
       
-      // Listen for Gmail sync events
-      const handleGmailSync = () => {
-        console.log('📧 Gmail sync event detected, reloading emails...');
-        loadEmailsFromDB();
-      };
-      
-      window.addEventListener('gmail-sync-complete', handleGmailSync);
+      // Listen for sync events
+      const handleSync = () => loadEmailsFromDB();
+      window.addEventListener('gmail-sync-complete', handleSync);
       
       return () => {
-        window.removeEventListener('gmail-sync-complete', handleGmailSync);
+        window.removeEventListener('gmail-sync-complete', handleSync);
       };
     } else {
-      console.log('⚠️ No user found, clearing emails');
       setEmails([]);
       setEmailStats({ total: 0, unread: 0, sent: 0, received: 0 });
     }

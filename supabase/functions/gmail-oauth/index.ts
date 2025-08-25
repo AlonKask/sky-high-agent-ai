@@ -13,34 +13,17 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  const startTime = Date.now();
   console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
-  console.log(`⏰ Request started at: ${new Date().toISOString()}`);
-  console.log(`📊 Request Headers:`, {
-    'authorization': req.headers.get('authorization') ? '***Bearer token present***' : 'NO AUTH HEADER',
-    'content-type': req.headers.get('content-type'),
-    'user-agent': req.headers.get('user-agent')?.substring(0, 50) + '...',
-    'origin': req.headers.get('origin')
-  });
   
-  
-  // PHASE 1: Enhanced CORS preflight handling with detailed logging
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    console.log('📝 Handling CORS preflight request');
-    console.log('🌐 Origin:', req.headers.get('origin'));
-    console.log('📋 Requested Headers:', req.headers.get('access-control-request-headers'));
-    console.log('🔧 Requested Method:', req.headers.get('access-control-request-method'));
-    
-    return new Response(null, { 
-      headers: corsHeaders,
-      status: 200
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
-  // SECURITY: Apply rate limiting to OAuth endpoint
+  // Apply rate limiting
   return await withRateLimit(req, {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 10, // Increased from 5 to 10 OAuth attempts per 15 minutes per IP
+    maxRequests: 10, // OAuth attempts per 15 minutes
   }, async () => {
 
   try {
@@ -100,57 +83,20 @@ serve(async (req) => {
         );
       }
       
-      // Enhanced OAuth state token validation with detailed logging
+      // Validate OAuth state token
       try {
-        console.log(`🔍 Validating OAuth state token: ${state.substring(0, 8)}...`);
-        
         const { data: validatedUserId, error: validationError } = await supabaseServiceClient
           .rpc('validate_oauth_state_token', { p_state_token: state });
         
-        if (validationError) {
-          console.error(`❌ State validation RPC error:`, {
-            message: validationError.message,
-            details: validationError.details,
-            hint: validationError.hint,
-            code: validationError.code,
-            stateTokenLength: state.length,
-            stateTokenFormat: /^[0-9a-f]+$/.test(state)
-          });
-          
-          // Enhanced error message based on validation error
-          let errorMessage = 'Invalid or expired authentication state';
-          if (validationError.message?.includes('not found')) {
-            errorMessage = 'Authentication state expired. Please try connecting again.';
-          } else if (validationError.message?.includes('already used')) {
-            errorMessage = 'Authentication state already used. Please start a new connection.';
-          } else if (validationError.message?.includes('invalid format')) {
-            errorMessage = 'Corrupted authentication state. Please try again.';
-          }
-          
+        if (validationError || !validatedUserId) {
+          console.error('❌ State validation failed:', validationError?.message);
           return new Response(
-            `<html><body><h1>Security Error</h1><p>${errorMessage}</p><script>
+            `<html><body><h1>Authentication Error</h1><p>Invalid authentication state. Please try again.</p><script>
               if (window.opener) {
                 window.opener.postMessage({
                   type: 'GMAIL_AUTH_ERROR',
                   success: false,
-                  error: '${errorMessage}'
-                }, '*');
-              }
-              window.close();
-            </script></body></html>`,
-            { headers: { 'Content-Type': 'text/html' } }
-          );
-        }
-        
-        if (!validatedUserId) {
-          console.error(`❌ State validation returned null user ID`);
-          return new Response(
-            `<html><body><h1>Security Error</h1><p>Authentication validation failed - no user ID returned.</p><script>
-              if (window.opener) {
-                window.opener.postMessage({
-                  type: 'GMAIL_AUTH_ERROR',
-                  success: false,
-                  error: 'Authentication validation failed'
+                  error: 'Invalid authentication state'
                 }, '*');
               }
               window.close();
@@ -160,23 +106,17 @@ serve(async (req) => {
         }
         
         userId = validatedUserId;
-        console.log(`✅ Successfully validated user ID: ${userId}`);
+        console.log(`✅ Validated user ID: ${userId}`);
         
       } catch (error) {
-        console.error(`❌ State validation exception:`, {
-          message: error.message,
-          stack: error.stack,
-          stateToken: state.substring(0, 8) + '...',
-          stateTokenLength: state.length
-        });
-        
+        console.error('❌ State validation error:', error.message);
         return new Response(
-          `<html><body><h1>Security Error</h1><p>Authentication state validation failed. Please try again.</p><script>
+          `<html><body><h1>Authentication Error</h1><p>Authentication validation failed. Please try again.</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
-                error: 'State validation exception occurred'
+                error: 'Authentication validation failed'
               }, '*');
             }
             window.close();
@@ -257,18 +197,11 @@ serve(async (req) => {
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
       
-      console.log(`🚀 Starting OAuth flow for user: ${userId}`);
-      console.log(`🔐 Environment check - Client ID: ${!!clientId}, Client Secret: ${!!clientSecret}`);
-      
       if (!clientId || !clientSecret) {
-        const error = 'Google OAuth credentials not configured. Please contact system administrator.';
-        console.error(`❌ ${error}`);
+        console.error('❌ Google OAuth credentials not configured');
         return new Response(
-          JSON.stringify({ success: false, error }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+          JSON.stringify({ success: false, error: 'OAuth not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
@@ -278,18 +211,15 @@ serve(async (req) => {
         'https://www.googleapis.com/auth/userinfo.email'
       ].join(' ');
 
-      // Generate secure OAuth state token
+      // Generate OAuth state token with automatic cleanup
       const { data: stateToken, error: stateError } = await supabaseServiceClient
         .rpc('generate_oauth_state_token', { p_user_id: userId });
       
       if (stateError || !stateToken) {
-        console.error(`❌ Failed to generate OAuth state token:`, stateError);
+        console.error('❌ Failed to generate state token:', stateError?.message);
         return new Response(
-          JSON.stringify({ success: false, error: 'Failed to generate secure state token' }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+          JSON.stringify({ success: false, error: 'Failed to generate state token' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
