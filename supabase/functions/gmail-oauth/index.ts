@@ -361,14 +361,15 @@ serve(async (req) => {
           }
         });
         
-        // CRITICAL FIX: Use Deno standard library base64 encoding
-        console.log('🔧 Encoding tokens using Deno std/encoding/base64...');
+        // CRITICAL FIX: Store tokens directly without over-encoding
+        console.log('🔧 Storing OAuth tokens directly (no encoding needed)...');
         try {
-          const encryptedAccessToken = encodeBase64(tokens.access_token);
-          const encryptedRefreshToken = tokens.refresh_token ? encodeBase64(tokens.refresh_token) : null;
+          // OAuth tokens are already properly formatted strings from Google
+          const encryptedAccessToken = tokens.access_token;
+          const encryptedRefreshToken = tokens.refresh_token || null;
           
-          console.log('✅ Token encoding successful');
-          console.log('📊 Encoded token lengths:', {
+          console.log('✅ Token validation successful');
+          console.log('📊 Token lengths:', {
             access_token_length: encryptedAccessToken?.length,
             refresh_token_length: encryptedRefreshToken?.length
           });
@@ -445,9 +446,9 @@ serve(async (req) => {
           
           console.log('✅ Credentials stored successfully:', insertData);
           
-        } catch (encodingError) {
-          console.error('❌ Token encoding failed:', encodingError);
-          throw new Error(`Token encoding failed: ${encodingError.message}`);
+        } catch (tokenError) {
+          console.error('❌ Token validation failed:', tokenError);
+          throw new Error(`Token validation failed: ${tokenError.message}`);
         }
         
         // PHASE 2: Enhanced Verification with New Verification Function
