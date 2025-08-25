@@ -193,9 +193,11 @@ serve(async (req) => {
         }
       );
 
-      // SECURITY: Use proper Supabase authentication  
+      // SECURITY: Use proper Supabase authentication with JWT token
+      const token = authHeader.replace('Bearer ', '');
+      
       try {
-        const { data: { user }, error } = await supabaseClient.auth.getUser();
+        const { data: { user }, error } = await supabaseClient.auth.getUser(token);
         
         if (error || !user) {
           console.log(`❌ Authentication failed:`, error?.message || 'No user found');

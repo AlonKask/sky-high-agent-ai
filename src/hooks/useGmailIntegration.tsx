@@ -142,9 +142,19 @@ export const useGmailIntegration = () => {
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
     try {
-      console.log('🔑 Invoking OAuth function...');
+      // Ensure we have a valid session with JWT token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session?.access_token) {
+        console.error('❌ Session validation failed:', sessionError);
+        throw new Error('Invalid session. Please refresh the page and try again.');
+      }
+
+      console.log('🔑 Session validated, invoking OAuth function...');
 
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        },
         body: { 
           action: 'start'
         }
