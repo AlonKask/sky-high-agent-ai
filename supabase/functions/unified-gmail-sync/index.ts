@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 import { withRateLimit } from '../_shared/rate-limiter.ts';
+import { decodeBase64 } from "jsr:@std/encoding/base64";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,12 +84,14 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
 
       if (part.body?.data) {
         try {
-          const decoded = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+          const normalizedData = part.body.data.replace(/-/g, '+').replace(/_/g, '/');
+          const decoded = new TextDecoder().decode(decodeBase64(normalizedData));
           if (!text || part.mimeType?.includes('text/plain')) {
             text = decoded;
           }
         } catch (e) {
           // Continue if decode fails
+          console.warn('Failed to decode email part:', e.message);
         }
       }
 
@@ -100,9 +103,11 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
 
   if (payload.body?.data) {
     try {
-      text = atob(payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+      const normalizedData = payload.body.data.replace(/-/g, '+').replace(/_/g, '/');
+      text = new TextDecoder().decode(decodeBase64(normalizedData));
     } catch (e) {
       // Continue if decode fails
+      console.warn('Failed to decode email body:', e.message);
     }
   } else if (payload.parts) {
     extractFromParts(payload.parts);

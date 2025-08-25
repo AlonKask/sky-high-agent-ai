@@ -203,7 +203,7 @@ serve(async (req) => {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth`;
       
       if (!clientId || !clientSecret) {
         console.error('❌ Google OAuth credentials not configured');
@@ -299,7 +299,7 @@ serve(async (req) => {
       // Exchange code for tokens
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?action=callback`;
+      const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth`;
       
       if (!clientId || !clientSecret) {
         console.error(`❌ Missing OAuth credentials in callback`);
