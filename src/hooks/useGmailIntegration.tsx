@@ -45,7 +45,8 @@ export const useGmailIntegration = () => {
 
       console.log('👤 Checking Gmail status for user:', session.user.id);
 
-      // PHASE 3: Simplified Status Check - Direct Query Only
+      // PHASE 3: Enhanced Status Check with Immediate Refresh
+      console.log('🔍 Querying gmail_credentials for user:', session.user.id);
       const { data: credentialsData, error: credentialsError } = await supabase
         .from('gmail_credentials')
         .select('user_id, gmail_user_email, token_expires_at, last_sync_at, is_active, created_at')
@@ -229,11 +230,42 @@ export const useGmailIntegration = () => {
                 description: `Connected to ${event.data.userEmail || 'your Gmail account'}. Sync starting...`,
               });
               
-              // Wait for database operations to complete, then refresh status
-              setTimeout(() => {
-                console.log('🔄 Refreshing Gmail status after successful OAuth...');
-                checkGmailStatus();
-              }, 3000);
+              // Enhanced polling to ensure credentials are properly detected
+              const pollForCredentials = async (attempt = 1, maxAttempts = 6): Promise<void> => {
+                console.log(`🔄 Checking for stored credentials (attempt ${attempt}/${maxAttempts})`);
+                
+                try {
+                  const { data: checkData } = await supabase
+                    .from('gmail_credentials')
+                    .select('id, is_active, gmail_user_email')
+                    .eq('user_id', user?.id)
+                    .eq('is_active', true)
+                    .maybeSingle();
+                  
+                  if (checkData) {
+                    console.log('🎉 Credentials verified in database!', checkData);
+                    await checkGmailStatus(); // Refresh UI status
+                    return;
+                  }
+                  
+                  if (attempt < maxAttempts) {
+                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), 1500);
+                  } else {
+                    console.warn('⚠️ Credentials not found after polling, triggering final status refresh');
+                    await checkGmailStatus();
+                  }
+                } catch (error) {
+                  console.error('❌ Error during credential polling:', error);
+                  if (attempt < maxAttempts) {
+                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), 1500);
+                  } else {
+                    await checkGmailStatus();
+                  }
+                }
+              };
+              
+              // Start polling after 2 seconds to allow database operations to complete
+              setTimeout(() => pollForCredentials(), 2000);
               
               resolve();
             } else {

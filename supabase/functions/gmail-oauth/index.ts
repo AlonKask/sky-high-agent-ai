@@ -427,13 +427,21 @@ serve(async (req) => {
         };
         
         console.log('💾 Storing credential data for:', userInfo.email);
+        console.log('📝 Credential data structure:', {
+          user_id: credentialData.user_id,
+          gmail_user_email: credentialData.gmail_user_email,
+          has_access_token: !!credentialData.access_token_encrypted,
+          has_refresh_token: !!credentialData.refresh_token_encrypted,
+          expires_at: credentialData.token_expires_at
+        });
         
-        // Single attempt storage - let the database triggers handle validation
-        const { error: storageError } = await supabaseServiceClient
+        // Enhanced storage with detailed logging
+        const { data: insertData, error: storageError } = await supabaseServiceClient
           .from('gmail_credentials')
           .upsert(credentialData, {
             onConflict: 'user_id'
-          });
+          })
+          .select('id, gmail_user_email, created_at');
 
         if (storageError) {
           console.error('❌ Credential storage failed:', storageError);
