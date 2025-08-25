@@ -193,15 +193,22 @@ serve(async (req) => {
         }
       );
 
-      const token = authHeader.replace('Bearer ', '');
-      
-      // SECURITY: Use proper Supabase authentication instead of manual JWT decoding
+      // SECURITY: Use proper Supabase authentication  
       try {
-        const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+        const { data: { user }, error } = await supabaseClient.auth.getUser();
         
         if (error || !user) {
           console.log(`❌ Authentication failed:`, error?.message || 'No user found');
-          throw new Error('Authentication failed');
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Authentication failed - please sign in again',
+            }),
+            {
+              status: 401,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
         }
         
         userId = user.id;
@@ -211,7 +218,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Invalid authentication token - please sign in again',
+            error: 'Authentication failed - please sign in again',
           }),
           {
             status: 401,
