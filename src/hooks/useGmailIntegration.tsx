@@ -141,51 +141,22 @@ export const useGmailIntegration = () => {
 
       console.log('🔑 Session validated, invoking OAuth function...');
 
-      // PHASE 1: Network resilience with retry logic and timeout
-      const invokeWithRetry = async (attempt = 1, maxAttempts = 3): Promise<any> => {
-        const timeout = 30000; // 30 second timeout
-        
-        try {
-          console.log(`🌐 OAuth function call attempt ${attempt}/${maxAttempts}...`);
-          
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Request timeout after 30 seconds')), timeout);
-          });
-          
-          const invokePromise = supabase.functions.invoke('gmail-oauth', {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`
-            },
-            body: { 
-              action: 'start'
-            }
-          });
-          
-          const result = await Promise.race([invokePromise, timeoutPromise]);
-          return result;
-          
-        } catch (error: any) {
-          console.error(`❌ OAuth function call attempt ${attempt} failed:`, error);
-          
-          // Check if it's a network error that we can retry
-          const isRetryableError = 
-            error.message?.includes('timeout') ||
-            error.message?.includes('fetch') ||
-            error.message?.includes('network') ||
-            error.message?.includes('Failed to send a request');
-          
-          if (isRetryableError && attempt < maxAttempts) {
-            const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
-            console.log(`🔄 Retrying OAuth call in ${retryDelay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
-            return invokeWithRetry(attempt + 1, maxAttempts);
-          }
-          
-          throw error;
+      // PHASE 2: Complete Network Layer Integration with resilient utilities
+      console.log('🌐 Using resilient network layer for OAuth function invocation...');
+      
+      const { data, error } = await invokeSupabaseFunction('gmail-oauth', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: { 
+          action: 'start'
         }
-      };
-
-      const { data, error } = await invokeWithRetry();
+      }, {
+        maxAttempts: 3,
+        initialDelay: 1000,
+        maxDelay: 8000,
+        timeout: 30000
+      });
       
       console.log('📊 OAuth function response:', { data, error });
       
@@ -197,24 +168,25 @@ export const useGmailIntegration = () => {
           context: error.context || 'Unknown context'
         });
         
-        // Enhanced error handling for specific configuration issues
-        if (error.message?.includes('Google OAuth credentials not configured')) {
-          throw new Error('Gmail integration is not configured. Please contact your administrator.');
-        }
+        // PHASE 2: Enhanced error categorization with network-aware handling
+        const errorInfo = categorizeNetworkError(error);
+        console.error('❌ Categorized OAuth error:', errorInfo);
         
-        if (error.message?.includes('Authentication required') || error.message?.includes('Invalid authentication token')) {
-          throw new Error('Session expired. Please refresh the page and try again.');
+        // Provide user-friendly error messages based on network error categorization
+        switch (errorInfo.category) {
+          case 'timeout':
+            throw new Error('Gmail connection timed out. Please check your internet connection and try again.');
+          case 'network':
+            throw new Error('Network connection issue. Please check your internet connection and try again.');
+          case 'service_unavailable':
+            throw new Error('Gmail service is temporarily unavailable. Please try again in a few minutes.');
+          case 'configuration':
+            throw new Error('Gmail integration is not configured. Please contact your administrator.');
+          case 'authentication':
+            throw new Error('Session expired. Please refresh the page and try again.');
+          default:
+            throw new Error(error.message || 'Gmail OAuth service failed. Please try again or contact support.');
         }
-        
-        if (error.message?.includes('Server configuration error')) {
-          throw new Error('Gmail service is temporarily unavailable. Please try again later.');
-        }
-        
-        if (error.message?.includes('Failed to send a request to the Edge Function')) {
-          throw new Error('Gmail service is not responding. Please try again or contact support.');
-        }
-        
-        throw new Error(error.message || 'Gmail OAuth service failed');
       }
 
       if (!data?.authUrl) {
@@ -469,51 +441,76 @@ export const useGmailIntegration = () => {
   }, []);
 
   const triggerSync = useCallback(async () => {
-    if (!user || !authStatus.isConnected) {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to sync emails",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!authStatus.isConnected) {
       toast({
         title: "Gmail Not Connected",
-        description: "Please connect Gmail first",
+        description: "Please connect Gmail first before syncing emails",
         variant: "destructive"
       });
       return;
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
+      console.log('📨 Triggering manual Gmail sync with resilient network layer...');
+      
+      // PHASE 2: Complete Network Layer Integration for sync operations
+      const { data, error } = await invokeSupabaseFunction('unified-gmail-sync', {
         body: {
-          userId: user.id,
-          userEmail: authStatus.userEmail || user.email,
-          manualSync: true,
+          user_id: user.id,
+          force_sync: true,
           includeAIProcessing: false
         }
+      }, {
+        maxAttempts: 3,
+        initialDelay: 2000,
+        maxDelay: 10000,
+        timeout: 60000 // Longer timeout for sync operations
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       if (data?.success) {
+        const emailCount = data.emails_synced || 0;
         toast({
           title: "Sync Complete",
-          description: `Synced ${data.stored || 0} emails`,
+          description: `Successfully synced ${emailCount} email(s)`,
         });
         
+        // Refresh status after successful sync
         await checkGmailStatus();
         
+        // Dispatch event for other components to react to sync
         window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
-          detail: { syncedCount: data.stored || 0 }
+          detail: { emailCount, success: true }
         }));
       } else {
-        throw new Error(data?.error || 'Sync failed');
+        throw new Error(data?.error || 'Sync completed but returned no results');
       }
 
     } catch (error: any) {
-      console.error('Error triggering sync:', error);
+      console.error('❌ Email sync failed:', error);
+      
+      // PHASE 2: Enhanced error categorization for sync failures
+      const errorInfo = categorizeNetworkError(error);
+      
       toast({
         title: "Sync Failed",
-        description: "Failed to sync emails. Please try again.",
+        description: errorInfo.userMessage,
         variant: "destructive"
       });
     }
-  }, [user, authStatus, checkGmailStatus]);
+  }, [user, authStatus.isConnected, checkGmailStatus]);
 
   useEffect(() => {
     checkGmailStatus();

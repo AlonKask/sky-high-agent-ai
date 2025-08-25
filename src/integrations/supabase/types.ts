@@ -4046,7 +4046,7 @@ export type Database = {
         Args: {
           p_folder_name: string
           p_last_sync_at: string
-          p_last_sync_count: number
+          p_last_sync_count?: number
           p_user_id: string
         }
         Returns: undefined

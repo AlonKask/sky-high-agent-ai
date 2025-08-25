@@ -343,7 +343,7 @@ const Emails = () => {
     if (user) {
       console.log('📧 User authenticated, loading emails...');
       
-      // Enhanced email loading with Gmail sync integration
+      // PHASE 4: Enhanced email loading with improved Gmail integration
       const loadEmailsWithGmailCheck = async () => {
         try {
           // Load emails from database first (faster UX)
@@ -359,22 +359,34 @@ const Emails = () => {
               console.log('✅ Gmail connected, checking for fresh emails...');
               
               // Only trigger sync if we have few or no emails
-              if (emails.length < 10) {
+              if (emails.length < 5) {
                 console.log('📥 Triggering background sync for fresh emails...');
                 try {
-                  await supabase.functions.invoke('unified-gmail-sync', {
-                    body: { user_id: user.id, force_sync: false }
+                  // Use enhanced sync with proper parameters
+                  const { data: syncResult } = await supabase.functions.invoke('unified-gmail-sync', {
+                    body: { 
+                      user_id: user.id, 
+                      force_sync: false,
+                      maxResults: 25 
+                    }
                   });
-                  console.log('🔄 Background sync completed, reloading emails...');
-                  // Reload emails after sync
-                  setTimeout(() => loadEmailsFromDB(), 2000);
+                  
+                  if (syncResult?.success) {
+                    console.log(`🔄 Background sync completed, ${syncResult.emails_synced || 0} emails synced`);
+                    // Reload emails after sync with delay
+                    setTimeout(() => loadEmailsFromDB(), 2000);
+                  }
                 } catch (syncError) {
                   console.log('⚠️ Background sync failed:', syncError);
                 }
+              } else {
+                console.log('📧 Sufficient emails already loaded, skipping background sync');
               }
             } else {
               console.log('⚠️ Gmail not connected or verification failed');
             }
+          } else {
+            console.log('⚠️ Gmail status verification failed:', verifyError?.message);
           }
           
         } catch (error) {
