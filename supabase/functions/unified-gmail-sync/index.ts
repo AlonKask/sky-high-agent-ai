@@ -46,11 +46,12 @@ async function refreshGmailToken(refreshToken: string, supabaseClient: any, user
     const refreshData = await refreshResponse.json();
     const newAccessToken = refreshData.access_token;
 
-    // Update stored credentials
+    // Update stored credentials with Deno-compatible encoding
+    const encoder = new TextEncoder();
     await supabaseClient
       .from('gmail_credentials')
       .update({
-        access_token_encrypted: btoa(newAccessToken),
+        access_token_encrypted: btoa(String.fromCharCode(...encoder.encode(newAccessToken))),
         token_expires_at: new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString(),
         updated_at: new Date().toISOString()
       })

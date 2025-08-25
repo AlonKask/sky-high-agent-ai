@@ -7,37 +7,42 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('🏥 Gmail OAuth Health Check Request:', req.method, req.url);
+  
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const healthReport = {
+    // Check environment variables
+    const envCheck = {
+      google_client_id: !!Deno.env.get('GOOGLE_CLIENT_ID'),
+      google_client_secret: !!Deno.env.get('GOOGLE_CLIENT_SECRET'),
+      supabase_url: !!Deno.env.get('SUPABASE_URL'),
+      service_role_key: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+    };
+
+    console.log('🔍 Environment check:', envCheck);
+
+    const oauthReady = envCheck.google_client_id && envCheck.google_client_secret;
+    const backendReady = envCheck.supabase_url && envCheck.service_role_key;
+
+    const healthData = {
+      status: (oauthReady && backendReady) ? 'healthy' : 'unhealthy',
+      oauth_ready: oauthReady,
+      backend_ready: backendReady,
+      environment_check: envCheck,
       timestamp: new Date().toISOString(),
-      status: 'healthy',
-      oauth_ready: false,
-      environment_check: {}
+      service: 'gmail-oauth'
     };
 
-    // Check required environment variables
-    const requiredEnvVars = {
-      'google_client_id': 'GOOGLE_CLIENT_ID',
-      'google_client_secret': 'GOOGLE_CLIENT_SECRET',
-      'supabase_url': 'SUPABASE_URL',
-      'service_role_key': 'SUPABASE_SERVICE_ROLE_KEY'
-    };
-
-    for (const [key, envVar] of Object.entries(requiredEnvVars)) {
-      healthReport.environment_check[key] = !!Deno.env.get(envVar);
-    }
-
-    healthReport.oauth_ready = Object.values(healthReport.environment_check).every(v => v);
-    healthReport.status = healthReport.oauth_ready ? 'healthy' : 'unhealthy';
+    console.log('✅ Health check result:', healthData);
 
     return new Response(
       JSON.stringify({
         success: true,
-        data: healthReport
+        data: healthData
       }),
       {
         status: 200,
@@ -46,10 +51,13 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error('❌ Health check failed:', error);
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Health check failed'
+        error: error.message,
+        timestamp: new Date().toISOString()
       }),
       {
         status: 500,

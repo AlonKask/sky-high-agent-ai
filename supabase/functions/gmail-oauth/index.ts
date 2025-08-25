@@ -360,9 +360,10 @@ serve(async (req) => {
           }
         });
         
-        // Simple token encoding (not complex encryption for now)
-        const encryptedAccessToken = btoa(tokens.access_token);
-        const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
+        // CRITICAL FIX: Use Deno-compatible base64 encoding instead of btoa()
+        const encoder = new TextEncoder();
+        const encryptedAccessToken = btoa(String.fromCharCode(...encoder.encode(tokens.access_token)));
+        const encryptedRefreshToken = tokens.refresh_token ? btoa(String.fromCharCode(...encoder.encode(tokens.refresh_token))) : null;
         
         // Calculate token expiration
         const tokenExpirationTime = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000));
@@ -388,14 +389,24 @@ serve(async (req) => {
           expires_at: credentialData.token_expires_at
         });
         
-        // CRITICAL FIX: Use service role client with better error handling
+        // CRITICAL FIX: Enhanced credential storage with validation
         console.log('💾 Attempting credential storage with service role client...');
+        
+        // Validate required fields before storage
+        if (!credentialData.user_id || !credentialData.gmail_user_email || !credentialData.access_token_encrypted) {
+          throw new Error('Missing required credential fields for storage');
+        }
+        
+        // First, check if user already has credentials and deactivate them
+        await supabaseServiceClient
+          .from('gmail_credentials')
+          .update({ is_active: false })
+          .eq('user_id', userId);
+        
         const { data: insertData, error: storageError } = await supabaseServiceClient
           .from('gmail_credentials')
-          .upsert(credentialData, {
-            onConflict: 'user_id'
-          })
-          .select('id, gmail_user_email, created_at');
+          .insert(credentialData)
+          .select('id, gmail_user_email, created_at, is_active');
 
         if (storageError) {
           console.error('❌ Credential storage failed:', storageError);
@@ -523,29 +534,56 @@ serve(async (req) => {
         );
       }
 
-      // PHASE 3: Gmail API Compliance - Enhanced Initial Sync
-      console.log('🔄 Triggering initial Gmail sync with proper error handling...');
-      try {
-        const { data: syncData, error: syncError } = await supabaseServiceClient.functions.invoke('unified-gmail-sync', {
-          body: { 
-            user_id: userId,
-            initial_sync: true,
-            force_refresh: true
+        // PHASE 3: Trigger initial Gmail sync with enhanced error handling
+        console.log('📨 Triggering initial Gmail sync...');
+        try {
+          // Use service role client for sync invocation to bypass auth requirements
+          const { data: syncData, error: syncError } = await supabaseServiceClient.functions
+            .invoke('unified-gmail-sync', {
+              body: { 
+                userEmail: userInfo.email,
+                userId: userId,
+                manualTrigger: false,
+                source: 'oauth_callback'
+              }
+            });
+          
+          if (syncError) {
+            console.error('❌ Initial sync failed:', syncError);
+            // Log sync failure but don't block OAuth completion
+            await supabaseServiceClient.rpc('log_oauth_operation', {
+              p_user_id: userId,
+              p_operation: 'initial_sync_trigger',
+              p_success: false,
+              p_details: { 
+                error: syncError.message,
+                gmail_email: userInfo.email 
+              }
+            });
+          } else {
+            console.log('✅ Initial sync triggered successfully:', syncData);
+            await supabaseServiceClient.rpc('log_oauth_operation', {
+              p_user_id: userId,
+              p_operation: 'initial_sync_trigger',
+              p_success: true,
+              p_details: { 
+                gmail_email: userInfo.email,
+                sync_result: syncData 
+              }
+            });
           }
-        });
-        
-        if (syncError) {
-          console.error('⚠️ Initial sync failed (non-critical):', {
-            message: syncError.message,
-            details: syncError.details
+        } catch (syncError) {
+          console.error('❌ Sync trigger exception:', syncError);
+          await supabaseServiceClient.rpc('log_oauth_operation', {
+            p_user_id: userId,
+            p_operation: 'initial_sync_trigger',
+            p_success: false,
+            p_details: { 
+              error: syncError.message,
+              gmail_email: userInfo.email 
+            }
           });
-        } else {
-          console.log('✅ Initial sync triggered successfully:', syncData);
         }
-      } catch (syncError) {
-        console.error('⚠️ Initial sync error (non-critical):', syncError);
-        // Don't throw - this is non-critical for OAuth completion
-      }
 
       // Return success page with enhanced messaging
       const successPage = `
