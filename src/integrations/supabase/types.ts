@@ -4420,7 +4420,7 @@ export type Database = {
       }
       validate_oauth_state_token: {
         Args: { p_state_token: string }
-        Returns: boolean
+        Returns: string
       }
       validate_password_strength: {
         Args: { password: string }
