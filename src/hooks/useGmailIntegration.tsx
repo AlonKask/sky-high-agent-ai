@@ -25,10 +25,10 @@ export const useGmailIntegration = () => {
       console.log('🔍 Checking Gmail integration status...');
       setAuthStatus(prev => ({ ...prev, isLoading: true }));
       
-      // Ensure we have an authenticated session with proper token
+      // PHASE 3: Enhanced Session Validation
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
-        console.error('❌ Error getting session:', sessionError);
+        console.error('❌ Session error:', sessionError);
         throw sessionError;
       }
       
@@ -43,57 +43,51 @@ export const useGmailIntegration = () => {
         return;
       }
 
-      console.log('👤 Checking Gmail status for authenticated user:', session.user.id);
-      console.log('🔑 Session access token exists:', !!session.access_token);
+      console.log('👤 Checking Gmail status for user:', session.user.id);
 
-      // Try direct query first to check gmail_credentials table
+      // PHASE 3: Simplified Status Check - Direct Query Only
       const { data: credentialsData, error: credentialsError } = await supabase
         .from('gmail_credentials')
-        .select('user_id, gmail_user_email, token_expires_at, last_sync_at, is_active')
+        .select('user_id, gmail_user_email, token_expires_at, last_sync_at, is_active, created_at')
         .eq('user_id', session.user.id)
+        .eq('is_active', true) // Only get active credentials
         .maybeSingle();
 
       if (credentialsError) {
-        console.error('❌ Direct gmail_credentials query failed:', credentialsError);
+        console.error('❌ Gmail credentials query failed:', credentialsError);
         
-        // Fallback to RPC if direct query fails
-        console.log('🔄 Falling back to RPC call...');
-        const { data: gmailData, error: gmailError } = await supabase.rpc('get_gmail_integration_status');
-        
-        if (!gmailError && gmailData) {
-          console.log('✅ RPC fallback succeeded:', gmailData);
-          const statusData = gmailData as { 
-            connected: boolean; 
-            user_email?: string; 
-            last_sync?: string; 
-            error?: string; 
-          };
-          
-          setAuthStatus({
-            isConnected: statusData?.connected || false,
-            userEmail: statusData?.user_email || null,
-            isLoading: false,
-            lastSync: statusData?.last_sync ? new Date(statusData.last_sync) : null,
-          });
-          return;
-        }
-        
-        // If both direct query and RPC fail, throw error
-        console.error('❌ Both direct query and RPC failed');
-        throw credentialsError;
+        // Don't try fallbacks that might be causing issues - just throw
+        throw new Error(`Failed to check Gmail status: ${credentialsError.message}`);
       }
 
-      // Process direct credentials data
-      console.log('✅ Gmail credentials found:', credentialsData);
+      console.log('✅ Gmail credentials query result:', credentialsData);
       
-      if (credentialsData && credentialsData.is_active) {
+      if (credentialsData) {
+        // Check if token is not expired (with 5 minute buffer)
+        const tokenExpiry = new Date(credentialsData.token_expires_at);
+        const now = new Date();
+        const bufferTime = 5 * 60 * 1000; // 5 minutes
+        const isTokenValid = tokenExpiry.getTime() > (now.getTime() + bufferTime);
+        
+        console.log('⏰ Token validation:', {
+          expires_at: tokenExpiry.toISOString(),
+          current_time: now.toISOString(),
+          is_valid: isTokenValid
+        });
+        
         setAuthStatus({
-          isConnected: true,
+          isConnected: isTokenValid, // Only show as connected if token is valid
           userEmail: credentialsData.gmail_user_email,
           isLoading: false,
           lastSync: credentialsData.last_sync_at ? new Date(credentialsData.last_sync_at) : null,
         });
+        
+        // If token is expired, show helpful message
+        if (!isTokenValid) {
+          console.log('⚠️ Gmail token has expired, user needs to reconnect');
+        }
       } else {
+        console.log('ℹ️ No active Gmail credentials found');
         setAuthStatus({
           isConnected: false,
           userEmail: null,
@@ -102,22 +96,26 @@ export const useGmailIntegration = () => {
         });
       }
 
-      console.log('✅ Gmail status check completed successfully');
+      console.log('✅ Gmail status check completed');
 
     } catch (error: any) {
-      console.error('❌ Gmail status check failed completely:', error);
+      console.error('❌ Gmail status check failed:', error);
       
-      // Enhanced error display with more context
-      const errorMessage = error.message || 'Failed to check Gmail status';
-      const isAuthError = errorMessage.includes('not authenticated') || error.code === '42501';
+      // PHASE 3: Improved Error Handling
+      const isAuthError = error.message?.includes('not authenticated') || 
+                          error.message?.includes('JWT') ||
+                          error.code === '42501';
       
-      toast({
-        title: isAuthError ? "Authentication Required" : "Gmail Status Check Failed",
-        description: isAuthError 
-          ? "Please refresh the page and try again" 
-          : errorMessage,
-        variant: "destructive"
-      });
+      if (isAuthError) {
+        // Don't show toast for auth errors, just set state
+        console.log('🔄 Authentication issue detected, user needs to sign in');
+      } else {
+        toast({
+          title: "Gmail Status Check Failed",
+          description: "Unable to verify Gmail connection. Please try refreshing.",
+          variant: "destructive"
+        });
+      }
       
       setAuthStatus({
         isConnected: false,

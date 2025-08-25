@@ -7,55 +7,49 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('🏥 Gmail OAuth Health Check');
-    
-    // Check environment variables needed for OAuth
-    const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
-    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    const healthData = {
-      status: 'healthy',
+    const healthReport = {
       timestamp: new Date().toISOString(),
-      service: 'gmail-oauth-health',
-      environment_check: {
-        google_client_id: !!clientId,
-        google_client_secret: !!clientSecret,
-        supabase_url: !!supabaseUrl,
-        service_role_key: !!serviceKey
-      },
-      oauth_ready: !!(clientId && clientSecret && supabaseUrl && serviceKey)
+      status: 'healthy',
+      oauth_ready: false,
+      environment_check: {}
     };
-    
-    console.log('✅ Gmail OAuth health check completed:', healthData);
-    
+
+    // Check required environment variables
+    const requiredEnvVars = {
+      'google_client_id': 'GOOGLE_CLIENT_ID',
+      'google_client_secret': 'GOOGLE_CLIENT_SECRET',
+      'supabase_url': 'SUPABASE_URL',
+      'service_role_key': 'SUPABASE_SERVICE_ROLE_KEY'
+    };
+
+    for (const [key, envVar] of Object.entries(requiredEnvVars)) {
+      healthReport.environment_check[key] = !!Deno.env.get(envVar);
+    }
+
+    healthReport.oauth_ready = Object.values(healthReport.environment_check).every(v => v);
+    healthReport.status = healthReport.oauth_ready ? 'healthy' : 'unhealthy';
+
     return new Response(
       JSON.stringify({
         success: true,
-        data: healthData
+        data: healthReport
       }),
       {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
-    
+
   } catch (error) {
-    console.error('❌ Gmail OAuth health check failed:', error);
-    
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Gmail OAuth health check failed',
-        details: error.message,
-        timestamp: new Date().toISOString()
+        error: error.message || 'Health check failed'
       }),
       {
         status: 500,

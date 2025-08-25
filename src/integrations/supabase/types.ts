@@ -4106,6 +4106,10 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      is_valid_token_format: {
+        Args: { token_text: string }
+        Returns: boolean
+      }
       log_admin_data_access: {
         Args: {
           p_justification: string
@@ -4162,6 +4166,19 @@ export type Database = {
       }
       log_failed_access_attempt: {
         Args: { p_attempted_user_id?: string; p_resource: string }
+        Returns: undefined
+      }
+      log_gmail_credential_event: {
+        Args: { p_details?: Json; p_event_type: string; p_user_id: string }
+        Returns: undefined
+      }
+      log_oauth_operation: {
+        Args: {
+          p_details?: Json
+          p_operation: string
+          p_success: boolean
+          p_user_id: string
+        }
         Returns: undefined
       }
       log_security_event: {

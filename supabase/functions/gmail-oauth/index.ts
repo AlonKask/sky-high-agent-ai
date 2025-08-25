@@ -390,33 +390,31 @@ serve(async (req) => {
       const userInfo = await userInfoResponse.json();
       console.log(`📧 User info obtained for: ${userInfo.email}`);
 
-      // PHASE 2: Enhanced Error Propagation for Credential Storage
+      // PHASE 2: Simplified Credential Storage with Enhanced Monitoring
       console.log('📦 Storing credentials for user:', userId);
-      console.log('🔑 Access token length:', tokens.access_token?.length || 0);
-      console.log('🔄 Refresh token length:', tokens.refresh_token?.length || 0);
       
       try {
-        // Enhanced token encryption with proper error handling
-        let encryptedAccessToken: string;
-        let encryptedRefreshToken: string | null;
+        // Log OAuth success for monitoring
+        await supabaseServiceClient.rpc('log_oauth_operation', {
+          p_user_id: userId,
+          p_operation: 'token_received',
+          p_success: true,
+          p_details: {
+            gmail_email: userInfo.email,
+            access_token_length: tokens.access_token?.length || 0,
+            refresh_token_length: tokens.refresh_token?.length || 0,
+            expires_in: tokens.expires_in
+          }
+        });
         
-        try {
-          encryptedAccessToken = btoa(tokens.access_token);
-          encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
-          console.log('🔐 Token encryption successful');
-        } catch (encryptError) {
-          console.error('💥 Token encryption failed:', encryptError);
-          throw new Error(`Token encryption failed: ${encryptError.message}`);
-        }
+        // Simple token encoding (not complex encryption for now)
+        const encryptedAccessToken = btoa(tokens.access_token);
+        const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
         
-        console.log('🔐 Encrypted access token length:', encryptedAccessToken?.length || 0);
-        console.log('🔐 Encrypted refresh token length:', encryptedRefreshToken?.length || 0);
-        
-        // Calculate proper token expiration (Gmail tokens typically expire in 1 hour)
+        // Calculate token expiration
         const tokenExpirationTime = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000));
-        console.log('⏰ Token expiration calculated:', tokenExpirationTime.toISOString());
         
-        // Prepare credential data with all required fields
+        // Simplified credential data structure
         const credentialData = {
           user_id: userId,
           gmail_user_email: userInfo.email,
@@ -428,55 +426,34 @@ serve(async (req) => {
           last_sync_at: new Date().toISOString(),
         };
         
-        console.log('💾 Attempting credential upsert with data:', {
-          user_id: credentialData.user_id,
-          gmail_user_email: credentialData.gmail_user_email,
-          is_active: credentialData.is_active,
-          scope: credentialData.scope,
-          token_expires_at: credentialData.token_expires_at
-        });
+        console.log('💾 Storing credential data for:', userInfo.email);
         
-        // Attempt database insertion with retry logic
-        let insertAttempts = 0;
-        const maxAttempts = 3;
-        let insertError: any = null;
-        
-        while (insertAttempts < maxAttempts) {
-          insertAttempts++;
-          console.log(`📝 Credential storage attempt ${insertAttempts}/${maxAttempts}`);
+        // Single attempt storage - let the database triggers handle validation
+        const { error: storageError } = await supabaseServiceClient
+          .from('gmail_credentials')
+          .upsert(credentialData, {
+            onConflict: 'user_id'
+          });
+
+        if (storageError) {
+          console.error('❌ Credential storage failed:', storageError);
           
-          const { error } = await supabaseServiceClient
-            .from('gmail_credentials')
-            .upsert(credentialData, {
-              onConflict: 'user_id'
-            });
-
-          if (!error) {
-            console.log('✅ Credential storage successful on attempt', insertAttempts);
-            insertError = null;
-            break;
-          } else {
-            insertError = error;
-            console.error(`💥 Storage attempt ${insertAttempts} failed:`, {
-              message: error.message,
-              details: error.details,
-              hint: error.hint,
-              code: error.code
-            });
-            
-            if (insertAttempts < maxAttempts) {
-              console.log(`🔄 Retrying in 1 second...`);
-              await new Promise(resolve => setTimeout(resolve, 1000));
+          // Log storage failure
+          await supabaseServiceClient.rpc('log_oauth_operation', {
+            p_user_id: userId,
+            p_operation: 'credential_storage',
+            p_success: false,
+            p_details: {
+              error: storageError.message,
+              error_code: storageError.code,
+              gmail_email: userInfo.email
             }
-          }
-        }
-
-        if (insertError) {
-          console.error('💥 All credential storage attempts failed:', insertError);
-          throw new Error(`Failed to store credentials after ${maxAttempts} attempts: ${insertError.message}. Details: ${insertError.details || 'N/A'}`);
+          });
+          
+          throw new Error(`Credential storage failed: ${storageError.message}`);
         }
         
-        // Enhanced verification with detailed logging
+        // PHASE 2: Enhanced Verification with Immediate Status Check
         console.log('🔍 Verifying credential storage...');
         const { data: verifyData, error: verifyError } = await supabaseServiceClient
           .from('gmail_credentials')
@@ -485,26 +462,45 @@ serve(async (req) => {
           .single();
           
         if (verifyError) {
-          console.error('💥 Credential verification query failed:', verifyError);
+          console.error('❌ Credential verification failed:', verifyError);
+          
+          // Log verification failure
+          await supabaseServiceClient.rpc('log_oauth_operation', {
+            p_user_id: userId,
+            p_operation: 'credential_verification',
+            p_success: false,
+            p_details: {
+              error: verifyError.message,
+              gmail_email: userInfo.email
+            }
+          });
+          
           throw new Error(`Credential verification failed: ${verifyError.message}`);
         }
         
         if (!verifyData) {
-          console.error('💥 No credentials found after insertion');
-          throw new Error('Credentials were not found after insertion - possible database constraint issue');
+          throw new Error('Credentials not found after storage - possible database issue');
         }
         
         console.log('✅ Credentials verified successfully:', {
           id: verifyData.id,
           email: verifyData.gmail_user_email,
-          is_active: verifyData.is_active,
-          expires_at: verifyData.token_expires_at,
-          scope: verifyData.scope,
-          created_at: verifyData.created_at
+          is_active: verifyData.is_active
+        });
+        
+        // Log successful storage
+        await supabaseServiceClient.rpc('log_oauth_operation', {
+          p_user_id: userId,
+          p_operation: 'credential_storage',
+          p_success: true,
+          p_details: {
+            gmail_email: userInfo.email,
+            credential_id: verifyData.id
+          }
         });
 
       } catch (storageError) {
-        console.error('🚨 CRITICAL: Credential storage process failed:', storageError);
+        console.error('🚨 Credential storage process failed:', storageError);
         throw new Error(`Credential storage failed: ${storageError.message}`);
       }
 
