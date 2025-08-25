@@ -4476,6 +4476,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      verify_gmail_credentials: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       verify_security_configuration: {
         Args: Record<PropertyKey, never>
         Returns: Json

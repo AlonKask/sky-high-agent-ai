@@ -461,16 +461,13 @@ serve(async (req) => {
           throw new Error(`Credential storage failed: ${storageError.message}`);
         }
         
-        // PHASE 2: Enhanced Verification with Immediate Status Check
-        console.log('🔍 Verifying credential storage...');
+        // PHASE 2: Enhanced Verification with New Verification Function
+        console.log('🔍 Verifying credential storage using verification function...');
         const { data: verifyData, error: verifyError } = await supabaseServiceClient
-          .from('gmail_credentials')
-          .select('id, gmail_user_email, is_active, token_expires_at, scope, created_at')
-          .eq('user_id', userId)
-          .single();
+          .rpc('verify_gmail_credentials', { p_user_id: userId });
           
         if (verifyError) {
-          console.error('❌ Credential verification failed:', verifyError);
+          console.error('❌ Credential verification RPC failed:', verifyError);
           
           // Log verification failure
           await supabaseServiceClient.rpc('log_oauth_operation', {
@@ -483,17 +480,33 @@ serve(async (req) => {
             }
           });
           
-          throw new Error(`Credential verification failed: ${verifyError.message}`);
+          throw new Error(`Credential verification RPC failed: ${verifyError.message}`);
         }
         
-        if (!verifyData) {
+        if (!verifyData || !verifyData.exists || !verifyData.connected) {
+          console.error('❌ Credential verification failed - not properly stored:', verifyData);
+          
+          // Log verification failure with details
+          await supabaseServiceClient.rpc('log_oauth_operation', {
+            p_user_id: userId,
+            p_operation: 'credential_verification',
+            p_success: false,
+            p_details: {
+              verification_result: verifyData,
+              gmail_email: userInfo.email,
+              issue: 'credentials_not_properly_stored'
+            }
+          });
+          
           throw new Error('Credentials not found after storage - possible database issue');
         }
         
-        console.log('✅ Credentials verified successfully:', {
-          id: verifyData.id,
-          email: verifyData.gmail_user_email,
-          is_active: verifyData.is_active
+        console.log('✅ Credentials verified successfully using verification function:', {
+          connected: verifyData.connected,
+          email: verifyData.user_email,
+          has_access_token: verifyData.has_access_token,
+          has_refresh_token: verifyData.has_refresh_token,
+          token_valid: verifyData.token_valid
         });
         
         // Log successful storage
@@ -503,7 +516,7 @@ serve(async (req) => {
           p_success: true,
           p_details: {
             gmail_email: userInfo.email,
-            credential_id: verifyData.id
+            verification_passed: true
           }
         });
 

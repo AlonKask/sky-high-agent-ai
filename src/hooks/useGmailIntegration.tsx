@@ -20,112 +20,85 @@ export const useGmailIntegration = () => {
     lastSync: null
   });
 
+  // PHASE 3: Enhanced Gmail integration status check with verification function
   const checkGmailStatus = useCallback(async () => {
-    try {
-      console.log('🔍 Checking Gmail integration status...');
-      setAuthStatus(prev => ({ ...prev, isLoading: true }));
-      
-      // PHASE 3: Enhanced Session Validation
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('❌ Session error:', sessionError);
-        throw sessionError;
-      }
-      
-      if (!session?.user?.id) {
-        console.log('⚠️ No authenticated session found');
-        setAuthStatus({
-          isConnected: false,
-          userEmail: null,
-          isLoading: false,
-          lastSync: null,
-        });
-        return;
-      }
-
-      console.log('👤 Checking Gmail status for user:', session.user.id);
-
-      // PHASE 3: Enhanced Status Check with Immediate Refresh
-      console.log('🔍 Querying gmail_credentials for user:', session.user.id);
-      const { data: credentialsData, error: credentialsError } = await supabase
-        .from('gmail_credentials')
-        .select('user_id, gmail_user_email, token_expires_at, last_sync_at, is_active, created_at')
-        .eq('user_id', session.user.id)
-        .eq('is_active', true) // Only get active credentials
-        .maybeSingle();
-
-      if (credentialsError) {
-        console.error('❌ Gmail credentials query failed:', credentialsError);
-        
-        // Don't try fallbacks that might be causing issues - just throw
-        throw new Error(`Failed to check Gmail status: ${credentialsError.message}`);
-      }
-
-      console.log('✅ Gmail credentials query result:', credentialsData);
-      
-      if (credentialsData) {
-        // Check if token is not expired (with 5 minute buffer)
-        const tokenExpiry = new Date(credentialsData.token_expires_at);
-        const now = new Date();
-        const bufferTime = 5 * 60 * 1000; // 5 minutes
-        const isTokenValid = tokenExpiry.getTime() > (now.getTime() + bufferTime);
-        
-        console.log('⏰ Token validation:', {
-          expires_at: tokenExpiry.toISOString(),
-          current_time: now.toISOString(),
-          is_valid: isTokenValid
-        });
-        
-        setAuthStatus({
-          isConnected: isTokenValid, // Only show as connected if token is valid
-          userEmail: credentialsData.gmail_user_email,
-          isLoading: false,
-          lastSync: credentialsData.last_sync_at ? new Date(credentialsData.last_sync_at) : null,
-        });
-        
-        // If token is expired, show helpful message
-        if (!isTokenValid) {
-          console.log('⚠️ Gmail token has expired, user needs to reconnect');
-        }
-      } else {
-        console.log('ℹ️ No active Gmail credentials found');
-        setAuthStatus({
-          isConnected: false,
-          userEmail: null,
-          isLoading: false,
-          lastSync: null,
-        });
-      }
-
-      console.log('✅ Gmail status check completed');
-
-    } catch (error: any) {
-      console.error('❌ Gmail status check failed:', error);
-      
-      // PHASE 3: Improved Error Handling
-      const isAuthError = error.message?.includes('not authenticated') || 
-                          error.message?.includes('JWT') ||
-                          error.code === '42501';
-      
-      if (isAuthError) {
-        // Don't show toast for auth errors, just set state
-        console.log('🔄 Authentication issue detected, user needs to sign in');
-      } else {
-        toast({
-          title: "Gmail Status Check Failed",
-          description: "Unable to verify Gmail connection. Please try refreshing.",
-          variant: "destructive"
-        });
-      }
-      
+    if (!user) {
       setAuthStatus({
         isConnected: false,
         userEmail: null,
         isLoading: false,
-        lastSync: null,
+        lastSync: null
       });
+      return;
     }
-  }, []);
+
+    setAuthStatus(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      console.log('🔍 Checking Gmail integration status for user:', user.id);
+      
+      // Use the new verification function for accurate status
+      const { data: verificationResult, error: verificationError } = await supabase
+        .rpc('verify_gmail_credentials', { p_user_id: user.id });
+
+      if (verificationError) {
+        console.error('❌ Gmail status verification failed:', verificationError);
+        throw verificationError;
+      }
+
+      console.log('📊 Gmail verification result:', verificationResult);
+
+      // Type assertion for RPC result
+      const result = verificationResult as any;
+      
+      const isConnected = Boolean(result?.exists && result?.connected);
+      const userEmail = result?.user_email || null;
+      const lastSync = result?.last_sync ? new Date(result.last_sync) : null;
+
+      console.log(`${isConnected ? '✅' : '❌'} Gmail status check result:`, {
+        isConnected,
+        userEmail,
+        lastSync,
+        hasAccessToken: result?.has_access_token,
+        hasRefreshToken: result?.has_refresh_token,
+        tokenValid: result?.token_valid
+      });
+
+      setAuthStatus({
+        isConnected,
+        userEmail,
+        isLoading: false,
+        lastSync
+      });
+
+      // If we're connected but tokens are invalid, show a warning
+      if (isConnected && result?.token_valid === false) {
+        toast({
+          title: "Token Expired",
+          description: "Gmail tokens have expired. Please reconnect to continue syncing.",
+          variant: "destructive"
+        });
+      }
+
+    } catch (error: any) {
+      console.error('❌ Failed to check Gmail status:', error);
+      setAuthStatus({
+        isConnected: false,
+        userEmail: null,
+        isLoading: false,
+        lastSync: null
+      });
+      
+      // Only show toast for non-auth errors
+      if (!error.message?.includes('not authenticated') && !error.message?.includes('JWT')) {
+        toast({
+          title: "Status Check Failed",
+          description: `Unable to verify Gmail connection: ${error.message}`,
+          variant: "destructive"
+        });
+      }
+    }
+  }, [user]);
 
   const connectGmail = useCallback(async () => {
     if (!user?.id) {
@@ -217,6 +190,7 @@ export const useGmailIntegration = () => {
           window.removeEventListener('message', handleMessage);
         };
 
+        // PHASE 3: Enhanced popup listener with immediate verification using new function
         const handleMessage = (event: MessageEvent) => {
           console.log('📨 Received OAuth message:', event.data);
           
@@ -227,45 +201,64 @@ export const useGmailIntegration = () => {
               console.log('✅ Gmail OAuth completed successfully:', event.data.userEmail);
               toast({
                 title: "Gmail Connected Successfully!",
-                description: `Connected to ${event.data.userEmail || 'your Gmail account'}. Sync starting...`,
+                description: `Connected to ${event.data.userEmail || 'your Gmail account'}. Verifying...`,
               });
               
-              // Enhanced polling to ensure credentials are properly detected
-              const pollForCredentials = async (attempt = 1, maxAttempts = 6): Promise<void> => {
-                console.log(`🔄 Checking for stored credentials (attempt ${attempt}/${maxAttempts})`);
+              // Enhanced polling using the new verification function
+              const pollForCredentials = async (attempt = 1, maxAttempts = 8): Promise<void> => {
+                console.log(`🔄 Verifying credentials with verification function (attempt ${attempt}/${maxAttempts})`);
                 
                 try {
-                  const { data: checkData } = await supabase
-                    .from('gmail_credentials')
-                    .select('id, is_active, gmail_user_email')
-                    .eq('user_id', user?.id)
-                    .eq('is_active', true)
-                    .maybeSingle();
+                  const { data: verificationResult } = await supabase
+                    .rpc('verify_gmail_credentials', { p_user_id: user?.id });
                   
-                  if (checkData) {
-                    console.log('🎉 Credentials verified in database!', checkData);
+                  // Type assertion for RPC result
+                  const result = verificationResult as any;
+                  
+                  if (result?.exists && result?.connected) {
+                    console.log('🎉 Credentials verified successfully!', {
+                      gmail_email: result.user_email,
+                      has_tokens: result.has_access_token && result.has_refresh_token,
+                      token_valid: result.token_valid
+                    });
+                    
                     await checkGmailStatus(); // Refresh UI status
+                    
+                    toast({
+                      title: "Gmail Connected!",
+                      description: `Successfully connected to ${result.user_email}`,
+                    });
+                    
                     return;
                   }
                   
                   if (attempt < maxAttempts) {
-                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), 1500);
+                    setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), 1000);
                   } else {
-                    console.warn('⚠️ Credentials not found after polling, triggering final status refresh');
+                    console.warn('⚠️ Credential verification timeout, forcing final status refresh');
                     await checkGmailStatus();
+                    
+                    toast({
+                      title: "Gmail Connected",
+                      description: "Connection established, but verification is taking longer than usual",
+                    });
                   }
                 } catch (error) {
-                  console.error('❌ Error during credential polling:', error);
+                  console.error('❌ Error during credential verification:', error);
                   if (attempt < maxAttempts) {
                     setTimeout(() => pollForCredentials(attempt + 1, maxAttempts), 1500);
                   } else {
                     await checkGmailStatus();
+                    toast({
+                      title: "Gmail Connected",
+                      description: "Connection may have succeeded - please check your status",
+                    });
                   }
                 }
               };
               
-              // Start polling after 2 seconds to allow database operations to complete
-              setTimeout(() => pollForCredentials(), 2000);
+              // Start verification after 1 second to allow database operations to complete
+              setTimeout(() => pollForCredentials(), 1000);
               
               resolve();
             } else {

@@ -28,7 +28,7 @@ interface EnhancedGmailStatusProps {
 
 export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps) => {
   const { user } = useSimpleAuth();
-  const { authStatus, connectGmail, disconnectGmail, refreshStatus, triggerSync } = useGmailIntegration();
+  const { authStatus, connectGmail, disconnectGmail, refreshStatus, triggerSync, forceRefresh } = useGmailIntegration();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const handleConnect = async () => {
@@ -316,11 +316,12 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
                     Sync Now
                   </Button>
                   <Button 
-                    onClick={refreshStatus}
+                    onClick={forceRefresh}
                     disabled={authStatus.isLoading}
                     size="sm"
                     variant="ghost"
                     className="text-xs"
+                    title="Force refresh Gmail status"
                   >
                     {authStatus.isLoading ? (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />

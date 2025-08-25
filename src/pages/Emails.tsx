@@ -338,11 +338,50 @@ const Emails = () => {
     }
   };
 
-  // Load emails on mount and when user changes (SINGLE useEffect to prevent duplicates)
+  // PHASE 4: Enhanced email loading with Gmail connection check
   useEffect(() => {
     if (user) {
-      console.log('📧 User authenticated, loading emails...');
-      loadEmailsFromDB();
+      console.log('📧 User authenticated, checking Gmail and loading emails...');
+      
+      // Check Gmail connection status first
+      const checkGmailAndLoadEmails = async () => {
+        try {
+          // Verify Gmail connection (with proper typing)
+          const { data: gmailStatus } = await supabase
+            .rpc('verify_gmail_credentials', { p_user_id: user.id });
+          
+          const verificationResult = gmailStatus as any; // Type assertion for RPC result
+          
+          if (verificationResult?.exists && verificationResult?.connected) {
+            console.log('✅ Gmail connected, loading emails from database');
+            
+            // If connected but no emails, try triggering a sync
+            if (emails.length === 0) {
+              console.log('📥 No emails found, checking for automatic sync...');
+              try {
+                await supabase.functions.invoke('unified-gmail-sync', {
+                  body: { user_id: user.id, force_sync: false }
+                });
+                console.log('🔄 Background sync triggered');
+              } catch (syncError) {
+                console.log('⚠️ Background sync failed:', syncError);
+              }
+            }
+          } else {
+            console.log('⚠️ Gmail not connected, loading existing emails only');
+          }
+          
+          // Load emails from database regardless of Gmail status
+          await loadEmailsFromDB();
+          
+        } catch (error) {
+          console.error('❌ Error checking Gmail status:', error);
+          // Load emails anyway
+          await loadEmailsFromDB();
+        }
+      };
+      
+      checkGmailAndLoadEmails();
     } else {
       console.log('⚠️ No user found, clearing emails');
       setEmails([]);
