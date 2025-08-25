@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 interface CredentialStatus {
   google_client_id: boolean;
@@ -35,28 +36,61 @@ export const GmailCredentialDiagnostic: React.FC = () => {
       if (error) {
         setError(`Health check failed: ${error.message}`);
         console.error('❌ Health check failed:', error);
+        toast({
+          title: "Health Check Failed",
+          description: `Unable to check Gmail OAuth status: ${error.message}`,
+          variant: "destructive"
+        });
         return;
       }
       
       if (data?.success && data?.data) {
         setHealthData(data.data);
         console.log('✅ Health check completed:', data.data);
+        
+        if (!data.data.oauth_ready) {
+          toast({
+            title: "Configuration Required",
+            description: "Gmail OAuth credentials are missing. Please add them in Supabase secrets.",
+            variant: "destructive"
+          });
+        }
       } else {
         setError('Health check returned unexpected data');
         console.error('❌ Unexpected health check response:', data);
+        toast({
+          title: "Health Check Issue", 
+          description: "Health check completed but returned unexpected data",
+          variant: "destructive"
+        });
       }
       
     } catch (err: any) {
-      setError(`Health check exception: ${err.message}`);
+      const errorMsg = `Health check exception: ${err.message}`;
+      setError(errorMsg);
       console.error('❌ Health check exception:', err);
+      toast({
+        title: "Health Check Error",
+        description: "Failed to check Gmail OAuth status",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-run on component mount
+  // Auto-run on component mount with error boundary
   useEffect(() => {
-    runHealthCheck();
+    const checkHealth = async () => {
+      try {
+        await runHealthCheck();
+      } catch (err) {
+        console.error('❌ Failed to run initial health check:', err);
+        setError('Failed to initialize health check');
+      }
+    };
+    
+    checkHealth();
   }, []);
 
   const renderCredentialStatus = (key: keyof CredentialStatus, label: string) => {
@@ -69,7 +103,7 @@ export const GmailCredentialDiagnostic: React.FC = () => {
         <span className="font-medium">{label}</span>
         <div className="flex items-center gap-2">
           {isPresent ? (
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
+            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
               <CheckCircle className="w-3 h-3 mr-1" />
               Present
             </Badge>
@@ -89,7 +123,7 @@ export const GmailCredentialDiagnostic: React.FC = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
-          Gmail OAuth Credential Diagnostic
+          Gmail OAuth Credential Status
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -105,13 +139,13 @@ export const GmailCredentialDiagnostic: React.FC = () => {
             ) : (
               <RefreshCw className="w-4 h-4 mr-2" />
             )}
-            Run Health Check
+            Check Status
           </Button>
           
           {healthData && (
             <Badge 
               variant={healthData.oauth_ready ? "secondary" : "destructive"}
-              className={healthData.oauth_ready ? "bg-green-100 text-green-800" : ""}
+              className={healthData.oauth_ready ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" : ""}
             >
               {healthData.oauth_ready ? "✅ OAuth Ready" : "❌ Not Ready"}
             </Badge>
@@ -122,6 +156,9 @@ export const GmailCredentialDiagnostic: React.FC = () => {
           <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
             <p className="text-destructive font-medium">Error:</p>
             <p className="text-sm text-destructive/80">{error}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              This usually means the Gmail OAuth health check service needs configuration.
+            </p>
           </div>
         )}
 
@@ -139,7 +176,7 @@ export const GmailCredentialDiagnostic: React.FC = () => {
             <div className="mt-4 p-4 bg-muted/50 rounded-lg">
               <h5 className="font-medium mb-2">Summary:</h5>
               {healthData.oauth_ready ? (
-                <p className="text-sm text-green-700">
+                <p className="text-sm text-green-700 dark:text-green-400">
                   ✅ All credentials are properly configured. Gmail OAuth should work correctly.
                 </p>
               ) : (
@@ -156,9 +193,16 @@ export const GmailCredentialDiagnostic: React.FC = () => {
                         </li>
                       ))}
                   </ul>
-                  <p className="mt-3 text-muted-foreground">
-                    These need to be added as Supabase Edge Function secrets.
-                  </p>
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                      📋 Next Steps:
+                    </p>
+                    <ol className="text-xs text-blue-700 dark:text-blue-300 list-decimal list-inside space-y-1">
+                      <li>Go to Supabase Dashboard → Settings → Edge Functions</li>
+                      <li>Add the missing environment variables as secrets</li>
+                      <li>Run this health check again to verify</li>
+                    </ol>
+                  </div>
                 </div>
               )}
             </div>

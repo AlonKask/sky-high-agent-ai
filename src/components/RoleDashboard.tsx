@@ -8,7 +8,6 @@ import { SupervisorDashboard } from "./dashboards/SupervisorDashboard";
 import { GDSExpertDashboard } from "./dashboards/GDSExpertDashboard";
 import { CSAgentDashboard } from "./dashboards/CSAgentDashboard";
 import { SalesAgentDashboard } from "./dashboards/SalesAgentDashboard";
-import { GmailCredentialDiagnostic } from "./GmailCredentialDiagnostic";
 
 export const RoleDashboard = () => {
   const { role, loading } = useUserRole();
@@ -39,10 +38,5 @@ export const RoleDashboard = () => {
   }
 
   // Default to enhanced dashboard for all authenticated users
-  return (
-    <div className="space-y-6">
-      <GmailCredentialDiagnostic />
-      <EnhancedDashboard />
-    </div>
-  );
+  return <EnhancedDashboard />;
 };
