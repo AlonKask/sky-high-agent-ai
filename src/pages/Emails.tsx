@@ -458,9 +458,8 @@ const Emails = () => {
         <div className="p-4">
           {/* Enhanced Gmail Connection Status */}
           {!isSidebarCollapsed && (
-            <div className="mb-4 space-y-3">
+            <div className="mb-4">
               <EnhancedGmailStatus onEmailRefresh={handleEmailRefresh} />
-              <GmailDiagnostics />
             </div>
           )}
 

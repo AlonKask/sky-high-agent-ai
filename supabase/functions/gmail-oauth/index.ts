@@ -10,7 +10,16 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  const startTime = Date.now();
   console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
+  console.log(`⏰ Request started at: ${new Date().toISOString()}`);
+  console.log(`📊 Request Headers:`, {
+    'authorization': req.headers.get('authorization') ? '***Bearer token present***' : 'NO AUTH HEADER',
+    'content-type': req.headers.get('content-type'),
+    'user-agent': req.headers.get('user-agent')?.substring(0, 50) + '...',
+    'origin': req.headers.get('origin')
+  });
+  
   
   // Handle CORS preflight requests first
   if (req.method === 'OPTIONS') {
