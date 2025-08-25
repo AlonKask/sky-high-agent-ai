@@ -361,15 +361,16 @@ serve(async (req) => {
           }
         });
         
-        // CRITICAL FIX: Store tokens directly without over-encoding
-        console.log('🔧 Storing OAuth tokens directly (no encoding needed)...');
+        // CRITICAL FIX: Base64 encode tokens for database storage validation
+        console.log('🔧 Encoding OAuth tokens for secure database storage...');
         try {
-          // OAuth tokens are already properly formatted strings from Google
-          const encryptedAccessToken = tokens.access_token;
-          const encryptedRefreshToken = tokens.refresh_token || null;
+          // Database validation trigger expects base64-encoded tokens
+          const encryptedAccessToken = encodeBase64(new TextEncoder().encode(tokens.access_token));
+          const encryptedRefreshToken = tokens.refresh_token ? 
+            encodeBase64(new TextEncoder().encode(tokens.refresh_token)) : null;
           
-          console.log('✅ Token validation successful');
-          console.log('📊 Token lengths:', {
+          console.log('✅ Token encoding successful');
+          console.log('📊 Encoded token lengths:', {
             access_token_length: encryptedAccessToken?.length,
             refresh_token_length: encryptedRefreshToken?.length
           });
@@ -446,9 +447,9 @@ serve(async (req) => {
           
           console.log('✅ Credentials stored successfully:', insertData);
           
-        } catch (tokenError) {
-          console.error('❌ Token validation failed:', tokenError);
-          throw new Error(`Token validation failed: ${tokenError.message}`);
+        } catch (encodingError) {
+          console.error('❌ Token encoding failed:', encodingError);
+          throw new Error(`Token encoding failed: ${encodingError.message}`);
         }
         
         // PHASE 2: Enhanced Verification with New Verification Function

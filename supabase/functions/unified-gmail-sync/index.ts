@@ -85,7 +85,8 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
       if (part.body?.data) {
         try {
           const normalizedData = part.body.data.replace(/-/g, '+').replace(/_/g, '/');
-          const decoded = new TextDecoder().decode(decodeBase64(normalizedData));
+          const decodedBytes = decodeBase64(normalizedData);
+          const decoded = new TextDecoder().decode(decodedBytes);
           if (!text || part.mimeType?.includes('text/plain')) {
             text = decoded;
           }
@@ -104,7 +105,8 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
   if (payload.body?.data) {
     try {
       const normalizedData = payload.body.data.replace(/-/g, '+').replace(/_/g, '/');
-      text = new TextDecoder().decode(decodeBase64(normalizedData));
+      const decodedBytes = decodeBase64(normalizedData);
+      text = new TextDecoder().decode(decodedBytes);
     } catch (e) {
       // Continue if decode fails
       console.warn('Failed to decode email body:', e.message);
