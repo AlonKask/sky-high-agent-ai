@@ -79,7 +79,7 @@ serve(async (req) => {
           `<html><body><h1>Authentication Error</h1><p>Missing authentication state.</p><script>
             if (window.opener) {
               window.opener.postMessage({
-                type: 'gmail_auth_error',
+                type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: 'Missing authentication state'
               }, '*');
@@ -121,7 +121,7 @@ serve(async (req) => {
             `<html><body><h1>Security Error</h1><p>${errorMessage}</p><script>
               if (window.opener) {
                 window.opener.postMessage({
-                  type: 'gmail_auth_error',
+                  type: 'GMAIL_AUTH_ERROR',
                   success: false,
                   error: '${errorMessage}'
                 }, '*');
@@ -138,7 +138,7 @@ serve(async (req) => {
             `<html><body><h1>Security Error</h1><p>Authentication validation failed - no user ID returned.</p><script>
               if (window.opener) {
                 window.opener.postMessage({
-                  type: 'gmail_auth_error',
+                  type: 'GMAIL_AUTH_ERROR',
                   success: false,
                   error: 'Authentication validation failed'
                 }, '*');
@@ -164,7 +164,7 @@ serve(async (req) => {
           `<html><body><h1>Security Error</h1><p>Authentication state validation failed. Please try again.</p><script>
             if (window.opener) {
               window.opener.postMessage({
-                type: 'gmail_auth_error',
+                type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: 'State validation exception occurred'
               }, '*');
@@ -316,7 +316,7 @@ serve(async (req) => {
           `<html><body><h1>Authentication Error</h1><p>Google OAuth error: ${error}</p><script>
             if (window.opener) {
               window.opener.postMessage({
-                type: 'gmail_auth_error',
+                type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: '${error}'
               }, '*');
@@ -334,7 +334,7 @@ serve(async (req) => {
           `<html><body><h1>OAuth Error</h1><p>${errorMsg}</p><script>
             if (window.opener) {
               window.opener.postMessage({
-                type: 'gmail_auth_error',
+                type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: '${errorMsg}'
               }, '*');
@@ -390,214 +390,185 @@ serve(async (req) => {
       const userInfo = await userInfoResponse.json();
       console.log(`📧 User info obtained for: ${userInfo.email}`);
 
-      // PHASE 1: ENHANCED TOKEN STORAGE WITH COMPREHENSIVE DIAGNOSTICS
-      let storedSuccessfully = false;
-      let storageError = null;
+      // PHASE 2: Enhanced Error Propagation for Credential Storage
+      console.log('📦 Storing credentials for user:', userId);
+      console.log('🔑 Access token length:', tokens.access_token?.length || 0);
+      console.log('🔄 Refresh token length:', tokens.refresh_token?.length || 0);
       
       try {
-        console.log(`💾 [DIAGNOSTIC] Starting token storage for user: ${userId}`);
-        console.log(`📧 [DIAGNOSTIC] User email from Google: ${userInfo.email}`);
-        console.log(`⏰ [DIAGNOSTIC] Token expires in: ${tokens.expires_in} seconds`);
-        console.log(`🔑 [DIAGNOSTIC] Access token length: ${tokens.access_token?.length || 0}`);
-        console.log(`🔄 [DIAGNOSTIC] Refresh token exists: ${!!tokens.refresh_token}`);
+        // Enhanced token encryption with proper error handling
+        let encryptedAccessToken: string;
+        let encryptedRefreshToken: string | null;
         
-        // Enhanced token validation
-        if (!tokens.access_token) {
-          throw new Error('No access token received from Google');
+        try {
+          encryptedAccessToken = btoa(tokens.access_token);
+          encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
+          console.log('🔐 Token encryption successful');
+        } catch (encryptError) {
+          console.error('💥 Token encryption failed:', encryptError);
+          throw new Error(`Token encryption failed: ${encryptError.message}`);
         }
         
-        if (!userInfo.email) {
-          throw new Error('No email address received from Google');
-        }
+        console.log('🔐 Encrypted access token length:', encryptedAccessToken?.length || 0);
+        console.log('🔐 Encrypted refresh token length:', encryptedRefreshToken?.length || 0);
         
-        // Validate token format before encoding
-        if (tokens.access_token.length < 50) {
-          throw new Error('Access token appears invalid (too short)');
-        }
+        // Calculate proper token expiration (Gmail tokens typically expire in 1 hour)
+        const tokenExpirationTime = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000));
+        console.log('⏰ Token expiration calculated:', tokenExpirationTime.toISOString());
         
-        // CRITICAL FIX: Proper base64 encoding that passes validation
-        const encryptedAccessToken = btoa(tokens.access_token);
-        const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
-        const tokenExpiresAt = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000)).toISOString();
-        
-        console.log(`🔐 [DIAGNOSTIC] Base64 encoded access token length: ${encryptedAccessToken.length}`);
-        console.log(`🔐 [DIAGNOSTIC] Base64 validation test: ${/^[A-Za-z0-9+/=]+$/.test(encryptedAccessToken)}`);
-        console.log(`📅 [DIAGNOSTIC] Token expiration: ${tokenExpiresAt}`);
-        
-        // CRITICAL FIX: Complete credential object with all required fields
+        // Prepare credential data with all required fields
         const credentialData = {
           user_id: userId,
+          gmail_user_email: userInfo.email,
           access_token_encrypted: encryptedAccessToken,
           refresh_token_encrypted: encryptedRefreshToken,
-          token_expires_at: tokenExpiresAt,
-          gmail_user_email: userInfo.email,
+          token_expires_at: tokenExpirationTime.toISOString(),
+          is_active: true,
           scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
-          is_active: true, // CRITICAL: Set active flag
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_sync_at: null
+          last_sync_at: new Date().toISOString(),
         };
         
-        console.log(`💾 [DIAGNOSTIC] Credential data prepared:`, {
+        console.log('💾 Attempting credential upsert with data:', {
           user_id: credentialData.user_id,
           gmail_user_email: credentialData.gmail_user_email,
-          has_access_token: !!credentialData.access_token_encrypted,
-          has_refresh_token: !!credentialData.refresh_token_encrypted,
-          token_expires_at: credentialData.token_expires_at,
-          is_active: credentialData.is_active
+          is_active: credentialData.is_active,
+          scope: credentialData.scope,
+          token_expires_at: credentialData.token_expires_at
         });
         
-        // PHASE 2: DATABASE INSERTION WITH DETAILED ERROR HANDLING
-        console.log(`🔄 [DIAGNOSTIC] Executing upsert operation...`);
+        // Attempt database insertion with retry logic
+        let insertAttempts = 0;
+        const maxAttempts = 3;
+        let insertError: any = null;
         
-        const { data: upsertData, error: upsertError } = await supabaseServiceClient
-          .from('gmail_credentials')
-          .upsert(credentialData, {
-            onConflict: 'user_id',
-            count: 'exact'
-          });
+        while (insertAttempts < maxAttempts) {
+          insertAttempts++;
+          console.log(`📝 Credential storage attempt ${insertAttempts}/${maxAttempts}`);
           
-        if (upsertError) {
-          console.error(`❌ [CRITICAL] Gmail credentials upsert failed:`, {
-            message: upsertError.message,
-            details: upsertError.details,
-            hint: upsertError.hint,
-            code: upsertError.code,
-            context: 'database_insertion'
-          });
-          
-          // Enhanced error categorization
-          if (upsertError.message?.includes('base64') || upsertError.message?.includes('encrypted')) {
-            storageError = `Token encoding validation failed: ${upsertError.message}`;
-          } else if (upsertError.message?.includes('constraint') || upsertError.message?.includes('violates')) {
-            storageError = `Database constraint violation: ${upsertError.message}`;
-          } else if (upsertError.message?.includes('permission') || upsertError.code === '42501') {
-            storageError = `Database permission denied: ${upsertError.message}`;
+          const { error } = await supabaseServiceClient
+            .from('gmail_credentials')
+            .upsert(credentialData, {
+              onConflict: 'user_id'
+            });
+
+          if (!error) {
+            console.log('✅ Credential storage successful on attempt', insertAttempts);
+            insertError = null;
+            break;
           } else {
-            storageError = `Database operation failed: ${upsertError.message}`;
-          }
-        } else {
-          console.log(`✅ [SUCCESS] Upsert completed successfully. Records affected:`, upsertData?.length || 0);
-          
-          // PHASE 3: VERIFICATION WITH MULTIPLE ATTEMPTS
-          let verifyAttempts = 0;
-          const maxVerifyAttempts = 3;
-          
-          while (verifyAttempts < maxVerifyAttempts && !storedSuccessfully) {
-            verifyAttempts++;
-            console.log(`🔍 [DIAGNOSTIC] Verification attempt ${verifyAttempts}/${maxVerifyAttempts}...`);
-            
-            // Wait briefly for database consistency
-            if (verifyAttempts > 1) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            
-            const { data: verifyData, error: verifyError } = await supabaseServiceClient
-              .from('gmail_credentials')
-              .select('user_id, gmail_user_email, created_at, is_active, token_expires_at')
-              .eq('user_id', userId)
-              .maybeSingle();
-              
-            if (verifyError) {
-              console.error(`❌ [DIAGNOSTIC] Storage verification attempt ${verifyAttempts} failed:`, verifyError);
-              if (verifyAttempts === maxVerifyAttempts) {
-                storageError = `Storage verification failed after ${maxVerifyAttempts} attempts: ${verifyError.message}`;
-              }
-            } else if (verifyData) {
-              console.log(`✅ [SUCCESS] Storage verified on attempt ${verifyAttempts}:`, verifyData);
-              storedSuccessfully = true;
-            } else {
-              console.error(`❌ [DIAGNOSTIC] No credential record found on attempt ${verifyAttempts}`);
-              if (verifyAttempts === maxVerifyAttempts) {
-                storageError = 'Credentials not found in database after storage operation';
-              }
-            }
-          }
-        }
-        
-        // Trigger immediate email sync if storage was successful
-        if (storedSuccessfully) {
-          try {
-            console.log(`🔄 Triggering initial email sync for user: ${userId}`);
-            const syncResponse = await supabaseServiceClient.functions.invoke('unified-gmail-sync', {
-              body: {
-                userId: userId,
-                userEmail: userInfo.email,
-                manualSync: true,
-                includeAIProcessing: false
-              }
+            insertError = error;
+            console.error(`💥 Storage attempt ${insertAttempts} failed:`, {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code
             });
             
-            if (syncResponse.error) {
-              console.error(`❌ Initial sync failed:`, syncResponse.error);
-              // Don't fail OAuth for sync errors, but log them
-            } else {
-              console.log(`✅ Initial sync completed successfully:`, syncResponse.data);
+            if (insertAttempts < maxAttempts) {
+              console.log(`🔄 Retrying in 1 second...`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
             }
-          } catch (syncError) {
-            console.error(`❌ Exception during initial sync:`, syncError);
-            // Don't fail the OAuth flow for sync errors
           }
         }
+
+        if (insertError) {
+          console.error('💥 All credential storage attempts failed:', insertError);
+          throw new Error(`Failed to store credentials after ${maxAttempts} attempts: ${insertError.message}. Details: ${insertError.details || 'N/A'}`);
+        }
         
-      } catch (error) {
-        console.error(`❌ Exception in token storage process:`, error);
-        storageError = `Storage exception: ${error.message}`;
+        // Enhanced verification with detailed logging
+        console.log('🔍 Verifying credential storage...');
+        const { data: verifyData, error: verifyError } = await supabaseServiceClient
+          .from('gmail_credentials')
+          .select('id, gmail_user_email, is_active, token_expires_at, scope, created_at')
+          .eq('user_id', userId)
+          .single();
+          
+        if (verifyError) {
+          console.error('💥 Credential verification query failed:', verifyError);
+          throw new Error(`Credential verification failed: ${verifyError.message}`);
+        }
+        
+        if (!verifyData) {
+          console.error('💥 No credentials found after insertion');
+          throw new Error('Credentials were not found after insertion - possible database constraint issue');
+        }
+        
+        console.log('✅ Credentials verified successfully:', {
+          id: verifyData.id,
+          email: verifyData.gmail_user_email,
+          is_active: verifyData.is_active,
+          expires_at: verifyData.token_expires_at,
+          scope: verifyData.scope,
+          created_at: verifyData.created_at
+        });
+
+      } catch (storageError) {
+        console.error('🚨 CRITICAL: Credential storage process failed:', storageError);
+        throw new Error(`Credential storage failed: ${storageError.message}`);
       }
 
-      // Return success page that notifies parent window
+      // PHASE 3: Gmail API Compliance - Enhanced Initial Sync
+      console.log('🔄 Triggering initial Gmail sync with proper error handling...');
+      try {
+        const { data: syncData, error: syncError } = await supabaseServiceClient.functions.invoke('unified-gmail-sync', {
+          body: { 
+            user_id: userId,
+            initial_sync: true,
+            force_refresh: true
+          }
+        });
+        
+        if (syncError) {
+          console.error('⚠️ Initial sync failed (non-critical):', {
+            message: syncError.message,
+            details: syncError.details
+          });
+        } else {
+          console.log('✅ Initial sync triggered successfully:', syncData);
+        }
+      } catch (syncError) {
+        console.error('⚠️ Initial sync error (non-critical):', syncError);
+        // Don't throw - this is non-critical for OAuth completion
+      }
+
+      // Return success page with enhanced messaging
       const successPage = `
         <html>
-          <head>
-            <title>Gmail Connected</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f8f9fa; }
-              .container { max-width: 500px; margin: 0 auto; }
-              .success { color: #059669; font-size: 24px; margin-bottom: 20px; }
-              .warning { color: #D97706; font-size: 18px; margin-bottom: 20px; }
-              .info { color: #374151; margin-bottom: 20px; }
-              .loading { color: #3B82F6; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              ${storedSuccessfully 
-                ? `<h1 class="success">✅ Gmail Connected Successfully!</h1>`
-                : `<h1 class="warning">⚠️ Gmail Connection Partial</h1>`
-              }
-              <p class="info">Email: <strong>${userInfo.email}</strong></p>
-              ${storedSuccessfully 
-                ? `<p class="info">✅ Tokens stored successfully</p>`
-                : `<p class="warning">❌ Token storage failed: ${storageError}</p>`
-              }
-              <p class="loading">Closing window and refreshing connection...</p>
+          <head><title>Gmail Connected Successfully</title></head>
+          <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f0f9ff;">
+            <div style="max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <h1 style="color: #059669; margin-bottom: 20px;">✅ Gmail Connected!</h1>
+              <p style="color: #374151; margin: 20px 0;">
+                Successfully connected to <strong>${userInfo.email}</strong>
+              </p>
+              <p style="color: #6b7280; margin: 20px 0;">
+                Your Gmail account is now integrated and email sync will begin shortly.
+              </p>
+              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+                This window will close automatically in 3 seconds.
+              </p>
             </div>
-            
             <script>
-              // Notify parent window of connection result
+              // Notify parent window of successful authentication
               if (window.opener) {
                 window.opener.postMessage({
-                  type: 'gmail_auth_success',
-                  success: ${storedSuccessfully},
-                  userEmail: "${userInfo.email}",
-                  message: '${storedSuccessfully ? 'Gmail connected successfully' : 'Connection partially successful - please try syncing manually'}',
-                  error: ${storageError ? `"${storageError}"` : 'null'}
+                  type: 'GMAIL_AUTH_SUCCESS',
+                  success: true,
+                  userEmail: '${userInfo.email}',
+                  timestamp: new Date().toISOString()
                 }, '*');
-                
-                setTimeout(() => {
-                  window.close();
-                }, 2000);
-              } else {
-                setTimeout(() => {
-                  window.close();
-                }, 5000);
               }
+              setTimeout(() => window.close(), 3000);
             </script>
           </body>
         </html>
       `;
-
-      return new Response(successPage, { headers: { 'Content-Type': 'text/html' } });
+      
+      return new Response(successPage, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+        status: 200
+      });
 
     } else {
       // Unknown action
@@ -614,36 +585,81 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error(`❌ Gmail OAuth Error:`, error);
+    console.error('💥 OAuth callback error:', error);
     
-    if (req.url.includes('action=callback')) {
-      // Return HTML error page for callback
-      return new Response(
-        `<html><body><h1>Error</h1><p>Authentication failed: ${error.message}</p><script>
-          if (window.opener) {
-            window.opener.postMessage({
-              type: 'gmail_auth_error',
-              success: false,
-              error: '${error.message}'
-            }, '*');
-          }
-          window.close();
-        </script></body></html>`,
-        { headers: { 'Content-Type': 'text/html' } }
-      );
-    } else {
-      // Return JSON error for API calls
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: error.message || 'Internal server error'
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    // Enhanced error categorization and messaging
+    let errorMessage = 'Authentication failed';
+    let errorCategory = 'unknown';
+    let errorDetails = '';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // Categorize errors for better user feedback
+      if (error.message.includes('Failed to store credentials') || error.message.includes('Database insertion failed') || error.message.includes('Credential verification failed')) {
+        errorCategory = 'storage';
+        errorDetails = 'Database storage issue - please try again or contact support';
+      } else if (error.message.includes('Token encryption')) {
+        errorCategory = 'encryption';
+        errorDetails = 'Token processing issue - please try again';
+      } else if (error.message.includes('verification failed') || error.message.includes('not found after insertion')) {
+        errorCategory = 'verification';
+        errorDetails = 'Credential verification issue - please try again';
+      } else if (error.message.includes('Token exchange failed') || error.message.includes('Invalid token response')) {
+        errorCategory = 'token_exchange';
+        errorDetails = 'Google authentication issue - please try again';
+      } else if (error.message.includes('Gmail credential validation failed')) {
+        errorCategory = 'validation';
+        errorDetails = 'Token format validation failed - please try again';
+      } else {
+        errorCategory = 'general';
+        errorDetails = 'Please try the authentication process again';
+      }
     }
+    
+    console.error('🚨 Categorized error:', {
+      category: errorCategory,
+      message: errorMessage,
+      details: errorDetails
+    });
+    
+    const errorPage = `
+      <html>
+        <head><title>Gmail Authentication Error</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f9fafb;">
+          <div style="max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h1 style="color: #dc2626; margin-bottom: 20px;">Gmail Authentication Failed</h1>
+            <p style="color: #374151; margin: 20px 0;">
+              <strong>Error:</strong> ${errorMessage}
+            </p>
+            <p style="color: #6b7280; margin: 20px 0;">
+              ${errorDetails}
+            </p>
+            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+              This window will close automatically in 5 seconds.
+            </p>
+          </div>
+          <script>
+            // Notify parent window with detailed error information
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'GMAIL_AUTH_ERROR', 
+                error: '${errorMessage.replace(/'/g, "\\'")}',
+                category: '${errorCategory}',
+                details: '${errorDetails.replace(/'/g, "\\'")}',
+                success: false
+              }, '*');
+            }
+            setTimeout(() => window.close(), 5000);
+          </script>
+        </body>
+      </html>
+    `;
+    
+    return new Response(errorPage, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+      status: 400
+    });
   }
   
   });

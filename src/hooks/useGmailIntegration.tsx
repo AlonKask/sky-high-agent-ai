@@ -221,14 +221,14 @@ export const useGmailIntegration = () => {
         const handleMessage = (event: MessageEvent) => {
           console.log('📨 Received OAuth message:', event.data);
           
-          if (event.data.type === 'gmail_auth_success') {
+          if (event.data.type === 'gmail_auth_success' || event.data.type === 'GMAIL_AUTH_SUCCESS') {
             cleanup();
             
             if (event.data.success) {
               console.log('✅ Gmail OAuth completed successfully:', event.data.userEmail);
               toast({
-                title: "Gmail Connected",
-                description: `Successfully connected to ${event.data.userEmail}`,
+                title: "Gmail Connected Successfully!",
+                description: `Connected to ${event.data.userEmail || 'your Gmail account'}. Sync starting...`,
               });
               
               // Wait for database operations to complete, then refresh status
@@ -255,19 +255,50 @@ export const useGmailIntegration = () => {
               
               reject(new Error(errorMsg));
             }
-          } else if (event.data.type === 'gmail_auth_error') {
+          } else if (event.data.type === 'gmail_auth_error' || event.data.type === 'GMAIL_AUTH_ERROR') {
             cleanup();
             console.error('❌ OAuth authorization failed:', event.data.error);
             
-            // Enhanced error categorization
-            let errorMessage = event.data.error || 'Authorization failed';
-            if (errorMessage.includes('Invalid or expired OAuth state token')) {
-              errorMessage = 'Security validation failed. Please try again.';
-            } else if (errorMessage.includes('Missing authentication state')) {
-              errorMessage = 'Authentication state error. Please refresh and try again.';
+            // Enhanced error handling with categorized messages
+            const errorCategory = event.data?.category || 'general';
+            const errorDetails = event.data?.details || 'Please try again.';
+            
+            let title = "Gmail Connection Failed";
+            let description = event.data.error || "Failed to connect Gmail account.";
+            
+            // Provide specific guidance based on error category
+            switch (errorCategory) {
+              case 'storage':
+                title = "Database Storage Issue";
+                description = "Unable to save Gmail credentials. Please try again or contact support if the issue persists.";
+                break;
+              case 'encryption':
+                title = "Token Processing Error";
+                description = "Error processing authentication tokens. Please try connecting again.";
+                break;
+              case 'verification':
+                title = "Credential Verification Failed";
+                description = "Gmail credentials couldn't be verified. Please retry the connection process.";
+                break;
+              case 'token_exchange':
+                title = "Google Authentication Issue";
+                description = "Problem exchanging authorization code with Google. Please try again.";
+                break;
+              case 'validation':
+                title = "Token Validation Failed";
+                description = "Gmail token format validation failed. Please try again.";
+                break;
+              default:
+                description = `${description} ${errorDetails}`;
             }
             
-            reject(new Error(errorMessage));
+            toast({
+              title,
+              description,
+              variant: "destructive",
+            });
+            
+            reject(new Error(description));
           }
         };
 

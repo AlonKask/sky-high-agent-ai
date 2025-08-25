@@ -4090,6 +4090,10 @@ export type Database = {
         Args: { p_text: string }
         Returns: boolean
       }
+      is_base64_flexible: {
+        Args: { p_text: string }
+        Returns: boolean
+      }
       is_business_user: {
         Args: Record<PropertyKey, never>
         Returns: boolean
