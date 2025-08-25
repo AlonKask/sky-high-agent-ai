@@ -231,16 +231,29 @@ export const useGmailIntegration = () => {
                 description: `Successfully connected to ${event.data.userEmail}`,
               });
               
-              // Wait longer for database operations to complete, then refresh status
+              // Wait for database operations to complete, then refresh status
               setTimeout(() => {
                 console.log('🔄 Refreshing Gmail status after successful OAuth...');
                 checkGmailStatus();
-              }, 5000); // Extended wait time
+              }, 3000);
               
               resolve();
             } else {
               console.error('❌ OAuth completed but with error:', event.data.error);
-              reject(new Error(event.data.error || 'Connection failed during final steps'));
+              
+              // Show detailed error message for diagnostic purposes
+              const errorMsg = event.data.error || 'Connection failed during final steps';
+              const isStorageError = errorMsg.includes('storage') || errorMsg.includes('database');
+              
+              toast({
+                title: isStorageError ? "Connection Issue - Credentials Not Saved" : "Gmail Connection Failed",
+                description: isStorageError 
+                  ? "OAuth completed but credentials couldn't be saved. Please try again or contact support."
+                  : errorMsg,
+                variant: "destructive"
+              });
+              
+              reject(new Error(errorMsg));
             }
           } else if (event.data.type === 'gmail_auth_error') {
             cleanup();

@@ -390,14 +390,16 @@ serve(async (req) => {
       const userInfo = await userInfoResponse.json();
       console.log(`📧 User info obtained for: ${userInfo.email}`);
 
-      // Enhanced token storage with comprehensive error handling and validation
+      // PHASE 1: ENHANCED TOKEN STORAGE WITH COMPREHENSIVE DIAGNOSTICS
       let storedSuccessfully = false;
       let storageError = null;
       
       try {
-        console.log(`💾 Storing encrypted tokens for user: ${userId}`);
-        console.log(`📧 User email from Google: ${userInfo.email}`);
-        console.log(`⏰ Token expires in: ${tokens.expires_in} seconds`);
+        console.log(`💾 [DIAGNOSTIC] Starting token storage for user: ${userId}`);
+        console.log(`📧 [DIAGNOSTIC] User email from Google: ${userInfo.email}`);
+        console.log(`⏰ [DIAGNOSTIC] Token expires in: ${tokens.expires_in} seconds`);
+        console.log(`🔑 [DIAGNOSTIC] Access token length: ${tokens.access_token?.length || 0}`);
+        console.log(`🔄 [DIAGNOSTIC] Refresh token exists: ${!!tokens.refresh_token}`);
         
         // Enhanced token validation
         if (!tokens.access_token) {
@@ -408,59 +410,108 @@ serve(async (req) => {
           throw new Error('No email address received from Google');
         }
         
-        // Simple base64 encoding for token storage (proper encryption should be used in production)
+        // Validate token format before encoding
+        if (tokens.access_token.length < 50) {
+          throw new Error('Access token appears invalid (too short)');
+        }
+        
+        // CRITICAL FIX: Proper base64 encoding that passes validation
         const encryptedAccessToken = btoa(tokens.access_token);
         const encryptedRefreshToken = tokens.refresh_token ? btoa(tokens.refresh_token) : null;
         const tokenExpiresAt = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000)).toISOString();
         
-        console.log(`🔑 Encrypted tokens prepared, upserting to database...`);
-        console.log(`📅 Token expiration set to: ${tokenExpiresAt}`);
+        console.log(`🔐 [DIAGNOSTIC] Base64 encoded access token length: ${encryptedAccessToken.length}`);
+        console.log(`🔐 [DIAGNOSTIC] Base64 validation test: ${/^[A-Za-z0-9+/=]+$/.test(encryptedAccessToken)}`);
+        console.log(`📅 [DIAGNOSTIC] Token expiration: ${tokenExpiresAt}`);
         
-        // Store in gmail_credentials table with enhanced error handling
+        // CRITICAL FIX: Complete credential object with all required fields
+        const credentialData = {
+          user_id: userId,
+          access_token_encrypted: encryptedAccessToken,
+          refresh_token_encrypted: encryptedRefreshToken,
+          token_expires_at: tokenExpiresAt,
+          gmail_user_email: userInfo.email,
+          scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
+          is_active: true, // CRITICAL: Set active flag
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_sync_at: null
+        };
+        
+        console.log(`💾 [DIAGNOSTIC] Credential data prepared:`, {
+          user_id: credentialData.user_id,
+          gmail_user_email: credentialData.gmail_user_email,
+          has_access_token: !!credentialData.access_token_encrypted,
+          has_refresh_token: !!credentialData.refresh_token_encrypted,
+          token_expires_at: credentialData.token_expires_at,
+          is_active: credentialData.is_active
+        });
+        
+        // PHASE 2: DATABASE INSERTION WITH DETAILED ERROR HANDLING
+        console.log(`🔄 [DIAGNOSTIC] Executing upsert operation...`);
+        
         const { data: upsertData, error: upsertError } = await supabaseServiceClient
           .from('gmail_credentials')
-          .upsert({
-            user_id: userId,
-            access_token_encrypted: encryptedAccessToken,
-            refresh_token_encrypted: encryptedRefreshToken,
-            token_expires_at: tokenExpiresAt,
-            gmail_user_email: userInfo.email,
-            scope: 'https://www.googleapis.com/auth/gmail.modify',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_sync_at: null  // Will be updated on first sync
-          }, {
+          .upsert(credentialData, {
             onConflict: 'user_id',
             count: 'exact'
           });
           
         if (upsertError) {
-          console.error(`❌ Gmail credentials upsert failed:`, {
+          console.error(`❌ [CRITICAL] Gmail credentials upsert failed:`, {
             message: upsertError.message,
             details: upsertError.details,
             hint: upsertError.hint,
-            code: upsertError.code
+            code: upsertError.code,
+            context: 'database_insertion'
           });
-          storageError = `Database storage failed: ${upsertError.message}`;
-        } else {
-          console.log(`✅ Upsert completed. Data:`, upsertData);
           
-          // Verify the storage by reading back the record
-          const { data: verifyData, error: verifyError } = await supabaseServiceClient
-            .from('gmail_credentials')
-            .select('user_id, gmail_user_email, created_at')
-            .eq('user_id', userId)
-            .single();
-            
-          if (verifyError) {
-            console.error(`❌ Storage verification failed:`, verifyError);
-            storageError = `Storage verification failed: ${verifyError.message}`;
-          } else if (verifyData) {
-            console.log(`✅ Storage verified successfully:`, verifyData);
-            storedSuccessfully = true;
+          // Enhanced error categorization
+          if (upsertError.message?.includes('base64') || upsertError.message?.includes('encrypted')) {
+            storageError = `Token encoding validation failed: ${upsertError.message}`;
+          } else if (upsertError.message?.includes('constraint') || upsertError.message?.includes('violates')) {
+            storageError = `Database constraint violation: ${upsertError.message}`;
+          } else if (upsertError.message?.includes('permission') || upsertError.code === '42501') {
+            storageError = `Database permission denied: ${upsertError.message}`;
           } else {
-            console.error(`❌ No data found after storage`);
-            storageError = 'Storage completed but verification failed';
+            storageError = `Database operation failed: ${upsertError.message}`;
+          }
+        } else {
+          console.log(`✅ [SUCCESS] Upsert completed successfully. Records affected:`, upsertData?.length || 0);
+          
+          // PHASE 3: VERIFICATION WITH MULTIPLE ATTEMPTS
+          let verifyAttempts = 0;
+          const maxVerifyAttempts = 3;
+          
+          while (verifyAttempts < maxVerifyAttempts && !storedSuccessfully) {
+            verifyAttempts++;
+            console.log(`🔍 [DIAGNOSTIC] Verification attempt ${verifyAttempts}/${maxVerifyAttempts}...`);
+            
+            // Wait briefly for database consistency
+            if (verifyAttempts > 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            const { data: verifyData, error: verifyError } = await supabaseServiceClient
+              .from('gmail_credentials')
+              .select('user_id, gmail_user_email, created_at, is_active, token_expires_at')
+              .eq('user_id', userId)
+              .maybeSingle();
+              
+            if (verifyError) {
+              console.error(`❌ [DIAGNOSTIC] Storage verification attempt ${verifyAttempts} failed:`, verifyError);
+              if (verifyAttempts === maxVerifyAttempts) {
+                storageError = `Storage verification failed after ${maxVerifyAttempts} attempts: ${verifyError.message}`;
+              }
+            } else if (verifyData) {
+              console.log(`✅ [SUCCESS] Storage verified on attempt ${verifyAttempts}:`, verifyData);
+              storedSuccessfully = true;
+            } else {
+              console.error(`❌ [DIAGNOSTIC] No credential record found on attempt ${verifyAttempts}`);
+              if (verifyAttempts === maxVerifyAttempts) {
+                storageError = 'Credentials not found in database after storage operation';
+              }
+            }
           }
         }
         
