@@ -12,9 +12,8 @@ import EmailSidebar from "./EmailSidebar";
 import EmailListView from "./EmailListView";
 import EmailDetailView from "./EmailDetailView";
 import EnhancedEmailComposer from "./EnhancedEmailComposer";
-import EmailSyncControls from "./EmailSyncControls";
 import { GmailStatusButton } from "./GmailStatusButton";
-import { useEmailSync } from "@/hooks/useEmailSync";
+import { Plus } from "lucide-react";
 
 interface EmailExchange {
   id: string;
@@ -72,7 +71,8 @@ const EnhancedEmailInterface = ({
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerDraftId, setComposerDraftId] = useState<string | null>(null);
-  const [isSyncControlsOpen, setIsSyncControlsOpen] = useState(false);
+  const [isAutoSyncing, setIsAutoSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   // Filter state
   const [selectedFolder, setSelectedFolder] = useState('inbox');
@@ -83,7 +83,6 @@ const EnhancedEmailInterface = ({
   const { user } = useSimpleAuth();
   const { authStatus, triggerSync } = useGmailIntegration();
   const { createReplyDraft, createForwardDraft, archiveEmail, deleteEmail } = useEmailActions();
-  const { performQuickSync, isSyncActive } = useEmailSync();
 
   // Enhanced email fetching with better error handling
   const fetchEmails = useCallback(async () => {
@@ -323,24 +322,20 @@ const EnhancedEmailInterface = ({
     setRefreshKey(prev => prev + 1);
   };
 
-  // Enhanced sync handler with multiple options
-  const handleSyncEmails = async () => {
-    if (!authStatus.isConnected) {
-      console.log('❌ Gmail not connected, cannot sync');
-      toast({
-        title: "Gmail not connected",
-        description: "Please connect your Gmail account first",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Auto-sync helper function
+  const performAutoSync = async () => {
+    if (isAutoSyncing || !authStatus.isConnected) return;
     
-    console.log('🔄 User triggered quick email sync');
+    setIsAutoSyncing(true);
     try {
-      await performQuickSync(true);
-      // Refresh will happen automatically via the gmail-sync-complete event
+      console.log('🔄 Auto-sync triggered, emails:', emails.length);
+      await triggerSync();
+      setLastSyncTime(new Date());
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
-      console.error('❌ Failed to trigger sync:', error);
+      console.error('❌ Auto-sync failed:', error);
+    } finally {
+      setIsAutoSyncing(false);
     }
   };
 
@@ -367,51 +362,58 @@ const EnhancedEmailInterface = ({
     return () => window.removeEventListener('gmail-sync-complete', handleSyncComplete as EventListener);
   }, []);
 
-  // Phase 5: Smart Auto-sync with Adaptive Intervals and Background Processing
+  // Enhanced real-time auto-sync with adaptive intervals
   useEffect(() => {
-    if (!user || !authStatus.isConnected || authStatus.isLoading) return;
-
-    const emailCount = emails.length;
+    if (!authStatus.isConnected || !user?.id) return;
     
-    // Intelligent interval calculation
-    const getInterval = () => {
-      if (emailCount === 0) return 45000; // 45 seconds if no emails (discovery mode)
-      if (emailCount < 5) return 90000; // 1.5 minutes if very few emails
-      if (emailCount < 20) return 180000; // 3 minutes if some emails
-      return 600000; // 10 minutes if many emails (maintenance mode)
+    // More frequent sync intervals for real-time feel
+    const getAutoSyncInterval = () => {
+      if (emails.length === 0) return 5000;  // 5s for empty inbox
+      if (emails.length < 50) return 15000;  // 15s for light users
+      return 25000; // 25s for regular users
     };
 
-    // Background sync with error resilience
-    const backgroundSync = async () => {
-      try {
-        console.log(`🔄 Background sync initiated (${emails.length} emails currently loaded)`);
-        
-        // Only sync if not currently loading
-        if (!authStatus.isLoading) {
-          await triggerSync();
-        } else {
-          console.log('⏭️ Skipping background sync - already in progress');
-        }
-      } catch (error) {
-        console.warn('⚠️ Background sync failed, will retry next interval:', error);
-      }
-    };
-
-    const interval = setInterval(backgroundSync, getInterval());
-
-    // Initial sync after component mount (delayed)
-    const initialSyncTimeout = setTimeout(() => {
-      if (emails.length === 0 && authStatus.isConnected && !authStatus.isLoading) {
-        console.log('🚀 Initial sync after mount');
-        backgroundSync();
-      }
-    }, 2000); // 2-second delay to let component settle
+    // Initial sync
+    performAutoSync();
+    
+    // Set up interval
+    const interval = setInterval(performAutoSync, getAutoSyncInterval());
+    
+    // Sync on window focus for immediate updates
+    const handleFocus = () => performAutoSync();
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       clearInterval(interval);
-      clearTimeout(initialSyncTimeout);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [user, authStatus.isConnected, authStatus.isLoading, emails.length, triggerSync]);
+  }, [authStatus.isConnected, user?.id, emails.length]);
+
+  // Real-time database listener for immediate updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('email-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'email_exchanges',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('📧 Real-time email update:', payload);
+          setRefreshKey(prev => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const selectedEmail = emails.find(email => email.id === selectedEmailId) || null;
 
@@ -434,26 +436,33 @@ const EnhancedEmailInterface = ({
         </Button>
         
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsSyncControlsOpen(true)}
-            className="gap-2"
-            disabled={isSyncActive}
-          >
-            <Settings className="h-4 w-4" />
-            Sync Options
-          </Button>
+          <GmailStatusButton />
+          
+          {/* Subtle sync status indicator */}
+          {authStatus.isConnected && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {isAutoSyncing && (
+                <div className="flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span className="text-xs">Syncing...</span>
+                </div>
+              )}
+              {lastSyncTime && !isAutoSyncing && (
+                <span className="text-xs">
+                  Last sync: {lastSyncTime.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          )}
           
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
-            onClick={handleSyncEmails}
-            disabled={!authStatus.isConnected || isSyncActive}
-            className="gap-2"
+            onClick={() => setIsComposerOpen(true)}
+            className="shrink-0"
           >
-            <RefreshCw className={`h-4 w-4 ${isSyncActive ? 'animate-spin' : ''}`} />
-            Quick Sync
+            <Plus className="w-4 h-4 mr-2" />
+            Compose
           </Button>
         </div>
       </div>
@@ -506,26 +515,16 @@ const EnhancedEmailInterface = ({
                     {authStatus.isConnected ? (
                       <div className="space-y-3">
                         <p className="text-muted-foreground text-sm">
-                          Your Gmail is connected but no emails have been synced yet.
+                          Your Gmail is connected. Emails sync automatically in real-time.
                         </p>
-                         <Button 
-                           onClick={handleSyncEmails}
-                           className="gap-2"
-                           disabled={isSyncActive}
-                         >
-                           <RefreshCw className={`w-4 h-4 ${isSyncActive ? 'animate-spin' : ''}`} />
-                           Quick Sync
-                         </Button>
-                         <Button 
-                           variant="outline"
-                           onClick={() => setIsSyncControlsOpen(true)}
-                           className="gap-2"
-                         >
-                           <Settings className="w-4 h-4" />
-                           Sync Options
-                         </Button>
+                        {isAutoSyncing && (
+                          <div className="flex items-center justify-center gap-2 text-sm">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Syncing your emails...</span>
+                          </div>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                          This will sync your recent Gmail messages
+                          No manual sync needed - emails appear automatically
                         </p>
                       </div>
                     ) : (
