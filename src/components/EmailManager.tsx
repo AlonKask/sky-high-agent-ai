@@ -16,6 +16,8 @@ import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { logger } from "@/utils/logger";
 import EnhancedEmailCard from "./EnhancedEmailCard";
 import UnifiedEmailRenderer from "./UnifiedEmailRenderer";
+import { GmailStatusButton } from "./GmailStatusButton";
+import { Badge as GmailBadge } from "@/components/ui/badge";
 
 
 interface EmailExchange {
@@ -202,6 +204,7 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
             Email Communication
           </CardTitle>
           <div className="flex items-center gap-2">
+            <GmailStatusButton />
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
@@ -284,6 +287,27 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
         </div>
       </CardHeader>
       <CardContent>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Gmail Status:</span>
+            <GmailBadge variant={authStatus.isConnected ? "default" : "outline"}>
+              {authStatus.isConnected ? `Connected (${authStatus.userEmail})` : 'Disconnected'}
+            </GmailBadge>
+            {authStatus.lastSync && (
+              <span className="text-xs text-muted-foreground">
+                Last sync: {new Date(authStatus.lastSync).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+        {!authStatus.isConnected && (
+          <div className="mb-4 p-3 border rounded-lg bg-muted/50">
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="h-4 w-4" />
+              <span>Connect Gmail to sync emails automatically and send from your account.</span>
+            </div>
+          </div>
+        )}
         {emails.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             {isLoading ? 'Loading emails...' : 'No email exchanges found'}
