@@ -33,6 +33,11 @@ interface EmailExchange {
   attachments?: any;
   metadata?: any;
   updated_at?: string;
+  clients?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
 }
 
 interface EnhancedEmailInterfaceProps {
@@ -83,8 +88,7 @@ const EnhancedEmailInterface = ({
         .select(`
           id, subject, sender_email, recipient_emails, cc_emails, bcc_emails, 
           body, direction, status, email_type, attachments, metadata, 
-          created_at, updated_at, received_at, message_id, thread_id,
-          client_id, clients(first_name, last_name, email)
+          created_at, updated_at, received_at, message_id, thread_id, client_id
         `)
         .eq('user_id', user.id)
         .order('received_at', { ascending: false })
@@ -118,6 +122,8 @@ const EnhancedEmailInterface = ({
       const formattedEmails = (data || []).map(email => ({
         ...email,
         user_id: user.id, // Ensure user_id is present
+        // Initialize client data as null - will be populated if needed
+        clients: null,
         direction: email.direction as 'inbound' | 'outbound'
       }));
 
