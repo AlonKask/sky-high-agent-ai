@@ -1,15 +1,11 @@
 import React from 'react';
 import EmailManager from '@/components/EmailManager';
-import { GmailConnectionStatus } from '@/components/GmailConnectionStatus';
 
 const Emails = () => {
   return (
-    <div className="h-full flex flex-col">
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 items-center justify-between px-4">
-          <h1 className="font-semibold">Emails</h1>
-          <GmailConnectionStatus />
-        </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Emails</h1>
       </div>
       <EmailManager />
     </div>
