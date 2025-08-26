@@ -306,12 +306,21 @@ export const useGmailIntegration = () => {
     });
   }, []);
 
-  // Simplified sync trigger
+  // Enhanced sync trigger with detailed logging
   const triggerSync = useCallback(async () => {
+    console.log('🔄 Triggering Gmail sync...', { 
+      userExists: !!user, 
+      isConnected: authStatus.isConnected 
+    });
+    
     if (!user || !authStatus.isConnected) {
+      const errorMsg = !user ? 
+        "Please log in to sync emails" : 
+        "Please connect Gmail first";
+      
       toast({
-        title: "Gmail Not Connected",
-        description: "Please connect Gmail first",
+        title: "Gmail Not Available",
+        description: errorMsg,
         variant: "destructive"
       });
       return;
@@ -335,10 +344,18 @@ export const useGmailIntegration = () => {
       }
 
       if (data?.success) {
-        toast({
-          title: "Sync Complete",
-          description: `Synced ${data.emails_synced || 0} emails`,
-        });
+        const syncedCount = data.emails_synced || 0;
+        if (syncedCount > 0) {
+          toast({
+            title: "Sync Complete",
+            description: `Successfully synced ${syncedCount} new emails`,
+          });
+        } else {
+          toast({
+            title: "Sync Complete", 
+            description: "No new emails found - you're up to date",
+          });
+        }
         
         // Dispatch event for email page to refresh
         window.dispatchEvent(new CustomEvent('gmail-sync-complete'));
@@ -346,14 +363,48 @@ export const useGmailIntegration = () => {
         // Refresh status
         setTimeout(() => checkGmailStatus(), 1000);
       } else {
-        throw new Error(data?.error || 'Sync failed');
+        // Handle specific error cases
+        const errorMessage = data?.error || 'Sync failed';
+        const shouldReconnect = data?.action === 'reconnect_required';
+        
+        toast({
+          title: shouldReconnect ? "Gmail Reconnection Required" : "Sync Failed",
+          description: shouldReconnect ? 
+            "Your Gmail connection has expired. Please reconnect." : 
+            errorMessage,
+          variant: "destructive"
+        });
+        
+        if (shouldReconnect) {
+          // Update status to show disconnected
+          setAuthStatus(prev => ({ ...prev, isConnected: false }));
+        }
       }
 
     } catch (error: any) {
       console.error('Sync failed:', error);
+      
+      // Enhanced error handling with specific messages
+      let errorTitle = "Sync Failed";
+      let errorMessage = error.message || 'Failed to sync emails';
+      
+      if (error.message?.includes('Token refresh failed')) {
+        errorTitle = "Gmail Authentication Issue";
+        errorMessage = "Your Gmail connection has expired. Please reconnect your account.";
+        // Update status to disconnected
+        setAuthStatus(prev => ({ ...prev, isConnected: false }));
+      } else if (error.message?.includes('No valid session')) {
+        errorTitle = "Session Expired";
+        errorMessage = "Please refresh the page and try again.";
+      } else if (error.message?.includes('Gmail not connected')) {
+        errorTitle = "Gmail Not Connected";
+        errorMessage = "Please connect your Gmail account first.";
+        setAuthStatus(prev => ({ ...prev, isConnected: false }));
+      }
+      
       toast({
-        title: "Sync Failed",
-        description: error.message || 'Failed to sync emails',
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive"
       });
     }
