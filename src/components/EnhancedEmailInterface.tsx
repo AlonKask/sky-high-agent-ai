@@ -10,7 +10,7 @@ import { PanelLeftClose, PanelLeftOpen, Mail, RefreshCw } from "lucide-react";
 import EmailSidebar from "./EmailSidebar";
 import EmailListView from "./EmailListView";
 import EmailDetailView from "./EmailDetailView";
-import EmailComposer from "./EmailComposer";
+import EnhancedEmailComposer from "./EnhancedEmailComposer";
 import { GmailStatusButton } from "./GmailStatusButton";
 
 interface EmailExchange {
@@ -453,13 +453,13 @@ const EnhancedEmailInterface = ({
           <DialogHeader>
             <DialogTitle>Compose Email</DialogTitle>
           </DialogHeader>
-          <EmailComposer
+          <EnhancedEmailComposer
             defaultTo={clientEmail}
             clientId={clientId}
             requestId={requestId}
             onSent={() => {
               setIsComposerOpen(false);
-              fetchEmails();
+              setRefreshKey(prev => prev + 1);
             }}
             onCancel={() => setIsComposerOpen(false)}
           />

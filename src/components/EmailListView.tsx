@@ -1,23 +1,26 @@
-import { useState } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import React, { useState } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
-  Mail, 
-  MailOpen, 
-  Star, 
+  Search, 
   Archive, 
-  Trash2, 
-  MoreHorizontal,
-  User,
-  Calendar,
+  Trash2,
   Paperclip,
-  Flag,
-  Search
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Star,
+  StarOff,
+  MoreHorizontal,
+  Reply,
+  Forward,
+  Eye,
+  EyeOff,
+  Mail,
+  MailOpen
+} from 'lucide-react';
+import { useEmailActions } from '@/hooks/useEmailActions';
 
 interface EmailExchange {
   id: string;
@@ -39,6 +42,16 @@ interface EmailExchange {
   attachments?: any;
   metadata?: any;
   updated_at?: string;
+  is_read?: boolean;
+  is_starred?: boolean;
+  is_archived?: boolean;
+  is_deleted?: boolean;
+  folder_name?: string;
+  clients?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
 }
 
 interface EmailListViewProps {
@@ -51,9 +64,10 @@ interface EmailListViewProps {
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (search: string) => void;
+  onEmailsUpdated?: () => void;
 }
 
-const EmailListView = ({
+const EmailListView: React.FC<EmailListViewProps> = ({
   emails,
   selectedEmails,
   selectedEmailId,
@@ -62,9 +76,10 @@ const EmailListView = ({
   onSelectAll,
   isLoading,
   searchTerm,
-  onSearchChange
-}: EmailListViewProps) => {
-  const [hoveredEmailId, setHoveredEmailId] = useState<string | null>(null);
+  onSearchChange,
+  onEmailsUpdated
+}) => {
+  const emailActions = useEmailActions();
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -86,13 +101,12 @@ const EmailListView = ({
     );
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): "default" | "destructive" | "outline" | "secondary" => {
     switch (status) {
-      case 'sent': return 'text-success';
-      case 'delivered': return 'text-primary';
-      case 'read': return 'text-info';
-      case 'failed': return 'text-destructive';
-      default: return 'text-muted-foreground';
+      case 'failed': return 'destructive';
+      case 'sent': return 'default';
+      case 'delivered': return 'secondary';
+      default: return 'outline';
     }
   };
 
@@ -130,15 +144,42 @@ const EmailListView = ({
           </span>
           
           {selectedEmails.length > 0 && (
-            <div className="flex items-center gap-1 ml-auto">
-              <Button variant="ghost" size="sm" title="Archive">
-                <Archive className="h-4 w-4" />
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={emailActions.isLoading}
+                onClick={async () => {
+                  await emailActions.bulkArchive(selectedEmails);
+                  onEmailsUpdated?.();
+                }}
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                Archive ({selectedEmails.length})
               </Button>
-              <Button variant="ghost" size="sm" title="Delete">
-                <Trash2 className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={emailActions.isLoading}
+                onClick={async () => {
+                  await emailActions.bulkMarkAsRead(selectedEmails, true);
+                  onEmailsUpdated?.();
+                }}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Mark Read ({selectedEmails.length})
               </Button>
-              <Button variant="ghost" size="sm" title="More">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={emailActions.isLoading}
+                onClick={async () => {
+                  await emailActions.bulkDelete(selectedEmails);
+                  onEmailsUpdated?.();
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete ({selectedEmails.length})
               </Button>
             </div>
           )}
@@ -170,81 +211,116 @@ const EmailListView = ({
             {emails.map((email) => (
               <div
                 key={email.id}
-                className={cn(
-                  "p-3 cursor-pointer hover:bg-accent/50 transition-colors relative",
-                  selectedEmailId === email.id && "bg-accent border-r-2 border-r-primary",
-                  selectedEmails.includes(email.id) && "bg-muted/50"
-                )}
+                className={`flex items-center justify-between py-3 px-4 hover:bg-muted/50 cursor-pointer group border-l-4 ${
+                  !email.is_read ? 'border-l-primary bg-muted/20 font-medium' : 'border-l-transparent'
+                } ${selectedEmailId === email.id ? 'bg-muted' : ''}`}
                 onClick={() => onEmailSelect(email.id)}
-                onMouseEnter={() => setHoveredEmailId(email.id)}
-                onMouseLeave={() => setHoveredEmailId(null)}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-center gap-3 flex-1">
                   <Checkbox
                     checked={selectedEmails.includes(email.id)}
-                    onCheckedChange={(checked) => onEmailCheck(email.id, checked as boolean)}
+                    onCheckedChange={(checked) => 
+                      onEmailCheck(email.id, checked as boolean)
+                    }
                     onClick={(e) => e.stopPropagation()}
-                    className="mt-1"
                   />
-                  
-                  <div className="flex-1 min-w-0 space-y-1">
-                    {/* First Line: Sender/Direction + Time */}
+                  <div className="flex items-center gap-2">
+                    {email.is_starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                    {getDirectionIcon(email.direction)}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        {getDirectionIcon(email.direction)}
-                        <span className="font-medium text-sm truncate">
-                          {email.direction === 'inbound' ? email.sender_email : 'To: ' + email.recipient_emails[0]}
+                        <span className={`text-sm truncate ${!email.is_read ? 'font-semibold' : 'font-medium'}`}>
+                          {email.direction === 'inbound' ? email.sender_email : email.recipient_emails[0]}
                         </span>
-                        {email.direction === 'outbound' && email.recipient_emails.length > 1 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{email.recipient_emails.length - 1}
-                          </Badge>
-                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (
-                          <Paperclip className="h-3 w-3" />
+                      <div className="flex items-center gap-2">
+                        {email.attachments && Object.keys(email.attachments).length > 0 && (
+                          <Paperclip className="h-4 w-4 text-muted-foreground" />
                         )}
-                        <span>{formatDate(email.created_at)}</span>
-                      </div>
-                    </div>
-
-                    {/* Second Line: Subject */}
-                    <div className="font-medium text-sm truncate text-foreground">
-                      {email.subject || '(No Subject)'}
-                    </div>
-
-                    {/* Third Line: Preview + Badges */}
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-muted-foreground truncate flex-1">
-                        {truncateText(email.body?.replace(/<[^>]*>/g, '') || 'No content', 60)}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        <Badge variant="outline" className="text-xs">
-                          {email.email_type}
-                        </Badge>
-                        <div className={cn("text-xs", getStatusColor(email.status))}>
+                        <Badge variant={getStatusColor(email.status)} className="text-xs">
                           {email.status}
-                        </div>
+                        </Badge>
                       </div>
                     </div>
+                    <div className={`text-sm truncate mt-1 ${!email.is_read ? 'font-semibold' : 'font-medium'}`}>
+                      {truncateText(email.subject, 50)}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {truncateText(email.body, 80)}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDate(email.created_at)}
                   </div>
                 </div>
-
-                {/* Hover Actions */}
-                {hoveredEmailId === email.id && (
-                  <div className="absolute right-2 top-2 flex items-center gap-1 bg-background/90 backdrop-blur-sm rounded p-1 shadow-sm">
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Star">
-                      <Star className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Archive">
-                      <Archive className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Delete">
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
+                
+                {/* Quick Actions - Shown on hover */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={async () => {
+                      await emailActions.toggleStarred(email.id, !email.is_starred);
+                      onEmailsUpdated?.();
+                    }}
+                  >
+                    {email.is_starred ? <StarOff className="h-4 w-4" /> : <Star className="h-4 w-4" />}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={async () => {
+                      await emailActions.archiveEmail(email.id);
+                      onEmailsUpdated?.();
+                    }}
+                  >
+                    <Archive className="h-4 w-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={async () => {
+                        await emailActions.toggleReadStatus(email.id, !email.is_read);
+                        onEmailsUpdated?.();
+                      }}>
+                        {email.is_read ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                        Mark as {email.is_read ? 'unread' : 'read'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={async () => {
+                        await emailActions.createReplyDraft(email);
+                      }}>
+                        <Reply className="h-4 w-4 mr-2" />
+                        Reply
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={async () => {
+                        await emailActions.createForwardDraft(email);
+                      }}>
+                        <Forward className="h-4 w-4 mr-2" />
+                        Forward
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={async () => {
+                          await emailActions.deleteEmail(email.id);
+                          onEmailsUpdated?.();
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             ))}
           </div>
