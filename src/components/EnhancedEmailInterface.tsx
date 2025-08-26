@@ -7,12 +7,14 @@ import { toast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PanelLeftClose, PanelLeftOpen, Mail, RefreshCw, BarChart } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Mail, RefreshCw, BarChart, Settings } from "lucide-react";
 import EmailSidebar from "./EmailSidebar";
 import EmailListView from "./EmailListView";
 import EmailDetailView from "./EmailDetailView";
 import EnhancedEmailComposer from "./EnhancedEmailComposer";
+import EmailSyncControls from "./EmailSyncControls";
 import { GmailStatusButton } from "./GmailStatusButton";
+import { useEmailSync } from "@/hooks/useEmailSync";
 
 interface EmailExchange {
   id: string;
@@ -70,6 +72,7 @@ const EnhancedEmailInterface = ({
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerDraftId, setComposerDraftId] = useState<string | null>(null);
+  const [isSyncControlsOpen, setIsSyncControlsOpen] = useState(false);
 
   // Filter state
   const [selectedFolder, setSelectedFolder] = useState('inbox');
@@ -80,6 +83,7 @@ const EnhancedEmailInterface = ({
   const { user } = useSimpleAuth();
   const { authStatus, triggerSync } = useGmailIntegration();
   const { createReplyDraft, createForwardDraft, archiveEmail, deleteEmail } = useEmailActions();
+  const { performQuickSync, isSyncActive } = useEmailSync();
 
   // Enhanced email fetching with better error handling
   const fetchEmails = useCallback(async () => {
@@ -102,7 +106,7 @@ const EnhancedEmailInterface = ({
         `)
         .eq('user_id', user.id)
         .order('received_at', { ascending: false })
-        .limit(100);
+        .limit(1000); // Increased to handle large email volumes
 
       // Apply client filtering if specified
       if (clientId) {
@@ -319,7 +323,7 @@ const EnhancedEmailInterface = ({
     setRefreshKey(prev => prev + 1);
   };
 
-  // Enhanced sync handler with loading state
+  // Enhanced sync handler with multiple options
   const handleSyncEmails = async () => {
     if (!authStatus.isConnected) {
       console.log('❌ Gmail not connected, cannot sync');
@@ -331,9 +335,9 @@ const EnhancedEmailInterface = ({
       return;
     }
     
-    console.log('🔄 User triggered email sync');
+    console.log('🔄 User triggered quick email sync');
     try {
-      await triggerSync();
+      await performQuickSync(true);
       // Refresh will happen automatically via the gmail-sync-complete event
     } catch (error) {
       console.error('❌ Failed to trigger sync:', error);
@@ -413,8 +417,8 @@ const EnhancedEmailInterface = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Toggle Button */}
-      <div className="p-2 border-b">
+      {/* Header Controls */}
+      <div className="p-2 border-b flex items-center justify-between">
         <Button
           variant="ghost"
           size="sm"
@@ -428,6 +432,30 @@ const EnhancedEmailInterface = ({
           )}
           {sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
         </Button>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsSyncControlsOpen(true)}
+            className="gap-2"
+            disabled={isSyncActive}
+          >
+            <Settings className="h-4 w-4" />
+            Sync Options
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncEmails}
+            disabled={!authStatus.isConnected || isSyncActive}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncActive ? 'animate-spin' : ''}`} />
+            Quick Sync
+          </Button>
+        </div>
       </div>
 
       {/* Main Interface */}
@@ -480,14 +508,22 @@ const EnhancedEmailInterface = ({
                         <p className="text-muted-foreground text-sm">
                           Your Gmail is connected but no emails have been synced yet.
                         </p>
-                        <Button 
-                          onClick={handleSyncEmails}
-                          className="gap-2"
-                          disabled={authStatus.isLoading}
-                        >
-                          <RefreshCw className={`w-4 h-4 ${authStatus.isLoading ? 'animate-spin' : ''}`} />
-                          Sync Emails
-                        </Button>
+                         <Button 
+                           onClick={handleSyncEmails}
+                           className="gap-2"
+                           disabled={isSyncActive}
+                         >
+                           <RefreshCw className={`w-4 h-4 ${isSyncActive ? 'animate-spin' : ''}`} />
+                           Quick Sync
+                         </Button>
+                         <Button 
+                           variant="outline"
+                           onClick={() => setIsSyncControlsOpen(true)}
+                           className="gap-2"
+                         >
+                           <Settings className="w-4 h-4" />
+                           Sync Options
+                         </Button>
                         <p className="text-xs text-muted-foreground">
                           This will sync your recent Gmail messages
                         </p>

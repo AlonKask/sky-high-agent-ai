@@ -2068,6 +2068,96 @@ export type Database = {
           },
         ]
       }
+      email_sync_config: {
+        Row: {
+          created_at: string | null
+          enable_full_mailbox_sync: boolean
+          enable_historical_sync: boolean
+          id: string
+          last_full_sync_at: string | null
+          max_emails_per_sync: number
+          sync_days_back: number
+          sync_frequency_minutes: number
+          sync_preferences: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          enable_full_mailbox_sync?: boolean
+          enable_historical_sync?: boolean
+          id?: string
+          last_full_sync_at?: string | null
+          max_emails_per_sync?: number
+          sync_days_back?: number
+          sync_frequency_minutes?: number
+          sync_preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          enable_full_mailbox_sync?: boolean
+          enable_historical_sync?: boolean
+          id?: string
+          last_full_sync_at?: string | null
+          max_emails_per_sync?: number
+          sync_days_back?: number
+          sync_frequency_minutes?: number
+          sync_preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_sync_progress: {
+        Row: {
+          completed_at: string | null
+          current_batch: number | null
+          emails_processed: number | null
+          emails_stored: number | null
+          error_message: string | null
+          id: string
+          started_at: string | null
+          status: string
+          sync_metadata: Json | null
+          sync_type: string
+          total_batches_estimated: number | null
+          total_emails_estimated: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          current_batch?: number | null
+          emails_processed?: number | null
+          emails_stored?: number | null
+          error_message?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string
+          sync_metadata?: Json | null
+          sync_type: string
+          total_batches_estimated?: number | null
+          total_emails_estimated?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          current_batch?: number | null
+          emails_processed?: number | null
+          emails_stored?: number | null
+          error_message?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string
+          sync_metadata?: Json | null
+          sync_type?: string
+          total_batches_estimated?: number | null
+          total_emails_estimated?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_sync_status: {
         Row: {
           created_at: string
@@ -4367,13 +4457,20 @@ export type Database = {
         Returns: string
       }
       handle_email_sync_status: {
-        Args: {
-          p_folder_name: string
-          p_gmail_history_id?: string
-          p_last_sync_at: string
-          p_last_sync_count?: number
-          p_user_id: string
-        }
+        Args:
+          | {
+              p_folder_name: string
+              p_gmail_history_id?: string
+              p_last_sync_at: string
+              p_last_sync_count?: number
+              p_user_id: string
+            }
+          | {
+              p_folder_name: string
+              p_gmail_history_id?: string
+              p_last_sync_count?: number
+              p_user_id: string
+            }
         Returns: undefined
       }
       has_admin_role: {
@@ -4495,6 +4592,10 @@ export type Database = {
       }
       log_gmail_credential_event: {
         Args: { p_details?: Json; p_event_type: string; p_user_id: string }
+        Returns: undefined
+      }
+      log_security_event: {
+        Args: { p_details?: Json; p_event_type: string; p_severity: string }
         Returns: undefined
       }
       log_security_event_safe: {

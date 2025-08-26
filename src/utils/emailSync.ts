@@ -59,11 +59,13 @@ export class EmailSyncManager {
         toast.loading('Syncing emails...', { id: 'email-sync' });
       }
 
-      // Call unified email sync function
-      console.log('🚀 Invoking unified email sync...');
-      const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
+      // Call enhanced email sync function with comprehensive options
+      console.log('🚀 Invoking enhanced email sync...');
+      const { data, error } = await supabase.functions.invoke('enhanced-gmail-sync', {
         body: {
-          includeAIProcessing: options.includeAIProcessing || false
+          includeAIProcessing: options.includeAIProcessing || false,
+          syncType: 'incremental', // Default to incremental for regular sync
+          maxResults: 200 // Increased batch size for comprehensive sync
         }
       });
 

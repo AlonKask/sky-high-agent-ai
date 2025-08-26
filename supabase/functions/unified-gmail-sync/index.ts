@@ -184,8 +184,9 @@ async function syncGmailEmails(
   userEmail: string,
   accessToken: string,
   refreshTokenEncrypted: string | null,
-  maxResults: number = 10,
-  isScheduled: boolean = false
+  maxResults: number = 200,
+  isScheduled: boolean = false,
+  syncType: string = 'incremental'
 ) {
   try {
     debugLog('SYNC_START', `Starting sync for ${userEmail}`, { maxResults, isScheduled });
@@ -241,19 +242,82 @@ async function syncGmailEmails(
 
     debugLog('TOKEN_VALID', 'Gmail API connectivity confirmed');
     
-    // Phase 2: Gmail API Call - Get messages with detailed logging
-    const oneDayAgo = new Date();
-    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-    const query = `after:${Math.floor(oneDayAgo.getTime() / 1000)}`;
+    // Phase 2: Get user sync config and determine sync strategy
+    const { data: syncConfig } = await supabaseClient
+      .from('email_sync_config')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    // Create default config if not exists
+    if (!syncConfig) {
+      await supabaseClient
+        .from('email_sync_config')
+        .insert({
+          user_id: userId,
+          max_emails_per_sync: 200,
+          sync_frequency_minutes: 15,
+          enable_full_mailbox_sync: true,
+          enable_historical_sync: true,
+          sync_days_back: 365
+        });
+    }
+
+    const config = syncConfig || {
+      max_emails_per_sync: 200,
+      sync_days_back: 365,
+      enable_full_mailbox_sync: true,
+      enable_historical_sync: true
+    };
+
+    // Phase 3: Build comprehensive Gmail query based on sync type
+    let query = '';
+    let queryDescription = '';
+    
+    if (syncType === 'full' || !syncConfig?.last_full_sync_at) {
+      // Full mailbox sync - get emails from the last year or configured period
+      const syncDaysBack = config.sync_days_back || 365;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - syncDaysBack);
+      query = `after:${Math.floor(cutoffDate.getTime() / 1000)}`;
+      queryDescription = `Full sync: ${syncDaysBack} days back from ${cutoffDate.toISOString()}`;
+      
+      // Mark as full sync in progress
+      await supabaseClient
+        .from('email_sync_config')
+        .update({ last_full_sync_at: new Date().toISOString() })
+        .eq('user_id', userId);
+    } else if (syncType === 'historical') {
+      // Historical sync - get older emails in chunks
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      query = `after:${Math.floor(twoYearsAgo.getTime() / 1000)}`;
+      queryDescription = `Historical sync: 2 years back from ${twoYearsAgo.toISOString()}`;
+    } else {
+      // Incremental sync - recent emails only (last 7 days to catch any missed)
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      query = `after:${Math.floor(weekAgo.getTime() / 1000)}`;
+      queryDescription = `Incremental sync: 7 days back from ${weekAgo.toISOString()}`;
+    }
+    
+    // Use configured batch size
+    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 200);
     
     debugLog('GMAIL_REQUEST_PREP', 'Preparing Gmail messages request', {
+      syncType,
       query,
-      maxResults,
-      timestamp: oneDayAgo.toISOString()
+      queryDescription,
+      actualMaxResults,
+      configuredMaxResults: config.max_emails_per_sync
     });
     
-    const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`;
-    debugLog('GMAIL_REQUEST_URL', 'Gmail API request URL', { url: messagesUrl });
+    const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${actualMaxResults}`;
+    debugLog('GMAIL_REQUEST_URL', 'Gmail API request URL', { 
+      url: messagesUrl,
+      syncType,
+      queryDescription 
+    });
 
     const messagesResponse = await fetch(messagesUrl, {
       headers: { Authorization: `Bearer ${accessToken}` }
@@ -294,9 +358,9 @@ async function syncGmailEmails(
       };
     }
 
-    // Phase 3: Email Processing - Process messages with detailed logging
-    const batchSize = isScheduled ? 3 : 5;
-    const messagesToProcess = messages.slice(0, batchSize);
+    // Phase 4: Email Processing - Process ALL messages with efficient batching
+    const batchSize = Math.min(messages.length, actualMaxResults);
+    const messagesToProcess = messages; // Process all available messages
     
     debugLog('PROCESSING_START', 'Starting email processing', {
       totalMessages: messages.length,
