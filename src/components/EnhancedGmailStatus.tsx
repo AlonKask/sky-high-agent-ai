@@ -108,7 +108,6 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
       console.log('🔄 Starting Gmail sync...');
       await triggerSync();
       
-      // Call refresh callback if provided
       if (onEmailRefresh) {
         await onEmailRefresh();
       }
@@ -117,100 +116,40 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
         title: "Sync Completed",
         description: "Emails synced successfully",
       });
-      console.log('✅ Gmail sync completed successfully');
     } catch (error: any) {
       console.error('❌ Gmail sync failed:', error);
-      const errorMessage = error.message || "Failed to sync Gmail. Please try again.";
       toast({
         title: "Sync Failed",
-        description: `${errorMessage} (Check console for details)`,
+        description: error.message || "Failed to sync Gmail. Please try again.",
         variant: "destructive"
       });
     }
   };
 
   const handleHealthCheck = async () => {
-    console.log('🏥 Starting Gmail OAuth health check...');
-    
     try {
       const { data, error } = await supabase.functions.invoke('gmail-oauth-health');
       
       if (error) {
-        console.error('❌ Health check function failed:', error);
-        toast({
-          title: "Health Check Failed",
-          description: `Unable to reach health check service: ${error.message}`,
-          variant: "destructive"
-        });
-        return;
+        throw new Error(error.message);
       }
       
-      console.log('✅ Health check response:', data);
-      
-      if (data?.success && data?.data) {
-        const healthData = data.data;
-        const isOAuthReady = healthData.oauth_ready;
-        const envCheck = healthData.environment_check;
-        
-        // Create detailed status message
-        const missingSecrets = Object.entries(envCheck)
-          .filter(([key, value]) => !value)
-          .map(([key]) => key.replace('google_', '').toUpperCase());
-        
-        let statusMessage = '';
-        let variant: 'default' | 'destructive' = 'default';
-        
-        if (isOAuthReady) {
-          statusMessage = '✅ Gmail OAuth system is fully operational and ready to use';
-        } else if (missingSecrets.length > 0) {
-          statusMessage = `❌ Missing configuration: ${missingSecrets.join(', ')}. Please contact your administrator.`;
-          variant = 'destructive';
-        } else {
-          statusMessage = '⚠️ Configuration issues detected. Check the console for details.';
-          variant = 'destructive';
-        }
-        
+      if (data?.success && data?.data?.oauth_ready) {
         toast({
-          title: isOAuthReady ? "System Healthy" : "Configuration Issues",
-          description: statusMessage,
-          variant: variant
+          title: "System Healthy",
+          description: "Gmail OAuth system is operational",
         });
-        
-        // Log detailed environment status for debugging
-        console.log('🔍 Environment check results:', {
-          oauth_ready: isOAuthReady,
-          missing_secrets: missingSecrets,
-          full_env_check: envCheck
-        });
-        
-        // If OAuth is ready, also test a quick function call
-        if (isOAuthReady) {
-          try {
-            const { data: testData, error: testError } = await supabase.rpc('test_gmail_oauth_setup');
-            if (!testError && testData) {
-              console.log('✅ Test function call succeeded:', testData);
-            } else {
-              console.log('⚠️ Test function call failed:', testError);
-            }
-          } catch (testErr) {
-            console.log('⚠️ Test function call exception:', testErr);
-          }
-        }
-        
       } else {
-        console.error('❌ Health check returned unexpected data:', data);
         toast({
-          title: "Health Check Issue",
-          description: "Health check completed but returned unexpected data",
+          title: "Configuration Issues",
+          description: "Gmail OAuth configuration needs attention",
           variant: "destructive"
         });
       }
-      
     } catch (error: any) {
-      console.error('❌ Health check exception:', error);
       toast({
         title: "Health Check Error",
-        description: `System health check failed: ${error.message}`,
+        description: error.message,
         variant: "destructive"
       });
     }
@@ -357,19 +296,19 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
             )}
           </div>
         </div>
-      </CardContent>
-      
-        {/* Enhanced Diagnostics Section */}
+
+        {/* Enhanced Diagnostics Panel */}
         {showDiagnostics && (
-          <div className="mt-6 space-y-4">
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <GmailNetworkDiagnostic />
+          <div className="mt-4 pt-4 border-t space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Stethoscope className="h-4 w-4" />
+              <span className="text-sm font-medium">Advanced Diagnostics</span>
             </div>
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <GmailDiagnostics />
-            </div>
+            <GmailNetworkDiagnostic />
+            <GmailDiagnostics />
           </div>
         )}
+      </CardContent>
     </Card>
   );
 };
