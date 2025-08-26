@@ -70,49 +70,19 @@ export const GmailStatusButton: React.FC = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant={getStatusVariant()} 
-            size="sm" 
-            className="gap-2 relative"
-          >
-            <StatusIcon className={`w-4 h-4 ${authStatus.isLoading ? 'animate-spin' : ''}`} />
-            {getStatusText()}
-            {authStatus.isConnected && authStatus.userEmail && (
-              <Badge variant="secondary" className="ml-1 text-xs">
-                <Mail className="w-3 h-3" />
-              </Badge>
-            )}
-          </Button>
-          
-          {/* Quick Action Buttons */}
-          {!authStatus.isConnected ? (
-            <Button 
-              onClick={handleQuickConnect}
-              disabled={authStatus.isLoading}
-              size="sm"
-              className="gap-1"
-            >
-              {authStatus.isLoading ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Mail className="w-3 h-3" />
-              )}
-              Connect
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleQuickSync}
-              disabled={authStatus.isLoading}
-              variant="outline"
-              size="sm"
-              className="gap-1"
-            >
-              <Zap className="w-3 h-3" />
-              Sync
-            </Button>
+        <Button 
+          variant={getStatusVariant()} 
+          size="sm" 
+          className="gap-2 relative"
+        >
+          <StatusIcon className={`w-4 h-4 ${authStatus.isLoading ? 'animate-spin' : ''}`} />
+          {getStatusText()}
+          {authStatus.isConnected && authStatus.userEmail && (
+            <Badge variant="secondary" className="ml-1 text-xs">
+              <Mail className="w-3 h-3" />
+            </Badge>
           )}
-        </div>
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
