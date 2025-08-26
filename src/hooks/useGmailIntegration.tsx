@@ -82,7 +82,24 @@ export const useGmailIntegration = () => {
     console.log('👤 User authenticated:', user.id);
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
-    // PHASE 1: Enhanced Network connectivity test with detailed diagnostics
+    // PHASE 1: Clean up any existing OAuth tokens first
+    console.log('🧹 Cleaning up existing OAuth tokens...');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await supabase.functions.invoke('oauth-cleanup', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+        console.log('✅ OAuth tokens cleaned up');
+      }
+    } catch (cleanupError: any) {
+      console.warn('⚠️ Token cleanup failed:', cleanupError.message);
+      // Continue anyway - this is not critical
+    }
+
+    // PHASE 2: Enhanced Network connectivity test with detailed diagnostics
     console.log('🌐 Running comprehensive network diagnostics...');
     try {
       // Test 1: Basic health check
@@ -92,17 +109,16 @@ export const useGmailIntegration = () => {
       }
       console.log('✅ Database connectivity confirmed');
 
-      // Test 2: Edge function accessibility test
+      // Test 2: Edge function accessibility test (with fallback)
       try {
         console.log('🔍 Testing edge function accessibility...');
         const { data: healthData, error: oauthHealthError } = await supabase.functions.invoke('gmail-oauth-health');
         
         if (oauthHealthError) {
           console.warn('⚠️ OAuth health check failed:', oauthHealthError.message);
-          throw new Error(`Edge function not accessible: ${oauthHealthError.message}`);
-        }
-        
-        if (healthData?.success) {
+          // Don't fail completely - the main oauth function might still work
+          console.log('⚠️ Proceeding without health check...');
+        } else if (healthData?.success) {
           console.log('✅ Edge function accessible and configured');
           
           // Check if OAuth is properly configured
@@ -117,12 +133,13 @@ export const useGmailIntegration = () => {
         }
       } catch (edgeFunctionError: any) {
         console.error('❌ Edge function test failed:', edgeFunctionError);
-        throw new Error(`Edge function connectivity failed: ${edgeFunctionError.message}`);
+        // Don't fail completely - try to proceed
+        console.log('⚠️ Proceeding despite health check failure...');
       }
       
-      console.log('✅ All network diagnostics passed');
+      console.log('✅ Network diagnostics completed');
     } catch (connectivityError: any) {
-      console.error('❌ Network diagnostics failed:', connectivityError);
+      console.error('❌ Critical network diagnostics failed:', connectivityError);
       
       let errorMessage = "Unable to reach server";
       let suggestedAction = "Please check your internet connection";
@@ -130,7 +147,7 @@ export const useGmailIntegration = () => {
       if (connectivityError.message?.includes('OAuth not configured')) {
         errorMessage = "Gmail integration not configured";
         suggestedAction = "Please contact your administrator";
-      } else if (connectivityError.message?.includes('Edge function')) {
+      } else if (connectivityError.message?.includes('Health check failed')) {
         errorMessage = "Service temporarily unavailable";
         suggestedAction = "Please try again in a few moments";
       }

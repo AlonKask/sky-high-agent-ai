@@ -35,8 +35,10 @@ export const GmailConnectionStatus = () => {
   });
   const [oauthTokens, setOauthTokens] = useState<any[]>([]);
 
-  // PHASE 3: Monitor OAuth tokens for pending callbacks
+  // PHASE 3: Monitor OAuth tokens for pending callbacks (with timeout)
   useEffect(() => {
+    let timeoutHandle: NodeJS.Timeout;
+    
     const checkOAuthTokens = async () => {
       if (!user?.id) return;
 
@@ -53,22 +55,50 @@ export const GmailConnectionStatus = () => {
 
         // Update connection state based on token status
         if (tokens && tokens.length > 0) {
-          setConnectionState({
-            phase: 'callback_pending',
-            message: 'OAuth in progress - waiting for callback',
-            details: `${tokens.length} pending token(s)`
-          });
+          // Check if tokens are older than 5 minutes (likely stale)
+          const oldestToken = tokens[tokens.length - 1];
+          const tokenAge = Date.now() - new Date(oldestToken.created_at).getTime();
+          const isStale = tokenAge > 5 * 60 * 1000; // 5 minutes
+          
+          if (isStale) {
+            setConnectionState({
+              phase: 'error',
+              message: 'OAuth connection expired',
+              details: 'Please try connecting again'
+            });
+            
+            // Auto-cleanup stale tokens
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.access_token) {
+                await supabase.functions.invoke('oauth-cleanup', {
+                  headers: { Authorization: `Bearer ${session.access_token}` }
+                });
+              }
+            } catch (error) {
+              console.error('Failed to cleanup stale tokens:', error);
+            }
+          } else {
+            setConnectionState({
+              phase: 'callback_pending',
+              message: 'OAuth in progress - waiting for callback',
+              details: `${tokens.length} pending token(s)`
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to check OAuth tokens:', error);
       }
     };
 
-    // Check immediately and then every 5 seconds
+    // Check immediately and then every 10 seconds (reduced frequency)
     checkOAuthTokens();
-    const interval = setInterval(checkOAuthTokens, 5000);
+    const interval = setInterval(checkOAuthTokens, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    };
   }, [user?.id]);
 
   // PHASE 3: Update connection state based on auth status
