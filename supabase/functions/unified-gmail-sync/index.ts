@@ -27,6 +27,15 @@ interface GmailMessage {
   internalDate: string;
 }
 
+// Enhanced logging helper
+function debugLog(step: string, message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 🔍 ${step}: ${message}`);
+  if (data) {
+    console.log(`[${timestamp}] 📊 Data:`, JSON.stringify(data, null, 2));
+  }
+}
+
 // Enhanced token refresh with better error handling
 async function refreshGmailToken(refreshToken: string, supabaseClient: any, userId: string): Promise<string | null> {
   try {
@@ -173,40 +182,88 @@ async function syncGmailEmails(
   isScheduled: boolean = false
 ) {
   try {
-    console.log(`📬 Starting sync for ${userEmail} (max: ${maxResults})`);
+    debugLog('SYNC_START', `Starting sync for ${userEmail}`, { maxResults, isScheduled });
     
-    // Phase 3: Progressive Email Sync - Start with recent emails only
-    const oneDayAgo = new Date();
-    oneDayAgo.setHours(oneDayAgo.getHours() - 24); // Last 24 hours for reliability
-    const query = `after:${Math.floor(oneDayAgo.getTime() / 1000)}`;
+    // Phase 1: Token Validation - Test Gmail API connectivity before proceeding
+    debugLog('TOKEN_VALIDATION', 'Testing Gmail API connectivity with current token');
     
-    // Test Gmail API connectivity first
-    const messagesResponse = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
+    const testResponse = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/profile',
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
 
-    // Phase 4: Resilient Error Handling - Handle token refresh gracefully
-    if (messagesResponse.status === 401) {
-      console.log('🔄 Access token expired, attempting refresh...');
+    debugLog('TOKEN_TEST_RESPONSE', 'Gmail API test response', {
+      status: testResponse.status,
+      ok: testResponse.ok
+    });
+
+    if (testResponse.status === 401) {
+      debugLog('TOKEN_EXPIRED', 'Access token expired, attempting refresh');
       if (refreshTokenEncrypted) {
         const newAccessToken = await refreshGmailToken(refreshTokenEncrypted, supabaseClient, userId);
         if (newAccessToken) {
-          console.log('✅ Token refreshed successfully, retrying sync...');
+          debugLog('TOKEN_REFRESH_SUCCESS', 'Token refreshed successfully, retrying sync');
           return await syncGmailEmails(supabaseClient, userId, userEmail, newAccessToken, refreshTokenEncrypted, maxResults, isScheduled);
+        } else {
+          debugLog('TOKEN_REFRESH_FAILED', 'Failed to refresh token');
+          return {
+            success: false, 
+            error: 'Gmail authentication expired and refresh failed. Please reconnect your Gmail account.'
+          };
         }
+      } else {
+        debugLog('NO_REFRESH_TOKEN', 'No refresh token available');
+        return {
+          success: false, 
+          error: 'Gmail authentication expired. Please reconnect your Gmail account.'
+        };
       }
-      
+    }
+
+    if (!testResponse.ok) {
+      debugLog('API_TEST_FAILED', 'Gmail API connectivity test failed', {
+        status: testResponse.status,
+        statusText: testResponse.statusText
+      });
       return {
         success: false, 
-        error: 'Gmail authentication expired. Please reconnect your Gmail account.'
+        error: `Gmail API error: ${testResponse.status}`
       };
     }
 
+    debugLog('TOKEN_VALID', 'Gmail API connectivity confirmed');
+    
+    // Phase 2: Gmail API Call - Get messages with detailed logging
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+    const query = `after:${Math.floor(oneDayAgo.getTime() / 1000)}`;
+    
+    debugLog('GMAIL_REQUEST_PREP', 'Preparing Gmail messages request', {
+      query,
+      maxResults,
+      timestamp: oneDayAgo.toISOString()
+    });
+    
+    const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`;
+    debugLog('GMAIL_REQUEST_URL', 'Gmail API request URL', { url: messagesUrl });
+
+    const messagesResponse = await fetch(messagesUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    debugLog('GMAIL_RESPONSE', 'Gmail messages API response', {
+      status: messagesResponse.status,
+      ok: messagesResponse.ok,
+      headers: Object.fromEntries(messagesResponse.headers.entries())
+    });
+
     if (!messagesResponse.ok) {
-      console.error(`❌ Gmail API error: ${messagesResponse.status}`);
+      debugLog('GMAIL_API_ERROR', 'Gmail API returned error', {
+        status: messagesResponse.status,
+        statusText: messagesResponse.statusText
+      });
       return {
         success: false, 
         error: `Gmail API error: ${messagesResponse.status}`
@@ -216,9 +273,14 @@ async function syncGmailEmails(
     const messagesData = await messagesResponse.json();
     const messages = messagesData.messages || [];
     
-    console.log(`📬 Found ${messages.length} messages in last 24 hours`);
+    debugLog('GMAIL_MESSAGES_RECEIVED', 'Messages received from Gmail API', {
+      count: messages.length,
+      historyId: messagesData.historyId,
+      messageIds: messages.slice(0, 3).map(m => m.id) // Log first 3 message IDs
+    });
 
     if (messages.length === 0) {
+      debugLog('NO_MESSAGES', 'No new messages to sync');
       return {
         success: true, 
         message: 'No new emails to sync',
@@ -226,50 +288,76 @@ async function syncGmailEmails(
       };
     }
 
-    // Phase 3: Process in very small, reliable batches
-    const batchSize = isScheduled ? 3 : 5; // Even smaller batches
+    // Phase 3: Email Processing - Process messages with detailed logging
+    const batchSize = isScheduled ? 3 : 5;
     const messagesToProcess = messages.slice(0, batchSize);
     
-    console.log(`💾 Processing ${messagesToProcess.length} emails...`);
+    debugLog('PROCESSING_START', 'Starting email processing', {
+      totalMessages: messages.length,
+      batchSize,
+      processingCount: messagesToProcess.length
+    });
 
     const emailsToInsert = [];
 
-    // Process each message with comprehensive error handling
     for (const [index, message] of messagesToProcess.entries()) {
       try {
-        console.log(`📧 Processing email ${index + 1}/${messagesToProcess.length}: ${message.id}`);
+        debugLog('EMAIL_PROCESS_START', `Processing email ${index + 1}/${messagesToProcess.length}`, {
+          messageId: message.id,
+          threadId: message.threadId
+        });
         
-        // Get full message details with timeout
-        const messageResponse = await fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          }
-        );
+        // Get full message details
+        const messageUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`;
+        const messageResponse = await fetch(messageUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        debugLog('EMAIL_FETCH_RESPONSE', 'Individual email fetch response', {
+          messageId: message.id,
+          status: messageResponse.status,
+          ok: messageResponse.ok
+        });
 
         if (!messageResponse.ok) {
-          console.log(`⚠️ Skipping message ${message.id}: API error ${messageResponse.status}`);
+          debugLog('EMAIL_FETCH_FAILED', `Skipping message due to API error`, {
+            messageId: message.id,
+            status: messageResponse.status
+          });
           continue;
         }
 
         const messageData: GmailMessage = await messageResponse.json();
         
-        // Check if email already exists before processing
-        const { data: existingEmail } = await supabaseClient
+        debugLog('EMAIL_DATA_RECEIVED', 'Email data received', {
+          messageId: messageData.id,
+          headersCount: messageData.payload.headers?.length || 0,
+          hasBody: !!messageData.payload.body?.data,
+          hasParts: !!messageData.payload.parts,
+          labelIds: messageData.labelIds
+        });
+        
+        // Check if email already exists
+        const { data: existingEmail, error: existingError } = await supabaseClient
           .from('email_exchanges')
           .select('id')
           .eq('user_id', userId)
           .eq('message_id', messageData.id)
           .maybeSingle();
 
+        debugLog('DUPLICATE_CHECK', 'Checking for existing email', {
+          messageId: messageData.id,
+          exists: !!existingEmail,
+          error: existingError?.message
+        });
+
         if (existingEmail) {
-          console.log(`⏭️ Skipping existing email: ${message.id}`);
+          debugLog('EMAIL_EXISTS', 'Email already exists, skipping', { messageId: message.id });
           continue;
         }
 
+        // Extract content and headers
         const textContent = extractTextContent(messageData.payload);
-
-        // Extract headers safely
         const headers = messageData.payload.headers || [];
         const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
         const from = headers.find(h => h.name === 'From')?.value || '';
@@ -277,48 +365,69 @@ async function syncGmailEmails(
         const cc = headers.find(h => h.name === 'Cc')?.value || '';
         const date = headers.find(h => h.name === 'Date')?.value;
 
-        // Determine email direction
+        debugLog('EMAIL_HEADERS_EXTRACTED', 'Email headers extracted', {
+          messageId: messageData.id,
+          subject: subject.substring(0, 50),
+          from: from.substring(0, 50),
+          to: to.substring(0, 50),
+          date,
+          bodyLength: textContent.text.length,
+          attachmentCount: textContent.attachments.length
+        });
+
+        // Determine direction and parse emails
         const isOutbound = from.toLowerCase().includes(userEmail.toLowerCase());
         const direction = isOutbound ? 'outbound' : 'inbound';
-
-        // Parse emails safely
         const recipientEmails = to ? to.split(',').map(email => email.trim()).filter(Boolean).slice(0, 5) : [];
         const ccEmails = cc ? cc.split(',').map(email => email.trim()).filter(Boolean).slice(0, 3) : [];
-        
-        // Parse sender email safely
         const senderMatch = from.match(/<(.+?)>/) || from.match(/(\S+@\S+)/);
         const senderEmail = senderMatch ? senderMatch[1] : from;
 
-        // Try to find matching client (simple lookup, no complex joins)
+        debugLog('EMAIL_PARSING_COMPLETE', 'Email parsing completed', {
+          messageId: messageData.id,
+          direction,
+          senderEmail,
+          recipientCount: recipientEmails.length,
+          ccCount: ccEmails.length
+        });
+
+        // Client lookup
         let clientId = null;
         if (direction === 'inbound' && senderEmail) {
           try {
-            const { data: client } = await supabaseClient
+            const { data: client, error: clientError } = await supabaseClient
               .from('clients')
               .select('id')
               .eq('user_id', userId)
               .ilike('email', `%${senderEmail}%`)
               .maybeSingle();
             
-            if (client) {
-              clientId = client.id;
-            }
+            clientId = client?.id || null;
+            debugLog('CLIENT_LOOKUP', 'Client lookup completed', {
+              senderEmail,
+              clientFound: !!client,
+              clientId,
+              error: clientError?.message
+            });
           } catch (clientError) {
-            console.log(`⚠️ Client lookup failed for ${senderEmail}, continuing...`);
+            debugLog('CLIENT_LOOKUP_FAILED', 'Client lookup failed', {
+              senderEmail,
+              error: clientError.message
+            });
           }
         }
 
-        // Create simplified email record
+        // Create email record
         const emailRecord = {
           user_id: userId,
           message_id: messageData.id,
           thread_id: messageData.threadId || messageData.id,
-          subject: subject.substring(0, 255), // Shorter limit
+          subject: subject.substring(0, 255),
           sender_email: senderEmail.substring(0, 100),
           recipient_emails: recipientEmails,
           cc_emails: ccEmails,
           bcc_emails: [],
-          body: textContent.text.substring(0, 5000), // Shorter body
+          body: textContent.text.substring(0, 5000),
           direction,
           status: 'received',
           client_id: clientId,
@@ -328,20 +437,32 @@ async function syncGmailEmails(
             has_attachments: textContent.attachments.length > 0,
             batch_id: `sync_${Date.now()}`
           },
-          attachments: textContent.attachments.slice(0, 3) // Fewer attachments
+          attachments: textContent.attachments.slice(0, 3)
         };
 
         emailsToInsert.push(emailRecord);
-        console.log(`✅ Processed email: ${subject.substring(0, 50)}...`);
+        debugLog('EMAIL_RECORD_CREATED', 'Email record created successfully', {
+          messageId: messageData.id,
+          recordKeys: Object.keys(emailRecord),
+          bodyLength: emailRecord.body.length
+        });
 
       } catch (messageError) {
-        console.error(`❌ Failed to process message ${message.id}:`, messageError.message);
-        // Continue with other messages - don't let one failure stop the sync
+        debugLog('EMAIL_PROCESS_ERROR', 'Failed to process email', {
+          messageId: message.id,
+          error: messageError.message,
+          stack: messageError.stack
+        });
         continue;
       }
     }
 
-    // Insert emails with error handling
+    // Phase 4: Database Operations - Insert emails with detailed logging
+    debugLog('DB_INSERT_START', 'Starting database insertion', {
+      emailCount: emailsToInsert.length,
+      emailIds: emailsToInsert.map(e => e.message_id)
+    });
+
     let insertedCount = 0;
     if (emailsToInsert.length > 0) {
       try {
@@ -350,28 +471,51 @@ async function syncGmailEmails(
           .insert(emailsToInsert)
           .select('id');
 
+        debugLog('DB_INSERT_RESPONSE', 'Database insert response', {
+          success: !insertError,
+          error: insertError?.message,
+          insertedIds: data?.map(d => d.id) || [],
+          insertedCount: data?.length || 0
+        });
+
         if (insertError) {
-          console.error('❌ Database insert failed:', insertError);
+          debugLog('DB_INSERT_ERROR', 'Database insert failed', {
+            error: insertError.message,
+            code: insertError.code,
+            details: insertError.details,
+            hint: insertError.hint,
+            emailCount: emailsToInsert.length
+          });
           return {
             success: false,
             error: `Database error: ${insertError.message}`,
-            processed: emailsToInsert.length
+            processed: emailsToInsert.length,
+            details: insertError
           };
         }
 
         insertedCount = data?.length || emailsToInsert.length;
-        console.log(`✅ Successfully inserted ${insertedCount} emails`);
+        debugLog('DB_INSERT_SUCCESS', 'Database insertion successful', {
+          insertedCount,
+          expectedCount: emailsToInsert.length
+        });
       } catch (dbError) {
-        console.error('❌ Database operation failed:', dbError);
+        debugLog('DB_INSERT_EXCEPTION', 'Database operation exception', {
+          error: dbError.message,
+          stack: dbError.stack
+        });
         return {
           success: false,
           error: 'Database operation failed',
-          processed: emailsToInsert.length
+          processed: emailsToInsert.length,
+          exception: dbError.message
         };
       }
+    } else {
+      debugLog('NO_EMAILS_TO_INSERT', 'No emails to insert');
     }
 
-    // Update sync status (best effort - don't fail if this fails)
+    // Update sync status (best effort)
     try {
       await supabaseClient
         .from('email_sync_status')
@@ -382,11 +526,12 @@ async function syncGmailEmails(
           last_sync_count: insertedCount,
           gmail_history_id: messagesData.historyId
         });
+      debugLog('SYNC_STATUS_UPDATED', 'Sync status updated successfully');
     } catch (statusError) {
-      console.log('⚠️ Failed to update sync status, but continuing...');
+      debugLog('SYNC_STATUS_FAILED', 'Failed to update sync status', { error: statusError.message });
     }
 
-    // Phase 4: Simple success logging (optional - won't break sync if it fails)
+    // Log success
     try {
       await supabaseClient
         .from('security_events')
@@ -401,21 +546,30 @@ async function syncGmailEmails(
             timestamp: new Date().toISOString()
           }
         });
+      debugLog('SUCCESS_LOG_CREATED', 'Success event logged');
     } catch (logError) {
-      console.log('⚠️ Failed to log success, but sync completed');
-      // Ignore logging errors - sync success is what matters
+      debugLog('SUCCESS_LOG_FAILED', 'Failed to log success event', { error: logError.message });
     }
 
-    return {
+    const result = {
       success: true,
       message: `Successfully synced ${insertedCount} emails`,
-      count: insertedCount
+      count: insertedCount,
+      processed: emailsToInsert.length,
+      found: messages.length
     };
 
+    debugLog('SYNC_COMPLETE', 'Gmail sync completed successfully', result);
+    return result;
+
   } catch (error) {
-    console.error('❌ Gmail sync failed:', error);
+    debugLog('SYNC_ERROR', 'Gmail sync failed with exception', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     
-    // Phase 4: Simple error logging (optional - won't break response if it fails)
+    // Log error
     try {
       await supabaseClient
         .from('security_events')
@@ -425,21 +579,22 @@ async function syncGmailEmails(
           severity: 'medium',
           details: { 
             error: error.message,
+            stack: error.stack,
             user_email: userEmail,
             is_scheduled: isScheduled,
             timestamp: new Date().toISOString()
           }
         });
     } catch (logError) {
-      console.log('⚠️ Failed to log error, but continuing...');
-      // Ignore logging errors - user response is what matters
+      debugLog('ERROR_LOG_FAILED', 'Failed to log error event', { error: logError.message });
     }
 
-    // Phase 2: Return consistent error response format
     return {
       success: false,
       error: error.message || 'Unknown sync error',
-      details: 'Gmail sync encountered an error'
+      details: 'Gmail sync encountered an error',
+      exception: error.name,
+      stack: error.stack
     };
   }
 }
