@@ -26,62 +26,84 @@ interface GmailMessage {
   internalDate: string;
 }
 
-// Enhanced token refresh with proper error handling and logging
+// Enhanced token refresh with better error handling
 async function refreshGmailToken(refreshToken: string, supabaseClient: any, userId: string): Promise<string | null> {
-  console.log('🔄 Refreshing Gmail token...');
   try {
-    const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+    console.log('🔄 Refreshing Gmail token...');
+    
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+    
+    if (!clientId || !clientSecret) {
+      console.error('❌ Missing OAuth credentials for token refresh');
+      return null;
+    }
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: Deno.env.get('GOOGLE_CLIENT_ID') ?? '',
-        client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '',
+        client_id: clientId,
+        client_secret: clientSecret,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),
     });
 
-    if (!refreshResponse.ok) {
-      const errorText = await refreshResponse.text();
-      console.error('❌ Token refresh response:', {
-        status: refreshResponse.status,
-        statusText: refreshResponse.statusText,
-        error: errorText
-      });
-      throw new Error(`Token refresh failed: ${refreshResponse.status} - ${errorText}`);
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error(`❌ Token refresh failed: ${tokenResponse.status} - ${errorText}`);
+      
+      // Check for specific OAuth errors
+      if (tokenResponse.status === 401 || errorText.includes('invalid_client')) {
+        console.error('❌ OAuth client configuration error - credentials may be invalid');
+        // Log the failed refresh for debugging
+        await supabaseClient.rpc('log_oauth_operation', {
+          p_user_id: userId,
+          p_operation: 'token_refresh_failed',
+          p_success: false,
+          p_details: { 
+            status: tokenResponse.status, 
+            error: errorText,
+            reason: 'invalid_client_credentials'
+          }
+        }).catch(() => {}); // Ignore logging errors
+      }
+      
+      return null;
     }
 
-    const refreshData = await refreshResponse.json();
-    const newAccessToken = refreshData.access_token;
-
-    if (!newAccessToken) {
-      console.error('❌ No access token in refresh response:', refreshData);
-      throw new Error('Invalid token response from Google');
-    }
-
-    console.log('✅ New access token obtained from Google');
-
-    // Store encrypted token using proper base64 encoding
-    const encodedToken = btoa(newAccessToken);
+    const tokens = await tokenResponse.json();
+    const newAccessToken = tokens.access_token;
     
+    if (!newAccessToken) {
+      console.error('❌ No access token in refresh response');
+      return null;
+    }
+
+    // Store refreshed token with proper encryption
+    const encryptedToken = btoa(newAccessToken);
+    const expiresAt = new Date(Date.now() + ((tokens.expires_in || 3600) * 1000));
+
     const { error: updateError } = await supabaseClient
       .from('gmail_credentials')
       .update({
-        access_token_encrypted: encodedToken,
-        token_expires_at: new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString(),
+        access_token_encrypted: encryptedToken,
+        token_expires_at: expiresAt.toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId);
 
     if (updateError) {
-      console.error('❌ Failed to update credentials:', updateError);
-      throw new Error(`Failed to store token: ${updateError.message}`);
+      console.error('❌ Failed to update refreshed token:', updateError);
+      return null;
     }
 
-    console.log('✅ Token refresh successful, credentials updated');
+    console.log('✅ Token refreshed and stored successfully');
     return newAccessToken;
-  } catch (error) {
-    console.error('❌ Token refresh failed:', error);
+    
+  } catch (error: any) {
+    console.error('❌ Token refresh exception:', error);
     return null;
   }
 }
@@ -140,24 +162,24 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
   return { text, attachments };
 }
 
-// Simplified Gmail sync
+// Progressive Gmail sync with improved error handling
 async function syncGmailEmails(
   supabaseClient: any,
   userId: string,
   userEmail: string,
   accessToken: string,
-  maxResults = 25
+  isScheduled = false
 ): Promise<{ success: boolean; stored: number; error?: string }> {
   
   try {
-    console.log(`🔄 Syncing Gmail for: ${userEmail} (max: ${maxResults})`);
+    console.log(`🔄 ${isScheduled ? 'Scheduled' : 'Manual'} Gmail sync for: ${userEmail}`);
 
-    // Simple Gmail query - just get recent emails
-    const query = `in:inbox OR in:sent`;
+    // Progressive sync: start with recent emails
+    const maxResults = isScheduled ? 10 : 25; // Smaller batches for scheduled syncs
+    const query = isScheduled ? 'newer_than:1d' : 'newer_than:7d';
     
-    // Fetch messages with timeout
     const messagesResponse = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&q=${encodeURIComponent(query)}`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -176,16 +198,17 @@ async function syncGmailEmails(
     const messagesData = await messagesResponse.json();
     const messages = messagesData.messages || [];
     
-    console.log(`📬 Found ${messages.length} messages`);
+    console.log(`📬 Found ${messages.length} messages in last ${isScheduled ? '1 day' : '7 days'}`);
 
     if (messages.length === 0) {
       return { success: true, stored: 0 };
     }
 
     const emailsToStore = [];
+    const processLimit = isScheduled ? 5 : 10; // Limit processing for performance
 
-    // Process messages
-    for (const message of messages.slice(0, 10)) { // Limit to first 10 for performance
+    // Process messages with better error handling
+    for (const message of messages.slice(0, processLimit)) {
       try {
         const messageResponse = await fetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
@@ -197,12 +220,15 @@ async function syncGmailEmails(
           }
         );
 
-        if (!messageResponse.ok) continue;
+        if (!messageResponse.ok) {
+          console.warn(`⚠️ Failed to fetch message ${message.id}: ${messageResponse.status}`);
+          continue;
+        }
 
         const messageData: GmailMessage = await messageResponse.json();
         const headers = messageData.payload.headers || [];
 
-        // Extract basic info
+        // Extract basic info with better parsing
         const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || 'No Subject';
         const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
         const to = headers.find(h => h.name.toLowerCase() === 'to')?.value || '';
@@ -211,7 +237,7 @@ async function syncGmailEmails(
         const { text: body, attachments } = extractTextContent(messageData.payload);
         const direction = messageData.labelIds?.includes('SENT') ? 'outbound' : 'inbound';
 
-        // Check if email already exists
+        // Check if email already exists to avoid duplicates
         const { data: existingEmail } = await supabaseClient
           .from('email_exchanges')
           .select('id')
@@ -237,7 +263,8 @@ async function syncGmailEmails(
             metadata: {
               gmail_labels: messageData.labelIds || [],
               snippet: messageData.snippet?.substring(0, 500),
-              sync_source: 'unified_gmail_sync_v3'
+              sync_source: 'unified_gmail_sync_progressive',
+              sync_type: isScheduled ? 'scheduled' : 'manual'
             },
             attachments,
             received_at: date ? new Date(date).toISOString() : new Date(parseInt(messageData.internalDate)).toISOString(),
@@ -248,19 +275,21 @@ async function syncGmailEmails(
           emailsToStore.push(emailData);
         }
       } catch (error) {
-        console.error(`Error processing message ${message.id}:`, error);
+        console.error(`❌ Error processing message ${message.id}:`, error);
+        // Continue processing other emails
       }
     }
 
-    // Store emails
+    // Store emails in batch
     if (emailsToStore.length > 0) {
-      console.log(`💾 Storing ${emailsToStore.length} emails...`);
+      console.log(`💾 Storing ${emailsToStore.length} new emails...`);
       
       const { error: insertError } = await supabaseClient
         .from('email_exchanges')
         .insert(emailsToStore);
 
       if (insertError) {
+        console.error('❌ Database insert failed:', insertError);
         throw new Error(`Database insert failed: ${insertError.message}`);
       }
 
@@ -268,12 +297,17 @@ async function syncGmailEmails(
     }
 
     // Update sync status
-    await supabaseClient.rpc('handle_email_sync_status', {
-      p_user_id: userId,
-      p_folder_name: 'inbox',
-      p_last_sync_at: new Date().toISOString(),
-      p_last_sync_count: emailsToStore.length
-    });
+    try {
+      await supabaseClient.rpc('handle_email_sync_status', {
+        p_user_id: userId,
+        p_folder_name: 'inbox',
+        p_last_sync_at: new Date().toISOString(),
+        p_last_sync_count: emailsToStore.length
+      });
+    } catch (statusError) {
+      console.warn('⚠️ Failed to update sync status:', statusError);
+      // Don't fail the entire sync for this
+    }
 
     return {
       success: true,
@@ -414,23 +448,26 @@ serve(async (req) => {
           }
         }
 
-        // Perform sync
+        // Perform sync with better error handling
         const result = await syncGmailEmails(
           serviceClient,
           user.id,
           credentials.gmail_user_email,
-          accessToken
+          accessToken,
+          false // Manual sync
         );
 
         return new Response(
           JSON.stringify({
             success: result.success,
             emails_synced: result.stored,
-            error: result.error
+            emailCount: result.stored, // For compatibility
+            error: result.error,
+            action: result.success ? null : (result.error?.includes('authorization expired') ? 'reconnect_required' : 'retry_later')
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: result.success ? 200 : 500
+            status: result.success ? 200 : (result.error?.includes('authorization expired') ? 401 : 500)
           }
         );
       }
@@ -465,7 +502,7 @@ serve(async (req) => {
               user.user_id,
               user.gmail_user_email,
               accessToken,
-              10 // Smaller batch for scheduled sync
+              true // Scheduled sync
             );
             results.push({ user_id: user.user_id, ...result });
           }

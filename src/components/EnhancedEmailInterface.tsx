@@ -276,29 +276,53 @@ const EnhancedEmailInterface = ({
     filterEmails();
   }, [filterEmails]);
 
-  // Listen for Gmail sync events
+  // Listen for Gmail sync completion to refresh emails with better feedback
   useEffect(() => {
-    const handleGmailSync = () => {
+    const handleSyncComplete = (event: CustomEvent) => {
+      console.log('Gmail sync completed, refreshing emails...');
+      const emailCount = event.detail?.emailCount || 0;
+      
+      // Always refresh after sync to show updated emails
       setRefreshKey(prev => prev + 1);
     };
 
-    window.addEventListener('gmail-sync-complete', handleGmailSync);
-    
-    return () => {
-      window.removeEventListener('gmail-sync-complete', handleGmailSync);
-    };
+    window.addEventListener('gmail-sync-complete', handleSyncComplete as EventListener);
+    return () => window.removeEventListener('gmail-sync-complete', handleSyncComplete as EventListener);
   }, []);
 
-  // Auto-sync Gmail every 5 minutes when connected
+  // Smart auto-sync: Check for new emails periodically when Gmail is connected
   useEffect(() => {
-    if (!authStatus.isConnected) return;
+    if (!authStatus.isConnected || !user?.id) return;
 
-    const syncInterval = setInterval(() => {
-      triggerSync();
-    }, 5 * 60 * 1000); // 5 minutes
+    // Progressive interval: more frequent checks when fewer emails
+    const getIntervalMinutes = () => {
+      if (emails.length === 0) return 2; // Every 2 minutes if no emails
+      if (emails.length < 10) return 5; // Every 5 minutes if few emails  
+      return 10; // Every 10 minutes if many emails
+    };
 
-    return () => clearInterval(syncInterval);
-  }, [authStatus.isConnected, triggerSync]);
+    const interval = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        // Quiet background sync
+        const { data } = await supabase.functions.invoke('unified-gmail-sync', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: { user_id: user.id, scheduled: true }
+        });
+        
+        if (data?.success && data.emails_synced > 0) {
+          console.log(`Auto-synced ${data.emails_synced} new emails`);
+          setRefreshKey(prev => prev + 1);
+        }
+      } catch (error) {
+        console.log('Auto-sync failed:', error);
+      }
+    }, getIntervalMinutes() * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [authStatus.isConnected, user?.id, emails.length]);
 
   const selectedEmail = emails.find(email => email.id === selectedEmailId) || null;
 
