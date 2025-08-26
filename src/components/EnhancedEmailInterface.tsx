@@ -67,8 +67,6 @@ const EnhancedEmailInterface = ({
 
   // Fetch emails from database
   const fetchEmails = useCallback(async () => {
-    if (!clientId && !clientEmail) return;
-
     setIsLoading(true);
     try {
       let query = supabase
@@ -76,11 +74,13 @@ const EnhancedEmailInterface = ({
         .select('*')
         .order('created_at', { ascending: false });
 
+      // Apply client filtering if specified, otherwise fetch all user emails
       if (clientId) {
         query = query.eq('client_id', clientId);
       } else if (clientEmail) {
         query = query.or(`sender_email.ilike.%${clientEmail}%,recipient_emails.cs.{${clientEmail}}`);
       }
+      // Note: RLS policies will automatically filter to current user's emails
 
       const { data, error } = await query;
 
