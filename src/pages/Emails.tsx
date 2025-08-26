@@ -39,6 +39,7 @@ import { toast } from '@/hooks/use-toast';
 import { safeEmailDateFormat } from '@/utils/dateHelpers';
 import { EnhancedGmailStatus } from '@/components/EnhancedGmailStatus';
 import { GmailDiagnostics } from '@/components/GmailDiagnostics';
+import { GmailConnectionDiagnostic } from '@/components/GmailConnectionDiagnostic';
 
 interface EmailExchange {
   id: string;
@@ -499,8 +500,9 @@ const Emails = () => {
         <div className="p-4">
           {/* Enhanced Gmail Connection Status */}
           {!isSidebarCollapsed && (
-            <div className="mb-4">
+            <div className="mb-4 space-y-2">
               <EnhancedGmailStatus onEmailRefresh={handleEmailRefresh} />
+              <GmailConnectionDiagnostic />
             </div>
           )}
 

@@ -65,9 +65,12 @@ export const useGmailIntegration = () => {
     }
   }, [user]);
 
-  // Simplified Gmail connection
+  // Enhanced Gmail connection with debugging
   const connectGmail = useCallback(async () => {
+    console.log('🔄 Starting Gmail connection process...');
+    
     if (!user?.id) {
+      console.error('❌ No user ID found');
       toast({
         title: "Authentication Required",
         description: "Please log in to connect Gmail",
@@ -76,16 +79,28 @@ export const useGmailIntegration = () => {
       return;
     }
 
+    console.log('👤 User authenticated:', user.id);
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
     try {
-      // Get session
+      // Get session with detailed logging
+      console.log('🔐 Getting session...');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session?.access_token) {
+      
+      if (sessionError) {
+        console.error('❌ Session error:', sessionError);
+        throw new Error(`Session error: ${sessionError.message}`);
+      }
+      
+      if (!session?.access_token) {
+        console.error('❌ No access token in session');
         throw new Error('Invalid session. Please refresh and try again.');
       }
+      
+      console.log('✅ Session valid, access token present');
+      console.log('📡 Calling gmail-oauth edge function...');
 
-      // Start OAuth flow
+      // Enhanced function call with detailed error handling
       const { data, error } = await supabase.functions.invoke('gmail-oauth', {
         headers: {
           Authorization: `Bearer ${session.access_token}`
@@ -93,9 +108,19 @@ export const useGmailIntegration = () => {
         body: { action: 'start' }
       });
       
-      if (error || !data?.authUrl) {
-        throw new Error(error?.message || 'Failed to start OAuth process');
+      console.log('📦 Edge function response:', { data, error });
+      
+      if (error) {
+        console.error('❌ Edge function error:', error);
+        throw new Error(`Edge function error: ${error.message}`);
       }
+      
+      if (!data?.authUrl) {
+        console.error('❌ No authUrl in response:', data);
+        throw new Error('Failed to get authorization URL from server');
+      }
+      
+      console.log('✅ Auth URL received:', data.authUrl);
 
       // Open popup
       const popup = window.open(
