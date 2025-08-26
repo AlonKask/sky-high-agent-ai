@@ -6,11 +6,12 @@ import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Mail, RefreshCw } from "lucide-react";
 import EmailSidebar from "./EmailSidebar";
 import EmailListView from "./EmailListView";
 import EmailDetailView from "./EmailDetailView";
 import EmailComposer from "./EmailComposer";
+import { GmailStatusButton } from "./GmailStatusButton";
 
 interface EmailExchange {
   id: string;
@@ -205,6 +206,19 @@ const EnhancedEmailInterface = ({
     }
   };
 
+  const handleSyncEmails = async () => {
+    if (!authStatus.isConnected) {
+      console.log('Gmail not connected, cannot sync');
+      return;
+    }
+    
+    try {
+      await triggerSync();
+    } catch (error) {
+      console.error('Failed to trigger sync:', error);
+    }
+  };
+
   // Effects
   useEffect(() => {
     fetchEmails();
@@ -281,17 +295,53 @@ const EnhancedEmailInterface = ({
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Email List */}
           <ResizablePanel defaultSize={50} minSize={30}>
-            <EmailListView
-              emails={emails}
-              selectedEmails={selectedEmails}
-              selectedEmailId={selectedEmailId}
-              onEmailSelect={handleEmailSelect}
-              onEmailCheck={handleEmailCheck}
-              onSelectAll={handleSelectAll}
-              isLoading={isLoading}
-              searchTerm={listSearchTerm}
-              onSearchChange={setListSearchTerm}
-            />
+            {emails.length === 0 && !isLoading ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-4 p-8 max-w-md mx-auto">
+                  <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold">No emails found</h3>
+                    {authStatus.isConnected ? (
+                      <div className="space-y-3">
+                        <p className="text-muted-foreground text-sm">
+                          Your Gmail is connected but no emails have been synced yet.
+                        </p>
+                        <Button 
+                          onClick={handleSyncEmails}
+                          className="gap-2"
+                          disabled={authStatus.isLoading}
+                        >
+                          <RefreshCw className={`w-4 h-4 ${authStatus.isLoading ? 'animate-spin' : ''}`} />
+                          Sync Emails
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          This will sync your recent Gmail messages
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-muted-foreground text-sm">
+                          Connect your Gmail account to start viewing emails.
+                        </p>
+                        <GmailStatusButton />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <EmailListView
+                emails={emails}
+                selectedEmails={selectedEmails}
+                selectedEmailId={selectedEmailId}
+                onEmailSelect={handleEmailSelect}
+                onEmailCheck={handleEmailCheck}
+                onSelectAll={handleSelectAll}
+                isLoading={isLoading}
+                searchTerm={listSearchTerm}
+                onSearchChange={setListSearchTerm}
+              />
+            )}
           </ResizablePanel>
 
           <ResizableHandle withHandle />
