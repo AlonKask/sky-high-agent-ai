@@ -1715,6 +1715,63 @@ export type Database = {
         }
         Relationships: []
       }
+      email_drafts: {
+        Row: {
+          attachments: Json | null
+          bcc_emails: string[] | null
+          body: string
+          cc_emails: string[] | null
+          client_id: string | null
+          created_at: string | null
+          email_type: string | null
+          forward_from_message_id: string | null
+          id: string
+          metadata: Json | null
+          recipient_emails: string[]
+          reply_to_message_id: string | null
+          request_id: string | null
+          subject: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          bcc_emails?: string[] | null
+          body?: string
+          cc_emails?: string[] | null
+          client_id?: string | null
+          created_at?: string | null
+          email_type?: string | null
+          forward_from_message_id?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_emails?: string[]
+          reply_to_message_id?: string | null
+          request_id?: string | null
+          subject?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          bcc_emails?: string[] | null
+          body?: string
+          cc_emails?: string[] | null
+          client_id?: string | null
+          created_at?: string | null
+          email_type?: string | null
+          forward_from_message_id?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_emails?: string[]
+          reply_to_message_id?: string | null
+          request_id?: string | null
+          subject?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_exchanges: {
         Row: {
           attachments: Json | null
@@ -1726,11 +1783,19 @@ export type Database = {
           data_classification: string | null
           direction: string
           email_type: string | null
+          folder_name: string | null
+          forwarded_from_message_id: string | null
           id: string
+          is_archived: boolean | null
+          is_deleted: boolean | null
+          is_draft: boolean | null
+          is_read: boolean | null
+          is_starred: boolean | null
           message_id: string | null
           metadata: Json | null
           received_at: string | null
           recipient_emails: string[]
+          reply_to_message_id: string | null
           request_id: string | null
           sender_email: string
           status: string
@@ -1749,11 +1814,19 @@ export type Database = {
           data_classification?: string | null
           direction: string
           email_type?: string | null
+          folder_name?: string | null
+          forwarded_from_message_id?: string | null
           id?: string
+          is_archived?: boolean | null
+          is_deleted?: boolean | null
+          is_draft?: boolean | null
+          is_read?: boolean | null
+          is_starred?: boolean | null
           message_id?: string | null
           metadata?: Json | null
           received_at?: string | null
           recipient_emails: string[]
+          reply_to_message_id?: string | null
           request_id?: string | null
           sender_email: string
           status?: string
@@ -1772,11 +1845,19 @@ export type Database = {
           data_classification?: string | null
           direction?: string
           email_type?: string | null
+          folder_name?: string | null
+          forwarded_from_message_id?: string | null
           id?: string
+          is_archived?: boolean | null
+          is_deleted?: boolean | null
+          is_draft?: boolean | null
+          is_read?: boolean | null
+          is_starred?: boolean | null
           message_id?: string | null
           metadata?: Json | null
           received_at?: string | null
           recipient_emails?: string[]
+          reply_to_message_id?: string | null
           request_id?: string | null
           sender_email?: string
           status?: string
@@ -1824,6 +1905,45 @@ export type Database = {
           last_sync_at?: string
           last_sync_count?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string | null
+          email_type: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          subject: string
+          updated_at: string | null
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          email_type?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          subject: string
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          email_type?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          subject?: string
+          updated_at?: string | null
+          usage_count?: number | null
           user_id?: string
         }
         Relationships: []
