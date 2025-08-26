@@ -2,16 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
-
-// PHASE 1: Enhanced CORS handling with better browser compatibility
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, accept-language, content-language',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
-  'Access-Control-Allow-Credentials': 'false', // Set to false for wildcard origin
-  'Access-Control-Max-Age': '86400',
-  'Vary': 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers',
-};
+import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
 serve(async (req) => {
   const url = new URL(req.url);
@@ -32,7 +23,7 @@ serve(async (req) => {
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCors();
   }
 
   // Apply rate limiting

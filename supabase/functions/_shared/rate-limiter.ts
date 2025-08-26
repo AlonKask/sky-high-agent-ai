@@ -159,11 +159,7 @@ export async function withRateLimit(
   const limiter = new RateLimiter(config);
   const result = await limiter.checkLimit(req);
   
-  const headers = {
-    ...limiter.createHeaders(result),
-    'Access-Control-Allow-Origin': 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const rateHeaders = limiter.createHeaders(result);
 
   if (!result.allowed) {
     return new Response(
@@ -175,7 +171,7 @@ export async function withRateLimit(
       {
         status: 429,
         headers: {
-          ...headers,
+          ...rateHeaders,
           'Content-Type': 'application/json',
           'Retry-After': Math.ceil(config.windowMs / 1000).toString()
         }
@@ -185,8 +181,8 @@ export async function withRateLimit(
 
   const response = await handler();
   
-  // Add rate limit headers to successful responses
-  Object.entries(headers).forEach(([key, value]) => {
+  // Add rate limit headers to successful responses (let function handle CORS)
+  Object.entries(rateHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
 
