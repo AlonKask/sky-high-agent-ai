@@ -14,7 +14,7 @@ export const Layout = ({ children }: LayoutProps) => {
         <AppSidebar />
         <main className="flex-1 overflow-hidden">
           <div className="h-full overflow-auto relative">
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
               <GmailStatusButton />
               <NotificationCenter />
             </div>
