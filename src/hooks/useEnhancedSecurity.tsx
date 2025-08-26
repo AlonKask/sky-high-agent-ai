@@ -151,7 +151,8 @@ export const useEnhancedSecurity = () => {
     try {
       const sanitizedDetails = sanitizeLogData(details);
       
-      await supabase.rpc('log_security_event', {
+      await supabase.rpc('simple_log_event', {
+        p_user_id: user?.id,
         p_event_type: eventType,
         p_severity: severity,
         p_details: sanitizedDetails

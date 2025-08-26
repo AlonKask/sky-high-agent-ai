@@ -4185,24 +4185,6 @@ export type Database = {
         Args: { p_details?: Json; p_event_type: string; p_user_id: string }
         Returns: undefined
       }
-      log_oauth_operation: {
-        Args: {
-          p_details?: Json
-          p_operation: string
-          p_success: boolean
-          p_user_id: string
-        }
-        Returns: undefined
-      }
-      log_security_event: {
-        Args: {
-          p_details?: Json
-          p_event_type: string
-          p_severity: string
-          p_user_id?: string
-        }
-        Returns: undefined
-      }
       log_security_event_safe: {
         Args: {
           p_details?: Json
@@ -4369,6 +4351,15 @@ export type Database = {
               p_table_name: string
             }
         Returns: boolean
+      }
+      simple_log_event: {
+        Args: {
+          p_details?: Json
+          p_event_type: string
+          p_severity?: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       simple_session_check: {
         Args: Record<PropertyKey, never>

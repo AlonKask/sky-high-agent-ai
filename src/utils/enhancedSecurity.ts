@@ -45,7 +45,8 @@ class EnhancedSecurityManager {
   async logSecurityEvent(alert: Omit<SecurityAlert, 'id'>): Promise<void> {
     try {
       // Use Supabase function for security event logging with correct parameter names
-      await supabase.rpc('log_security_event', {
+      await supabase.rpc('simple_log_event', {
+        p_user_id: null,
         p_event_type: alert.alert_type,
         p_severity: alert.severity,
         p_details: alert.details

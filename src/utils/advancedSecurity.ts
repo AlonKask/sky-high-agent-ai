@@ -317,7 +317,8 @@ class AdvancedSecurityService {
 
   private async logSecurityEvent(eventType: string, severity: string, details: any): Promise<void> {
     try {
-      await supabase.rpc('log_security_event', {
+      await supabase.rpc('simple_log_event', {
+        p_user_id: null,
         p_event_type: eventType,
         p_severity: severity,
         p_details: details

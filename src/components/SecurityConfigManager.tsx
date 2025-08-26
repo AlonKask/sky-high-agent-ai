@@ -34,7 +34,8 @@ export function SecurityConfigManager() {
       // Test security event logging
       let eventLoggingWorks = false;
       try {
-        await supabase.rpc('log_security_event', {
+        await supabase.rpc('simple_log_event', {
+          p_user_id: null,
           p_event_type: 'security_config_check',
           p_severity: 'low',
           p_details: { test: true }

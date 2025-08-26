@@ -47,7 +47,8 @@ class EnhancedSecurityMonitoring {
     this.violations.push(violation);
     
     try {
-      await supabase.rpc('log_security_event', {
+      await supabase.rpc('simple_log_event', {
+        p_user_id: null,
         p_event_type: violation.event,
         p_severity: violation.type,
         p_details: {

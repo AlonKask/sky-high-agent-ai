@@ -86,7 +86,8 @@ export const SecureDataView = ({
     } catch (error) {
       console.error('Secure data access failed:', error);
       // Log security incident
-      await supabase.rpc('log_security_event', {
+      await supabase.rpc('simple_log_event', {
+        p_user_id: user?.id,
         p_event_type: 'secure_data_access_failed',
         p_severity: 'high',
         p_details: {
@@ -111,7 +112,8 @@ export const SecureDataView = ({
     setLoading(true);
     try {
       // Log access request
-      await supabase.rpc('log_security_event', {
+      await supabase.rpc('simple_log_event', {
+        p_user_id: user?.id,
         p_event_type: 'sensitive_data_access_requested',
         p_severity: 'medium',
         p_details: {

@@ -88,7 +88,8 @@ export const SecureAuthProvider = ({ children }: { children: React.ReactNode }) 
         
         // Log security event and take protective action
         try {
-          await supabase.rpc('log_security_event', {
+          await supabase.rpc('simple_log_event', {
+            p_user_id: user?.id,
             p_event_type: 'device_fingerprint_mismatch',
             p_severity: 'high',
             p_details: {

@@ -100,11 +100,11 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const logSecurityEvent = async (event: string, details?: any) => {
     try {
       // Use the secure function we created
-      await supabase.rpc('log_security_event', {
+      await supabase.rpc('simple_log_event', {
+        p_user_id: user?.id,
         p_event_type: event,
         p_severity: 'medium',
-        p_details: details || {},
-        p_user_id: user?.id
+        p_details: details || {}
       });
     } catch (error) {
       console.error('Error logging security event:', error);

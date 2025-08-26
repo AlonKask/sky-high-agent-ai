@@ -68,16 +68,22 @@ async function refreshGmailToken(refreshToken: string, supabaseClient: any, user
       if (tokenResponse.status === 401 || errorText.includes('invalid_client')) {
         console.error('❌ OAuth client configuration error - credentials may be invalid');
         // Log the failed refresh for debugging
-        await supabaseClient.rpc('log_oauth_operation', {
-          p_user_id: userId,
-          p_operation: 'token_refresh_failed',
-          p_success: false,
-          p_details: { 
-            status: tokenResponse.status, 
-            error: errorText,
-            reason: 'invalid_client_credentials'
-          }
-        }).catch(() => {}); // Ignore logging errors
+        try {
+          await supabaseClient
+            .from('security_events')
+            .insert({
+              user_id: userId,
+              event_type: 'oauth_token_refresh_failed',
+              severity: 'medium',
+              details: { 
+                status: tokenResponse.status, 
+                error: errorText,
+                reason: 'invalid_client_credentials'
+              }
+            });
+        } catch (logError) {
+          // Ignore logging errors
+        }
       }
       
       return null;

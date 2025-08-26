@@ -130,11 +130,11 @@ export const useAdvancedSecurity = () => {
     details: any = {}
   ) => {
     try {
-      const { error } = await supabase.rpc('log_security_event', {
+      const { error } = await supabase.rpc('simple_log_event', {
+        p_user_id: user?.id,
         p_event_type: eventType,
         p_severity: severity,
-        p_details: details,
-        p_user_id: user?.id
+        p_details: details
       });
 
       if (error) throw error;
