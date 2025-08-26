@@ -84,8 +84,8 @@ class ConfigSecurityManager {
     
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'development';
-    } else if (hostname.includes('staging') || hostname.includes('preview') || hostname.includes('lovable.app')) {
-      return 'staging';
+    } else if (hostname.includes('lovable.app') || hostname.includes('preview') || hostname.includes('staging')) {
+      return 'development'; // Treat preview domains as development
     } else {
       return 'production';
     }
@@ -127,14 +127,13 @@ class ConfigSecurityManager {
   }
 
   private async getTurnstileSiteKey(): Promise<string> {
-    // Use the production site key provided by user
     const environment = this.detectEnvironment();
     
-    if (environment === 'production' || environment === 'staging') {
+    if (environment === 'production') {
       return "0x4AAAAAABr-hIuawnDu2ms3";
     }
     
-    // Only use test key for localhost development
+    // Use test key for development and staging (includes preview domains)
     return "1x00000000000000000000AA";
   }
 

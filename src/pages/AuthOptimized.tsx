@@ -38,10 +38,10 @@ export default function AuthOptimized() {
       try {
         const config = await configSecurity.initializeSecureConfig();
         setTurnstileSiteKey(config.turnstileSiteKey);
-        setCaptchaEnabled(config.environment === 'production' || config.environment === 'staging');
+        setCaptchaEnabled(config.environment === 'production'); // Only enable for actual production
         console.log('🔧 Auth config initialized:', {
           environment: config.environment,
-          captchaEnabled: config.environment === 'production' || config.environment === 'staging',
+          captchaEnabled: config.environment === 'production',
           hasSiteKey: !!config.turnstileSiteKey,
           hostname: window.location.hostname
         });
