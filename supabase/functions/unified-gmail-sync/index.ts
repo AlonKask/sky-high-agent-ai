@@ -26,8 +26,9 @@ interface GmailMessage {
   internalDate: string;
 }
 
-// Simplified token refresh
+// Enhanced token refresh with proper error handling and logging
 async function refreshGmailToken(refreshToken: string, supabaseClient: any, userId: string): Promise<string | null> {
+  console.log('🔄 Refreshing Gmail token...');
   try {
     const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -41,17 +42,31 @@ async function refreshGmailToken(refreshToken: string, supabaseClient: any, user
     });
 
     if (!refreshResponse.ok) {
-      throw new Error(`Token refresh failed: ${refreshResponse.status}`);
+      const errorText = await refreshResponse.text();
+      console.error('❌ Token refresh response:', {
+        status: refreshResponse.status,
+        statusText: refreshResponse.statusText,
+        error: errorText
+      });
+      throw new Error(`Token refresh failed: ${refreshResponse.status} - ${errorText}`);
     }
 
     const refreshData = await refreshResponse.json();
     const newAccessToken = refreshData.access_token;
 
-    // Update stored credentials with Deno-compatible encoding
+    if (!newAccessToken) {
+      console.error('❌ No access token in refresh response:', refreshData);
+      throw new Error('Invalid token response from Google');
+    }
+
+    console.log('✅ New access token obtained from Google');
+
+    // Store encrypted token using proper base64 encoding
     const encoder = new TextEncoder();
-    const encodedToken = String.fromCharCode(...encoder.encode(newAccessToken));
+    const tokenBytes = encoder.encode(newAccessToken);
+    const encodedToken = btoa(String.fromCharCode(...tokenBytes));
     
-    await supabaseClient
+    const { error: updateError } = await supabaseClient
       .from('gmail_credentials')
       .update({
         access_token_encrypted: encodedToken,
@@ -60,6 +75,12 @@ async function refreshGmailToken(refreshToken: string, supabaseClient: any, user
       })
       .eq('user_id', userId);
 
+    if (updateError) {
+      console.error('❌ Failed to update credentials:', updateError);
+      throw new Error(`Failed to store token: ${updateError.message}`);
+    }
+
+    console.log('✅ Token refresh successful, credentials updated');
     return newAccessToken;
   } catch (error) {
     console.error('❌ Token refresh failed:', error);
@@ -320,11 +341,18 @@ serve(async (req) => {
           .single();
 
         if (credError || !credentials?.access_token_encrypted) {
+          console.error('❌ Gmail credentials error:', credError);
           return new Response(
-            JSON.stringify({ success: false, error: 'Gmail not connected' }),
+            JSON.stringify({ 
+              success: false, 
+              error: credError ? 'Database error getting credentials' : 'Gmail not connected',
+              details: credError?.message 
+            }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+
+        console.log('✅ Gmail credentials found for user');
 
         // Decrypt access token
         const { data: decryptedToken } = await serviceClient.rpc(
@@ -333,11 +361,18 @@ serve(async (req) => {
         );
         
         if (!decryptedToken) {
+          console.error('❌ Token decryption failed');
           return new Response(
-            JSON.stringify({ success: false, error: 'Failed to decrypt token' }),
+            JSON.stringify({ 
+              success: false, 
+              error: 'Failed to decrypt token - token may be corrupted',
+              action: 'Please reconnect Gmail to refresh tokens'
+            }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+
+        console.log('✅ Access token decrypted successfully');
         
         let accessToken = decryptedToken;
         
@@ -351,15 +386,32 @@ serve(async (req) => {
             );
             
             if (refreshToken) {
+              console.log('🔄 Token expired, attempting refresh...');
               const newToken = await refreshGmailToken(refreshToken, serviceClient, user.id);
               if (newToken) {
                 accessToken = newToken;
+                console.log('✅ Token refreshed successfully');
               } else {
+                console.error('❌ Token refresh failed completely');
                 return new Response(
-                  JSON.stringify({ success: false, error: 'Token refresh failed' }),
+                  JSON.stringify({ 
+                    success: false, 
+                    error: 'Token refresh failed - please reconnect Gmail',
+                    action: 'reconnect_required'
+                  }),
                   { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                 );
               }
+            } else {
+              console.error('❌ Token expired but no refresh token available');
+              return new Response(
+                JSON.stringify({ 
+                  success: false, 
+                  error: 'Token expired and no refresh token available',
+                  action: 'reconnect_required'
+                }),
+                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
             }
           }
         }
