@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
-import { withRateLimit } from '../_shared/rate-limiter.ts';
+import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 import { decodeBase64 } from "jsr:@std/encoding/base64";
 
 const corsHeaders = {
@@ -456,7 +456,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    return await withRateLimit(req, async () => {
+    return await withRateLimit(req, rateLimitConfigs.moderate, async () => {
       let requestBody: any = {};
       
       try {
@@ -498,40 +498,59 @@ serve(async (req) => {
         console.log('✅ Gmail credentials found for user');
 
         // Phase 1: Graceful Degradation - Use simple token decoding
+        console.log('🔐 Decoding access token...');
         let accessToken: string;
+        
         try {
           if (!credentials.access_token_encrypted) {
+            console.error('❌ No encrypted access token found');
             return Response.json(
-              { success: false, error: 'No access token found' },
+              { success: false, error: 'No valid access token found' },
               { status: 200, headers: corsHeaders }
             );
           }
-
-          // Phase 1: Simple base64 decoding instead of complex encryption
+          
+          // Decode the base64 encoded token
           accessToken = atob(credentials.access_token_encrypted);
           console.log('✅ Access token decoded successfully');
+          
         } catch (decodeError) {
-          console.error('❌ Token decoding failed:', decodeError);
+          console.error('❌ Failed to decode access token:', decodeError);
           return Response.json(
-            { success: false, error: 'Failed to decode access token. Please reconnect Gmail.' },
+            { success: false, error: 'Invalid access token format' },
             { status: 200, headers: corsHeaders }
           );
         }
 
-        // Phase 3: Call sync with small batch size
-        console.log('🚀 Starting Gmail sync with simplified approach...');
-        const result = await syncGmailEmails(
+        // Get refresh token if available
+        let refreshToken: string | null = null;
+        if (credentials.refresh_token_encrypted) {
+          try {
+            refreshToken = atob(credentials.refresh_token_encrypted);
+            console.log('✅ Refresh token available');
+          } catch (refreshDecodeError) {
+            console.log('⚠️ Failed to decode refresh token, continuing without it');
+          }
+        }
+
+        console.log('🚀 Starting Gmail sync process...');
+        
+        // Call the sync function with detailed logging
+        const syncResult = await syncGmailEmails(
           supabaseClient,
           userId,
           userEmail,
           accessToken,
-          credentials.refresh_token_encrypted,
+          refreshToken,
           maxResults,
           isScheduled
         );
 
-        return new Response(JSON.stringify(result), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        console.log('📊 Sync result:', JSON.stringify(syncResult, null, 2));
+
+        return Response.json(syncResult, { 
+          status: 200, 
+          headers: corsHeaders 
         });
       }
 
