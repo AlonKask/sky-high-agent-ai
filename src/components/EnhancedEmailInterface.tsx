@@ -66,30 +66,36 @@ const EnhancedEmailInterface = ({
 
   const { authStatus, triggerSync } = useGmailIntegration();
 
-  // Fetch emails from database
+  // Enhanced email fetching with better error handling
   const fetchEmails = useCallback(async () => {
     setIsLoading(true);
     try {
+      console.log('📧 Fetching emails from database...');
       let query = supabase
         .from('email_exchanges')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Apply client filtering if specified, otherwise fetch all user emails
+      // Apply client filtering if specified
       if (clientId) {
+        console.log(`🎯 Filtering by client ID: ${clientId}`);
         query = query.eq('client_id', clientId);
       } else if (clientEmail) {
+        console.log(`📬 Filtering by client email: ${clientEmail}`);
         query = query.or(`sender_email.ilike.%${clientEmail}%,recipient_emails.cs.{${clientEmail}}`);
       }
-      // Note: RLS policies will automatically filter to current user's emails
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
 
       if (error) {
+        console.error('❌ Database error fetching emails:', error);
         logger.error('Error fetching emails:', error);
         toastHelpers.error("Failed to fetch email history", error);
         return;
       }
+
+      const emailCount = data?.length || 0;
+      console.log(`✅ Found ${emailCount} emails in database`);
 
       const formattedEmails = (data || []).map(email => ({
         ...email,
@@ -97,13 +103,20 @@ const EnhancedEmailInterface = ({
       }));
 
       setAllEmails(formattedEmails);
+      
+      // If no emails found and Gmail is connected, suggest sync
+      if (emailCount === 0 && authStatus.isConnected) {
+        console.log('ℹ️ No emails found but Gmail connected - user may need to sync');
+      }
+      
     } catch (error) {
+      console.error('❌ Error fetching emails:', error);
       logger.error('Error:', error);
       toastHelpers.error("Failed to fetch email history", error);
     } finally {
       setIsLoading(false);
     }
-  }, [clientId, clientEmail]);
+  }, [clientId, clientEmail, authStatus.isConnected]);
 
   // Filter and search emails
   const filterEmails = useCallback(() => {
@@ -206,16 +219,20 @@ const EnhancedEmailInterface = ({
     }
   };
 
+  // Enhanced sync handler with loading state
   const handleSyncEmails = async () => {
     if (!authStatus.isConnected) {
-      console.log('Gmail not connected, cannot sync');
+      console.log('❌ Gmail not connected, cannot sync');
+      toastHelpers.error("Gmail not connected", "Please connect your Gmail account first");
       return;
     }
     
+    console.log('🔄 User triggered email sync');
     try {
       await triggerSync();
+      // Refresh will happen automatically via the gmail-sync-complete event
     } catch (error) {
-      console.error('Failed to trigger sync:', error);
+      console.error('❌ Failed to trigger sync:', error);
     }
   };
 
