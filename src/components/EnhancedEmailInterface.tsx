@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toastHelpers } from '@/utils/toastHelpers';
-import { logger } from "@/utils/logger";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useGmailIntegration } from "@/hooks/useGmailIntegration";
+import { toast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -64,17 +64,31 @@ const EnhancedEmailInterface = ({
   const [dateFilter, setDateFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
 
+  const { user } = useSimpleAuth();
   const { authStatus, triggerSync } = useGmailIntegration();
 
   // Enhanced email fetching with better error handling
   const fetchEmails = useCallback(async () => {
+    if (!user) {
+      console.log('👤 No user authenticated, skipping email fetch');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       console.log('📧 Fetching emails from database...');
       let query = supabase
         .from('email_exchanges')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          id, subject, sender_email, recipient_emails, cc_emails, bcc_emails, 
+          body, direction, status, email_type, attachments, metadata, 
+          created_at, updated_at, received_at, message_id, thread_id,
+          client_id, clients(first_name, last_name, email)
+        `)
+        .eq('user_id', user.id)
+        .order('received_at', { ascending: false })
+        .limit(100);
 
       // Apply client filtering if specified
       if (clientId) {
@@ -85,12 +99,16 @@ const EnhancedEmailInterface = ({
         query = query.or(`sender_email.ilike.%${clientEmail}%,recipient_emails.cs.{${clientEmail}}`);
       }
 
-      const { data, error, count } = await query;
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Database error fetching emails:', error);
-        logger.error('Error fetching emails:', error);
-        toastHelpers.error("Failed to fetch email history", error);
+        toast({
+          title: "Failed to load emails",
+          description: error.message || "Could not retrieve your emails. Please try again.",
+          variant: "destructive",
+        });
+        setAllEmails([]);
         return;
       }
 
@@ -99,24 +117,33 @@ const EnhancedEmailInterface = ({
 
       const formattedEmails = (data || []).map(email => ({
         ...email,
+        user_id: user.id, // Ensure user_id is present
         direction: email.direction as 'inbound' | 'outbound'
       }));
 
       setAllEmails(formattedEmails);
       
-      // If no emails found and Gmail is connected, suggest sync
-      if (emailCount === 0 && authStatus.isConnected) {
-        console.log('ℹ️ No emails found but Gmail connected - user may need to sync');
+      // If no emails found and Gmail is connected, provide helpful message
+      if (emailCount === 0) {
+        if (authStatus.isConnected) {
+          console.log('ℹ️ No emails found but Gmail connected - user may need to sync');
+        } else {
+          console.log('ℹ️ No emails found - Gmail not connected');
+        }
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching emails:', error);
-      logger.error('Error:', error);
-      toastHelpers.error("Failed to fetch email history", error);
+      toast({
+        title: "Failed to load emails",
+        description: error.message || "Could not retrieve your emails. Please try again.",
+        variant: "destructive",
+      });
+      setAllEmails([]);
     } finally {
       setIsLoading(false);
     }
-  }, [clientId, clientEmail, authStatus.isConnected]);
+  }, [user, clientId, clientEmail, authStatus.isConnected]);
 
   // Filter and search emails
   const filterEmails = useCallback(() => {
@@ -223,7 +250,11 @@ const EnhancedEmailInterface = ({
   const handleSyncEmails = async () => {
     if (!authStatus.isConnected) {
       console.log('❌ Gmail not connected, cannot sync');
-      toastHelpers.error("Gmail not connected", "Please connect your Gmail account first");
+      toast({
+        title: "Gmail not connected",
+        description: "Please connect your Gmail account first",
+        variant: "destructive",
+      });
       return;
     }
     

@@ -4047,20 +4047,13 @@ export type Database = {
         Returns: string
       }
       handle_email_sync_status: {
-        Args:
-          | {
-              p_folder_name: string
-              p_gmail_history_id?: string
-              p_last_sync_at: string
-              p_last_sync_count?: number
-              p_user_id: string
-            }
-          | {
-              p_folder_name: string
-              p_last_sync_at: string
-              p_last_sync_count?: number
-              p_user_id: string
-            }
+        Args: {
+          p_folder_name: string
+          p_gmail_history_id?: string
+          p_last_sync_at: string
+          p_last_sync_count?: number
+          p_user_id: string
+        }
         Returns: undefined
       }
       has_admin_role: {
