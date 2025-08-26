@@ -85,9 +85,9 @@ export const GmailNetworkDiagnostic: React.FC = () => {
         });
 
         const invokePromise = supabase.functions.invoke('gmail-oauth-health');
-        const result = await Promise.race([invokePromise, timeoutPromise]);
+        const result = await Promise.race([invokePromise, timeoutPromise]) as any;
         
-        if (result.error) {
+        if (result?.error) {
           addResult('Edge Functions', 'warning', 'Edge function accessible but returned error', result.error?.message || 'Unknown error');
         } else {
           addResult('Edge Functions', 'success', 'Edge functions accessible');
