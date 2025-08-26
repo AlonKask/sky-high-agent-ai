@@ -290,39 +290,51 @@ const EnhancedEmailInterface = ({
     return () => window.removeEventListener('gmail-sync-complete', handleSyncComplete as EventListener);
   }, []);
 
-  // Smart auto-sync: Check for new emails periodically when Gmail is connected
+  // Phase 5: Smart Auto-sync with Adaptive Intervals and Background Processing
   useEffect(() => {
-    if (!authStatus.isConnected || !user?.id) return;
+    if (!user || !authStatus.isConnected || authStatus.isLoading) return;
 
-    // Progressive interval: more frequent checks when fewer emails
-    const getIntervalMinutes = () => {
-      if (emails.length === 0) return 2; // Every 2 minutes if no emails
-      if (emails.length < 10) return 5; // Every 5 minutes if few emails  
-      return 10; // Every 10 minutes if many emails
+    const emailCount = emails.length;
+    
+    // Intelligent interval calculation
+    const getInterval = () => {
+      if (emailCount === 0) return 45000; // 45 seconds if no emails (discovery mode)
+      if (emailCount < 5) return 90000; // 1.5 minutes if very few emails
+      if (emailCount < 20) return 180000; // 3 minutes if some emails
+      return 600000; // 10 minutes if many emails (maintenance mode)
     };
 
-    const interval = setInterval(async () => {
+    // Background sync with error resilience
+    const backgroundSync = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
-
-        // Quiet background sync
-        const { data } = await supabase.functions.invoke('unified-gmail-sync', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-          body: { user_id: user.id, scheduled: true }
-        });
+        console.log(`🔄 Background sync initiated (${emails.length} emails currently loaded)`);
         
-        if (data?.success && data.emails_synced > 0) {
-          console.log(`Auto-synced ${data.emails_synced} new emails`);
-          setRefreshKey(prev => prev + 1);
+        // Only sync if not currently loading
+        if (!authStatus.isLoading) {
+          await triggerSync();
+        } else {
+          console.log('⏭️ Skipping background sync - already in progress');
         }
       } catch (error) {
-        console.log('Auto-sync failed:', error);
+        console.warn('⚠️ Background sync failed, will retry next interval:', error);
       }
-    }, getIntervalMinutes() * 60 * 1000);
+    };
 
-    return () => clearInterval(interval);
-  }, [authStatus.isConnected, user?.id, emails.length]);
+    const interval = setInterval(backgroundSync, getInterval());
+
+    // Initial sync after component mount (delayed)
+    const initialSyncTimeout = setTimeout(() => {
+      if (emails.length === 0 && authStatus.isConnected && !authStatus.isLoading) {
+        console.log('🚀 Initial sync after mount');
+        backgroundSync();
+      }
+    }, 2000); // 2-second delay to let component settle
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialSyncTimeout);
+    };
+  }, [user, authStatus.isConnected, authStatus.isLoading, emails.length, triggerSync]);
 
   const selectedEmail = emails.find(email => email.id === selectedEmailId) || null;
 

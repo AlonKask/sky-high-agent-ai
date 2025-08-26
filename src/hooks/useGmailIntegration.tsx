@@ -307,132 +307,124 @@ export const useGmailIntegration = () => {
   }, []);
 
   const triggerSync = useCallback(async () => {
-    if (!user?.id || authStatus.isLoading) return;
-    
-    // Don't sync if we're not connected
-    if (!authStatus.isConnected) {
-      toast({
-        title: "Gmail Not Available",
-        description: "Please connect Gmail first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Set loading state
-    setAuthStatus(prev => ({ ...prev, isLoading: true }));
+    if (!user || authStatus.isLoading) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('No valid session');
-      }
-
+      setAuthStatus(prev => ({ ...prev, isLoading: true }));
+      
+      console.log('🔄 Starting Gmail sync...');
+      
       const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        },
-        body: { user_id: user.id }
+        body: {
+          userEmail: authStatus.userEmail,
+          userId: user.id,
+          maxResults: 10 // Phase 3: Start with smaller batches
+        }
       });
 
+      // Phase 4: Resilient Error Handling - Handle all response types gracefully
       if (error) {
         console.error('Sync error:', error);
+        setAuthStatus(prev => ({ ...prev, isLoading: false }));
         
-        // Handle different error types with appropriate actions
-        if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
-          setAuthStatus(prev => ({ ...prev, isConnected: false, isLoading: false }));
+        // Handle FunctionsHttpError (500 errors from edge function)
+        if (error.name === 'FunctionsHttpError') {
           toast({
-            title: "Gmail Authentication Issue",
-            description: "Your Gmail connection has expired. Please reconnect your account.",
-            variant: "destructive"
+            title: "Sync Service Issue",
+            description: "Gmail sync service is temporarily unavailable. Please try again in a moment.",
+            variant: "destructive",
           });
           return;
         }
         
-        setAuthStatus(prev => ({ ...prev, isLoading: false }));
+        // Handle authentication errors
+        if (error.message?.includes('invalid_grant') || error.message?.includes('expired') || error.message?.includes('401')) {
+          setAuthStatus(prev => ({ 
+            ...prev, 
+            isConnected: false,
+            isLoading: false 
+          }));
+          
+          toast({
+            title: "Gmail Connection Expired",
+            description: "Your Gmail connection has expired. Please reconnect your account.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         toast({
-          title: "Sync Failed",
-          description: "Failed to sync emails. Please try again.",
-          variant: "destructive"
+          title: "Sync Error", 
+          description: "Failed to sync emails. The service will retry automatically.",
+          variant: "destructive",
         });
         return;
       }
 
+      // Handle success response
       if (data?.success) {
-        const emailCount = data.emails_synced || 0;
+        const syncedCount = data.count || 0;
         setAuthStatus(prev => ({ 
           ...prev, 
           lastSync: new Date(),
-          isLoading: false
+          isLoading: false 
         }));
         
-        if (emailCount > 0) {
+        // Phase 5: Frontend Enhancement - Dispatch detailed sync event
+        window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
+          detail: { 
+            count: syncedCount,
+            timestamp: new Date(),
+            source: 'manual'
+          }
+        }));
+        
+        if (syncedCount > 0) {
           toast({
             title: "Sync Complete",
-            description: `Successfully synced ${emailCount} new emails`,
+            description: `Successfully synced ${syncedCount} new emails.`,
           });
         } else {
           toast({
             title: "Sync Complete",
-            description: "No new emails found - you're up to date",
+            description: "No new emails to sync.",
           });
         }
-        
-        // Trigger custom event for email refresh
-        window.dispatchEvent(new CustomEvent('gmail-sync-complete', { 
-          detail: { emailCount } 
-        }));
       } else {
-        // Handle specific error actions from backend
-        if (data?.action === 'reconnect_required') {
-          setAuthStatus(prev => ({ ...prev, isConnected: false, isLoading: false }));
+        // Handle failed response from function
+        setAuthStatus(prev => ({ ...prev, isLoading: false }));
+        
+        const errorMsg = data?.error || 'Unknown error occurred';
+        
+        // Phase 4: Better error categorization
+        if (errorMsg.includes('expired') || errorMsg.includes('reconnect')) {
+          setAuthStatus(prev => ({ ...prev, isConnected: false }));
           toast({
-            title: "Gmail Reconnection Required", 
-            description: "Your Gmail connection has expired. Please reconnect.",
-            variant: "destructive"
-          });
-        } else if (data?.action === 'retry_later') {
-          setAuthStatus(prev => ({ ...prev, isLoading: false }));
-          toast({
-            title: "Sync Temporarily Unavailable",
-            description: "Please try again in a few minutes.",
-            variant: "destructive"
+            title: "Authentication Required",
+            description: errorMsg,
+            variant: "destructive",
           });
         } else {
-          setAuthStatus(prev => ({ ...prev, isLoading: false }));
           toast({
-            title: "Sync Failed",
-            description: data?.error || "Sync failed",
-            variant: "destructive"
+            title: "Sync Issue",
+            description: errorMsg,
+            variant: "destructive",
           });
         }
       }
-    } catch (error: any) {
-      console.error('Sync failed:', error);
+      
+    } catch (error) {
+      console.error('Sync error:', error);
       setAuthStatus(prev => ({ ...prev, isLoading: false }));
       
-      // Provide more specific error messages
-      if (error.message?.includes('FunctionsHttpError')) {
-        toast({
-          title: "Service Unavailable",
-          description: "Gmail service temporarily unavailable. Please try again later.",
-          variant: "destructive"
-        });
-      } else if (error.message?.includes('No valid session')) {
-        toast({
-          title: "Session Expired",
-          description: "Please refresh the page and try again.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Network Error",
-          description: "Please check your connection and try again.",
-          variant: "destructive"
-        });
-      }
+      // Phase 4: Comprehensive error handling for unexpected errors
+      toast({
+        title: "Sync Error",
+        description: "An unexpected error occurred. Please check your internet connection and try again.",
+        variant: "destructive",
+      });
     }
-  }, [user?.id, authStatus.isLoading, authStatus.isConnected]);
+  }, [user, authStatus.userEmail, authStatus.isLoading, toast]);
 
   // Force refresh (alias for checkGmailStatus)
   const forceRefresh = useCallback(async () => {
