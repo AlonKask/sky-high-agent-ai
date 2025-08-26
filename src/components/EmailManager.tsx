@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Send, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,8 +14,6 @@ import { toastHelpers } from '@/utils/toastHelpers';
 import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 import { logger } from "@/utils/logger";
 import EnhancedEmailCard from "./EnhancedEmailCard";
-import UnifiedEmailRenderer from "./UnifiedEmailRenderer";
-import { GmailStatusButton } from "./GmailStatusButton";
 import { Badge as GmailBadge } from "@/components/ui/badge";
 
 
@@ -203,87 +200,84 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
             <Mail className="h-5 w-5" />
             Email Communication
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <GmailStatusButton />
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Compose
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Compose Email</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="to">To *</Label>
-                      <Input
-                        id="to"
-                        value={newEmail.to}
-                        onChange={(e) => setNewEmail({ ...newEmail, to: e.target.value })}
-                        placeholder="recipient@example.com"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cc">CC</Label>
-                      <Input
-                        id="cc"
-                        value={newEmail.cc}
-                        onChange={(e) => setNewEmail({ ...newEmail, cc: e.target.value })}
-                        placeholder="cc@example.com"
-                      />
-                    </div>
-                  </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Compose
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Compose Email</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="subject">Subject *</Label>
+                    <Label htmlFor="to">To *</Label>
                     <Input
-                      id="subject"
-                      value={newEmail.subject}
-                      onChange={(e) => setNewEmail({ ...newEmail, subject: e.target.value })}
-                      placeholder="Email subject"
+                      id="to"
+                      value={newEmail.to}
+                      onChange={(e) => setNewEmail({ ...newEmail, to: e.target.value })}
+                      placeholder="recipient@example.com"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="emailType">Type</Label>
-                    <Select value={newEmail.emailType} onValueChange={(value: any) => setNewEmail({ ...newEmail, emailType: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="quote">Quote</SelectItem>
-                        <SelectItem value="follow_up">Follow Up</SelectItem>
-                        <SelectItem value="confirmation">Confirmation</SelectItem>
-                        <SelectItem value="booking_update">Booking Update</SelectItem>
-                        <SelectItem value="general">General</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="body">Message *</Label>
-                    <Textarea
-                      id="body"
-                      value={newEmail.body}
-                      onChange={(e) => setNewEmail({ ...newEmail, body: e.target.value })}
-                      placeholder="Type your message here..."
-                      rows={8}
+                    <Label htmlFor="cc">CC</Label>
+                    <Input
+                      id="cc"
+                      value={newEmail.cc}
+                      onChange={(e) => setNewEmail({ ...newEmail, cc: e.target.value })}
+                      placeholder="cc@example.com"
                     />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={sendEmail} disabled={isSending}>
-                      <Send className="h-4 w-4 mr-2" />
-                      {isSending ? 'Sending...' : 'Send Email'}
-                    </Button>
                   </div>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+                <div>
+                  <Label htmlFor="subject">Subject *</Label>
+                  <Input
+                    id="subject"
+                    value={newEmail.subject}
+                    onChange={(e) => setNewEmail({ ...newEmail, subject: e.target.value })}
+                    placeholder="Email subject"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="emailType">Type</Label>
+                  <Select value={newEmail.emailType} onValueChange={(value: any) => setNewEmail({ ...newEmail, emailType: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="quote">Quote</SelectItem>
+                      <SelectItem value="follow_up">Follow Up</SelectItem>
+                      <SelectItem value="confirmation">Confirmation</SelectItem>
+                      <SelectItem value="booking_update">Booking Update</SelectItem>
+                      <SelectItem value="general">General</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="body">Message *</Label>
+                  <Textarea
+                    id="body"
+                    value={newEmail.body}
+                    onChange={(e) => setNewEmail({ ...newEmail, body: e.target.value })}
+                    placeholder="Type your message here..."
+                    rows={8}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={sendEmail} disabled={isSending}>
+                    <Send className="h-4 w-4 mr-2" />
+                    {isSending ? 'Sending...' : 'Send Email'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardHeader>
       <CardContent>
