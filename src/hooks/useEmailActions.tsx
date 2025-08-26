@@ -26,7 +26,13 @@ interface EmailExchange {
   is_starred?: boolean;
   is_archived?: boolean;
   is_deleted?: boolean;
+  is_draft?: boolean;
   folder_name?: string;
+  clients?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
 }
 
 export const useEmailActions = () => {
@@ -47,6 +53,9 @@ export const useEmailActions = () => {
         title: `Email marked as ${isRead ? 'read' : 'unread'}`,
         description: 'Email status updated successfully',
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error updating read status:', error);
       toast({
@@ -74,6 +83,9 @@ export const useEmailActions = () => {
         title: `Email ${isStarred ? 'starred' : 'unstarred'}`,
         description: 'Email updated successfully',
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error updating star status:', error);
       toast({
@@ -104,6 +116,9 @@ export const useEmailActions = () => {
         title: 'Email archived',
         description: 'Email moved to archive',
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error archiving email:', error);
       toast({
@@ -134,6 +149,9 @@ export const useEmailActions = () => {
         title: 'Email deleted',
         description: 'Email moved to trash',
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error deleting email:', error);
       toast({
@@ -165,6 +183,9 @@ export const useEmailActions = () => {
         title: 'Email restored',
         description: `Email restored to ${originalFolder}`,
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error restoring email:', error);
       toast({
@@ -209,6 +230,9 @@ export const useEmailActions = () => {
         title: 'Email moved',
         description: `Email moved to ${folderName}`,
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error moving email:', error);
       toast({
@@ -239,6 +263,9 @@ export const useEmailActions = () => {
         title: 'Emails archived',
         description: `${emailIds.length} emails moved to archive`,
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error bulk archiving:', error);
       toast({
@@ -268,6 +295,9 @@ export const useEmailActions = () => {
         title: 'Emails deleted',
         description: `${emailIds.length} emails moved to trash`,
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error bulk deleting:', error);
       toast({
@@ -294,6 +324,9 @@ export const useEmailActions = () => {
         title: `Emails marked as ${isRead ? 'read' : 'unread'}`,
         description: `${emailIds.length} emails updated`,
       });
+      
+      // Dispatch event to refresh folder counts
+      window.dispatchEvent(new CustomEvent('email-updated'));
     } catch (error: any) {
       console.error('Error bulk updating read status:', error);
       toast({

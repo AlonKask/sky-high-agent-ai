@@ -13,6 +13,7 @@ import {
   Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEmailFolderCounts } from "@/hooks/useEmailFolderCounts";
 
 interface EmailSidebarProps {
   selectedFolder: string;
@@ -35,13 +36,14 @@ const EmailSidebar = ({
   onCompose,
   isCollapsed = false
 }: EmailSidebarProps) => {
+  const { counts } = useEmailFolderCounts();
 
   const folders = [
-    { id: 'inbox', label: 'Inbox', icon: Inbox, count: 12 },
-    { id: 'sent', label: 'Sent', icon: Send, count: 8 },
-    { id: 'drafts', label: 'Drafts', icon: FileText, count: 3 },
-    { id: 'archive', label: 'Archive', icon: Archive, count: 45 },
-    { id: 'trash', label: 'Trash', icon: Trash2, count: 2 }
+    { id: 'inbox', label: 'Inbox', icon: Inbox, count: counts.inbox },
+    { id: 'sent', label: 'Sent', icon: Send, count: counts.sent },
+    { id: 'drafts', label: 'Drafts', icon: FileText, count: counts.drafts },
+    { id: 'archive', label: 'Archive', icon: Archive, count: counts.archive },
+    { id: 'trash', label: 'Trash', icon: Trash2, count: counts.trash }
   ];
 
   if (isCollapsed) {

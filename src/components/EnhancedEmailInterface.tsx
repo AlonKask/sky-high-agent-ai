@@ -33,6 +33,12 @@ interface EmailExchange {
   attachments?: any;
   metadata?: any;
   updated_at?: string;
+  is_read?: boolean;
+  is_starred?: boolean;
+  is_archived?: boolean;
+  is_deleted?: boolean;
+  is_draft?: boolean;
+  folder_name?: string;
   clients?: {
     first_name: string;
     last_name: string;
@@ -88,7 +94,8 @@ const EnhancedEmailInterface = ({
         .select(`
           id, subject, sender_email, recipient_emails, cc_emails, bcc_emails, 
           body, direction, status, email_type, attachments, metadata, 
-          created_at, updated_at, received_at, message_id, thread_id, client_id
+          created_at, updated_at, received_at, message_id, thread_id, client_id,
+          is_read, is_starred, is_archived, is_deleted, is_draft, folder_name
         `)
         .eq('user_id', user.id)
         .order('received_at', { ascending: false })
@@ -155,22 +162,39 @@ const EnhancedEmailInterface = ({
   const filterEmails = useCallback(() => {
     let filtered = [...allEmails];
 
-    // Apply folder filter
+    // Apply folder filter - use actual database fields
     switch (selectedFolder) {
       case 'inbox':
-        filtered = filtered.filter(email => email.direction === 'inbound');
+        filtered = filtered.filter(email => 
+          !email.is_deleted && 
+          !email.is_archived && 
+          email.direction === 'inbound' && 
+          email.folder_name !== 'sent'
+        );
         break;
       case 'sent':
-        filtered = filtered.filter(email => email.direction === 'outbound');
+        filtered = filtered.filter(email => 
+          !email.is_deleted && 
+          !email.is_archived && 
+          (email.direction === 'outbound' || email.folder_name === 'sent')
+        );
         break;
       case 'drafts':
-        filtered = filtered.filter(email => email.status === 'draft');
+        filtered = filtered.filter(email => 
+          !email.is_deleted && 
+          email.is_draft === true
+        );
         break;
       case 'archive':
-        filtered = filtered.filter(email => email.status === 'archived');
+        filtered = filtered.filter(email => 
+          !email.is_deleted && 
+          email.is_archived === true
+        );
         break;
       case 'trash':
-        filtered = filtered.filter(email => email.status === 'deleted');
+        filtered = filtered.filter(email => 
+          email.is_deleted === true
+        );
         break;
     }
 
@@ -430,6 +454,7 @@ const EnhancedEmailInterface = ({
                 isLoading={isLoading}
                 searchTerm={listSearchTerm}
                 onSearchChange={setListSearchTerm}
+                onEmailsUpdated={() => setRefreshKey(prev => prev + 1)}
               />
             )}
           </ResizablePanel>
