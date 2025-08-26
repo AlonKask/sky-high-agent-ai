@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import { useGmailIntegration } from "@/hooks/useGmailIntegration";
+import { useEmailActions } from "@/hooks/useEmailActions";
 import { toast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -68,6 +69,7 @@ const EnhancedEmailInterface = ({
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [composerDraftId, setComposerDraftId] = useState<string | null>(null);
 
   // Filter state
   const [selectedFolder, setSelectedFolder] = useState('inbox');
@@ -77,6 +79,7 @@ const EnhancedEmailInterface = ({
 
   const { user } = useSimpleAuth();
   const { authStatus, triggerSync } = useGmailIntegration();
+  const { createReplyDraft, createForwardDraft, archiveEmail, deleteEmail } = useEmailActions();
 
   // Enhanced email fetching with better error handling
   const fetchEmails = useCallback(async () => {
@@ -276,6 +279,46 @@ const EnhancedEmailInterface = ({
     }
   };
 
+  // Reply/Forward handlers
+  const handleReply = async () => {
+    if (!selectedEmail) return;
+    const draftId = await createReplyDraft(selectedEmail);
+    if (draftId) {
+      setComposerDraftId(draftId);
+      setIsComposerOpen(true);
+    }
+  };
+
+  const handleReplyAll = async () => {
+    if (!selectedEmail) return;
+    const draftId = await createReplyDraft(selectedEmail);
+    if (draftId) {
+      setComposerDraftId(draftId);
+      setIsComposerOpen(true);
+    }
+  };
+
+  const handleForward = async () => {
+    if (!selectedEmail) return;
+    const draftId = await createForwardDraft(selectedEmail);
+    if (draftId) {
+      setComposerDraftId(draftId);
+      setIsComposerOpen(true);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!selectedEmail) return;
+    await archiveEmail(selectedEmail.id);
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedEmail) return;
+    await deleteEmail(selectedEmail.id);
+    setRefreshKey(prev => prev + 1);
+  };
+
   // Enhanced sync handler with loading state
   const handleSyncEmails = async () => {
     if (!authStatus.isConnected) {
@@ -467,6 +510,11 @@ const EnhancedEmailInterface = ({
               email={selectedEmail}
               clientId={clientId}
               requestId={requestId}
+              onReply={handleReply}
+              onReplyAll={handleReplyAll}
+              onForward={handleForward}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -482,11 +530,19 @@ const EnhancedEmailInterface = ({
             defaultTo={clientEmail}
             clientId={clientId}
             requestId={requestId}
+            draftId={composerDraftId}
             onSent={() => {
               setIsComposerOpen(false);
+              setComposerDraftId(null);
               setRefreshKey(prev => prev + 1);
             }}
-            onCancel={() => setIsComposerOpen(false)}
+            onCancel={() => {
+              setIsComposerOpen(false);
+              setComposerDraftId(null);
+            }}
+            onDraftSaved={(draftId) => {
+              setComposerDraftId(draftId);
+            }}
           />
         </DialogContent>
       </Dialog>

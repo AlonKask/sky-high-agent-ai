@@ -348,16 +348,14 @@ export const useEmailActions = () => {
         : `Re: ${originalEmail.subject}`;
 
       const { data, error } = await supabase
-        .from('email_drafts')
+        .from('ai_email_drafts')
         .insert({
           user_id: originalEmail.user_id,
-          client_id: originalEmail.client_id || null,
-          request_id: originalEmail.request_id || null,
-          reply_to_message_id: originalEmail.message_id,
           subject: replySubject,
           body: `\n\n--- Original Message ---\nFrom: ${originalEmail.sender_email}\nSubject: ${originalEmail.subject}\n\n${originalEmail.body}`,
           recipient_emails: [originalEmail.sender_email],
-          email_type: originalEmail.email_type
+          email_type: 'general',
+          status: 'draft'
         })
         .select('id')
         .single();
@@ -392,16 +390,14 @@ export const useEmailActions = () => {
         : `Fwd: ${originalEmail.subject}`;
 
       const { data, error } = await supabase
-        .from('email_drafts')
+        .from('ai_email_drafts')
         .insert({
           user_id: originalEmail.user_id,
-          client_id: originalEmail.client_id || null,
-          request_id: originalEmail.request_id || null,
-          forward_from_message_id: originalEmail.message_id,
           subject: forwardSubject,
           body: `--- Forwarded Message ---\nFrom: ${originalEmail.sender_email}\nTo: ${originalEmail.recipient_emails.join(', ')}\nSubject: ${originalEmail.subject}\nDate: ${new Date(originalEmail.created_at).toLocaleString()}\n\n${originalEmail.body}`,
           recipient_emails: [],
-          email_type: originalEmail.email_type
+          email_type: 'general',
+          status: 'draft'
         })
         .select('id')
         .single();

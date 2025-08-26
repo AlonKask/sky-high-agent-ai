@@ -89,7 +89,7 @@ const EnhancedEmailComposer = ({
   const loadDraft = async (id: string) => {
     try {
       const { data, error } = await supabase
-        .from('email_drafts')
+        .from('ai_email_drafts')
         .select('*')
         .eq('id', id)
         .single();
@@ -149,15 +149,31 @@ const EnhancedEmailComposer = ({
 
   const loadTemplates = async () => {
     try {
-      const { data, error } = await supabase
-        .from('email_templates')
-        .select('*')
-        .eq('user_id', user!.id)
-        .eq('is_active', true)
-        .order('usage_count', { ascending: false });
-
-      if (error) throw error;
-      setTemplates(data || []);
+      // For now, use hardcoded templates since we don't have templates table yet
+      const defaultTemplates: EmailTemplate[] = [
+        {
+          id: '1',
+          name: 'Quote Follow-up',
+          subject: 'Follow-up on your travel quote',
+          body: 'Dear [Client Name],\n\nI hope this email finds you well. I wanted to follow up on the travel quote I sent you recently.\n\nIf you have any questions or would like to proceed with the booking, please let me know.\n\nBest regards,\n[Your Name]',
+          email_type: 'follow_up'
+        },
+        {
+          id: '2',
+          name: 'Booking Confirmation',
+          subject: 'Your booking confirmation',
+          body: 'Dear [Client Name],\n\nThank you for your booking! Your reservation has been confirmed.\n\nBooking Details:\n[Booking Details]\n\nPlease keep this confirmation for your records.\n\nBest regards,\n[Your Name]',
+          email_type: 'confirmation'
+        },
+        {
+          id: '3',
+          name: 'General Inquiry Response',
+          subject: 'Thank you for your inquiry',
+          body: 'Dear [Client Name],\n\nThank you for reaching out to us regarding your travel needs.\n\nI will review your requirements and get back to you with some options shortly.\n\nBest regards,\n[Your Name]',
+          email_type: 'general'
+        }
+      ];
+      setTemplates(defaultTemplates);
     } catch (error: any) {
       console.error('Error loading templates:', error);
     }

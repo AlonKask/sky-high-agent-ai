@@ -223,22 +223,20 @@ const EmailDetailView = ({
 
         {/* Reply Actions */}
         <div className="flex items-center gap-2">
+          <Button onClick={onReply} className="gap-2" size="sm">
+            <Reply className="h-4 w-4" />
+            Reply
+          </Button>
           {email.direction === 'inbound' && (
-            <>
-              <Button onClick={onReply} className="gap-2" size="sm">
-                <Reply className="h-4 w-4" />
-                Reply
-              </Button>
-              <Button 
-                onClick={() => setShowReplyGenerator(true)}
-                variant="outline" 
-                className="gap-2" 
-                size="sm"
-              >
-                <Bot className="h-4 w-4" />
-                AI Reply
-              </Button>
-            </>
+            <Button 
+              onClick={() => setShowReplyGenerator(true)}
+              variant="outline" 
+              className="gap-2" 
+              size="sm"
+            >
+              <Bot className="h-4 w-4" />
+              AI Reply
+            </Button>
           )}
           <Button onClick={onReplyAll} variant="outline" className="gap-2" size="sm">
             <ReplyAll className="h-4 w-4" />
