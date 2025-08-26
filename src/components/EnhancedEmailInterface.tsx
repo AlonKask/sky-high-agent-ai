@@ -450,9 +450,26 @@ const EnhancedEmailInterface = ({
 
         {/* Resizable Email Panels */}
         <ResizablePanelGroup direction="horizontal" className="flex-1">
-          {/* Email List */}
-          <ResizablePanel defaultSize={50} minSize={30}>
-            {emails.length === 0 && !isLoading ? (
+          {/* Analytics Tab */}
+          {selectedFolder === 'analytics' ? (
+            <div className="flex-1 p-6">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold">Email Analytics</h2>
+                  <p className="text-muted-foreground">Performance insights and AI-powered recommendations</p>
+                </div>
+                <div className="text-center py-12">
+                  <BarChart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Analytics Coming Soon</h3>
+                  <p className="text-muted-foreground">Advanced email analytics and AI insights will be available here.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Email List */}
+              <ResizablePanel defaultSize={50} minSize={30}>
+                {emails.length === 0 && !isLoading ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
                   <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
@@ -517,6 +534,8 @@ const EnhancedEmailInterface = ({
               onDelete={handleDelete}
             />
           </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
 

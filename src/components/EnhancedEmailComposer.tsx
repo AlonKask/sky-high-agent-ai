@@ -7,12 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, X, Paperclip, Bot, Save, FileText, Eye, Archive } from "lucide-react";
+import { Paperclip, Send, Eye, Save, X, FileText, Archive, Sparkles } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 import EmailTemplateManager from "./EmailTemplateManager";
 import DraftManager from "./DraftManager";
+import AIEmailAssistant from "./AIEmailAssistant";
 import { replaceTemplateVariables, getDefaultVariables } from "@/utils/templateVariables";
 
 interface EnhancedEmailComposerProps {
@@ -50,6 +51,7 @@ const EnhancedEmailComposer = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
   
   const [email, setEmail] = useState({
@@ -352,6 +354,25 @@ const EnhancedEmailComposer = ({
         onDraftSelect={handleDraftSelect}
       />
 
+      {/* AI Email Assistant */}
+      <AIEmailAssistant
+        isOpen={showAIAssistant}
+        onClose={() => setShowAIAssistant(false)}
+        currentContent={{
+          subject: email.subject,
+          body: email.body,
+          to: email.to
+        }}
+        onApplySuggestion={(type, suggestion) => {
+          if (type === 'subject_line') {
+            setEmail(prev => ({ ...prev, subject: suggestion }));
+          } else if (type === 'content') {
+            setEmail(prev => ({ ...prev, body: suggestion }));
+          }
+          // Handle other suggestion types as needed
+        }}
+      />
+
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-2xl">
@@ -464,9 +485,9 @@ const EnhancedEmailComposer = ({
             <Paperclip className="h-4 w-4" />
             Attach Files
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Bot className="h-4 w-4" />
-            AI Assist
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowAIAssistant(true)}>
+            <Sparkles className="h-4 w-4" />
+            AI Assistant
           </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowTemplates(true)}>
             <FileText className="h-4 w-4" />

@@ -386,6 +386,51 @@ export type Database = {
           },
         ]
       }
+      ai_email_suggestions: {
+        Row: {
+          accepted: boolean | null
+          applied_at: string | null
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          improvement_reason: string | null
+          metadata: Json | null
+          original_content: string
+          original_text: string | null
+          suggested_text: string
+          suggestion_type: string
+          user_id: string
+        }
+        Insert: {
+          accepted?: boolean | null
+          applied_at?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          improvement_reason?: string | null
+          metadata?: Json | null
+          original_content: string
+          original_text?: string | null
+          suggested_text: string
+          suggestion_type: string
+          user_id: string
+        }
+        Update: {
+          accepted?: boolean | null
+          applied_at?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          improvement_reason?: string | null
+          metadata?: Json | null
+          original_content?: string
+          original_text?: string | null
+          suggested_text?: string
+          suggestion_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       aircraft_models: {
         Row: {
           aliases: string[] | null
@@ -1676,6 +1721,72 @@ export type Database = {
         }
         Relationships: []
       }
+      email_ab_tests: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          ended_at: string | null
+          id: string
+          started_at: string | null
+          status: string | null
+          test_name: string
+          user_id: string
+          variant_a_clicks: number | null
+          variant_a_opens: number | null
+          variant_a_replies: number | null
+          variant_a_sends: number | null
+          variant_a_subject: string
+          variant_b_clicks: number | null
+          variant_b_opens: number | null
+          variant_b_replies: number | null
+          variant_b_sends: number | null
+          variant_b_subject: string
+          winner_variant: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          ended_at?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          test_name: string
+          user_id: string
+          variant_a_clicks?: number | null
+          variant_a_opens?: number | null
+          variant_a_replies?: number | null
+          variant_a_sends?: number | null
+          variant_a_subject: string
+          variant_b_clicks?: number | null
+          variant_b_opens?: number | null
+          variant_b_replies?: number | null
+          variant_b_sends?: number | null
+          variant_b_subject: string
+          winner_variant?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          ended_at?: string | null
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          test_name?: string
+          user_id?: string
+          variant_a_clicks?: number | null
+          variant_a_opens?: number | null
+          variant_a_replies?: number | null
+          variant_a_sends?: number | null
+          variant_a_subject?: string
+          variant_b_clicks?: number | null
+          variant_b_opens?: number | null
+          variant_b_replies?: number | null
+          variant_b_sends?: number | null
+          variant_b_subject?: string
+          winner_variant?: string | null
+        }
+        Relationships: []
+      }
       email_archives: {
         Row: {
           archived_date: string
@@ -1872,6 +1983,87 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_performance_analytics: {
+        Row: {
+          ai_score: number | null
+          bounced_at: string | null
+          clicked_at: string | null
+          conversion_value: number | null
+          created_at: string | null
+          email_id: string | null
+          email_type: string
+          engagement_score: number | null
+          id: string
+          metadata: Json | null
+          opened_at: string | null
+          recipient_email: string
+          replied_at: string | null
+          sent_at: string
+          sentiment_score: number | null
+          subject_line: string
+          template_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_score?: number | null
+          bounced_at?: string | null
+          clicked_at?: string | null
+          conversion_value?: number | null
+          created_at?: string | null
+          email_id?: string | null
+          email_type?: string
+          engagement_score?: number | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          recipient_email: string
+          replied_at?: string | null
+          sent_at?: string
+          sentiment_score?: number | null
+          subject_line: string
+          template_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_score?: number | null
+          bounced_at?: string | null
+          clicked_at?: string | null
+          conversion_value?: number | null
+          created_at?: string | null
+          email_id?: string | null
+          email_type?: string
+          engagement_score?: number | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          recipient_email?: string
+          replied_at?: string | null
+          sent_at?: string
+          sentiment_score?: number | null
+          subject_line?: string
+          template_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_performance_analytics_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "email_exchanges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_performance_analytics_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
             referencedColumns: ["id"]
           },
         ]

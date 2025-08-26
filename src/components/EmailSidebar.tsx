@@ -10,7 +10,8 @@ import {
   Archive, 
   Trash2, 
   Filter,
-  Plus
+  Plus,
+  BarChart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEmailFolderCounts } from "@/hooks/useEmailFolderCounts";
@@ -110,9 +111,18 @@ const EmailSidebar = ({
                 )}
               </Button>
             );
-          })}
         </div>
-      </div>
+        {/* Analytics Button */}
+        <Button
+          key="analytics"
+          variant={selectedFolder === 'analytics' ? "default" : "ghost"}
+          className="w-full justify-start gap-3"
+          onClick={() => onFolderSelect('analytics')}
+        >
+          <BarChart className="h-4 w-4" />
+          <span className="flex-1 text-left">Analytics</span>
+        </Button>
+        </div>
 
       {/* Filters */}
       <div className="space-y-3">
