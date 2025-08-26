@@ -18,6 +18,18 @@ serve(async (req) => {
   console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
   console.log(`📍 URL Parameters:`, Object.fromEntries(url.searchParams));
   
+  // CRITICAL: Enhanced callback detection and logging
+  const isCallback = url.searchParams.has('code') || url.searchParams.has('error') || url.searchParams.has('state');
+  console.log(`🎯 Is OAuth Callback: ${isCallback}`);
+  console.log(`📊 Callback Detection:`, {
+    hasCode: url.searchParams.has('code'),
+    hasError: url.searchParams.has('error'), 
+    hasState: url.searchParams.has('state'),
+    method: req.method,
+    userAgent: req.headers.get('user-agent'),
+    referer: req.headers.get('referer')
+  });
+  
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,10 +45,57 @@ serve(async (req) => {
     // Parse action from URL params or request body
     let action = url.searchParams.get('action') || 'start';
     
+    // ENHANCED: Handle callback test requests
+    if (url.searchParams.get('test') === 'callback') {
+      console.log(`🧪 CALLBACK TEST: Received callback test request`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Callback endpoint is accessible',
+          test: 'callback',
+          timestamp: new Date().toISOString(),
+          url: req.url,
+          method: req.method
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
     // CRITICAL FIX: Handle Google OAuth callback - Google sends GET requests to callback URL
     if (req.method === 'GET' && (url.searchParams.has('code') || url.searchParams.has('error'))) {
       action = 'callback';
-      console.log(`🔄 Detected OAuth callback via GET request with ${url.searchParams.has('code') ? 'code' : 'error'}`);
+      console.log(`🔄 CALLBACK DETECTED: OAuth callback via GET request with ${url.searchParams.has('code') ? 'code' : 'error'}`);
+      console.log(`🎯 CALLBACK LOGGING: This is a Google OAuth callback`);
+      
+      // Log callback reception immediately for debugging
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      
+      if (serviceRoleKey && supabaseUrl) {
+        try {
+          const tempClient = createClient(supabaseUrl, serviceRoleKey);
+          await tempClient.from('security_events').insert({
+            user_id: url.searchParams.get('state') || '00000000-0000-0000-0000-000000000000',
+            event_type: 'oauth_callback_received',
+            severity: 'low',
+            details: {
+              callback_detected: true,
+              method: req.method,
+              url: req.url,
+              has_code: url.searchParams.has('code'),
+              has_error: url.searchParams.has('error'),
+              has_state: url.searchParams.has('state'),
+              timestamp: new Date().toISOString()
+            }
+          });
+          console.log(`✅ CALLBACK LOGGED: Callback reception logged to security_events`);
+        } catch (logErr) {
+          console.warn(`⚠️ Failed to log callback reception:`, logErr.message);
+        }
+      }
     }
     
     // Also check request body for action (for new client calls)
@@ -203,7 +262,9 @@ serve(async (req) => {
       // Start OAuth flow - return authorization URL
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+      // CRITICAL FIX: Use correct callback URL format
       const redirectUri = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth`;
+      console.log(`🔗 CALLBACK URL: ${redirectUri}`);
       
       if (!clientId || !clientSecret) {
         console.error('❌ Google OAuth credentials not configured');
@@ -232,6 +293,23 @@ serve(async (req) => {
       }
       
       console.log('✅ Generated OAuth state token successfully');
+
+      // ENHANCED: Test callback endpoint accessibility
+      const callbackTestUrl = `https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/gmail-oauth?test=callback`;
+      console.log(`🔍 CALLBACK TEST: Testing callback URL accessibility: ${callbackTestUrl}`);
+      
+      try {
+        const testResponse = await fetch(callbackTestUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Gmail-OAuth-Callback-Test/1.0'
+          }
+        });
+        console.log(`📡 CALLBACK TEST: Response status: ${testResponse.status}`);
+        console.log(`📡 CALLBACK TEST: Response accessible: ${testResponse.ok}`);
+      } catch (testError) {
+        console.warn(`⚠️ CALLBACK TEST: Failed to test callback URL:`, testError.message);
+      }
 
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +

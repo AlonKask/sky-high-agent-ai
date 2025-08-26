@@ -16,6 +16,7 @@ import { GmailCredentialDiagnostic } from './GmailCredentialDiagnostic';
 import { EnhancedGmailDiagnostic } from './EnhancedGmailDiagnostic';
 import { GmailConnectionDiagnostic } from './GmailConnectionDiagnostic';
 import { GmailNetworkDiagnostic } from './GmailNetworkDiagnostic';
+import { GmailOAuthDebugger } from './GmailOAuthDebugger';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { toast } from '@/hooks/use-toast';
@@ -90,8 +91,9 @@ export const GmailStatusButton: React.FC = () => {
         </DialogHeader>
         <div className="mt-4">
           <Tabs defaultValue="status" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="status">Status</TabsTrigger>
+              <TabsTrigger value="debugger">Debugger</TabsTrigger>
               <TabsTrigger value="enhanced">Enhanced</TabsTrigger>
               <TabsTrigger value="credentials">Credentials</TabsTrigger>
               <TabsTrigger value="connection">Connection</TabsTrigger>
@@ -157,6 +159,10 @@ export const GmailStatusButton: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+            
+            <TabsContent value="debugger" className="mt-4">
+              <GmailOAuthDebugger />
             </TabsContent>
             
             <TabsContent value="enhanced" className="mt-4">
