@@ -9,21 +9,14 @@ import {
   FileText, 
   Archive, 
   Trash2, 
-  Search,
-  Calendar,
   Filter,
-  Mail,
-  Plus,
-  Settings
+  Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGmailIntegration } from "@/hooks/useGmailIntegration";
 
 interface EmailSidebarProps {
   selectedFolder: string;
   onFolderSelect: (folder: string) => void;
-  searchTerm: string;
-  onSearchChange: (search: string) => void;
   dateFilter: string;
   onDateFilterChange: (filter: string) => void;
   sortBy: string;
@@ -35,8 +28,6 @@ interface EmailSidebarProps {
 const EmailSidebar = ({
   selectedFolder,
   onFolderSelect,
-  searchTerm,
-  onSearchChange,
   dateFilter,
   onDateFilterChange,
   sortBy,
@@ -44,7 +35,6 @@ const EmailSidebar = ({
   onCompose,
   isCollapsed = false
 }: EmailSidebarProps) => {
-  const { authStatus } = useGmailIntegration();
 
   const folders = [
     { id: 'inbox', label: 'Inbox', icon: Inbox, count: 12 },
@@ -92,38 +82,6 @@ const EmailSidebar = ({
         Compose
       </Button>
 
-      {/* Gmail Status */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4" />
-          <span className="text-sm font-medium">Gmail Status</span>
-        </div>
-        <Badge variant={authStatus.isConnected ? "default" : "outline"} className="w-full justify-center">
-          {authStatus.isConnected ? `Connected` : 'Disconnected'}
-        </Badge>
-        {authStatus.isConnected && authStatus.userEmail && (
-          <p className="text-xs text-muted-foreground truncate">{authStatus.userEmail}</p>
-        )}
-        {authStatus.lastSync && (
-          <p className="text-xs text-muted-foreground">
-            Last sync: {new Date(authStatus.lastSync).toLocaleString()}
-          </p>
-        )}
-      </div>
-
-      {/* Search */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Search className="h-4 w-4" />
-          <span className="text-sm font-medium">Search</span>
-        </div>
-        <Input
-          placeholder="Search emails..."
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full"
-        />
-      </div>
 
       {/* Folders */}
       <div className="space-y-2">

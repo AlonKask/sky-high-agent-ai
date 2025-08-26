@@ -59,7 +59,6 @@ const EnhancedEmailInterface = ({
 
   // Filter state
   const [selectedFolder, setSelectedFolder] = useState('inbox');
-  const [searchTerm, setSearchTerm] = useState('');
   const [listSearchTerm, setListSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
@@ -129,15 +128,14 @@ const EnhancedEmailInterface = ({
     }
 
     // Apply search filter
-    const searchTerms = [searchTerm, listSearchTerm].filter(Boolean);
-    if (searchTerms.length > 0) {
-      const combinedSearch = searchTerms.join(' ').toLowerCase();
+    if (listSearchTerm) {
+      const searchLower = listSearchTerm.toLowerCase();
       filtered = filtered.filter(email => 
-        email.subject.toLowerCase().includes(combinedSearch) ||
-        email.body.toLowerCase().includes(combinedSearch) ||
-        email.sender_email.toLowerCase().includes(combinedSearch) ||
+        email.subject.toLowerCase().includes(searchLower) ||
+        email.body.toLowerCase().includes(searchLower) ||
+        email.sender_email.toLowerCase().includes(searchLower) ||
         email.recipient_emails.some(recipient => 
-          recipient.toLowerCase().includes(combinedSearch)
+          recipient.toLowerCase().includes(searchLower)
         )
       );
     }
@@ -184,7 +182,7 @@ const EnhancedEmailInterface = ({
     });
 
     setEmails(filtered);
-  }, [allEmails, selectedFolder, searchTerm, listSearchTerm, dateFilter, sortBy]);
+  }, [allEmails, selectedFolder, listSearchTerm, dateFilter, sortBy]);
 
   // Email selection handlers
   const handleEmailSelect = (emailId: string) => {
@@ -272,8 +270,6 @@ const EnhancedEmailInterface = ({
           <EmailSidebar
             selectedFolder={selectedFolder}
             onFolderSelect={setSelectedFolder}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
             dateFilter={dateFilter}
             onDateFilterChange={setDateFilter}
             sortBy={sortBy}
