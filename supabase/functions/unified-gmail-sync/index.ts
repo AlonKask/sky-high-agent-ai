@@ -62,9 +62,7 @@ async function refreshGmailToken(refreshToken: string, supabaseClient: any, user
     console.log('✅ New access token obtained from Google');
 
     // Store encrypted token using proper base64 encoding
-    const encoder = new TextEncoder();
-    const tokenBytes = encoder.encode(newAccessToken);
-    const encodedToken = btoa(String.fromCharCode(...tokenBytes));
+    const encodedToken = btoa(newAccessToken);
     
     const { error: updateError } = await supabaseClient
       .from('gmail_credentials')
