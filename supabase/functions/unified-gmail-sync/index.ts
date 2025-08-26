@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 import { withRateLimit } from '../_shared/rate-limiter.ts';
@@ -438,11 +439,6 @@ async function syncGmailEmails(
 }
 
 serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
-
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -598,37 +594,6 @@ serve(async (req) => {
       return Response.json(
         { success: false, error: 'Invalid request format' },
         { status: 400, headers: corsHeaders }
-      );
-    });
-
-  } catch (error) {
-    console.error('❌ Gmail sync failed:', error);
-    return Response.json(
-      { success: false, error: 'Service temporarily unavailable' },
-      { status: 200, headers: corsHeaders } // Return 200 to prevent cascading errors
-    );
-  }
-});
-            const result = await syncGmailEmails(
-              supabaseClient,
-              cred.user_id,
-              cred.gmail_user_email,
-              decryptResponse.decryptedData,
-              cred.refresh_token_encrypted,
-              5, // Very small batch for scheduled sync
-              true
-            );
-            results.push({ user: cred.gmail_user_email, result: 'success' });
-          }
-        } catch (error) {
-          console.error(`❌ Scheduled sync failed for ${cred.gmail_user_email}:`, error);
-          results.push({ user: cred.gmail_user_email, result: 'failed' });
-        }
-      }
-
-      return Response.json(
-        { success: true, results },
-        { headers: corsHeaders }
       );
     });
 
