@@ -8,8 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, accept-language, content-language',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
-  'Access-Control-Allow-Credentials': 'true',
-  'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
+  'Access-Control-Allow-Credentials': 'false', // Set to false for wildcard origin
+  'Access-Control-Max-Age': '86400',
   'Vary': 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers',
 };
 

@@ -65,7 +65,7 @@ export const useGmailIntegration = () => {
     }
   }, [user]);
 
-  // Enhanced Gmail connection with network diagnostics
+  // Enhanced Gmail connection with comprehensive diagnostics
   const connectGmail = useCallback(async () => {
     console.log('🔄 Starting Gmail connection process...');
     
@@ -82,19 +82,62 @@ export const useGmailIntegration = () => {
     console.log('👤 User authenticated:', user.id);
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
 
-    // PHASE 1: Network connectivity test
-    console.log('🌐 Testing network connectivity...');
+    // PHASE 1: Enhanced Network connectivity test with detailed diagnostics
+    console.log('🌐 Running comprehensive network diagnostics...');
     try {
+      // Test 1: Basic health check
       const { error: healthError } = await supabase.rpc('health_check');
       if (healthError) {
-        throw new Error(`Network connectivity test failed: ${healthError.message}`);
+        throw new Error(`Health check failed: ${healthError.message}`);
       }
-      console.log('✅ Network connectivity confirmed');
+      console.log('✅ Database connectivity confirmed');
+
+      // Test 2: Edge function accessibility test
+      try {
+        console.log('🔍 Testing edge function accessibility...');
+        const { data: healthData, error: oauthHealthError } = await supabase.functions.invoke('gmail-oauth-health');
+        
+        if (oauthHealthError) {
+          console.warn('⚠️ OAuth health check failed:', oauthHealthError.message);
+          throw new Error(`Edge function not accessible: ${oauthHealthError.message}`);
+        }
+        
+        if (healthData?.success) {
+          console.log('✅ Edge function accessible and configured');
+          
+          // Check if OAuth is properly configured
+          if (!healthData.data?.oauth_ready) {
+            const envCheck = healthData.data?.environment_check || {};
+            const missing = Object.entries(envCheck)
+              .filter(([_, value]) => !value)
+              .map(([key]) => key);
+            
+            throw new Error(`OAuth not configured: Missing ${missing.join(', ')}`);
+          }
+        }
+      } catch (edgeFunctionError: any) {
+        console.error('❌ Edge function test failed:', edgeFunctionError);
+        throw new Error(`Edge function connectivity failed: ${edgeFunctionError.message}`);
+      }
+      
+      console.log('✅ All network diagnostics passed');
     } catch (connectivityError: any) {
-      console.error('❌ Network connectivity failed:', connectivityError);
+      console.error('❌ Network diagnostics failed:', connectivityError);
+      
+      let errorMessage = "Unable to reach server";
+      let suggestedAction = "Please check your internet connection";
+      
+      if (connectivityError.message?.includes('OAuth not configured')) {
+        errorMessage = "Gmail integration not configured";
+        suggestedAction = "Please contact your administrator";
+      } else if (connectivityError.message?.includes('Edge function')) {
+        errorMessage = "Service temporarily unavailable";
+        suggestedAction = "Please try again in a few moments";
+      }
+      
       toast({
-        title: "Network Issue",
-        description: "Unable to reach server. Please check your internet connection.",
+        title: "Connection Issue",
+        description: `${errorMessage}. ${suggestedAction}`,
         variant: "destructive"
       });
       setAuthStatus(prev => ({ ...prev, isLoading: false }));
@@ -119,21 +162,16 @@ export const useGmailIntegration = () => {
       console.log('✅ Session valid, access token present');
       console.log('📡 Calling gmail-oauth edge function...');
 
-      // PHASE 2: Enhanced function call with timeout and detailed error handling
-      console.log('📡 Calling gmail-oauth edge function with timeout...');
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Edge function timeout after 30 seconds')), 30000);
-      });
-
-      const invokePromise = supabase.functions.invoke('gmail-oauth', {
+      // PHASE 2: Enhanced function call with comprehensive error handling
+      console.log('📡 Calling gmail-oauth edge function...');
+      
+      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
         headers: {
-          Authorization: `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         },
         body: { action: 'start' }
       });
-
-      const result: any = await Promise.race([invokePromise, timeoutPromise]);
-      const { data, error } = result;
       
       console.log('📦 Edge function response:', { data, error, hasData: !!data });
       

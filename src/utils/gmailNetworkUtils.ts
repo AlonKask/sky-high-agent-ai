@@ -81,25 +81,38 @@ export const invokeSupabaseFunction = async (
   retryOptions?: RetryOptions
 ) => {
   return retryWithExponentialBackoff(async () => {
+    console.log(`🌐 Invoking edge function: ${functionName}`);
+    
+    // Pre-flight network test
+    const isConnected = await checkNetworkConnectivity();
+    if (!isConnected) {
+      throw new NetworkError('Network connectivity test failed - no internet connection', true);
+    }
+    
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new NetworkError('Operation timeout', true)), retryOptions?.timeout || 30000);
+      setTimeout(() => reject(new NetworkError('Edge function timeout', true)), retryOptions?.timeout || 30000);
     });
 
     const invokePromise = supabase.functions.invoke(functionName, options);
 
     const result: any = await Promise.race([invokePromise, timeoutPromise]);
 
-    // Check for function-level errors
+    // Enhanced error checking
     if (result && result.error) {
+      const errorMsg = result.error.message || 'Unknown edge function error';
+      
       const isRetryableError = 
-        result.error.message?.includes('temporarily unavailable') ||
-        result.error.message?.includes('service unavailable') ||
-        result.error.message?.includes('rate limit') ||
+        errorMsg.includes('temporarily unavailable') ||
+        errorMsg.includes('service unavailable') ||
+        errorMsg.includes('rate limit') ||
+        errorMsg.includes('timeout') ||
+        errorMsg.includes('network') ||
         (result.error.status >= 500 && result.error.status < 600);
 
-      throw new NetworkError(result.error.message, isRetryableError);
+      throw new NetworkError(errorMsg, isRetryableError);
     }
 
+    console.log(`✅ Edge function ${functionName} succeeded`);
     return result;
   }, retryOptions);
 };
