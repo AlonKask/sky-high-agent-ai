@@ -2,7 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-// Secure CORS headers with origin validation
+// CRITICAL FIX: Global CORS headers to fix "corsHeaders is not defined" error
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400'
+};
+
 const getAllowedOrigins = () => {
   const projectUrl = Deno.env.get('SUPABASE_URL') || '';
   return [

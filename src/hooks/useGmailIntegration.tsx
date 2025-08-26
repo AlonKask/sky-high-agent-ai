@@ -65,7 +65,7 @@ export const useGmailIntegration = () => {
     }
   }, [user]);
 
-  // Enhanced Gmail connection with debugging
+  // Enhanced Gmail connection with network diagnostics
   const connectGmail = useCallback(async () => {
     console.log('🔄 Starting Gmail connection process...');
     
@@ -81,6 +81,25 @@ export const useGmailIntegration = () => {
 
     console.log('👤 User authenticated:', user.id);
     setAuthStatus(prev => ({ ...prev, isLoading: true }));
+
+    // PHASE 1: Network connectivity test
+    console.log('🌐 Testing network connectivity...');
+    try {
+      const { error: healthError } = await supabase.rpc('health_check');
+      if (healthError) {
+        throw new Error(`Network connectivity test failed: ${healthError.message}`);
+      }
+      console.log('✅ Network connectivity confirmed');
+    } catch (connectivityError: any) {
+      console.error('❌ Network connectivity failed:', connectivityError);
+      toast({
+        title: "Network Issue",
+        description: "Unable to reach server. Please check your internet connection.",
+        variant: "destructive"
+      });
+      setAuthStatus(prev => ({ ...prev, isLoading: false }));
+      return;
+    }
 
     try {
       // Get session with detailed logging
@@ -100,19 +119,40 @@ export const useGmailIntegration = () => {
       console.log('✅ Session valid, access token present');
       console.log('📡 Calling gmail-oauth edge function...');
 
-      // Enhanced function call with detailed error handling
-      const { data, error } = await supabase.functions.invoke('gmail-oauth', {
+      // PHASE 2: Enhanced function call with timeout and detailed error handling
+      console.log('📡 Calling gmail-oauth edge function with timeout...');
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Edge function timeout after 30 seconds')), 30000);
+      });
+
+      const invokePromise = supabase.functions.invoke('gmail-oauth', {
         headers: {
           Authorization: `Bearer ${session.access_token}`
         },
         body: { action: 'start' }
       });
+
+      const result: any = await Promise.race([invokePromise, timeoutPromise]);
+      const { data, error } = result;
       
-      console.log('📦 Edge function response:', { data, error });
+      console.log('📦 Edge function response:', { data, error, hasData: !!data });
       
       if (error) {
-        console.error('❌ Edge function error:', error);
-        throw new Error(`Edge function error: ${error.message}`);
+        console.error('❌ Edge function error details:', {
+          message: error.message,
+          name: error.name,
+          status: error.status,
+          statusText: error.statusText
+        });
+        
+        // Enhanced error categorization
+        if (error.message?.includes('Failed to send a request')) {
+          throw new Error('Network connection failed - please check your internet connection and try again');
+        } else if (error.message?.includes('timeout')) {
+          throw new Error('Connection timeout - the server is taking too long to respond');
+        } else {
+          throw new Error(`Edge function error: ${error.message || 'Unknown error'}`);
+        }
       }
       
       if (!data?.authUrl) {

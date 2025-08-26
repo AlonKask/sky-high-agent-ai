@@ -6,6 +6,7 @@ import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { GmailDiagnostics } from './GmailDiagnostics';
+import { GmailNetworkDiagnostic } from './GmailNetworkDiagnostic';
 import { 
   Mail, 
   RefreshCw, 
@@ -365,14 +366,17 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
         </div>
       </CardContent>
       
-      {/* Diagnostics Panel */}
-      {showDiagnostics && (
-        <CardContent className="pt-0">
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <GmailDiagnostics />
+        {/* Enhanced Diagnostics Section */}
+        {showDiagnostics && (
+          <div className="mt-6 space-y-4">
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <GmailNetworkDiagnostic />
+            </div>
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <GmailDiagnostics />
+            </div>
           </div>
-        </CardContent>
-      )}
+        )}
     </Card>
   );
 };
