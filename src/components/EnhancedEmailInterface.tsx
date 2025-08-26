@@ -260,13 +260,11 @@ const EnhancedEmailInterface = ({
       </div>
 
       {/* Main Interface */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        {/* Sidebar */}
-        <ResizablePanel 
-          defaultSize={sidebarCollapsed ? 5 : 20} 
-          minSize={sidebarCollapsed ? 5 : 15}
-          maxSize={sidebarCollapsed ? 5 : 30}
-        >
+      <div className="flex flex-1">
+        {/* Fixed Sidebar */}
+        <div className={`border-r transition-all duration-200 ${
+          sidebarCollapsed ? 'w-16' : 'w-64'
+        }`}>
           <EmailSidebar
             selectedFolder={selectedFolder}
             onFolderSelect={setSelectedFolder}
@@ -277,36 +275,37 @@ const EnhancedEmailInterface = ({
             onCompose={() => setIsComposerOpen(true)}
             isCollapsed={sidebarCollapsed}
           />
-        </ResizablePanel>
+        </div>
 
-        <ResizableHandle withHandle />
+        {/* Resizable Email Panels */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* Email List */}
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <EmailListView
+              emails={emails}
+              selectedEmails={selectedEmails}
+              selectedEmailId={selectedEmailId}
+              onEmailSelect={handleEmailSelect}
+              onEmailCheck={handleEmailCheck}
+              onSelectAll={handleSelectAll}
+              isLoading={isLoading}
+              searchTerm={listSearchTerm}
+              onSearchChange={setListSearchTerm}
+            />
+          </ResizablePanel>
 
-        {/* Email List */}
-        <ResizablePanel defaultSize={40} minSize={30}>
-          <EmailListView
-            emails={emails}
-            selectedEmails={selectedEmails}
-            selectedEmailId={selectedEmailId}
-            onEmailSelect={handleEmailSelect}
-            onEmailCheck={handleEmailCheck}
-            onSelectAll={handleSelectAll}
-            isLoading={isLoading}
-            searchTerm={listSearchTerm}
-            onSearchChange={setListSearchTerm}
-          />
-        </ResizablePanel>
+          <ResizableHandle withHandle />
 
-        <ResizableHandle withHandle />
-
-        {/* Email Detail */}
-        <ResizablePanel defaultSize={40} minSize={30}>
-          <EmailDetailView
-            email={selectedEmail}
-            clientId={clientId}
-            requestId={requestId}
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          {/* Email Detail */}
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <EmailDetailView
+              email={selectedEmail}
+              clientId={clientId}
+              requestId={requestId}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
 
       {/* Compose Dialog */}
       <Dialog open={isComposerOpen} onOpenChange={setIsComposerOpen}>
