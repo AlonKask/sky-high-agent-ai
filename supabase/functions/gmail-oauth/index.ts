@@ -280,16 +280,65 @@ serve(async (req) => {
         'https://www.googleapis.com/auth/userinfo.email'
       ].join(' ');
 
-      // Generate OAuth state token with automatic cleanup
-      const { data: stateToken, error: stateError } = await supabaseServiceClient
-        .rpc('generate_oauth_state_token', { p_user_id: userId });
+      // PHASE 1 FIX: Enhanced OAuth state token generation with fallback
+      let stateToken: string;
       
-      if (stateError || !stateToken) {
-        console.error('❌ Failed to generate state token:', stateError?.message);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to generate state token' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      try {
+        console.log('🔄 Attempting RPC call to generate_oauth_state_token...');
+        const { data: rpcToken, error: rpcError } = await supabaseServiceClient
+          .rpc('generate_oauth_state_token', { p_user_id: userId });
+        
+        if (rpcError) {
+          console.warn('⚠️ RPC call failed, details:', {
+            message: rpcError.message,
+            code: rpcError.code,
+            details: rpcError.details,
+            hint: rpcError.hint
+          });
+          throw new Error(`RPC failed: ${rpcError.message}`);
+        }
+        
+        if (!rpcToken) {
+          throw new Error('RPC returned null token');
+        }
+        
+        stateToken = rpcToken;
+        console.log('✅ RPC state token generation successful');
+        
+      } catch (rpcError) {
+        console.warn('⚠️ RPC fallback: Generating state token directly via SQL');
+        
+        // FALLBACK: Direct SQL generation if RPC fails
+        const randomToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+        
+        const { data: directInsert, error: directError } = await supabaseServiceClient
+          .from('oauth_state_tokens')
+          .insert({
+            user_id: userId,
+            state_token: randomToken,
+            expires_at: expiresAt.toISOString(),
+            used: false
+          })
+          .select('state_token')
+          .single();
+          
+        if (directError) {
+          console.error('❌ Direct token generation also failed:', directError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Failed to generate authentication token',
+              details: 'Both RPC and direct SQL methods failed'
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        stateToken = directInsert.state_token;
+        console.log('✅ Fallback state token generation successful');
       }
       
       console.log('✅ Generated OAuth state token successfully');
@@ -501,20 +550,49 @@ serve(async (req) => {
             expires_at: credentialData.token_expires_at
           });
           
-          // CRITICAL FIX: Enhanced credential storage with validation
+          // PHASE 2 FIX: Enhanced credential storage with comprehensive validation and monitoring
           console.log('💾 Attempting credential storage with service role client...');
+          console.log('🔍 Service role client context:', {
+            hasClient: !!supabaseServiceClient,
+            userId: userId,
+            userEmail: userInfo.email
+          });
           
           // Validate required fields before storage
           if (!credentialData.user_id || !credentialData.gmail_user_email || !credentialData.access_token_encrypted) {
             throw new Error('Missing required credential fields for storage');
           }
           
+          // ENHANCED: Check table exists and is accessible
+          try {
+            const { count, error: countError } = await supabaseServiceClient
+              .from('gmail_credentials')
+              .select('*', { count: 'exact', head: true });
+              
+            if (countError) {
+              console.error('❌ Cannot access gmail_credentials table:', countError);
+              throw new Error(`Table access failed: ${countError.message}`);
+            }
+            
+            console.log('✅ gmail_credentials table accessible, current count:', count);
+          } catch (accessError) {
+            console.error('❌ Table accessibility check failed:', accessError);
+            throw new Error(`Database access error: ${accessError.message}`);
+          }
+          
           // First, check if user already has credentials and deactivate them
-          await supabaseServiceClient
+          console.log('🔄 Deactivating existing credentials for user...');
+          const { error: deactivateError } = await supabaseServiceClient
             .from('gmail_credentials')
             .update({ is_active: false })
             .eq('user_id', userId);
+            
+          if (deactivateError) {
+            console.warn('⚠️ Failed to deactivate existing credentials:', deactivateError);
+            // Continue anyway as this might not be critical
+          }
           
+          console.log('📦 Inserting new credential record...');
           const { data: insertData, error: storageError } = await supabaseServiceClient
             .from('gmail_credentials')
             .insert(credentialData)

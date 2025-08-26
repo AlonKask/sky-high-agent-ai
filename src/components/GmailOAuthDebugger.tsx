@@ -144,7 +144,30 @@ export const GmailOAuthDebugger: React.FC = () => {
           updateStep(2, { 
             status: 'error', 
             message: `OAuth start failed: ${oauthError.message}`,
-            details: oauthError
+            details: {
+              error: oauthError,
+              context: 'edge_function_invocation',
+              hasSession: !!session,
+              hasToken: !!session?.access_token
+            }
+          });
+          return;
+        }
+        
+        if (!oauthData) {
+          updateStep(2, { 
+            status: 'error', 
+            message: 'No response data received from OAuth function',
+            details: { response: oauthData }
+          });
+          return;
+        }
+        
+        if (!oauthData.success) {
+          updateStep(2, { 
+            status: 'error', 
+            message: `OAuth function returned error: ${oauthData.error || 'Unknown error'}`,
+            details: oauthData
           });
           return;
         }
@@ -152,7 +175,7 @@ export const GmailOAuthDebugger: React.FC = () => {
         if (!oauthData?.authUrl) {
           updateStep(2, { 
             status: 'error', 
-            message: 'No authorization URL received',
+            message: 'No authorization URL received despite success response',
             details: oauthData
           });
           return;

@@ -33,9 +33,11 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // PHASE 4: Enhanced connection handler with detailed status updates and retry capability
+  // PHASE 3 FIX: Enhanced Gmail connection handler with better error handling
   const handleConnect = async (isRetry = false) => {
+    console.log(`🔄 Starting Gmail connection${isRetry ? ' (retry)' : ''}...`);
     setIsConnecting(true);
+    
     try {
       await connectGmail();
       
@@ -62,16 +64,16 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
     } catch (error: any) {
       console.error('Gmail connection error:', error);
       
-      // Enhanced error handling using network utilities
+      // Enhanced error handling
       let errorMessage = error.message || 'Failed to connect to Gmail';
-      let showRetry = false;
+      let showRetryButton = false;
       
       if (error.message?.includes('network') || error.message?.includes('timeout')) {
         errorMessage = 'Network connection issue. Please check your internet and try again.';
-        showRetry = true;
+        showRetryButton = true;
       } else if (error.message?.includes('popup') || error.message?.includes('blocked')) {
         errorMessage = 'Popup blocked. Please allow popups for this site and try again.';
-        showRetry = true;
+        showRetryButton = true;
       } else if (error.message?.includes('not configured')) {
         errorMessage = 'Gmail integration needs to be configured by your administrator.';
       }
@@ -80,19 +82,10 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
         title: "Connection Failed",
         description: errorMessage,
         variant: "destructive",
-        action: showRetry ? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => handleConnect(true)}
-          >
-            Retry
-          </Button>
-        ) : undefined
       });
       
       // Auto-retry for transient network issues
-      if (showRetry && !isRetry) {
+      if (showRetryButton && !isRetry) {
         console.log('🔄 Auto-retrying connection in 3 seconds...');
         setTimeout(() => handleConnect(true), 3000);
       }
