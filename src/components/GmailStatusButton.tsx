@@ -4,6 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Mail, Settings } from 'lucide-react';
 import { GmailCredentialDiagnostic } from './GmailCredentialDiagnostic';
+import { EnhancedGmailDiagnostic } from './EnhancedGmailDiagnostic';
+import { GmailConnectionDiagnostic } from './GmailConnectionDiagnostic';
+import { GmailNetworkDiagnostic } from './GmailNetworkDiagnostic';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export const GmailStatusButton: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -24,7 +28,30 @@ export const GmailStatusButton: React.FC = () => {
           <DialogTitle>Gmail Integration Status</DialogTitle>
         </DialogHeader>
         <div className="mt-4">
-          <GmailCredentialDiagnostic />
+          <Tabs defaultValue="enhanced" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="enhanced">Enhanced</TabsTrigger>
+              <TabsTrigger value="credentials">Credentials</TabsTrigger>
+              <TabsTrigger value="connection">Connection</TabsTrigger>
+              <TabsTrigger value="network">Network</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="enhanced" className="mt-4">
+              <EnhancedGmailDiagnostic />
+            </TabsContent>
+            
+            <TabsContent value="credentials" className="mt-4">
+              <GmailCredentialDiagnostic />
+            </TabsContent>
+            
+            <TabsContent value="connection" className="mt-4">
+              <GmailConnectionDiagnostic />
+            </TabsContent>
+            
+            <TabsContent value="network" className="mt-4">
+              <GmailNetworkDiagnostic />
+            </TabsContent>
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>

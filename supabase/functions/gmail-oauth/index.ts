@@ -343,23 +343,45 @@ serve(async (req) => {
       console.log('📦 Storing credentials for user:', userId);
       
       try {
-        // CRITICAL: Log callback execution for debugging
-        console.log('🎯 OAuth callback reached successfully - storing credentials');
-        
-        // Log OAuth success for monitoring
-        await supabaseServiceClient.rpc('log_oauth_operation', {
-          p_user_id: userId,
-          p_operation: 'token_received',
-          p_success: true,
-          p_details: {
-            gmail_email: userInfo.email,
-            access_token_length: tokens.access_token?.length || 0,
-            refresh_token_length: tokens.refresh_token?.length || 0,
-            expires_in: tokens.expires_in,
-            callback_method: req.method,
-            callback_url: req.url
-          }
-        });
+      // CRITICAL: Log callback execution for debugging
+      console.log('🎯 OAuth callback reached successfully - storing credentials');
+      console.log('📊 Callback context:', {
+        userId,
+        userEmail: userInfo.email,
+        tokenTypes: {
+          hasAccessToken: !!tokens.access_token,
+          hasRefreshToken: !!tokens.refresh_token,
+          expiresIn: tokens.expires_in
+        },
+        callbackInfo: {
+          method: req.method,
+          url: req.url,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      // Enhanced logging for OAuth success monitoring
+      try {
+        await supabaseServiceClient
+          .from('security_events')
+          .insert({
+            user_id: userId,
+            event_type: 'oauth_callback_received',
+            severity: 'low',
+            details: {
+              gmail_email: userInfo.email,
+              access_token_length: tokens.access_token?.length || 0,
+              refresh_token_length: tokens.refresh_token?.length || 0,
+              expires_in: tokens.expires_in,
+              callback_method: req.method,
+              callback_url: req.url,
+              callback_success: true
+            }
+          });
+        console.log('✅ OAuth callback event logged successfully');
+      } catch (logError) {
+        console.warn('⚠️ Failed to log OAuth callback event:', logError.message);
+      }
         
         // CRITICAL FIX: Base64 encode tokens for database storage validation
         console.log('🔧 Encoding OAuth tokens for secure database storage...');
@@ -427,25 +449,49 @@ serve(async (req) => {
               hint: storageError.hint
             });
             
-            // Log storage failure with detailed info
-            await supabaseServiceClient.rpc('log_oauth_operation', {
-              p_user_id: userId,
-              p_operation: 'credential_storage',
-              p_success: false,
-              p_details: {
-                error: storageError.message,
-                error_code: storageError.code,
-                error_details: storageError.details,
-                error_hint: storageError.hint,
-                gmail_email: userInfo.email,
-                service_role_used: true
-              }
-            });
+            // PHASE 2 ENHANCEMENT: Log storage failure with comprehensive details
+            await supabaseServiceClient
+              .from('security_events')
+              .insert({
+                user_id: userId,
+                event_type: 'gmail_credential_storage_failed',
+                severity: 'high',
+                details: {
+                  error: storageError.message,
+                  error_code: storageError.code,
+                  error_details: storageError.details,
+                  error_hint: storageError.hint,
+                  gmail_email: userInfo.email,
+                  service_role_used: true,
+                  storage_attempt_timestamp: new Date().toISOString(),
+                  callback_context: {
+                    method: req.method,
+                    url: req.url
+                  }
+                }
+              });
             
             throw new Error(`Credential storage failed: ${storageError.message}`);
           }
           
           console.log('✅ Credentials stored successfully:', insertData);
+          
+          // PHASE 1 ENHANCEMENT: Log successful credential storage for monitoring
+          await supabaseServiceClient
+            .from('security_events')
+            .insert({
+              user_id: userId,
+              event_type: 'gmail_credentials_stored',
+              severity: 'medium',
+              details: {
+                gmail_email: userInfo.email,
+                credential_id: insertData?.[0]?.id,
+                storage_success: true,
+                timestamp: new Date().toISOString()
+              }
+            });
+            
+          console.log('🎯 CALLBACK SUCCESS: Credentials stored and logged');
           
         } catch (encodingError) {
           console.error('❌ Token encoding failed:', encodingError);
