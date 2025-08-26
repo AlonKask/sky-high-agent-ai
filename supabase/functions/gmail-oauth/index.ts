@@ -797,21 +797,223 @@ serve(async (req) => {
 
       // Return success page with enhanced messaging
       const successPage = `
-        <html>
-          <head><title>Gmail Connected Successfully</title></head>
-          <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f0f9ff;">
-            <div style="max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-              <h1 style="color: #059669; margin-bottom: 20px;">✅ Gmail Connected!</h1>
-              <p style="color: #374151; margin: 20px 0;">
-                Successfully connected to <strong>${userInfo.email}</strong>
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Gmail Connected Successfully - Select Business Class CRM</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <style>
+              :root {
+                --primary: 221.2 83.2% 53.3%;
+                --primary-light: 221.2 83.2% 65%;
+                --primary-foreground: 210 40% 98%;
+                --success: 142.1 76.2% 36.3%;
+                --success-foreground: 355.7 100% 97.3%;
+                --background: 0 0% 100%;
+                --foreground: 0 0% 3.9%;
+                --card: 0 0% 100%;
+                --card-foreground: 0 0% 3.9%;
+                --muted: 210 40% 96%;
+                --muted-foreground: 215.4 16.3% 46.9%;
+                --border: 214.3 31.8% 91.4%;
+                --shadow-elegant: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+                --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+                --success-gradient: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success) / 0.8));
+                --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+              }
+              
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              
+              body {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-feature-settings: 'cv11', 'ss01';
+                background: linear-gradient(135deg, hsl(var(--primary) / 0.05), hsl(var(--success) / 0.05));
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+              }
+              
+              .container {
+                max-width: 480px;
+                width: 100%;
+                background: hsl(var(--card));
+                border: 1px solid hsl(var(--border));
+                border-radius: 16px;
+                padding: 40px 32px;
+                text-align: center;
+                box-shadow: var(--shadow-elegant);
+                position: relative;
+                overflow: hidden;
+                animation: slideIn 0.6s ease-out;
+              }
+              
+              .container::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: var(--success-gradient);
+              }
+              
+              .success-icon {
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 24px;
+                background: var(--success-gradient);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: scaleIn 0.5s ease-out 0.2s both;
+              }
+              
+              .checkmark {
+                width: 36px;
+                height: 36px;
+                color: hsl(var(--success-foreground));
+                stroke-width: 3;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                fill: none;
+                stroke: currentColor;
+                animation: checkDraw 0.6s ease-out 0.4s both;
+              }
+              
+              .title {
+                font-size: 28px;
+                font-weight: 700;
+                color: hsl(var(--foreground));
+                margin-bottom: 12px;
+                animation: fadeInUp 0.5s ease-out 0.3s both;
+              }
+              
+              .subtitle {
+                font-size: 16px;
+                color: hsl(var(--muted-foreground));
+                margin-bottom: 32px;
+                animation: fadeInUp 0.5s ease-out 0.4s both;
+              }
+              
+              .email-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: hsl(var(--muted));
+                color: hsl(var(--foreground));
+                padding: 12px 20px;
+                border-radius: 12px;
+                font-weight: 600;
+                font-size: 14px;
+                margin-bottom: 24px;
+                animation: fadeInUp 0.5s ease-out 0.5s both;
+              }
+              
+              .status-text {
+                color: hsl(var(--muted-foreground));
+                font-size: 14px;
+                line-height: 1.5;
+                margin-bottom: 32px;
+                animation: fadeInUp 0.5s ease-out 0.6s both;
+              }
+              
+              .countdown-container {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                color: hsl(var(--muted-foreground));
+                font-size: 13px;
+                animation: fadeInUp 0.5s ease-out 0.7s both;
+              }
+              
+              .countdown-bar {
+                width: 200px;
+                height: 4px;
+                background: hsl(var(--muted));
+                border-radius: 2px;
+                overflow: hidden;
+              }
+              
+              .countdown-progress {
+                height: 100%;
+                background: var(--gradient-primary);
+                width: 100%;
+                animation: countdown 3s linear;
+                border-radius: 2px;
+              }
+              
+              @keyframes slideIn {
+                from { opacity: 0; transform: translateY(30px) scale(0.95); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              
+              @keyframes scaleIn {
+                from { opacity: 0; transform: scale(0); }
+                to { opacity: 1; transform: scale(1); }
+              }
+              
+              @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+              
+              @keyframes checkDraw {
+                from { stroke-dasharray: 0 100; }
+                to { stroke-dasharray: 100 100; }
+              }
+              
+              @keyframes countdown {
+                from { width: 100%; }
+                to { width: 0%; }
+              }
+              
+              @media (max-width: 640px) {
+                .container { padding: 32px 24px; margin: 16px; }
+                .title { font-size: 24px; }
+                .countdown-bar { width: 150px; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success-icon">
+                <svg class="checkmark" viewBox="0 0 24 24">
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+              </div>
+              
+              <h1 class="title">Gmail Connected!</h1>
+              <p class="subtitle">Your account has been successfully integrated</p>
+              
+              <div class="email-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                ${userInfo.email}
+              </div>
+              
+              <p class="status-text">
+                Your Gmail account is now integrated with Select Business Class CRM.<br>
+                Email synchronization will begin automatically.
               </p>
-              <p style="color: #6b7280; margin: 20px 0;">
-                Your Gmail account is now integrated and email sync will begin shortly.
-              </p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                This window will close automatically in 3 seconds.
-              </p>
+              
+              <div class="countdown-container">
+                <span>Closing automatically</span>
+                <div class="countdown-bar">
+                  <div class="countdown-progress"></div>
+                </div>
+              </div>
             </div>
+            
             <script>
               // Notify parent window of successful authentication
               if (window.opener) {
@@ -887,21 +1089,212 @@ serve(async (req) => {
     });
     
     const errorPage = `
-      <html>
-        <head><title>Gmail Authentication Error</title></head>
-        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f9fafb;">
-          <div style="max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h1 style="color: #dc2626; margin-bottom: 20px;">Gmail Authentication Failed</h1>
-            <p style="color: #374151; margin: 20px 0;">
-              <strong>Error:</strong> ${errorMessage}
-            </p>
-            <p style="color: #6b7280; margin: 20px 0;">
-              ${errorDetails}
-            </p>
-            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-              This window will close automatically in 5 seconds.
-            </p>
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Gmail Authentication Error - Select Business Class CRM</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+          <style>
+            :root {
+              --primary: 221.2 83.2% 53.3%;
+              --destructive: 0 84.2% 60.2%;
+              --destructive-foreground: 210 40% 98%;
+              --background: 0 0% 100%;
+              --foreground: 0 0% 3.9%;
+              --card: 0 0% 100%;
+              --card-foreground: 0 0% 3.9%;
+              --muted: 210 40% 96%;
+              --muted-foreground: 215.4 16.3% 46.9%;
+              --border: 214.3 31.8% 91.4%;
+              --shadow-elegant: 0 10px 30px -10px hsl(var(--destructive) / 0.3);
+              --error-gradient: linear-gradient(135deg, hsl(var(--destructive)), hsl(var(--destructive) / 0.8));
+              --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              font-feature-settings: 'cv11', 'ss01';
+              background: linear-gradient(135deg, hsl(var(--destructive) / 0.05), hsl(var(--muted)));
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 20px;
+            }
+            
+            .container {
+              max-width: 480px;
+              width: 100%;
+              background: hsl(var(--card));
+              border: 1px solid hsl(var(--border));
+              border-radius: 16px;
+              padding: 40px 32px;
+              text-align: center;
+              box-shadow: var(--shadow-elegant);
+              position: relative;
+              overflow: hidden;
+              animation: slideIn 0.6s ease-out;
+            }
+            
+            .container::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 4px;
+              background: var(--error-gradient);
+            }
+            
+            .error-icon {
+              width: 80px;
+              height: 80px;
+              margin: 0 auto 24px;
+              background: var(--error-gradient);
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              animation: scaleIn 0.5s ease-out 0.2s both;
+            }
+            
+            .x-mark {
+              width: 36px;
+              height: 36px;
+              color: hsl(var(--destructive-foreground));
+              stroke-width: 3;
+              stroke-linecap: round;
+              stroke-linejoin: round;
+              animation: drawX 0.6s ease-out 0.4s both;
+            }
+            
+            .title {
+              font-size: 28px;
+              font-weight: 700;
+              color: hsl(var(--foreground));
+              margin-bottom: 12px;
+              animation: fadeInUp 0.5s ease-out 0.3s both;
+            }
+            
+            .subtitle {
+              font-size: 16px;
+              color: hsl(var(--muted-foreground));
+              margin-bottom: 32px;
+              animation: fadeInUp 0.5s ease-out 0.4s both;
+            }
+            
+            .error-details {
+              background: hsl(var(--muted));
+              border-radius: 12px;
+              padding: 20px;
+              margin-bottom: 24px;
+              animation: fadeInUp 0.5s ease-out 0.5s both;
+            }
+            
+            .error-title {
+              font-weight: 600;
+              color: hsl(var(--foreground));
+              margin-bottom: 8px;
+            }
+            
+            .error-message {
+              color: hsl(var(--muted-foreground));
+              font-size: 14px;
+              line-height: 1.5;
+            }
+            
+            .countdown-container {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 12px;
+              color: hsl(var(--muted-foreground));
+              font-size: 13px;
+              animation: fadeInUp 0.5s ease-out 0.6s both;
+            }
+            
+            .countdown-bar {
+              width: 200px;
+              height: 4px;
+              background: hsl(var(--muted));
+              border-radius: 2px;
+              overflow: hidden;
+            }
+            
+            .countdown-progress {
+              height: 100%;
+              background: var(--error-gradient);
+              width: 100%;
+              animation: countdown 5s linear;
+              border-radius: 2px;
+            }
+            
+            @keyframes slideIn {
+              from { opacity: 0; transform: translateY(30px) scale(0.95); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            
+            @keyframes scaleIn {
+              from { opacity: 0; transform: scale(0); }
+              to { opacity: 1; transform: scale(1); }
+            }
+            
+            @keyframes fadeInUp {
+              from { opacity: 0; transform: translateY(20px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            
+            @keyframes drawX {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            
+            @keyframes countdown {
+              from { width: 100%; }
+              to { width: 0%; }
+            }
+            
+            @media (max-width: 640px) {
+              .container { padding: 32px 24px; margin: 16px; }
+              .title { font-size: 24px; }
+              .countdown-bar { width: 150px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error-icon">
+              <svg class="x-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M18 6L6 18"/>
+                <path d="M6 6l12 12"/>
+              </svg>
+            </div>
+            
+            <h1 class="title">Authentication Failed</h1>
+            <p class="subtitle">We encountered an issue connecting your Gmail account</p>
+            
+            <div class="error-details">
+              <div class="error-title">Error Details</div>
+              <div class="error-message">
+                <strong>${errorMessage}</strong><br><br>
+                ${errorDetails}
+              </div>
+            </div>
+            
+            <div class="countdown-container">
+              <span>Closing automatically</span>
+              <div class="countdown-bar">
+                <div class="countdown-progress"></div>
+              </div>
+            </div>
           </div>
+          
           <script>
             // Notify parent window with detailed error information
             if (window.opener) {
