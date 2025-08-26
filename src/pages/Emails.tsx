@@ -1,13 +1,15 @@
 import React from 'react';
-import EmailManager from '@/components/EmailManager';
+import EnhancedEmailInterface from '@/components/EnhancedEmailInterface';
 
 const Emails = () => {
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Emails</h1>
+    <div className="h-screen flex flex-col">
+      <div className="p-4 border-b">
+        <h1 className="text-2xl font-bold">Emails</h1>
       </div>
-      <EmailManager />
+      <div className="flex-1 overflow-hidden">
+        <EnhancedEmailInterface />
+      </div>
     </div>
   );
 };
