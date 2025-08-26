@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,10 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, X, Paperclip, Bot, Save, FileText, Eye } from "lucide-react";
+import { Send, X, Paperclip, Bot, Save, FileText, Eye, Archive } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
+import EmailTemplateManager from "./EmailTemplateManager";
+import DraftManager from "./DraftManager";
+import { replaceTemplateVariables, getDefaultVariables } from "@/utils/templateVariables";
 
 interface EnhancedEmailComposerProps {
   defaultTo?: string;
@@ -46,7 +49,8 @@ const EnhancedEmailComposer = ({
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [showDrafts, setShowDrafts] = useState(false);
+  const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
   
   const [email, setEmail] = useState({
     to: defaultTo,
@@ -66,25 +70,24 @@ const EnhancedEmailComposer = ({
     }
   }, [draftId, templateId]);
 
-  // Load templates
+  // Auto-save draft every 30 seconds when there's content
   useEffect(() => {
-    if (user) {
-      loadTemplates();
+    if (autoSaveRef.current) {
+      clearTimeout(autoSaveRef.current);
     }
-  }, [user]);
 
-  // Auto-save draft every 30 seconds
-  useEffect(() => {
-    if (!email.subject && !email.body) return;
-    
-    const interval = setInterval(() => {
-      if (email.subject || email.body) {
-        saveDraft(true); // silent save
+    if (email.subject.trim() || email.body.trim()) {
+      autoSaveRef.current = setTimeout(() => {
+        saveDraft(true); // silent auto-save
+      }, 30000);
+    }
+
+    return () => {
+      if (autoSaveRef.current) {
+        clearTimeout(autoSaveRef.current);
       }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [email]);
+    };
+  }, [email.subject, email.body]);
 
   const loadDraft = async (id: string) => {
     try {
@@ -124,10 +127,15 @@ const EnhancedEmailComposer = ({
 
       if (error) throw error;
 
+      // Apply template with variable replacement
+      const defaultVars = getDefaultVariables(user, null, null);
+      const processedSubject = replaceTemplateVariables(data.subject, defaultVars);
+      const processedBody = replaceTemplateVariables(data.body, defaultVars);
+
       setEmail(prev => ({
         ...prev,
-        subject: data.subject,
-        body: data.body,
+        subject: processedSubject,
+        body: processedBody,
         emailType: data.email_type as 'quote' | 'follow_up' | 'confirmation' | 'booking_update' | 'general'
       }));
 
@@ -147,36 +155,29 @@ const EnhancedEmailComposer = ({
     }
   };
 
-  const loadTemplates = async () => {
-    try {
-      // For now, use hardcoded templates since we don't have templates table yet
-      const defaultTemplates: EmailTemplate[] = [
-        {
-          id: '1',
-          name: 'Quote Follow-up',
-          subject: 'Follow-up on your travel quote',
-          body: 'Dear [Client Name],\n\nI hope this email finds you well. I wanted to follow up on the travel quote I sent you recently.\n\nIf you have any questions or would like to proceed with the booking, please let me know.\n\nBest regards,\n[Your Name]',
-          email_type: 'follow_up'
-        },
-        {
-          id: '2',
-          name: 'Booking Confirmation',
-          subject: 'Your booking confirmation',
-          body: 'Dear [Client Name],\n\nThank you for your booking! Your reservation has been confirmed.\n\nBooking Details:\n[Booking Details]\n\nPlease keep this confirmation for your records.\n\nBest regards,\n[Your Name]',
-          email_type: 'confirmation'
-        },
-        {
-          id: '3',
-          name: 'General Inquiry Response',
-          subject: 'Thank you for your inquiry',
-          body: 'Dear [Client Name],\n\nThank you for reaching out to us regarding your travel needs.\n\nI will review your requirements and get back to you with some options shortly.\n\nBest regards,\n[Your Name]',
-          email_type: 'general'
-        }
-      ];
-      setTemplates(defaultTemplates);
-    } catch (error: any) {
-      console.error('Error loading templates:', error);
-    }
+  const handleTemplateSelect = (template: any) => {
+    // Apply template with variable replacement
+    const defaultVars = getDefaultVariables(user, null, null);
+    const processedSubject = replaceTemplateVariables(template.subject, defaultVars);
+    const processedBody = replaceTemplateVariables(template.body, defaultVars);
+
+    setEmail(prev => ({
+      ...prev,
+      subject: processedSubject,
+      body: processedBody,
+      emailType: template.email_type as 'quote' | 'follow_up' | 'confirmation' | 'booking_update' | 'general'
+    }));
+  };
+
+  const handleDraftSelect = (draft: any) => {
+    setEmail({
+      to: draft.recipient_emails.join(', '),
+      cc: draft.cc_emails?.join(', ') || '',
+      bcc: draft.bcc_emails?.join(', ') || '',
+      subject: draft.subject,
+      body: draft.body,
+      emailType: draft.email_type as 'quote' | 'follow_up' | 'confirmation' | 'booking_update' | 'general'
+    });
   };
 
   const saveDraft = async (silent = false) => {
@@ -199,14 +200,14 @@ const EnhancedEmailComposer = ({
       let result;
       if (draftId) {
         result = await supabase
-          .from('email_drafts')
+          .from('ai_email_drafts')
           .update(draftData)
           .eq('id', draftId)
           .select('id')
           .single();
       } else {
         result = await supabase
-          .from('email_drafts')
+          .from('ai_email_drafts')
           .insert(draftData)
           .select('id')
           .single();
@@ -269,7 +270,7 @@ const EnhancedEmailComposer = ({
       // Delete draft after successful send
       if (draftId) {
         await supabase
-          .from('email_drafts')
+          .from('ai_email_drafts')
           .delete()
           .eq('id', draftId);
       }
@@ -324,7 +325,7 @@ const EnhancedEmailComposer = ({
         description: `Template "${templateName}" has been saved`,
       });
       
-      loadTemplates();
+      // Template saved successfully - no need to reload since we're using the manager now
     } catch (error: any) {
       console.error('Error saving template:', error);
       toast({
@@ -337,35 +338,19 @@ const EnhancedEmailComposer = ({
 
   return (
     <div className="space-y-4 max-h-[80vh] overflow-hidden flex flex-col">
-      {/* Templates Dialog */}
-      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Email Templates</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-96">
-            <div className="space-y-2">
-              {templates.map((template) => (
-                <div key={template.id} className="border rounded-lg p-3 hover:bg-muted cursor-pointer"
-                  onClick={() => {
-                    setEmail(prev => ({
-                      ...prev,
-                      subject: template.subject,
-                      body: template.body,
-                      emailType: template.email_type as 'quote' | 'follow_up' | 'confirmation' | 'booking_update' | 'general'
-                    }));
-                    setShowTemplates(false);
-                  }}
-                >
-                  <div className="font-medium">{template.name}</div>
-                  <div className="text-sm text-muted-foreground truncate">{template.subject}</div>
-                  <Badge variant="outline" className="mt-1">{template.email_type}</Badge>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      {/* Template Manager */}
+      <EmailTemplateManager
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onTemplateSelect={handleTemplateSelect}
+      />
+
+      {/* Draft Manager */}
+      <DraftManager
+        isOpen={showDrafts}
+        onClose={() => setShowDrafts(false)}
+        onDraftSelect={handleDraftSelect}
+      />
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
@@ -486,6 +471,10 @@ const EnhancedEmailComposer = ({
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowTemplates(true)}>
             <FileText className="h-4 w-4" />
             Templates
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowDrafts(true)}>
+            <Archive className="h-4 w-4" />
+            Drafts
           </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setIsPreviewOpen(true)}>
             <Eye className="h-4 w-4" />
