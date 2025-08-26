@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
-import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 import { decodeBase64 } from "jsr:@std/encoding/base64";
 
 const corsHeaders = {
@@ -490,7 +489,37 @@ async function syncGmailEmails(
   }
 }
 
-serve(withRateLimit(rateLimitConfigs.moderate, async (req) => {
+// Simple rate limiting storage (in-memory for now)
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// Simple rate limit check (30 requests per minute)
+function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute
+  const maxRequests = 30;
+  
+  const key = `${identifier}:${Math.floor(now / windowMs)}`;
+  const current = rateLimitStore.get(key) || { count: 0, resetTime: now + windowMs };
+  
+  if (now > current.resetTime) {
+    current.count = 0;
+    current.resetTime = now + windowMs;
+  }
+  
+  const allowed = current.count < maxRequests;
+  if (allowed) {
+    current.count++;
+    rateLimitStore.set(key, current);
+  }
+  
+  return {
+    allowed,
+    remaining: Math.max(0, maxRequests - current.count)
+  };
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -498,6 +527,25 @@ serve(withRateLimit(rateLimitConfigs.moderate, async (req) => {
   console.log(`🔄 Enhanced Gmail Sync: ${req.method} ${req.url}`);
 
   try {
+    // Simple rate limiting
+    const identifier = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+                      req.headers.get('x-real-ip') || 
+                      'unknown';
+    
+    const rateCheck = checkRateLimit(identifier);
+    if (!rateCheck.allowed) {
+      return Response.json(
+        { success: false, error: 'Rate limit exceeded. Please try again later.' },
+        { 
+          status: 429, 
+          headers: {
+            ...corsHeaders,
+            'X-RateLimit-Remaining': rateCheck.remaining.toString()
+          }
+        }
+      );
+    }
+
     const userSupabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -520,55 +568,75 @@ serve(withRateLimit(rateLimitConfigs.moderate, async (req) => {
         );
       }
 
-      userSupabase.auth.session = authHeader;
-      const { data: userResult, error: userError } = await userSupabase.auth.getUser();
+      // Extract JWT token from Bearer header
+      const token = authHeader.replace('Bearer ', '');
+      userSupabase.auth.session = { access_token: token };
       
-      if (userError || !userResult) {
+      const { data: userResult, error: userError } = await userSupabase.auth.getUser(token);
+      
+      if (userError || !userResult?.user) {
+        console.error('❌ Authentication failed:', userError);
         return Response.json(
           { success: false, error: 'Invalid authentication' },
           { status: 401, headers: corsHeaders }
         );
       }
 
-      console.log(`🔄 Manual Gmail sync for user: ${userResult.id}`);
+      console.log(`🔄 Manual Gmail sync for user: ${userResult.user.id}`);
       
-      // Get Gmail credentials
+      // Get Gmail credentials with better error handling
       const { data: credentialsResult, error: credentialsError } = await serviceSupabase
         .from('gmail_credentials')
         .select('*')
-        .eq('user_id', userResult.id)
+        .eq('user_id', userResult.user.id)
         .eq('is_active', true)
         .maybeSingle();
 
       if (credentialsError || !credentialsResult) {
-        console.error('❌ No Gmail credentials found:', credentialsError);
+        console.error('❌ Gmail credentials error:', credentialsError);
         return Response.json(
-          { success: false, error: 'Gmail credentials not found' },
+          { success: false, error: 'Gmail account not connected. Please connect your Gmail account first.' },
           { status: 200, headers: corsHeaders }
         );
       }
 
-      // Decode tokens
+      // Decode access token with better error handling
       let accessToken: string;
       try {
         accessToken = atob(credentialsResult.access_token_encrypted);
+        if (!accessToken || accessToken.length < 10) {
+          throw new Error('Invalid token format');
+        }
       } catch (decodeError) {
+        console.error('❌ Token decode error:', decodeError);
         return Response.json(
-          { success: false, error: 'Invalid access token format' },
+          { success: false, error: 'Invalid token format. Please reconnect your Gmail account.' },
           { status: 200, headers: corsHeaders }
         );
       }
 
-      const body = await req.json();
-      console.log('📥 Enhanced sync request:', body);
+      // Parse request body with validation
+      let body: any = {};
+      try {
+        body = await req.json();
+        console.log('📥 Enhanced sync request:', body);
+      } catch (parseError) {
+        console.error('❌ Request parse error:', parseError);
+        return Response.json(
+          { success: false, error: 'Invalid request format' },
+          { status: 400, headers: corsHeaders }
+        );
+      }
       
-      // Parse sync options from request body
-      const syncType = body.syncType || 'incremental'; // 'incremental', 'full', 'historical'  
-      const maxResults = body.maxResults || 200; // Allow configurable batch size
+      // Parse sync options from request body with defaults
+      const syncType = body.syncType || 'incremental';
+      const maxResults = Math.min(body.maxResults || 200, 500); // Cap at 500
+      
+      console.log(`🚀 Starting ${syncType} sync with max ${maxResults} results`);
       
       const result = await syncGmailEmails(
         serviceSupabase,
-        userResult.id,
+        userResult.user.id,
         credentialsResult.gmail_user_email,
         accessToken,
         credentialsResult.refresh_token_encrypted || null,
@@ -580,7 +648,10 @@ serve(withRateLimit(rateLimitConfigs.moderate, async (req) => {
 
       return Response.json(result, { 
         status: 200, 
-        headers: corsHeaders 
+        headers: {
+          ...corsHeaders,
+          'X-RateLimit-Remaining': rateCheck.remaining.toString()
+        }
       });
     }
 
@@ -591,9 +662,21 @@ serve(withRateLimit(rateLimitConfigs.moderate, async (req) => {
 
   } catch (error: any) {
     console.error('❌ Enhanced Gmail sync service error:', error);
+    
+    // Log error details for debugging
+    debugLog('SERVICE_ERROR', 'Service error occurred', {
+      error: error.message,
+      stack: error.stack?.substring(0, 500)
+    });
+    
     return Response.json(
-      { success: false, error: 'Service temporarily unavailable', details: error.message },
-      { status: 200, headers: corsHeaders }
+      { 
+        success: false, 
+        error: 'Service temporarily unavailable', 
+        details: error.message,
+        timestamp: new Date().toISOString()
+      },
+      { status: 500, headers: corsHeaders }
     );
   }
-}));
+});
