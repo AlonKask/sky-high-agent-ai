@@ -44,11 +44,23 @@ interface Conversation {
 interface AIEmailAssistantProps {
   mode?: 'full' | 'simple';
   onDraftCreated?: (draft: any) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  currentContent?: {
+    subject: string;
+    body: string;
+    to: string;
+  };
+  onApplySuggestion?: (type: string, suggestion: string) => void;
 }
 
 export const AIEmailAssistant: React.FC<AIEmailAssistantProps> = ({ 
   mode = 'full',
-  onDraftCreated 
+  onDraftCreated,
+  isOpen,
+  onClose,
+  currentContent,
+  onApplySuggestion
 }) => {
   const { user } = useSimpleAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);

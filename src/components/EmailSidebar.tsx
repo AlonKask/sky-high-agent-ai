@@ -71,9 +71,9 @@ const EmailSidebar = ({
             >
               <Icon className="h-4 w-4" />
             </Button>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
     );
   }
 
@@ -111,6 +111,7 @@ const EmailSidebar = ({
                 )}
               </Button>
             );
+          })}
         </div>
         {/* Analytics Button */}
         <Button

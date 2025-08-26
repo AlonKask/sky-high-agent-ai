@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PanelLeftClose, PanelLeftOpen, Mail, RefreshCw } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Mail, RefreshCw, BarChart } from "lucide-react";
 import EmailSidebar from "./EmailSidebar";
 import EmailListView from "./EmailListView";
 import EmailDetailView from "./EmailDetailView";
