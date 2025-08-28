@@ -59,7 +59,7 @@ export class EmailSyncManager {
         body: {
           includeAIProcessing: options.includeAIProcessing || false,
           syncType: 'incremental',
-          maxResults: 200
+          maxResults: 500 // Increased to match backend improvement
         }
       });
 

@@ -197,11 +197,11 @@ function extractTextContent(payload: any): { text: string; html: string; attachm
   return { text, html: html.substring(0, 50000), attachments }; // Limit HTML to 50k chars
 }
 
-// Enhanced Gmail folder classification helper with improved logic
+// Fixed Gmail folder classification - prioritize Gmail labels over domain logic
 function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader: string, folderHint?: string): { folder_name: string; direction: string } {
   const labels = labelIds || [];
   
-  // Check for specific Gmail labels first (most reliable)
+  // Priority 1: Gmail-specific labels (most reliable)
   if (labels.includes('SENT')) {
     return { folder_name: 'sent', direction: 'outbound' };
   }
@@ -215,23 +215,24 @@ function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader
     return { folder_name: 'spam', direction: 'inbound' };
   }
   
-  // Use folder hint from Gmail query if Gmail labels are not decisive
+  // Priority 2: Folder hint from Gmail search query
   if (folderHint && folderHint !== 'inbox') {
     const direction = (folderHint === 'sent' || folderHint === 'drafts') ? 'outbound' : 'inbound';
     return { folder_name: folderHint, direction };
   }
   
-  // Enhanced sender-based classification for business emails
-  const businessDomain = userEmail.split('@')[1];
-  const isFromBusinessDomain = fromHeader.toLowerCase().includes(`@${businessDomain}`);
-  const isFromUser = fromHeader.toLowerCase().includes(userEmail.toLowerCase());
+  // Priority 3: Direct user email match (exact sender check)
+  const senderMatch = fromHeader.match(/<(.+?)>/) || fromHeader.match(/(\S+@\S+)/);
+  const senderEmail = senderMatch ? senderMatch[1].toLowerCase() : fromHeader.toLowerCase();
+  const userEmailNormalized = userEmail.toLowerCase();
   
-  if (isFromUser || isFromBusinessDomain) {
-    // If it's from the user's domain but no SENT label, likely sent email
+  if (senderEmail === userEmailNormalized) {
+    // Exact match - this is definitely sent by user
     return { folder_name: 'sent', direction: 'outbound' };
   }
   
-  // Default to inbox for external emails
+  // Priority 4: Default to inbox (safer assumption)
+  // Don't assume business domain emails are sent - they could be received from colleagues
   return { folder_name: 'inbox', direction: 'inbound' };
 }
 
@@ -242,7 +243,7 @@ async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{quer
   
   for (const config of queryConfigs) {
     try {
-      const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${Math.min(maxResults, 50)}`;
+      const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${Math.min(maxResults, 100)}`;
       const response = await fetch(messagesUrl, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -333,8 +334,8 @@ async function syncGmailEmails(
     }
 
     const config = syncConfig || {
-      max_emails_per_sync: 200,
-      sync_days_back: 365,
+      max_emails_per_sync: 500,
+      sync_days_back: 730,
       enable_full_mailbox_sync: true,
       enable_historical_sync: true
     };
@@ -358,9 +359,9 @@ async function syncGmailEmails(
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
       baseQuery = `after:${Math.floor(twoYearsAgo.getTime() / 1000)}`;
     } else {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      baseQuery = `after:${Math.floor(weekAgo.getTime() / 1000)}`;
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+      baseQuery = `after:${Math.floor(twoWeeksAgo.getTime() / 1000)}`;
     }
     
     // Enhanced multi-query strategy for different folders with hints
@@ -372,7 +373,7 @@ async function syncGmailEmails(
       { query: baseQuery, folderHint: 'inbox' } // Catch-all defaults to inbox
     ];
     
-    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 200);
+    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 500);
     
     debugLog('MULTI_QUERY_PREP', 'Preparing multi-query Gmail sync', {
       syncType,
@@ -751,8 +752,8 @@ serve(async (req) => {
       const { 
         userEmail, 
         userId, 
-        maxResults = 200, // Increased to sync more emails per operation
-        isScheduled = false 
+        maxResults = 500, // Significantly increased for comprehensive sync
+        isScheduled = false
       } = requestBody;
 
       // Handle manual sync requests
