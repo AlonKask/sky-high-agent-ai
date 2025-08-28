@@ -47,7 +47,7 @@ export const useEmailSync = () => {
   const performSync = useCallback(async (options: EmailSyncOptions = {}): Promise<EmailSyncResult> => {
     const {
       syncType = 'incremental',
-      maxResults = 1000, // Significantly increased to match enhanced backend capability
+      maxResults = 2000, // Increased for comprehensive coverage
       includeAIProcessing = false,
       showProgress = false // Default to false for silent operation
     } = options;
@@ -150,7 +150,7 @@ export const useEmailSync = () => {
   const performFullSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'full',
-      maxResults: 1000, // Increased significantly for comprehensive sync from June 18, 2024
+      maxResults: 2000, // Increased for comprehensive full sync (no date restrictions)
       includeAIProcessing: false,
       showProgress
     });
@@ -159,7 +159,7 @@ export const useEmailSync = () => {
   const performHistoricalSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'historical',
-      maxResults: 1000, // Increased significantly for historical coverage from June 18, 2024
+      maxResults: 2000, // Increased for comprehensive historical sync (5 years back)
       includeAIProcessing: false,
       showProgress
     });
@@ -168,7 +168,7 @@ export const useEmailSync = () => {
   const performQuickSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'incremental',
-      maxResults: 500, // Increased for better incremental coverage
+      maxResults: 1000, // Increased for better incremental coverage
       includeAIProcessing: false,
       showProgress
     });

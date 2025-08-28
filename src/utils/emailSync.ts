@@ -53,13 +53,15 @@ export class EmailSyncManager {
         throw new Error('Gmail not connected. Please connect your Gmail account first.');
       }
 
-      // Call enhanced email sync function with comprehensive options - silent operation
+      // Call unified email sync function - same as useEmailSync hook
       console.log('🚀 Starting silent email sync...');
-      const { data, error } = await supabase.functions.invoke('enhanced-gmail-sync', {
+      const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
         body: {
-          includeAIProcessing: options.includeAIProcessing || false,
-          syncType: 'incremental',
-          maxResults: 500 // Increased to match backend improvement
+          userEmail: user?.email,
+          userId: user?.id,
+          syncType: options.includeAIProcessing ? 'full' : 'incremental',
+          maxResults: 1000, // Increased for comprehensive coverage
+          includeAIProcessing: options.includeAIProcessing || false
         }
       });
 

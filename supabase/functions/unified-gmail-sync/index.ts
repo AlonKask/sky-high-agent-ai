@@ -248,8 +248,8 @@ async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{quer
   
   for (const config of queryConfigs) {
     try {
-      // Phase 3 fix: Increase per-query limit from 100 to 200
-      const perQueryLimit = Math.min(200, maxResults);
+      // Phase 3 fix: Increase per-query limit to maximum Gmail API allows
+      const perQueryLimit = Math.min(500, maxResults);
       const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${perQueryLimit}`;
       
       debugLog('GMAIL_QUERY_START', `Executing Gmail query: ${config.folderHint}`, {
@@ -383,16 +383,17 @@ async function syncGmailEmails(
     let baseQuery = '';
     const queries = [];
     
-    // CRITICAL FIX: Use absolute date from June 18, 2024 instead of relative dates
-    const historicalStartDate = new Date('2024-06-18T00:00:00Z');
-    const historicalStartTimestamp = Math.floor(historicalStartDate.getTime() / 1000);
+    // CRITICAL FIX: Remove arbitrary date restriction - allow full historical sync
+    const fiveYearsAgo = new Date();
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+    const historicalStartTimestamp = Math.floor(fiveYearsAgo.getTime() / 1000);
     
     if (syncType === 'full' || !syncConfig?.last_full_sync_at) {
       // Use absolute historical start date
       baseQuery = `after:${historicalStartTimestamp}`;
       
-      debugLog('SYNC_DATE_RANGE', 'Using absolute date range for full sync', {
-        historicalStartDate: historicalStartDate.toISOString(),
+      debugLog('SYNC_DATE_RANGE', 'Using full historical range for comprehensive sync', {
+        historicalStartDate: fiveYearsAgo.toISOString(),
         historicalStartTimestamp,
         baseQuery
       });
@@ -405,8 +406,8 @@ async function syncGmailEmails(
       // For historical sync, use the absolute start date
       baseQuery = `after:${historicalStartTimestamp}`;
       
-      debugLog('SYNC_DATE_RANGE', 'Using absolute date range for historical sync', {
-        historicalStartDate: historicalStartDate.toISOString(),
+      debugLog('SYNC_DATE_RANGE', 'Using full historical range for historical sync', {
+        historicalStartDate: fiveYearsAgo.toISOString(),
         historicalStartTimestamp,
         baseQuery
       });
@@ -438,8 +439,8 @@ async function syncGmailEmails(
       { query: `${baseQuery} -in:spam -in:trash`, folderHint: 'inbox' }
     ];
     
-    // Phase 3: Increase overall sync limit significantly
-    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 1000);
+    // Phase 3: Increase overall sync limit to maximum practical amount
+    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 2000);
     
     debugLog('MULTI_QUERY_PREP', 'Preparing multi-query Gmail sync', {
       syncType,
