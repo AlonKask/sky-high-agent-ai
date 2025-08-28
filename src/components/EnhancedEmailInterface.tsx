@@ -7,7 +7,16 @@ import { toast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PanelLeftClose, PanelLeftOpen, Mail, RefreshCw, BarChart, Settings } from "lucide-react";
+import { 
+  PanelLeftClose, 
+  PanelLeftOpen, 
+  Mail, 
+  RefreshCw, 
+  BarChart, 
+  Settings,
+  AlertCircle,
+  CheckCircle
+} from "lucide-react";
 import EmailSidebar from "./EmailSidebar";
 import EmailListView from "./EmailListView";
 import EmailDetailView from "./EmailDetailView";
@@ -74,6 +83,8 @@ const EnhancedEmailInterface = ({
   const [composerDraftId, setComposerDraftId] = useState<string | null>(null);
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [requiresReauth, setRequiresReauth] = useState(false);
 
   // Filter state
   const [selectedFolder, setSelectedFolder] = useState('inbox');
@@ -323,32 +334,40 @@ const EnhancedEmailInterface = ({
     setRefreshKey(prev => prev + 1);
   };
 
-  // Auto-sync helper function with comprehensive parameters
+  // PHASE 3 & 4 FIX: Enhanced auto-sync with comprehensive error handling and user feedback
   const performAutoSync = async () => {
-    if (isAutoSyncing || !authStatus.isConnected || !user?.id) return;
+    if (!user?.id || !authStatus.isConnected) return;
     
-    // Global sync lock to prevent concurrent syncs
-    const syncLockKey = `sync_lock_${user.id}`;
+    const syncLockKey = `email_sync_lock_${user.id}`;
     const existingLock = localStorage.getItem(syncLockKey);
-    if (existingLock && Date.now() - parseInt(existingLock) < 60000) {
-      console.log('🔒 Sync already in progress, skipping');
-      return;
+    
+    // Reduced sync lock timeout and better cleanup
+    if (existingLock) {
+      const lockTime = new Date(existingLock).getTime();
+      const now = Date.now();
+      if (now - lockTime < 30000) { // Reduced to 30 seconds
+        console.log('⏳ Sync already in progress, skipping...');
+        return;
+      }
+      // Clear stale lock
+      localStorage.removeItem(syncLockKey);
     }
     
+    // Set sync lock
+    localStorage.setItem(syncLockKey, new Date().toISOString());
     setIsAutoSyncing(true);
-    localStorage.setItem(syncLockKey, Date.now().toString());
+    setSyncError(null); // Clear previous errors
+    setRequiresReauth(false);
     
     try {
-      console.log('🔄 Starting automatic comprehensive Gmail sync...');
-      console.log(`📊 Current emails in UI: ${emails.length}`);
+      console.log('📧 Starting comprehensive auto sync...');
       
-      // FIXED: Call comprehensive sync with proper parameters for maximum coverage
       const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
         body: {
-          userEmail: authStatus.userEmail,
+          userEmail: user.email,
           userId: user.id,
           syncType: 'comprehensive',
-          maxResults: 100000, // Massive increase for complete coverage
+          maxResults: 100000,
           includeHistorical: true,
           enableProgressTracking: true
         }
@@ -358,19 +377,38 @@ const EnhancedEmailInterface = ({
         throw error;
       }
 
+      // Enhanced error handling and user feedback
+      if (!data.success) {
+        throw new Error(data.error || data.message || 'Sync failed');
+      }
+
       const now = new Date();
       setLastSyncTime(now);
       localStorage.setItem(`last_sync_${user.id}`, now.toISOString());
       
-      console.log(`✅ Auto sync completed: ${data?.count || 0} new emails, ${data?.updated || 0} updated`);
-      console.log(`📊 Total found: ${data?.found || 0}, Total fetched: ${data?.totalFetched || 0}`);
+      console.log(`✅ Auto sync completed: ${data?.stored || 0} new emails stored`);
+      console.log(`📊 Total processed: ${data?.processed || 0}, Total fetched: ${data?.total_available || 0}`);
+      
+      // Clear any previous errors on success
+      setSyncError(null);
+      setRequiresReauth(false);
       
       // Force refresh emails from database
       setRefreshKey(prev => prev + 1);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Auto sync failed:', error);
-      // Don't show error toast for background sync failures - just log them
+      
+      // Set error state for UI display
+      const errorMessage = error?.message || 'Auto sync failed';
+      setSyncError(errorMessage);
+      
+      // Check if reauth is required
+      if (errorMessage.includes('reconnect') || errorMessage.includes('token') || errorMessage.includes('auth')) {
+        setRequiresReauth(true);
+        console.error('🔐 Gmail reauth required');
+      }
+      
     } finally {
       setIsAutoSyncing(false);
       localStorage.removeItem(syncLockKey);
@@ -488,15 +526,43 @@ const EnhancedEmailInterface = ({
         <div className="flex items-center gap-2">
           <GmailStatusButton />
           
-          {/* Automatic sync status indicator */}
-          {authStatus.isConnected && isAutoSyncing && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <RefreshCw className="w-3 h-3 animate-spin" />
-                <span className="text-xs">Auto-syncing emails...</span>
+          {/* PHASE 4 FIX: Enhanced sync status with error display */}
+          <div className="flex items-center gap-2">
+            {authStatus.isConnected && isAutoSyncing && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span className="text-xs">Auto-syncing emails...</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            
+            {/* Error display */}
+            {syncError && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="w-3 h-3" />
+                <span className="text-xs">{syncError.substring(0, 50)}</span>
+                {requiresReauth && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.reload()}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Reconnect Gmail
+                  </Button>
+                )}
+              </div>
+            )}
+            
+            {/* Success indicator */}
+            {lastSyncTime && !syncError && !isAutoSyncing && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <CheckCircle className="w-3 h-3 text-green-500" />
+                <span>Synced {Math.round((Date.now() - lastSyncTime.getTime()) / 60000)}m ago</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
