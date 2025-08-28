@@ -65,6 +65,7 @@ interface EmailListViewProps {
   searchTerm: string;
   onSearchChange: (search: string) => void;
   onEmailsUpdated?: () => void;
+  currentFolder?: string;
 }
 
 const EmailListView: React.FC<EmailListViewProps> = ({
@@ -77,7 +78,8 @@ const EmailListView: React.FC<EmailListViewProps> = ({
   isLoading,
   searchTerm,
   onSearchChange,
-  onEmailsUpdated
+  onEmailsUpdated,
+  currentFolder = 'inbox'
 }) => {
   const emailActions = useEmailActions();
 
@@ -157,18 +159,20 @@ const EmailListView: React.FC<EmailListViewProps> = ({
                 <Archive className="h-4 w-4 mr-2" />
                 Archive ({selectedEmails.length})
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                disabled={emailActions.isLoading}
-                onClick={async () => {
-                  await emailActions.bulkMarkAsRead(selectedEmails, true);
-                  onEmailsUpdated?.();
-                }}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Mark Read ({selectedEmails.length})
-              </Button>
+              {currentFolder !== 'sent' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={emailActions.isLoading}
+                  onClick={async () => {
+                    await emailActions.bulkMarkAsRead(selectedEmails, true);
+                    onEmailsUpdated?.();
+                  }}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Mark Read ({selectedEmails.length})
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 size="sm"

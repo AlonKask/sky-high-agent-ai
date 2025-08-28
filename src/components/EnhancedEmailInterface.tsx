@@ -536,6 +536,7 @@ const EnhancedEmailInterface = ({
                 searchTerm={listSearchTerm}
                 onSearchChange={setListSearchTerm}
                 onEmailsUpdated={() => setRefreshKey(prev => prev + 1)}
+                currentFolder={selectedFolder}
               />
             )}
           </ResizablePanel>

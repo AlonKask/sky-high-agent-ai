@@ -49,6 +49,7 @@ interface EmailExchange {
   attachments?: any;
   metadata?: any;
   updated_at?: string;
+  folder_name?: string;
 }
 
 interface ProcessedEmailContent {
@@ -249,7 +250,8 @@ const EnhancedEmailCard = ({
                     {email.email_type}
                   </Badge>
                   {processedContent && getImportanceBadge(processedContent.keyInformation.importance)}
-                  {!isRead && <Badge variant="default" className="text-xs">New</Badge>}
+                  {/* Hide "New" badge for sent emails since they're always read */}
+                  {!isRead && email.folder_name !== 'sent' && <Badge variant="default" className="text-xs">New</Badge>}
                   <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
                     <Calendar className="h-3 w-3" />
                     {formatDate(email.created_at)}
@@ -313,14 +315,17 @@ const EnhancedEmailCard = ({
               >
                 <Star className={cn("h-4 w-4", isStarred ? "fill-current" : "")} />
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => toggleEmailStatus('read')}
-                className="text-muted-foreground"
-              >
-                {isRead ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
+              {/* Hide read/unread toggle for sent emails */}
+              {email.folder_name !== 'sent' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => toggleEmailStatus('read')}
+                  className="text-muted-foreground"
+                >
+                  {isRead ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"

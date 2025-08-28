@@ -197,7 +197,7 @@ function extractTextContent(payload: any): { text: string; html: string; attachm
   return { text, html: html.substring(0, 50000), attachments }; // Limit HTML to 50k chars
 }
 
-// Phase 2: Fixed Gmail folder classification - ONLY use Gmail labels for sent classification
+// Phase 2: ENHANCED Gmail folder classification - ONLY use Gmail labels for sent classification
 function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader: string, folderHint?: string): { folder_name: string; direction: string } {
   const labels = labelIds || [];
   
@@ -208,13 +208,13 @@ function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader
     folderHint
   });
   
-  // Priority 1: ONLY Gmail SENT label determines sent emails (critical fix)
+  // CRITICAL FIX: ONLY Gmail SENT label determines sent emails
   if (labels.includes('SENT')) {
     debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified as SENT via Gmail label', { folder: 'sent', direction: 'outbound' });
     return { folder_name: 'sent', direction: 'outbound' };
   }
   
-  // Priority 2: Other Gmail-specific labels
+  // Gmail-specific folder labels (priority order)
   if (labels.includes('DRAFT') || labels.includes('DRAFTS')) {
     debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified as DRAFT via Gmail label', { folder: 'drafts', direction: 'outbound' });
     return { folder_name: 'drafts', direction: 'outbound' };
@@ -228,25 +228,16 @@ function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader
     return { folder_name: 'spam', direction: 'inbound' };
   }
   
-  // Priority 3: Folder hint from Gmail search query (but validate with labels)
-  if (folderHint === 'sent' && !labels.includes('SENT')) {
-    debugLog('EMAIL_CLASSIFICATION_WARNING', 'Folder hint says sent but no SENT label found - defaulting to inbox', {
-      folderHint,
-      labels
-    });
-    // Don't trust folder hint for sent emails without SENT label
-    return { folder_name: 'inbox', direction: 'inbound' };
-  }
-  
-  if (folderHint && folderHint !== 'inbox') {
+  // IGNORE folder hints for sent emails - they are unreliable
+  // Only process valid non-sent folder hints
+  if (folderHint && folderHint !== 'inbox' && folderHint !== 'sent') {
     const direction = (folderHint === 'drafts') ? 'outbound' : 'inbound';
-    debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified via folder hint', { folder: folderHint, direction });
+    debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified via validated folder hint', { folder: folderHint, direction });
     return { folder_name: folderHint, direction };
   }
   
-  // Priority 4: Default to inbox - REMOVED sender email matching logic
-  // All emails without SENT label are considered received emails
-  debugLog('EMAIL_CLASSIFICATION_RESULT', 'Defaulted to inbox classification', { folder: 'inbox', direction: 'inbound' });
+  // Default: All emails without SENT label are received emails (inbox)
+  debugLog('EMAIL_CLASSIFICATION_RESULT', 'Defaulted to inbox classification - no SENT label found', { folder: 'inbox', direction: 'inbound' });
   return { folder_name: 'inbox', direction: 'inbound' };
 }
 
@@ -616,7 +607,7 @@ async function syncGmailEmails(
           }
         }
 
-        // Create email record with HTML and text content
+        // Create email record with HTML and text content, mark sent emails as read
         const emailRecord = {
           user_id: userId,
           message_id: messageData.id,
@@ -631,6 +622,9 @@ async function syncGmailEmails(
           direction,
           folder_name: folderName,  // Now properly classified
           status: 'received',
+          // CRITICAL FIX: Mark sent emails as read automatically, preserve unread status for received emails
+          is_read: folderName === 'sent' ? true : !(messageData.labelIds || []).includes('UNREAD'),
+          is_starred: (messageData.labelIds || []).includes('STARRED'),
           client_id: clientId,
           created_at: date ? new Date(date).toISOString() : new Date().toISOString(),
           metadata: {
@@ -638,7 +632,8 @@ async function syncGmailEmails(
             has_attachments: textContent.attachments.length > 0,
             has_html_content: !!textContent.html,
             batch_id: `sync_${Date.now()}`,
-            source_query: message.sourceQuery || 'default'
+            source_query: message.sourceQuery || 'default',
+            classification_reason: folderName === 'sent' ? 'gmail_sent_label' : 'default_classification'
           },
           attachments: textContent.attachments.slice(0, 3)
         };

@@ -38,8 +38,18 @@ interface EmailExchange {
 export const useEmailActions = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mark email as read/unread
-  const toggleReadStatus = async (emailId: string, isRead: boolean) => {
+  // Mark email as read/unread (disabled for sent emails)
+  const toggleReadStatus = async (emailId: string, isRead: boolean, folderName?: string) => {
+    // CRITICAL FIX: Prevent read/unread operations on sent emails
+    if (folderName === 'sent') {
+      toast({
+        title: 'Not available for sent emails',
+        description: 'Sent emails are automatically marked as read',
+        variant: 'default',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { error } = await supabase
@@ -310,7 +320,17 @@ export const useEmailActions = () => {
     }
   };
 
-  const bulkMarkAsRead = async (emailIds: string[], isRead: boolean) => {
+  const bulkMarkAsRead = async (emailIds: string[], isRead: boolean, folderName?: string) => {
+    // CRITICAL FIX: Prevent bulk read/unread operations on sent emails
+    if (folderName === 'sent') {
+      toast({
+        title: 'Not available for sent folder',
+        description: 'Sent emails are automatically marked as read',
+        variant: 'default',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { error } = await supabase
