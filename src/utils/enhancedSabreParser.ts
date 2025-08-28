@@ -618,19 +618,28 @@ export class EnhancedSabreParser {
           }
           
           if (depAirport && arrAirport) {
-            // Enhanced flight calculations with real coordinates
-            const distance = this.calculateDistance(
-              { latitude: depAirport.latitude, longitude: depAirport.longitude },
-              { latitude: arrAirport.latitude, longitude: arrAirport.longitude }
-            );
-            
-            // Only estimate duration if not already present from Sabre data
-            if (!segment.duration) {
-              segment.duration = this.estimateFlightDuration(distance);
-              logger.debug(`Estimated duration for segment ${index + 1}: ${segment.duration}`);
-            } else {
-              logger.debug(`Preserved Sabre duration for segment ${index + 1}: ${segment.duration}`);
-            }
+          // Enhanced flight calculations with real coordinates
+          const distance = this.calculateDistance(
+            { latitude: depAirport.latitude, longitude: depAirport.longitude },
+            { latitude: arrAirport.latitude, longitude: arrAirport.longitude }
+          );
+          
+          // CRITICAL FIX: Strengthen duration preservation check
+          const hasSabreDuration = segment.duration && segment.duration.trim().length > 0;
+          console.log(`🔍 DB Enhancement - Segment ${index + 1} Duration Check:`, {
+            hasDuration: !!segment.duration,
+            durationValue: segment.duration,
+            durationLength: segment.duration?.length || 0,
+            hasSabreDuration,
+            fromSabre: hasSabreDuration ? "PRESERVED" : "WILL_ESTIMATE"
+          });
+          
+          if (!hasSabreDuration) {
+            segment.duration = this.estimateFlightDuration(distance);
+            console.log(`🔄 DB Enhancement - Estimated duration for segment ${index + 1}: ${segment.duration}`);
+          } else {
+            console.log(`✅ DB Enhancement - Preserved Sabre duration for segment ${index + 1}: "${segment.duration}"`);
+          }
             segment.aircraftType = this.estimateAircraftType(distance);
             
             // Add rich airport information
@@ -694,9 +703,19 @@ export class EnhancedSabreParser {
           });
           // Apply basic enhancement as fallback
           try {
-            // Only estimate duration if not already present from Sabre data
-            if (!segment.duration) {
+            // CRITICAL FIX: Use same strengthened duration check in fallback
+            const hasSabreDuration = segment.duration && segment.duration.trim().length > 0;
+            console.log(`🔍 DB Enhancement Fallback - Segment ${index + 1} Duration Check:`, {
+              hasSabreDuration,
+              durationValue: segment.duration,
+              willEstimate: !hasSabreDuration
+            });
+            
+            if (!hasSabreDuration) {
               segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+              console.log(`🔄 DB Enhancement Fallback - Estimated duration: ${segment.duration}`);
+            } else {
+              console.log(`✅ DB Enhancement Fallback - Preserved duration: "${segment.duration}"`);
             }
             segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
           } catch (fallbackError) {
