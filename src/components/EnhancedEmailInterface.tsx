@@ -472,7 +472,7 @@ const EnhancedEmailInterface = ({
         </div>
 
         {/* Resizable Email Panels */}
-        <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Analytics Tab */}
           {selectedFolder === 'analytics' ? (
             <div className="flex-1 p-6">
