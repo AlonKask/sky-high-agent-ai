@@ -546,6 +546,60 @@ export default function UnifiedEmailBuilder({
     debouncedSave(content);
   }, [debouncedSave]);
 
+  // Smart click handler for selective contentEditable
+  const handlePreviewClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    
+    // Check if clicked element is interactive (button, link, or has onclick)
+    if (target.tagName === 'A' || 
+        target.tagName === 'BUTTON' || 
+        target.closest('a') || 
+        target.closest('button') ||
+        target.onclick ||
+        target.getAttribute('role') === 'button') {
+      // Allow normal behavior for interactive elements
+      return;
+    }
+    
+    // Check if clicked on editable text content
+    const editableElement = target.closest('p, h1, h2, h3, h4, h5, h6, span, div[style*="text"], td');
+    
+    if (editableElement && !editableElement.closest('a, button')) {
+      // Enable editing on text elements only
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const element = editableElement as HTMLElement;
+      element.contentEditable = 'true';
+      element.focus();
+      
+      // Disable editing on blur and save changes
+      const handleBlur = () => {
+        element.contentEditable = 'false';
+        element.removeEventListener('blur', handleBlur);
+        
+        // Update the entire preview content
+        const previewDiv = element.closest('[data-preview-container]') as HTMLDivElement;
+        if (previewDiv) {
+          setPreviewContent(previewDiv.innerHTML);
+          debouncedSave(previewDiv.innerHTML);
+        }
+      };
+      
+      element.addEventListener('blur', handleBlur);
+      
+      // Handle escape key to exit edit mode
+      const handleKeydown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          element.blur();
+          element.removeEventListener('keydown', handleKeydown);
+        }
+      };
+      
+      element.addEventListener('keydown', handleKeydown);
+    }
+  }, [debouncedSave]);
+
   // Handle ESC key to close
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
@@ -670,18 +724,17 @@ export default function UnifiedEmailBuilder({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold">Email Preview</h3>
-                  <p className="text-sm text-muted-foreground">Click anywhere in the preview to edit the content directly</p>
+                  <p className="text-sm text-muted-foreground">Click on text to edit • Buttons and links are clickable</p>
                 </div>
               </div>
             </div>
             
             <div className="flex-1 overflow-auto bg-gray-50">
               <div
-                contentEditable
-                suppressContentEditableWarning
-                onInput={handleContentEdit}
+                data-preview-container
+                onClick={handlePreviewClick}
                 dangerouslySetInnerHTML={{ __html: previewContent }}
-                className="w-full h-full p-4 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-shadow"
+                className="w-full h-full p-4 cursor-text transition-shadow"
                 style={{ 
                   minHeight: '100%',
                   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
