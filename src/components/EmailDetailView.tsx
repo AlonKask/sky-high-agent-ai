@@ -248,8 +248,8 @@ interface EmailDetailViewProps {
       </div>
 
       {/* Email Content */}
-      <ScrollArea className="flex-1">
-        <div className="h-0 min-h-full p-4 space-y-6">
+      <ScrollArea className="h-full">
+        <div className="p-4 space-y-6">
           {/* Attachments */}
           {email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (
             <div className="border rounded-lg p-4 bg-muted/30">
