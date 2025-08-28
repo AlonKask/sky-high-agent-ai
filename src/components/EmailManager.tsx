@@ -293,18 +293,6 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
               </span>
             )}
           </div>
-          {authStatus.isConnected && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={triggerSync}
-              disabled={authStatus.isLoading}
-              className="gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${authStatus.isLoading ? 'animate-spin' : ''}`} />
-              {authStatus.isLoading ? 'Syncing...' : 'Manual Sync'}
-            </Button>
-          )}
         </div>
         {!authStatus.isConnected && (
           <div className="mb-4 p-3 border rounded-lg bg-muted/50">

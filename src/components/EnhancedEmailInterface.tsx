@@ -323,7 +323,7 @@ const EnhancedEmailInterface = ({
     setRefreshKey(prev => prev + 1);
   };
 
-  // Auto-sync helper function
+  // Auto-sync helper function with comprehensive parameters
   const performAutoSync = async () => {
     if (isAutoSyncing || !authStatus.isConnected || !user?.id) return;
     
@@ -339,16 +339,16 @@ const EnhancedEmailInterface = ({
     localStorage.setItem(syncLockKey, Date.now().toString());
     
     try {
-      console.log('🔄 Starting comprehensive Gmail sync...');
+      console.log('🔄 Starting automatic comprehensive Gmail sync...');
       console.log(`📊 Current emails in UI: ${emails.length}`);
       
-      // Call enhanced sync with comprehensive parameters
+      // FIXED: Call comprehensive sync with proper parameters for maximum coverage
       const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
         body: {
           userEmail: authStatus.userEmail,
           userId: user.id,
           syncType: 'comprehensive',
-          maxResults: 50000,
+          maxResults: 100000, // Massive increase for complete coverage
           includeHistorical: true,
           enableProgressTracking: true
         }
@@ -362,18 +362,15 @@ const EnhancedEmailInterface = ({
       setLastSyncTime(now);
       localStorage.setItem(`last_sync_${user.id}`, now.toISOString());
       
-      console.log(`✅ Comprehensive sync completed: ${data?.stored || 0} emails processed`);
+      console.log(`✅ Auto sync completed: ${data?.count || 0} new emails, ${data?.updated || 0} updated`);
+      console.log(`📊 Total found: ${data?.found || 0}, Total fetched: ${data?.totalFetched || 0}`);
       
       // Force refresh emails from database
       setRefreshKey(prev => prev + 1);
       
     } catch (error) {
-      console.error('❌ Comprehensive sync failed:', error);
-      toast({
-        title: "Sync Failed",
-        description: "Could not complete email sync. Please try again.",
-        variant: "destructive",
-      });
+      console.error('❌ Auto sync failed:', error);
+      // Don't show error toast for background sync failures - just log them
     } finally {
       setIsAutoSyncing(false);
       localStorage.removeItem(syncLockKey);
@@ -491,30 +488,13 @@ const EnhancedEmailInterface = ({
         <div className="flex items-center gap-2">
           <GmailStatusButton />
           
-          {/* Enhanced sync controls and status */}
-          {authStatus.isConnected && (
+          {/* Automatic sync status indicator */}
+          {authStatus.isConnected && isAutoSyncing && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={performAutoSync}
-                disabled={isAutoSyncing}
-                className="gap-2"
-              >
-                <RefreshCw className={`h-3 h-3 ${isAutoSyncing ? 'animate-spin' : ''}`} />
-                {isAutoSyncing ? 'Syncing...' : 'Full Sync'}
-              </Button>
-              {isAutoSyncing && (
-                <div className="flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                  <span className="text-xs">Processing emails...</span>
-                </div>
-              )}
-              {lastSyncTime && !isAutoSyncing && (
-                <span className="text-xs text-muted-foreground">
-                  Last: {lastSyncTime.toLocaleTimeString()}
-                </span>
-              )}
+              <div className="flex items-center gap-1">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                <span className="text-xs">Auto-syncing emails...</span>
+              </div>
             </div>
           )}
         </div>

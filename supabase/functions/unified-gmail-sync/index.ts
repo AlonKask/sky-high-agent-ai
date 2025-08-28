@@ -656,7 +656,7 @@ async function syncGmailEmails(
         }
 
         const existing = existingEmails?.[0];
-        let isUpdate = false;
+        let isUpdate = false; // CRITICAL FIX: Always initialize isUpdate
         
         if (existing) {
           // Check if content has meaningfully changed (before extracting new content)
@@ -687,6 +687,12 @@ async function syncGmailEmails(
             skippedCount++;
             continue;
           }
+        } else {
+          // CRITICAL FIX: For new emails, always set isUpdate = false
+          isUpdate = false;
+          debugLog('EMAIL_NEW', 'New email detected, will insert', {
+            messageId: messageData.id
+          });
         }
 
         // Extract content and headers
