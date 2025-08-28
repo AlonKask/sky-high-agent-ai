@@ -419,16 +419,16 @@ export class EnhancedSabreParser {
           if (formatType === 'structured-i' && elpd) {
             // Structured I-Format has ELPD in dedicated column
             const elapsedHours = parseFloat(elpd);
-            duration = SabreParser.convertElapsedTimeToHumanReadable(elapsedHours);
-            console.log(`🎯 Structured I-Format ELPD conversion: "${elpd}" → "${duration}"`);
+            duration = this.convertElapsedTimeToReadable(elapsedHours);
+            console.log(`🎯 FIXED: Structured I-Format ELPD conversion: "${elpd}" → "${duration}"`);
           } else if (formatType === 'simple') {
             // Check for ELPD pattern in simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 8.30"
             const elpdPattern = /(\d+\.\d+)/;
             const durationMatch = line.match(elpdPattern);
             if (durationMatch) {
               const elapsedHours = parseFloat(durationMatch[1]);
-              duration = SabreParser.convertElapsedTimeToHumanReadable(elapsedHours);
-              console.log(`✅ Simple I-Format ELPD extraction: "${durationMatch[1]}" → "${duration}"`);
+              duration = this.convertElapsedTimeToReadable(elapsedHours);
+              console.log(`✅ FIXED: Simple I-Format ELPD extraction: "${durationMatch[1]}" → "${duration}"`);
             } else {
               console.log(`⚠️ Simple I-Format: No ELPD found in line: "${line}"`);
             }
@@ -486,6 +486,7 @@ export class EnhancedSabreParser {
           flight: segment.flightNumber,
           route: `${segment.departureAirport}-${segment.arrivalAirport}`,
           time: `${segment.departureTime}-${segment.arrivalTime}`,
+          duration: segment.duration || 'NO DURATION',
           class: segment.cabinClass,
           aircraft: segment.aircraftType
         });
@@ -593,17 +594,21 @@ export class EnhancedSabreParser {
     return intervals;
   }
 
-  // Helper method to convert decimal hours to human-readable format
-  private static convertElapsedTimeToReadable(elapsedTimeHours: number): string {
-    const hours = Math.floor(elapsedTimeHours);
-    const minutes = Math.round((elapsedTimeHours - hours) * 60);
+  // Helper method to convert ELPD format (HH.MM) to human-readable format
+  private static convertElapsedTimeToReadable(elapsedTime: number): string {
+    // ELPD format is HH.MM where .MM represents actual minutes, not decimal hours
+    // Example: 8.30 = 8 hours 30 minutes, not 8.3 hours
+    const hours = Math.floor(elapsedTime);
+    const minutesPart = Math.round((elapsedTime - hours) * 100); // Extract minutes from .MM part
+    
+    console.log(`🔄 ELPD Conversion: ${elapsedTime} → Hours: ${hours}, Minutes: ${minutesPart}`);
     
     if (hours === 0) {
-      return `${minutes}m`;
-    } else if (minutes === 0) {
+      return `${minutesPart}m`;
+    } else if (minutesPart === 0) {
       return `${hours}h`;
     } else {
-      return `${hours}h ${minutes}m`;
+      return `${hours}h ${minutesPart}m`;
     }
   }
 
