@@ -291,7 +291,8 @@ export class EnhancedSabreParser {
     // Enhanced format validation - support structured I-Format, standard format, and simple format
     const hasStandardFormat = /^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line);
     const hasSimpleFormat = /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}/.test(line);
-    const hasStructuredIFormat = /^\s*\d+\s+[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}\s+[A-Z]{3}\s+[A-Z]{3}\s+\d+[AP]\s+\d+[AP][¥+]\d/.test(line);
+    // Fixed detection for actual structured I-Format: "LO   7 20SEP F JFKWAW  545P  815A¥1     8.30"
+    const hasStructuredIFormat = /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}\s+[A-Z]\s+[A-Z]{6}\s+\d+[AP]\s+\d+[AP]¥\d+\s+\d+\.\d+/.test(line);
     
     if (!hasStandardFormat && !hasSimpleFormat && !hasStructuredIFormat) {
       console.warn(`⚠️ Line doesn't match any expected flight format: "${line}"`);
@@ -300,8 +301,8 @@ export class EnhancedSabreParser {
 
     const segments: FlightSegment[] = [];
     
-    // PATTERN 1: Structured I-Format: " 1 LO    7 20SEP JFK WAW  545P  815A¥1 DB   789  8.30  4267  N"
-    const structuredIPattern = /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d+[AP])\s+(\d+[AP])[¥+](\d+)\s+([A-Z]+)\s+([A-Z0-9]+)\s+(\d+\.\d+)\s+(\d+)\s+([A-Z]).*$/;
+    // PATTERN 1: Fixed Structured I-Format: "LO   7 20SEP F JFKWAW  545P  815A¥1     8.30"
+    const structuredIPattern = /^([A-Z]{2})\s+(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\s+(\d+[AP])\s+(\d+[AP])¥(\d+)\s+(\d+\.\d+).*$/;
     
     // PATTERN 2: Standard format: "1 UA2033P 20AUG W EWRBOS*SS1   310P  428P /DCUA /E"
     const sabrePattern = /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*(?:\/([A-Z0-9]+))?\s*(?:\/([A-Z]+))?\s*.*$/;
@@ -329,15 +330,14 @@ export class EnhancedSabreParser {
       let segmentNumber, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime, arrivalDayOffset, aircraftInfo, cabinInfo, departureAirport, arrivalAirport, elpd;
       
       if (formatType === 'structured-i') {
-        // Structured I-Format: " 1 LO    7 20SEP JFK WAW  545P  815A¥1 DB   789  8.30  4267  N"
-        [, segmentNumber, airlineCode, flightNum, dateStr, departureAirport, arrivalAirport, depTime, arrTime, arrivalDayOffset, , aircraftInfo, elpd] = match;
-        segmentNumber = parseInt(segmentNumber);
+        // Fixed Structured I-Format: "LO   7 20SEP F JFKWAW  545P  815A¥1     8.30"
+        [, airlineCode, flightNum, dateStr, bookingClass, departureAirport, arrivalAirport, depTime, arrTime, arrivalDayOffset, elpd] = match;
+        segmentNumber = 1; // Default segment number for structured I-Format
         route = departureAirport + arrivalAirport;
         dayOfWeek = ''; // Not provided in structured I-Format
         statusCode = 'OK'; // Default status
-        bookingClass = 'Y'; // Default booking class, will be enhanced from database
         arrivalDayOffset = parseInt(arrivalDayOffset);
-        console.log(`🎯 Structured I-Format ELPD extracted: ${elpd} for flight ${airlineCode}${flightNum}`);
+        console.log(`🎯 FIXED: Structured I-Format ELPD extracted: "${elpd}" for flight ${airlineCode}${flightNum}`);
       } else if (formatType === 'simple') {
         // Simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 BOEING 789 BUSINESS"
         [, airlineCode, flightNum, dateStr, bookingClass, route, depTime, arrTime, arrivalDayOffset, aircraftInfo, , cabinInfo] = match;
