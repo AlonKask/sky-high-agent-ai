@@ -84,9 +84,11 @@ class ConfigSecurityManager {
     
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'development';
-    } else if (hostname.includes('lovable.app') || hostname.includes('preview') || hostname.includes('staging')) {
-      return 'development'; // Treat preview domains as development
+    } else if (hostname.includes('staging')) {
+      return 'staging';
     } else {
+      // Treat all deployed domains (including lovable.app) as production 
+      // since Supabase instance requires CAPTCHA
       return 'production';
     }
   }
@@ -129,11 +131,12 @@ class ConfigSecurityManager {
   private async getTurnstileSiteKey(): Promise<string> {
     const environment = this.detectEnvironment();
     
-    if (environment === 'production') {
-      return "0x4AAAAAABr-hIuawnDu2ms3";
+    // Use the production site key that matches your Supabase configuration
+    if (environment === 'production' || environment === 'staging') {
+      return "0x4AAAAAAAkC4jP8mjdogjWI";
     }
     
-    // Use test key for development and staging (includes preview domains)
+    // Use test key only for localhost development
     return "1x00000000000000000000AA";
   }
 

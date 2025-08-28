@@ -38,18 +38,18 @@ export default function AuthOptimized() {
       try {
         const config = await configSecurity.initializeSecureConfig();
         setTurnstileSiteKey(config.turnstileSiteKey);
-        setCaptchaEnabled(config.environment === 'production'); // Only enable for actual production
+        setCaptchaEnabled(true); // Always enable CAPTCHA since Supabase requires it
         console.log('🔧 Auth config initialized:', {
           environment: config.environment,
-          captchaEnabled: config.environment === 'production',
+          captchaEnabled: true,
           hasSiteKey: !!config.turnstileSiteKey,
           hostname: window.location.hostname
         });
       } catch (error) {
-        console.warn('⚠️ Configuration initialization failed, using development mode:', error);
-        // Development fallback - disable CAPTCHA
-        setTurnstileSiteKey('1x00000000000000000000AA');
-        setCaptchaEnabled(false);
+        console.warn('⚠️ Configuration initialization failed, using production CAPTCHA:', error);
+        // Fallback - use production CAPTCHA key since Supabase requires it
+        setTurnstileSiteKey('0x4AAAAAAAkC4jP8mjdogjWI');
+        setCaptchaEnabled(true);
       }
     };
     
@@ -62,20 +62,23 @@ export default function AuthOptimized() {
     setError('');
     
     try {
-      // Only require CAPTCHA if enabled and token is available
-      const shouldUseCaptcha = captchaEnabled && captchaToken;
+      // CAPTCHA is required - check if we have a valid token
+      if (captchaEnabled && !captchaToken) {
+        setError('Please complete the security verification to continue.');
+        return;
+      }
       
       console.log('🔐 Sign in attempt:', {
         email: signInData.email,
         captchaEnabled,
         hasCaptchaToken: !!captchaToken,
-        willUseCaptcha: shouldUseCaptcha
+        captchaRequired: captchaEnabled
       });
       
       const result = await SimpleAuth.signInWithEmail(
         signInData.email, 
         signInData.password, 
-        shouldUseCaptcha ? captchaToken : undefined
+        captchaToken || undefined
       );
       
       if (result.success) {
@@ -85,14 +88,15 @@ export default function AuthOptimized() {
       } else {
         console.error('❌ Sign in failed:', result.error);
         
-        // Enhanced error handling
+        // Enhanced error handling for CAPTCHA-related issues
         let errorMessage = result.error || 'Sign in failed';
         
-        // Don't show CAPTCHA errors if CAPTCHA is disabled
-        if (errorMessage.includes('captcha') || errorMessage.includes('Security verification')) {
-          if (!captchaEnabled) {
-            errorMessage = 'Invalid email or password. Please check your credentials.';
-          }
+        if (errorMessage.includes('no captcha response') || errorMessage.includes('captcha')) {
+          errorMessage = 'Security verification failed. Please complete the CAPTCHA and try again.';
+          setCaptchaToken(null); // Reset CAPTCHA to force new verification
+        } else if (errorMessage.includes('timeout-or-duplicate')) {
+          errorMessage = 'Security verification expired. Please complete the CAPTCHA again.';
+          setCaptchaToken(null); // Reset CAPTCHA to force new verification
         }
         
         setError(errorMessage);
@@ -192,20 +196,34 @@ export default function AuthOptimized() {
 
             {captchaEnabled && turnstileSiteKey && (
               <div className="space-y-2">
-                <Label>Security Verification</Label>
+                <Label>Security Verification <span className="text-destructive">*</span></Label>
                 <TurnstileWrapper
                   siteKey={turnstileSiteKey}
-                  onVerify={setCaptchaToken}
+                  onVerify={(token) => {
+                    console.log('✅ CAPTCHA verified successfully');
+                    setCaptchaToken(token);
+                    if (error.includes('Security verification')) {
+                      setError(''); // Clear CAPTCHA-related errors
+                    }
+                  }}
                   onError={(error) => {
-                    console.error('CAPTCHA error:', error);
-                    setError('Security verification failed. Please refresh and try again.');
+                    console.error('❌ CAPTCHA error:', error);
+                    setError('Security verification failed. Please try again.');
                     setCaptchaToken(null);
                   }}
                   onExpire={() => {
-                    console.log('CAPTCHA expired, resetting token');
+                    console.log('⏰ CAPTCHA expired, resetting token');
                     setCaptchaToken(null);
+                    if (!error) {
+                      setError('Security verification expired. Please complete it again.');
+                    }
                   }}
                 />
+                {captchaEnabled && !captchaToken && (
+                  <p className="text-sm text-muted-foreground">
+                    Please complete the security verification above to sign in.
+                  </p>
+                )}
               </div>
             )}
             
