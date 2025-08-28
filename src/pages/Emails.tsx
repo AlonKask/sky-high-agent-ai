@@ -3,7 +3,7 @@ import EnhancedEmailInterface from '@/components/EnhancedEmailInterface';
 
 const Emails = () => {
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="p-4 border-b">
         <h1 className="text-2xl font-bold">Emails</h1>
       </div>
