@@ -60,7 +60,7 @@ export class EmailSyncManager {
           userEmail: user?.email,
           userId: user?.id,
           syncType: options.includeAIProcessing ? 'full' : 'incremental',
-          maxResults: 1000, // Increased for comprehensive coverage
+          maxResults: 5000, // Comprehensive sync with no artificial limits
           includeAIProcessing: options.includeAIProcessing || false
         }
       });

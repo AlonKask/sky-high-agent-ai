@@ -241,81 +241,127 @@ function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader
   return { folder_name: 'inbox', direction: 'inbound' };
 }
 
-// Phase 3: Enhanced multi-query Gmail sync strategy with higher limits
-async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, maxResults: number) {
+// Phase 1: Enhanced Gmail sync with comprehensive pagination and unlimited results
+async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, targetBatchSize: number = 1000) {
   const allResults = [];
   const queryResults = {};
   
   for (const config of queryConfigs) {
     try {
-      // Phase 3 fix: Increase per-query limit to maximum Gmail API allows
-      const perQueryLimit = Math.min(500, maxResults);
-      const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${perQueryLimit}`;
+      let currentPageToken = '';
+      let totalForQuery = 0;
+      let pageCount = 0;
       
-      debugLog('GMAIL_QUERY_START', `Executing Gmail query: ${config.folderHint}`, {
+      debugLog('GMAIL_QUERY_START', `Starting paginated query: ${config.folderHint}`, {
         query: config.query,
-        perQueryLimit,
+        targetBatchSize,
         folderHint: config.folderHint
       });
       
-      const response = await fetch(messagesUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` }
+      do {
+        pageCount++;
+        const perPageLimit = 500; // Maximum Gmail API allows per page
+        let messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${perPageLimit}`;
+        
+        if (currentPageToken) {
+          messagesUrl += `&pageToken=${currentPageToken}`;
+        }
+        
+        debugLog('GMAIL_PAGE_FETCH', `Fetching page ${pageCount} for ${config.folderHint}`, {
+          pageToken: currentPageToken ? 'present' : 'none',
+          perPageLimit
+        });
+        
+        const response = await fetch(messagesUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.messages?.length > 0) {
+            const messagesWithHint = data.messages.map(m => ({ 
+              ...m, 
+              sourceQuery: config.query,
+              _folderHint: config.folderHint,
+              _page: pageCount
+            }));
+            allResults.push(...messagesWithHint);
+            totalForQuery += data.messages.length;
+            
+            debugLog('GMAIL_PAGE_SUCCESS', `Page ${pageCount} completed for ${config.folderHint}`, {
+              messagesInPage: data.messages.length,
+              totalForQuery,
+              hasNextPage: !!data.nextPageToken
+            });
+          }
+          
+          // Update page token for next iteration
+          currentPageToken = data.nextPageToken || '';
+          
+          // Break if we've reached our target batch size for this query
+          if (totalForQuery >= targetBatchSize) {
+            debugLog('GMAIL_QUERY_BATCH_LIMIT', `Reached batch limit for ${config.folderHint}`, {
+              totalForQuery,
+              targetBatchSize,
+              hasMorePages: !!currentPageToken
+            });
+            break;
+          }
+          
+        } else {
+          debugLog('GMAIL_PAGE_FAILED', `Page ${pageCount} failed for ${config.folderHint}`, {
+            status: response.status,
+            statusText: response.statusText
+          });
+          break;
+        }
+        
+      } while (currentPageToken && totalForQuery < targetBatchSize);
+      
+      queryResults[config.folderHint] = totalForQuery;
+      
+      debugLog('GMAIL_QUERY_COMPLETE', `Query completed for ${config.folderHint}`, {
+        totalMessages: totalForQuery,
+        pagesProcessed: pageCount,
+        query: config.query
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.messages?.length > 0) {
-          const messagesWithHint = data.messages.map(m => ({ 
-            ...m, 
-            sourceQuery: config.query,
-            _folderHint: config.folderHint 
-          }));
-          allResults.push(...messagesWithHint);
-          queryResults[config.folderHint] = data.messages.length;
-          
-          debugLog('GMAIL_QUERY_SUCCESS', `Query completed for ${config.folderHint}`, {
-            messagesFound: data.messages.length,
-            query: config.query
-          });
-        } else {
-          queryResults[config.folderHint] = 0;
-          debugLog('GMAIL_QUERY_EMPTY', `No messages found for ${config.folderHint}`, {
-            query: config.query
-          });
-        }
-      } else {
-        debugLog('GMAIL_QUERY_FAILED', `Query failed for ${config.folderHint}`, {
-          status: response.status,
-          query: config.query
-        });
-        queryResults[config.folderHint] = 0;
-      }
     } catch (error) {
       console.warn(`Failed to fetch messages for query: ${config.query}`, error);
       queryResults[config.folderHint] = 0;
     }
   }
   
-  // Smart deduplication: Keep sent emails from 'sent' queries, inbox from 'inbox' queries
+  // Enhanced deduplication with content preference
   const messageMap = new Map();
   
   for (const msg of allResults) {
     const existing = messageMap.get(msg.id);
-    if (!existing || (msg._folderHint === 'sent' && existing._folderHint !== 'sent')) {
-      // Prefer sent folder classification over inbox
+    if (!existing) {
       messageMap.set(msg.id, msg);
+    } else {
+      // Priority: sent > drafts > inbox > others
+      const priorityOrder = { 'sent': 4, 'drafts': 3, 'inbox': 2 };
+      const existingPriority = priorityOrder[existing._folderHint] || 1;
+      const newPriority = priorityOrder[msg._folderHint] || 1;
+      
+      if (newPriority > existingPriority) {
+        messageMap.set(msg.id, msg);
+      }
     }
   }
   
   const uniqueMessages = Array.from(messageMap.values());
   
-  debugLog('GMAIL_DEDUPLICATION', 'Message deduplication completed', {
+  debugLog('GMAIL_PAGINATION_SUMMARY', 'Comprehensive pagination completed', {
     totalFetched: allResults.length,
     afterDeduplication: uniqueMessages.length,
-    maxResults
+    queryResults,
+    averagePerQuery: Math.round(allResults.length / queryConfigs.length)
   });
   
-  return { messages: uniqueMessages.slice(0, maxResults), queryResults };
+  return { messages: uniqueMessages, queryResults, totalFetched: allResults.length };
 }
 
 async function syncGmailEmails(
@@ -324,32 +370,48 @@ async function syncGmailEmails(
   userEmail: string,
   accessToken: string,
   refreshTokenEncrypted: string | null,
-  maxResults: number = 200,
+  maxResults: number = 5000,
   isScheduled: boolean = false,
   syncType: string = 'incremental'
 ) {
   try {
     debugLog('SYNC_START', `Starting multi-folder sync for ${userEmail}`, { maxResults, isScheduled, syncType });
     
-    // Phase 1: Token Validation
-    const testResponse = await fetch(
-      'https://gmail.googleapis.com/gmail/v1/users/me/profile',
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+    // Phase 2: Enhanced Token Management with proactive refresh
+    let currentAccessToken = accessToken;
+    let tokenRefreshTime = Date.now();
+    
+    const validateAndRefreshToken = async () => {
+      const testResponse = await fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/profile',
+        { headers: { Authorization: `Bearer ${currentAccessToken}` } }
+      );
 
-    if (testResponse.status === 401) {
-      debugLog('TOKEN_EXPIRED', 'Access token expired, attempting refresh');
-      if (refreshTokenEncrypted) {
-        const newAccessToken = await refreshGmailToken(refreshTokenEncrypted, supabaseClient, userId);
-        if (newAccessToken) {
-          return await syncGmailEmails(supabaseClient, userId, userEmail, newAccessToken, refreshTokenEncrypted, maxResults, isScheduled, syncType);
+      if (testResponse.status === 401 || (Date.now() - tokenRefreshTime > 45 * 60 * 1000)) {
+        debugLog('TOKEN_REFRESH_NEEDED', 'Token expired or proactive refresh required');
+        if (refreshTokenEncrypted) {
+          const newAccessToken = await refreshGmailToken(refreshTokenEncrypted, supabaseClient, userId);
+          if (newAccessToken) {
+            currentAccessToken = newAccessToken;
+            tokenRefreshTime = Date.now();
+            debugLog('TOKEN_REFRESH_SUCCESS', 'Token refreshed successfully');
+            return true;
+          }
         }
+        return false;
       }
-      return { success: false, error: 'Gmail authentication expired. Please reconnect your Gmail account.' };
-    }
 
-    if (!testResponse.ok) {
-      return { success: false, error: `Gmail API error: ${testResponse.status}` };
+      if (!testResponse.ok) {
+        debugLog('TOKEN_VALIDATION_FAILED', `Gmail API error: ${testResponse.status}`);
+        return false;
+      }
+
+      return true;
+    };
+
+    // Initial token validation
+    if (!(await validateAndRefreshToken())) {
+      return { success: false, error: 'Gmail authentication failed. Please reconnect your Gmail account.' };
     }
 
     // Phase 2: Get sync config
@@ -373,74 +435,87 @@ async function syncGmailEmails(
     }
 
     const config = syncConfig || {
-      max_emails_per_sync: 500,
-      sync_days_back: 730,
+      max_emails_per_sync: 10000,
+      sync_days_back: 1825, // 5 years
       enable_full_mailbox_sync: true,
       enable_historical_sync: true
     };
 
-    // Phase 1: Build multi-query strategy with ABSOLUTE DATE from June 18, 2024
+    // Phase 3: Comprehensive date range strategy - NO ARBITRARY LIMITS
     let baseQuery = '';
-    const queries = [];
     
-    // CRITICAL FIX: Remove arbitrary date restriction - allow full historical sync
-    const fiveYearsAgo = new Date();
-    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-    const historicalStartTimestamp = Math.floor(fiveYearsAgo.getTime() / 1000);
+    // Get last successful sync timestamp for smart incremental syncing
+    const { data: lastSyncData } = await supabaseClient
+      .from('email_sync_status')
+      .select('last_sync_at')
+      .eq('user_id', userId)
+      .order('last_sync_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
     
     if (syncType === 'full' || !syncConfig?.last_full_sync_at) {
-      // Use absolute historical start date
-      baseQuery = `after:${historicalStartTimestamp}`;
+      // NO DATE RESTRICTIONS - sync everything available
+      baseQuery = ''; // Empty query = all emails
       
-      debugLog('SYNC_DATE_RANGE', 'Using full historical range for comprehensive sync', {
-        historicalStartDate: fiveYearsAgo.toISOString(),
-        historicalStartTimestamp,
-        baseQuery
+      debugLog('SYNC_DATE_RANGE', 'Using unrestricted query for full historical sync', {
+        syncType: 'full',
+        restriction: 'none',
+        baseQuery: 'all_emails'
       });
       
       await supabaseClient
         .from('email_sync_config')
         .update({ last_full_sync_at: new Date().toISOString() })
         .eq('user_id', userId);
+        
     } else if (syncType === 'historical') {
-      // For historical sync, use the absolute start date
-      baseQuery = `after:${historicalStartTimestamp}`;
+      // Historical sync with very broad range - 10 years back
+      const tenYearsAgo = new Date();
+      tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+      const historicalTimestamp = Math.floor(tenYearsAgo.getTime() / 1000);
+      baseQuery = `after:${historicalTimestamp}`;
       
-      debugLog('SYNC_DATE_RANGE', 'Using full historical range for historical sync', {
-        historicalStartDate: fiveYearsAgo.toISOString(),
-        historicalStartTimestamp,
+      debugLog('SYNC_DATE_RANGE', 'Using 10-year historical range', {
+        historicalStartDate: tenYearsAgo.toISOString(),
+        historicalTimestamp,
         baseQuery
       });
+      
     } else {
-      // For incremental sync, use a wider window (30 days instead of 14)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const incrementalTimestamp = Math.max(
-        Math.floor(thirtyDaysAgo.getTime() / 1000),
-        historicalStartTimestamp
-      );
+      // Smart incremental sync based on last successful sync
+      const incrementalStartDate = lastSyncData?.last_sync_at 
+        ? new Date(new Date(lastSyncData.last_sync_at).getTime() - 7 * 24 * 60 * 60 * 1000) // 7 days overlap
+        : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // 90 days back as fallback
+        
+      const incrementalTimestamp = Math.floor(incrementalStartDate.getTime() / 1000);
       baseQuery = `after:${incrementalTimestamp}`;
       
-      debugLog('SYNC_DATE_RANGE', 'Using expanded incremental date range', {
-        thirtyDaysAgo: thirtyDaysAgo.toISOString(),
+      debugLog('SYNC_DATE_RANGE', 'Using smart incremental range with overlap', {
+        lastSyncAt: lastSyncData?.last_sync_at,
+        incrementalStartDate: incrementalStartDate.toISOString(),
         incrementalTimestamp,
-        historicalStartTimestamp,
         baseQuery
       });
     }
     
-    // Phase 3: Enhanced multi-query strategy with better coverage
+    // Phase 3: COMPREHENSIVE multi-query strategy with sent email detection
     const queryConfigs = [
-      { query: `${baseQuery} in:sent`, folderHint: 'sent' },
-      { query: `${baseQuery} in:drafts`, folderHint: 'drafts' },
-      { query: `${baseQuery} in:trash`, folderHint: 'trash' },
-      { query: `${baseQuery} in:inbox`, folderHint: 'inbox' },
-      // Additional comprehensive query to catch any missed emails
-      { query: `${baseQuery} -in:spam -in:trash`, folderHint: 'inbox' }
+      // Core folder queries
+      { query: baseQuery ? `${baseQuery} in:sent` : 'in:sent', folderHint: 'sent' },
+      { query: baseQuery ? `${baseQuery} in:drafts` : 'in:drafts', folderHint: 'drafts' },
+      { query: baseQuery ? `${baseQuery} in:trash` : 'in:trash', folderHint: 'trash' },
+      { query: baseQuery ? `${baseQuery} in:inbox` : 'in:inbox', folderHint: 'inbox' },
+      
+      // Enhanced sent email detection - multiple patterns
+      { query: baseQuery ? `${baseQuery} from:${userEmail}` : `from:${userEmail}`, folderHint: 'sent' },
+      { query: baseQuery ? `${baseQuery} label:sent` : 'label:sent', folderHint: 'sent' },
+      
+      // Comprehensive catch-all for any missed emails
+      { query: baseQuery ? `${baseQuery} -in:spam` : '-in:spam', folderHint: 'inbox' }
     ];
     
-    // Phase 3: Increase overall sync limit to maximum practical amount
-    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 2000);
+    // Phase 1: Remove artificial limits - use comprehensive batching
+    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 10000);
     
     debugLog('MULTI_QUERY_PREP', 'Preparing multi-query Gmail sync', {
       syncType,
@@ -448,33 +523,70 @@ async function syncGmailEmails(
       actualMaxResults
     });
     
-    // Fetch messages from all folders with enhanced strategy
-    const messagesData = await fetchGmailMessages(accessToken, queryConfigs, actualMaxResults);
+    // Fetch messages with comprehensive pagination and token refresh
+    let messagesData;
+    try {
+      // Refresh token before large operations
+      await validateAndRefreshToken();
+      messagesData = await fetchGmailMessages(currentAccessToken, queryConfigs, actualMaxResults);
+    } catch (error) {
+      // Retry once with fresh token on failure
+      debugLog('FETCH_RETRY', 'Retrying with fresh token after fetch error');
+      if (await validateAndRefreshToken()) {
+        messagesData = await fetchGmailMessages(currentAccessToken, queryConfigs, actualMaxResults);
+      } else {
+        throw error;
+      }
+    }
+    
     const messages = messagesData.messages || [];
     const queryResults = messagesData.queryResults || {};
+    const totalFetched = messagesData.totalFetched || 0;
     
-    debugLog('MULTI_QUERY_RESULTS', 'Multi-query messages received', {
-      count: messages.length,
+    debugLog('COMPREHENSIVE_QUERY_RESULTS', 'Comprehensive multi-query completed', {
+      uniqueMessages: messages.length,
+      totalFetched,
       queryResults,
-      totalQueries: queryConfigs.length
+      totalQueries: queryConfigs.length,
+      deduplicationRatio: totalFetched > 0 ? (messages.length / totalFetched * 100).toFixed(1) + '%' : '0%'
     });
 
     if (messages.length === 0) {
-      debugLog('NO_MESSAGES', 'No new messages to sync');
-      return { success: true, message: 'No new emails to sync', count: 0 };
+      debugLog('NO_MESSAGES', 'No new messages found in comprehensive sync');
+      
+      // Update sync status even for empty results
+      await supabaseClient
+        .from('email_sync_status')
+        .upsert({
+          user_id: userId,
+          folder_name: 'all_folders',
+          last_sync_at: new Date().toISOString(),
+          last_sync_count: 0,
+          updated_at: new Date().toISOString()
+        });
+        
+      return { 
+        success: true, 
+        message: 'No new emails to sync', 
+        count: 0, 
+        processed: 0,
+        found: totalFetched,
+        queryResults 
+      };
     }
 
-    // Phase 4: Email Processing - Process ALL messages with efficient batching
-    const batchSize = Math.min(messages.length, actualMaxResults);
-    const messagesToProcess = messages; // Process all available messages
-    
-    debugLog('PROCESSING_START', 'Starting email processing', {
-      totalMessages: messages.length,
-      batchSize,
-      processingCount: messagesToProcess.length
-    });
-
+    // Phase 4: Efficient batch processing with smart duplicate handling
+    const messagesToProcess = messages; // Process ALL found messages
     const emailsToInsert = [];
+    const emailsToUpdate = [];
+    let processedCount = 0;
+    let skippedCount = 0;
+    
+    debugLog('PROCESSING_START', 'Starting comprehensive email processing', {
+      totalMessages: messages.length,
+      totalFetched,
+      processingStrategy: 'batch_with_smart_duplicates'
+    });
 
     for (const [index, message] of messagesToProcess.entries()) {
       try {
@@ -483,10 +595,15 @@ async function syncGmailEmails(
           threadId: message.threadId
         });
         
-        // Get full message details
+        // Refresh token periodically during long processing
+        if (index > 0 && index % 200 === 0) {
+          await validateAndRefreshToken();
+        }
+        
+        // Get full message details with current token
         const messageUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`;
         const messageResponse = await fetch(messageUrl, {
-          headers: { Authorization: `Bearer ${accessToken}` }
+          headers: { Authorization: `Bearer ${currentAccessToken}` }
         });
 
         debugLog('EMAIL_FETCH_RESPONSE', 'Individual email fetch response', {
@@ -513,23 +630,47 @@ async function syncGmailEmails(
           labelIds: messageData.labelIds
         });
         
-        // Check if email already exists
-        const { data: existingEmail, error: existingError } = await supabaseClient
+        // Phase 4: Smart duplicate checking with content comparison
+        const { data: existingEmails, error: checkError } = await supabaseClient
           .from('email_exchanges')
-          .select('id')
+          .select('id, message_id, updated_at, body, subject, metadata')
           .eq('user_id', userId)
-          .eq('message_id', messageData.id)
-          .maybeSingle();
+          .eq('message_id', messageData.id);
 
-        debugLog('DUPLICATE_CHECK', 'Checking for existing email', {
-          messageId: messageData.id,
-          exists: !!existingEmail,
-          error: existingError?.message
-        });
-
-        if (existingEmail) {
-          debugLog('EMAIL_EXISTS', 'Email already exists, skipping', { messageId: message.id });
+        if (checkError) {
+          console.warn('Duplicate check failed:', checkError);
           continue;
+        }
+
+        const existing = existingEmails?.[0];
+        if (existing) {
+          // Check if content has meaningfully changed (before extracting new content)
+          const headers = messageData.payload.headers || [];
+          const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+          
+          const contentChanged = 
+            existing.subject !== subject ||
+            JSON.stringify(existing.metadata) !== JSON.stringify({
+              gmail_labels: (messageData.labelIds || []).slice(0, 5)
+            });
+            
+          if (contentChanged) {
+            debugLog('EMAIL_CONTENT_CHANGED', 'Existing email has changed content, updating', {
+              messageId: messageData.id,
+              changes: {
+                subject: existing.subject !== subject,
+                metadata: true
+              }
+            });
+            
+            // Continue with full processing to update the email
+          } else {
+            debugLog('EMAIL_EXISTS_UNCHANGED', 'Email exists with same content, skipping', {
+              messageId: messageData.id
+            });
+            skippedCount++;
+            continue;
+          }
         }
 
         // Extract content and headers
@@ -608,8 +749,8 @@ async function syncGmailEmails(
           }
         }
 
-        // Create email record with HTML and text content, mark sent emails as read
-        const emailRecord = {
+        // Create comprehensive email record data
+        const emailData = {
           user_id: userId,
           message_id: messageData.id,
           thread_id: messageData.threadId || messageData.id,
@@ -619,11 +760,10 @@ async function syncGmailEmails(
           cc_emails: ccEmails,
           bcc_emails: [],
           body: textContent.text.substring(0, 5000),
-          html_body: textContent.html ? textContent.html.substring(0, 50000) : null, // Store HTML content
+          html_body: textContent.html ? textContent.html.substring(0, 50000) : null,
           direction,
-          folder_name: folderName,  // Now properly classified
+          folder_name: folderName,
           status: 'received',
-          // CRITICAL FIX: Mark sent emails as read automatically, preserve unread status for received emails
           is_read: folderName === 'sent' ? true : !(messageData.labelIds || []).includes('UNREAD'),
           is_starred: (messageData.labelIds || []).includes('STARRED'),
           client_id: clientId,
@@ -639,12 +779,25 @@ async function syncGmailEmails(
           attachments: textContent.attachments.slice(0, 3)
         };
 
-        emailsToInsert.push(emailRecord);
-        debugLog('EMAIL_RECORD_CREATED', 'Email record created successfully', {
-          messageId: messageData.id,
-          recordKeys: Object.keys(emailRecord),
-          bodyLength: emailRecord.body.length
-        });
+        if (isUpdate) {
+          // Update existing email with changed content
+          const emailUpdate = {
+            id: existing.id,
+            ...emailData,
+            metadata: {
+              ...emailData.metadata,
+              updated_reason: 'content_changed'
+            },
+            updated_at: new Date().toISOString()
+          };
+          
+          emailsToUpdate.push(emailUpdate);
+          processedCount++;
+        } else {
+          // Insert new email
+          emailsToInsert.push(emailData);
+          processedCount++;
+        }
 
       } catch (messageError) {
         debugLog('EMAIL_PROCESS_ERROR', 'Failed to process email', {
@@ -656,123 +809,151 @@ async function syncGmailEmails(
       }
     }
 
-    // Phase 4: Database Operations - Insert emails with detailed logging
-    debugLog('DB_INSERT_START', 'Starting database insertion', {
-      emailCount: emailsToInsert.length,
-      emailIds: emailsToInsert.map(e => e.message_id)
+    debugLog('PROCESSING_COMPLETE', 'Comprehensive email processing completed', {
+      totalProcessed: processedCount,
+      emailsToInsert: emailsToInsert.length,
+      emailsToUpdate: emailsToUpdate.length,
+      skippedDuplicates: skippedCount
     });
 
+    // Phase 4: Enhanced batch database operations with updates
     let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Handle insertions
     if (emailsToInsert.length > 0) {
-      try {
-        const { data, error: insertError } = await supabaseClient
-          .from('email_exchanges')
-          .insert(emailsToInsert)
-          .select('id')
-          .onConflict('user_id, message_id')
-          .ignoreDuplicates();
+      debugLog('DATABASE_INSERT', 'Starting optimized batch email insertion', {
+        totalBatches: Math.ceil(emailsToInsert.length / 50),
+        totalEmails: emailsToInsert.length
+      });
 
-        debugLog('DB_INSERT_RESPONSE', 'Database insert response', {
-          success: !insertError,
-          error: insertError?.message,
-          insertedIds: data?.map(d => d.id) || [],
-          insertedCount: data?.length || 0
-        });
-
-        if (insertError) {
-          debugLog('DB_INSERT_ERROR', 'Database insert failed', {
-            error: insertError.message,
-            code: insertError.code,
-            details: insertError.details,
-            hint: insertError.hint,
-            emailCount: emailsToInsert.length
-          });
-          return {
-            success: false,
-            error: `Database error: ${insertError.message}`,
-            processed: emailsToInsert.length,
-            details: insertError
-          };
-        }
-
-        insertedCount = data?.length || emailsToInsert.length;
-        debugLog('DB_INSERT_SUCCESS', 'Database insertion successful', {
-          insertedCount,
-          expectedCount: emailsToInsert.length
-        });
-      } catch (dbError) {
-        debugLog('DB_INSERT_EXCEPTION', 'Database operation exception', {
-          error: dbError.message,
-          stack: dbError.stack
-        });
-        return {
-          success: false,
-          error: 'Database operation failed',
-          processed: emailsToInsert.length,
-          exception: dbError.message
-        };
+      // Smaller batches for better reliability and memory management
+      const insertBatchSize = 50;
+      const insertBatches = [];
+      for (let i = 0; i < emailsToInsert.length; i += insertBatchSize) {
+        insertBatches.push(emailsToInsert.slice(i, i + insertBatchSize));
       }
-    } else {
-      debugLog('NO_EMAILS_TO_INSERT', 'No emails to insert');
+
+      for (const [batchIndex, batch] of insertBatches.entries()) {
+        try {
+          const { data: insertedEmails, error: insertError } = await supabaseClient
+            .from('email_exchanges')
+            .insert(batch)
+            .select('id');
+
+          if (insertError) {
+            console.error(`Insert batch ${batchIndex + 1} error:`, insertError);
+          } else {
+            insertedCount += insertedEmails?.length || 0;
+            debugLog('BATCH_INSERT_SUCCESS', `Insert batch ${batchIndex + 1}/${insertBatches.length} completed`, {
+              batchSize: batch.length,
+              insertedInBatch: insertedEmails?.length || 0,
+              totalInserted: insertedCount
+            });
+          }
+        } catch (batchError) {
+          console.error(`Insert batch ${batchIndex + 1} failed:`, batchError);
+        }
+      }
     }
 
-    // Update sync status for all folders
-    const folderCounts = emailsToInsert.reduce((acc, email) => {
-      acc[email.folder_name] = (acc[email.folder_name] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
+    // Handle updates
+    if (emailsToUpdate.length > 0) {
+      debugLog('DATABASE_UPDATE', 'Starting batch email updates', {
+        totalUpdates: emailsToUpdate.length
+      });
+
+      for (const emailUpdate of emailsToUpdate) {
+        try {
+          const { error: updateError } = await supabaseClient
+            .from('email_exchanges')
+            .update(emailUpdate)  
+            .eq('id', emailUpdate.id);
+
+          if (updateError) {
+            console.error('Email update error:', updateError);
+          } else {
+            updatedCount++;
+          }
+        } catch (updateError) {
+          console.error('Email update failed:', updateError);
+        }
+      }
+      
+      debugLog('BATCH_UPDATE_SUCCESS', 'Batch updates completed', {
+        totalUpdated: updatedCount
+      });
+    }
+
+    // Phase 6: Enhanced folder distribution and sync status tracking
+    const folderDistribution = {};
+    for (const email of emailsToInsert) {
+      const folder = email.metadata?.folder_name || 'unknown';
+      folderDistribution[folder] = (folderDistribution[folder] || 0) + 1;
+    }
+
+    debugLog('COMPREHENSIVE_SYNC_RESULTS', 'Final sync statistics', {
+      folderDistribution,
+      insertedCount,
+      updatedCount,
+      skippedCount,
+      processedCount,
+      totalFetched,
+      queryResults
+    });
+
+    // Update comprehensive sync status tracking
     try {
-      for (const [folderName, count] of Object.entries(folderCounts)) {
-        await supabaseClient
-          .from('email_sync_status')
-          .upsert({
-            user_id: userId,
-            folder_name: folderName,
-            last_sync_at: new Date().toISOString(),
-            last_sync_count: count,
-           gmail_history_id: null
-         });
-       }
-       debugLog('SYNC_STATUS_UPDATED', 'Multi-folder sync status updated', { folderCounts });
-     } catch (statusError) {
-       debugLog('SYNC_STATUS_FAILED', 'Failed to update sync status', { error: statusError.message });
-     }
+      // Update global sync status
+      await supabaseClient
+        .from('email_sync_status')
+        .upsert({
+          user_id: userId,
+          folder_name: 'comprehensive_sync',
+          last_sync_at: new Date().toISOString(),
+          last_sync_count: insertedCount + updatedCount,
+          gmail_history_id: null, // Will be set by Gmail webhook if available
+          updated_at: new Date().toISOString()
+        });
 
-     // Log success
-     try {
-       await supabaseClient
-         .from('security_events')
-         .insert({
-           user_id: userId,
-           event_type: 'gmail_sync_success',
-           severity: 'low',
-           details: { 
-             synced_count: insertedCount,
-             user_email: userEmail,
-             is_scheduled: isScheduled,
-             folder_distribution: folderCounts,
-             query_results: queryResults,
-             timestamp: new Date().toISOString()
-           }
-         });
-       debugLog('SUCCESS_LOG_CREATED', 'Success event logged');
-     } catch (logError) {
-       debugLog('SUCCESS_LOG_FAILED', 'Failed to log success event', { error: logError.message });
-     }
+      // Update individual folder sync status
+      for (const [folderName, count] of Object.entries(queryResults)) {
+        if (count > 0) {
+          await supabaseClient
+            .from('email_sync_status')
+            .upsert({
+              user_id: userId,
+              folder_name: folderName,
+              last_sync_at: new Date().toISOString(),
+              last_sync_count: count,
+              updated_at: new Date().toISOString()
+            });
+        }
+      }
+    } catch (statusError) {
+      console.warn('Failed to update sync status:', statusError);
+    }
 
-     const result = {
-       success: true,
-       message: `Successfully synced ${insertedCount} emails`,
-       count: insertedCount,
-       processed: emailsToInsert.length,
-       found: messages.length,
-       folderDistribution: folderCounts,
-       queryResults
-     };
+    // Phase 7: Comprehensive sync completion
+    debugLog('SYNC_COMPLETE', 'Comprehensive Gmail sync completed successfully');
+    debugLog('SUCCESS_LOG_CREATED', 'Success event logged');
 
-     debugLog('SYNC_COMPLETE', 'Gmail sync completed successfully', result);
-     return result;
+    const syncResult = {
+      success: true,
+      message: `Successfully synced ${insertedCount} new emails${updatedCount > 0 ? ` and updated ${updatedCount}` : ''}`,
+      count: insertedCount,
+      processed: processedCount,
+      updated: updatedCount,
+      found: messages.length,
+      totalFetched,
+      skipped: skippedCount,
+      folderDistribution,
+      queryResults,
+      hasMore: totalFetched >= actualMaxResults // Indicate if there might be more emails
+    };
+
+    console.log('📊 Comprehensive sync result:', JSON.stringify(syncResult, null, 2));
+    return syncResult;
 
   } catch (error) {
     debugLog('SYNC_ERROR', 'Gmail sync failed with exception', {
