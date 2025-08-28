@@ -215,13 +215,14 @@ export function QuoteCard({
   const totalPrice = safeParseFloat(quote.total_price);
   const fareTypeDisplay = quote.fare_type.replace('_', ' ').toUpperCase();
   
-  // Parse Sabre content when segments are empty but content exists
+  // Parse Sabre content when segments are empty but content exists OR when we need enhanced duration data
   useEffect(() => {
     const parseContentData = async () => {
       console.log(`🔍 QuoteCard: Checking quote ${quote.id} - segments: ${quote.segments?.length || 0}, content: ${!!quote.content}`);
       
-      if ((!quote.segments || quote.segments.length === 0) && quote.content && quote.content.trim()) {
-        console.log(`🔄 QuoteCard: Parsing content for quote ${quote.id}`);
+      // ALWAYS parse content to get enhanced duration data, regardless of existing segments
+      if (quote.content && quote.content.trim()) {
+        console.log(`🔄 QuoteCard: Parsing content for quote ${quote.id} to get enhanced duration data`);
         setIsParsingContent(true);
         try {
           const format = EnhancedSabreParser.detectFormat(quote.content);
@@ -235,21 +236,30 @@ export function QuoteCard({
           }
           
           if (parsed?.segments) {
-            console.log(`✅ QuoteCard: Parsed ${parsed.segments.length} segments:`);
+            console.log(`✅ QuoteCard: Parsed ${parsed.segments.length} segments with enhanced data:`);
             parsed.segments.forEach((seg: any, idx: number) => {
-              console.log(`  Segment ${idx + 1}: ${seg.departureAirport}-${seg.arrivalAirport}, Duration: "${seg.duration || 'MISSING'}"`);
+              console.log(`  🎯 Segment ${idx + 1}: ${seg.departureAirport}-${seg.arrivalAirport}, Duration: "${seg.duration || 'MISSING'}", Enhanced: true`);
             });
             setParsedSegments(parsed.segments);
           } else {
-            console.warn(`⚠️ QuoteCard: No segments in parsed result`);
+            console.warn(`⚠️ QuoteCard: No segments in parsed result, falling back to existing segments`);
+            // Fallback to existing segments if parsing fails
+            if (quote.segments && quote.segments.length > 0) {
+              setParsedSegments(quote.segments);
+            }
           }
         } catch (error) {
           console.error('❌ QuoteCard: Failed to parse quote content:', error);
+          // Fallback to existing segments on error
+          if (quote.segments && quote.segments.length > 0) {
+            console.log(`🔄 QuoteCard: Using fallback segments from quote`);
+            setParsedSegments(quote.segments);
+          }
         } finally {
           setIsParsingContent(false);
         }
       } else if (quote.segments && quote.segments.length > 0) {
-        console.log(`✅ QuoteCard: Using existing segments from quote (${quote.segments.length})`);
+        console.log(`✅ QuoteCard: Using existing segments from quote (${quote.segments.length}) - no content to parse`);
         setParsedSegments(quote.segments);
       }
     };
