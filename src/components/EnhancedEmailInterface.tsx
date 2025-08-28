@@ -345,7 +345,7 @@ const EnhancedEmailInterface = ({
     if (existingLock) {
       const lockTime = new Date(existingLock).getTime();
       const now = Date.now();
-      if (now - lockTime < 30000) { // Reduced to 30 seconds
+      if (now - lockTime < 15000) { // Reduced to 15 seconds for faster recovery
         console.log('⏳ Sync already in progress, skipping...');
         return;
       }
@@ -366,10 +366,10 @@ const EnhancedEmailInterface = ({
         body: {
           userEmail: user.email,
           userId: user.id,
-          syncType: 'comprehensive',
-          maxResults: 100000,
+          syncType: 'comprehensive', // Always use comprehensive for maximum coverage
+          maxResults: 500000, // Unlimited for comprehensive sync
           includeHistorical: true,
-          enableProgressTracking: true
+          enableProgressTracking: false // Disable progress tracking for simpler execution
         }
       });
 
@@ -378,16 +378,26 @@ const EnhancedEmailInterface = ({
       }
 
       // Enhanced error handling and user feedback
-      if (!data.success) {
-        throw new Error(data.error || data.message || 'Sync failed');
+      if (!data || !data.success) {
+        const errorMessage = data?.error || data?.message || 'Sync failed with unknown error';
+        
+        // Check for specific error types
+        if (errorMessage.includes('token') || errorMessage.includes('reconnect') || data?.requiresReauth) {
+          setRequiresReauth(true);
+          setSyncError('Gmail authentication expired. Please reconnect Gmail.');
+        } else {
+          setSyncError(errorMessage);
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const now = new Date();
       setLastSyncTime(now);
       localStorage.setItem(`last_sync_${user.id}`, now.toISOString());
       
-      console.log(`✅ Auto sync completed: ${data?.stored || 0} new emails stored`);
-      console.log(`📊 Total processed: ${data?.processed || 0}, Total fetched: ${data?.total_available || 0}`);
+      console.log(`✅ Auto sync completed: ${data?.count || data?.stored || 0} new emails stored`);
+      console.log(`📊 Total processed: ${data?.processed || 0}, Total fetched: ${data?.totalFetched || 0}`);
       
       // Clear any previous errors on success
       setSyncError(null);
@@ -404,8 +414,9 @@ const EnhancedEmailInterface = ({
       setSyncError(errorMessage);
       
       // Check if reauth is required
-      if (errorMessage.includes('reconnect') || errorMessage.includes('token') || errorMessage.includes('auth')) {
+      if (errorMessage.includes('reconnect') || errorMessage.includes('token') || errorMessage.includes('auth') || errorMessage.includes('expired')) {
         setRequiresReauth(true);
+        setSyncError('Gmail authentication expired. Please reconnect Gmail.');
         console.error('🔐 Gmail reauth required');
       }
       

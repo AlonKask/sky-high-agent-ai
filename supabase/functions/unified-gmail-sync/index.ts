@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
-import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 import { decodeBase64 } from "jsr:@std/encoding/base64";
 
 const corsHeaders = {
@@ -1116,34 +1115,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // PHASE 2 FIX: Enhanced rate limiting with detailed logging
-    const rateLimitResult = await withRateLimit(
-      'gmail-sync', 
-      req, 
-      rateLimitConfigs.gmailSync
-    );
-
-    if (!rateLimitResult.allowed) {
-      debugLog('RATE_LIMIT_EXCEEDED', 'Request blocked by rate limiter', {
-        retryAfter: rateLimitResult.retryAfter,
-        requestIP: req.headers.get('x-forwarded-for') || 'unknown'
-      });
-      
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Rate limit exceeded. Please try again later.',
-        retryAfter: rateLimitResult.retryAfter,
-        message: `Too many sync requests. Please wait ${rateLimitResult.retryAfter} seconds.`
-      }), {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'Retry-After': rateLimitResult.retryAfter?.toString() || '60'
-        }
-      });
-    }
-
     // PHASE 2 FIX: Enhanced request parsing with validation and logging
     let requestBody;
     try {
@@ -1169,7 +1140,7 @@ serve(async (req) => {
       userEmail, 
       userId, 
       syncType = 'incremental',
-      maxResults = 100000, // Increased default for better coverage
+      maxResults = syncType === 'comprehensive' ? 500000 : 100000,
       includeAIProcessing = false,
       includeHistorical = false,
       enableProgressTracking = false
@@ -1184,7 +1155,7 @@ serve(async (req) => {
       enableProgressTracking
     });
 
-    // PHASE 2 FIX: Enhanced parameter validation with detailed error messages
+    // Parameter validation
     const validationErrors = [];
     if (!userEmail) validationErrors.push('userEmail is required');
     if (!userId) validationErrors.push('userId is required');
