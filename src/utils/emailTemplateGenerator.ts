@@ -181,8 +181,14 @@ export class EmailTemplateGenerator {
   private static generateLinearFlightPath(segments: any[]): string {
     if (!segments || segments.length === 0) return '';
 
-    // Generate linear timeline design matching user's mockup using table-based layout for email compatibility
-    const flightDetails = segments.map((segment, index) => {
+    // Extract all unique airports from segments to create continuous timeline
+    const airports = [segments[0].departureAirport];
+    segments.forEach(segment => {
+      airports.push(segment.arrivalAirport);
+    });
+
+    // Build flight segment data for timeline
+    const flightSegments = segments.map((segment, index) => {
       const departureTime = segment.departureTime || '';
       const arrivalTime = segment.arrivalTime || '';
       const flightNumber = segment.flightNumber || '';
@@ -191,17 +197,12 @@ export class EmailTemplateGenerator {
       const aircraftType = segment.aircraftType || segment.equipment || '';
       const duration = segment.duration || '';
       
-      // Format date
-      const segmentDate = segment.flightDate ? new Date(segment.flightDate) : new Date();
-      const dayOfWeek = segmentDate.toLocaleDateString('en-US', { weekday: 'short' });
-      const monthDay = segmentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      
       // Calculate layover if not last segment
       let layoverInfo = '';
       if (index < segments.length - 1 && segment.layoverTime) {
         const hours = Math.floor(segment.layoverTime / 60);
         const minutes = segment.layoverTime % 60;
-        layoverInfo = hours > 0 ? `${hours}h ${minutes}m layover` : `${minutes}m layover`;
+        layoverInfo = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
       }
 
       return {
@@ -210,96 +211,111 @@ export class EmailTemplateGenerator {
         departureTime,
         arrivalTime,
         flightNumber,
-        airlineCode,
         airlineDisplay,
         aircraftType,
         duration,
-        dayOfWeek,
-        monthDay,
-        layoverInfo,
-        isLast: index === segments.length - 1
+        layoverInfo
       };
     });
 
-    // Generate linear flight path HTML using table structure for email compatibility
-    const flightHTML = flightDetails.map((flight, index) => {
-      return `
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: ${flight.isLast ? '0' : '15px'};">
-          <tr>
-            <td>
-              <table width="100%" cellpadding="15" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+    // Generate continuous horizontal timeline - single row with all airports
+    const timelineHTML = `
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+        <tr>
+          <td style="padding: 20px;">
+            <!-- Continuous Airport Timeline -->
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                ${airports.map((airport, index) => {
+                  const isFirst = index === 0;
+                  const isLast = index === airports.length - 1;
+                  const segment = flightSegments[index - 1]; // Previous segment for arrival info, current for departure
+                  
+                  return `
+                    <td ${isFirst || isLast ? 'width="15%"' : 'width="' + (70 / (airports.length - 2)) + '%"'} align="center" valign="top">
+                      <!-- Airport Circle -->
+                      <div style="position: relative; display: inline-block;">
+                        <div style="background-color: ${isFirst ? '#e0f2fe' : isLast ? '#f0fdf4' : '#fef3c7'}; 
+                                    border: 3px solid ${isFirst ? '#0284c7' : isLast ? '#16a34a' : '#f59e0b'}; 
+                                    border-radius: 50%; 
+                                    width: 50px; 
+                                    height: 50px; 
+                                    display: flex; 
+                                    align-items: center; 
+                                    justify-content: center; 
+                                    margin: 0 auto 12px auto;">
+                          <span style="font-weight: bold; font-size: 12px; color: ${isFirst ? '#0c4a6e' : isLast ? '#15803d' : '#92400e'}; font-family: Arial, sans-serif;">
+                            ${airport}
+                          </span>
+                        </div>
+                        
+                        <!-- Connection Line (except for last airport) -->
+                        ${!isLast ? `
+                          <div style="position: absolute; top: 25px; left: 50px; width: calc(100vw - 100px); height: 3px; background-color: #e2e8f0; z-index: -1;"></div>
+                        ` : ''}
+                      </div>
+                      
+                      <!-- Time Info -->
+                      ${isFirst && flightSegments[0] ? `
+                        <div style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                          ${flightSegments[0].departureTime}
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; font-family: Arial, sans-serif;">Departure</div>
+                      ` : ''}
+                      
+                      ${!isFirst && !isLast && segment ? `
+                        <div style="font-size: 11px; color: #64748b; margin-bottom: 2px; font-family: Arial, sans-serif;">
+                          ${segment.arrivalTime}
+                        </div>
+                        <div style="font-size: 10px; color: #94a3b8; font-family: Arial, sans-serif;">
+                          ${segment.layoverInfo} layover
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 2px; font-family: Arial, sans-serif;">
+                          ${flightSegments[index] ? flightSegments[index].departureTime : ''}
+                        </div>
+                      ` : ''}
+                      
+                      ${isLast && segment ? `
+                        <div style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                          ${segment.arrivalTime}
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; font-family: Arial, sans-serif;">Arrival</div>
+                      ` : ''}
+                    </td>
+                  `;
+                }).join('')}
+              </tr>
+            </table>
+            
+            <!-- Flight Details Below Timeline -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+              ${flightSegments.map((segment, index) => `
                 <tr>
-                  <!-- Departure -->
-                  <td width="30%" align="center" valign="middle">
-                    <table cellpadding="0" cellspacing="0">
+                  <td style="padding: 8px 0; border-bottom: ${index === flightSegments.length - 1 ? 'none' : '1px solid #f8fafc'};">
+                    <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td align="center">
-                          <div style="background-color: #e0f2fe; border: 2px solid #0284c7; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; display: inline-block;">
-                            <div style="font-weight: bold; font-size: 18px; color: #0c4a6e; font-family: Arial, sans-serif;">${flight.departureAirport}</div>
-                          </div>
-                          <div style="font-size: 14px; font-weight: 600; color: #334155; font-family: Arial, sans-serif;">${flight.departureTime}</div>
-                          <div style="font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">${flight.dayOfWeek}, ${flight.monthDay}</div>
+                        <td width="25%" style="font-size: 12px; font-weight: 600; color: #475569; font-family: Arial, sans-serif;">
+                          ${segment.departureAirport} → ${segment.arrivalAirport}
                         </td>
-                      </tr>
-                    </table>
-                  </td>
-
-                  <!-- Flight Info -->
-                  <td width="40%" align="center" valign="middle">
-                    <table cellpadding="0" cellspacing="0" width="100%">
-                      <tr>
-                        <td align="center">
-                          <table cellpadding="0" cellspacing="0" width="80%">
-                            <tr>
-                              <td style="border-bottom: 2px solid #e2e8f0; height: 1px; position: relative;"></td>
-                            </tr>
-                          </table>
-                          <div style="margin-top: -10px; margin-bottom: 10px;">
-                            <span style="background-color: #ffffff; padding: 2px 8px; font-size: 16px;">✈️</span>
-                          </div>
-                          <div style="font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 4px; font-family: Arial, sans-serif;">
-                            ${flight.flightNumber} • ${flight.airlineDisplay}
-                          </div>
-                          ${flight.aircraftType ? `<div style="font-size: 11px; color: #64748b; margin-bottom: 4px; font-family: Arial, sans-serif;">${flight.aircraftType}</div>` : ''}
-                          ${flight.duration ? `<div style="font-size: 11px; color: #64748b; font-family: Arial, sans-serif;">${flight.duration}</div>` : ''}
+                        <td width="25%" style="font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">
+                          ${segment.flightNumber} • ${segment.airlineDisplay}
                         </td>
-                      </tr>
-                    </table>
-                  </td>
-
-                  <!-- Arrival -->
-                  <td width="30%" align="center" valign="middle">
-                    <table cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td align="center">
-                          <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; display: inline-block;">
-                            <div style="font-weight: bold; font-size: 18px; color: #15803d; font-family: Arial, sans-serif;">${flight.arrivalAirport}</div>
-                          </div>
-                          <div style="font-size: 14px; font-weight: 600; color: #334155; font-family: Arial, sans-serif;">${flight.arrivalTime}</div>
-                          <div style="font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">${flight.dayOfWeek}, ${flight.monthDay}</div>
+                        <td width="25%" style="font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">
+                          ${segment.aircraftType || ''}
+                        </td>
+                        <td width="25%" style="font-size: 12px; color: #64748b; text-align: right; font-family: Arial, sans-serif;">
+                          ${segment.duration || ''}
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        ${flight.layoverInfo && !flight.isLast ? `
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 15px;">
-          <tr>
-            <td align="center">
-              <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 16px; padding: 6px 12px; display: inline-block;">
-                <span style="font-size: 12px; color: #92400e; font-weight: 500; font-family: Arial, sans-serif;">${flight.layoverInfo}</span>
-              </div>
-            </td>
-          </tr>
-        </table>
-        ` : ''}
-      `;
-    }).join('');
+              `).join('')}
+            </table>
+          </td>
+        </tr>
+      </table>
+    `;
 
     return `
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
@@ -308,15 +324,15 @@ export class EmailTemplateGenerator {
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td align="center">
-                <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50; font-family: Arial, sans-serif;">Flight Details</h2>
+                <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50; font-family: Arial, sans-serif;">Flight Itinerary</h2>
               </td>
             </tr>
             <tr>
               <td>
-                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 500px; margin: 0 auto;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
                   <tr>
                     <td>
-                      ${flightHTML}
+                      ${timelineHTML}
                     </td>
                   </tr>
                 </table>
