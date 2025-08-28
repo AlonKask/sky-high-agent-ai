@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSimpleAuth } from '@/hooks/useSimpleAuth';
@@ -52,14 +53,51 @@ export const useEmailFolderCounts = () => {
       }
 
       const emails = data || [];
+      
+      // Calculate unread counts only for each folder
       const newCounts = {
-        inbox: emails.filter(e => !e.is_deleted && !e.is_archived && e.direction === 'inbound' && e.folder_name !== 'sent').length,
-        sent: emails.filter(e => !e.is_deleted && !e.is_archived && (e.direction === 'outbound' || e.folder_name === 'sent')).length,
-        drafts: emails.filter(e => !e.is_deleted && e.is_draft === true).length,
-        archive: emails.filter(e => !e.is_deleted && e.is_archived === true).length,
-        trash: emails.filter(e => e.is_deleted === true).length,
-        unread: emails.filter(e => !e.is_deleted && e.is_read === false).length,
-        starred: emails.filter(e => !e.is_deleted && e.is_starred === true).length
+        inbox: emails.filter(e => 
+          !e.is_deleted && 
+          !e.is_archived && 
+          e.direction === 'inbound' && 
+          e.folder_name !== 'sent' && 
+          e.is_read === false  // Only unread messages
+        ).length,
+        
+        sent: emails.filter(e => 
+          !e.is_deleted && 
+          !e.is_archived && 
+          (e.direction === 'outbound' || e.folder_name === 'sent') && 
+          e.is_read === false  // Only unread messages
+        ).length,
+        
+        drafts: emails.filter(e => 
+          !e.is_deleted && 
+          e.is_draft === true && 
+          e.is_read === false  // Only unread messages
+        ).length,
+        
+        archive: emails.filter(e => 
+          !e.is_deleted && 
+          e.is_archived === true && 
+          e.is_read === false  // Only unread messages
+        ).length,
+        
+        trash: emails.filter(e => 
+          e.is_deleted === true && 
+          e.is_read === false  // Only unread messages
+        ).length,
+        
+        unread: emails.filter(e => 
+          !e.is_deleted && 
+          e.is_read === false
+        ).length,
+        
+        starred: emails.filter(e => 
+          !e.is_deleted && 
+          e.is_starred === true && 
+          e.is_read === false  // Only unread messages
+        ).length
       };
 
       setCounts(newCounts);
