@@ -112,10 +112,7 @@ export const EnhancedGmailStatus = ({ onEmailRefresh }: EnhancedGmailStatusProps
         await onEmailRefresh();
       }
       
-      toast({
-        title: "Sync Completed",
-        description: "Emails synced successfully",
-      });
+      // Silent sync - no toast notification needed
     } catch (error: any) {
       console.error('❌ Gmail sync failed:', error);
       toast({

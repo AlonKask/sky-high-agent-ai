@@ -400,14 +400,7 @@ export const useGmailIntegration = () => {
           }
         }));
         
-        const message = syncedCount > 0 
-          ? `Successfully synced ${syncedCount} new emails`
-          : "No new emails to sync";
-          
-        toast({
-          title: "Sync Complete",
-          description: message,
-        });
+        // Silent sync completion - no toast notification needed
       } else {
         // Handle failed response from function
         setAuthStatus(prev => ({ ...prev, isLoading: false }));

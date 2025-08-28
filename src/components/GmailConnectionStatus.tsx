@@ -166,10 +166,7 @@ export const GmailConnectionStatus = () => {
       
       await triggerSync();
       
-      toast({
-        title: "Sync Complete",
-        description: "Your emails have been synchronized",
-      });
+      // Silent sync - no toast notification needed
       
     } catch (error: any) {
       console.error('Sync failed:', error);
