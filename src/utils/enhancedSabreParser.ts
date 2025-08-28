@@ -7,32 +7,64 @@ import { logger } from './logger';
 
 export class EnhancedSabreParser {
   
-  // Enhanced format detection
+  // Enhanced format detection with comprehensive logging
   static detectFormat(rawContent: string): "I" | "VI" {
     if (!rawContent) return "I";
     
     const content = rawContent.toLowerCase();
+    console.log(`🔍 Format Detection - Analyzing content (${rawContent.length} chars)`);
     
-    // Check for VI command prefix
-    if (content.includes("vi*") || content.startsWith("vi")) {
+    // Check for VI command prefix (true VI format indicators)
+    const hasVICommand = content.includes("vi*") || content.startsWith("vi");
+    console.log(`📋 Format Detection - VI command prefix: ${hasVICommand}`);
+    
+    if (hasVICommand) {
+      console.log(`✅ Format Detection - TRUE VI FORMAT detected (command prefix)`);
       return "VI";
     }
     
-    // Check for VI format headers and characteristics
-    if (content.includes("flight  date  segment dptr  arvl") ||
-        content.includes("dep-terminal") ||
-        content.includes("arr-terminal") ||
-        content.includes("cabin-business") ||
-        content.includes("cabin-economy") ||
-        content.includes("cabin-first") ||
-        content.includes("elpd") ||  // Duration column header
-        content.includes("miles") ||  // Miles column
-        content.includes("oneworld") ||
-        content.includes("star alliance") ||
-        content.includes("skyteam")) {
+    // Check for TRUE VI format headers - must have the specific flight header
+    const hasTrueVIHeader = content.includes("flight  date  segment dptr  arvl") ||
+                           content.includes("flight date segment dptr arvl");
+    console.log(`📋 Format Detection - True VI header: ${hasTrueVIHeader}`);
+    
+    // Check for VI-specific structural elements (not just keywords)
+    const hasVIStructure = content.includes("dep-terminal") ||
+                          content.includes("arr-terminal") ||
+                          content.includes("cabin-business") ||
+                          content.includes("cabin-economy") ||
+                          content.includes("cabin-first");
+    console.log(`📋 Format Detection - VI structure elements: ${hasVIStructure}`);
+    
+    // Check for alliance information (VI format specific)
+    const hasAllianceInfo = content.includes("oneworld") ||
+                           content.includes("star alliance") ||
+                           content.includes("skyteam");
+    console.log(`📋 Format Detection - Alliance info: ${hasAllianceInfo}`);
+    
+    // CRITICAL FIX: Check for I-Format with ELPD columns
+    // I-Format with ELPD has patterns like "LO 7 20SEP F JFKWAW 545P 815A+1 8.30"
+    const hasIFormatWithELPD = /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}\s+[A-Z]\s+[A-Z]{6}\s+\d+[AP]\s+\d+[AP][+\d]*\s+\d+\.\d+/m.test(rawContent);
+    console.log(`📋 Format Detection - I-Format with ELPD pattern: ${hasIFormatWithELPD}`);
+    
+    // Detect standard I-Format patterns
+    const hasStandardIFormat = /^\s*\d+\s+[A-Z]{2}\d+[A-Z]\s+\d+[A-Z]{3}\s+[A-Z]\s+[A-Z]{6}/m.test(rawContent);
+    console.log(`📋 Format Detection - Standard I-Format pattern: ${hasStandardIFormat}`);
+    
+    // Decision logic: Only return VI if we have TRUE VI indicators
+    if (hasTrueVIHeader && (hasVIStructure || hasAllianceInfo)) {
+      console.log(`✅ Format Detection - TRUE VI FORMAT detected (header + structure)`);
       return "VI";
     }
     
+    // If we have I-Format with ELPD, route to I-Format parser (it will be enhanced)
+    if (hasIFormatWithELPD || hasStandardIFormat) {
+      console.log(`✅ Format Detection - I-FORMAT detected (${hasIFormatWithELPD ? 'with ELPD' : 'standard'})`);
+      return "I";
+    }
+    
+    // Default to I-Format for safety
+    console.log(`✅ Format Detection - Defaulting to I-FORMAT`);
     return "I";
   }
 
@@ -362,13 +394,17 @@ export class EnhancedSabreParser {
         try {
           cabinClass = await this.mapBookingClassWithDatabase(bookingClass, airlineCode);
           
-          // Extract actual duration from VI format if available
-          if (useSimpleFormat && aircraftInfo && match && match.length > 10) {
-            // Check if there's duration info after the aircraft info
-            const durationMatch = line.match(/(\d+\.\d+)/);
+          // Enhanced ELPD extraction from I-Format with ELPD data
+          if (useSimpleFormat) {
+            // Check for ELPD pattern in the line: "LO 7 20SEP F JFKWAW 545P 815A+1 8.30"
+            const elpdPattern = /(\d+\.\d+)/;
+            const durationMatch = line.match(elpdPattern);
             if (durationMatch) {
               const elapsedHours = parseFloat(durationMatch[1]);
-              duration = this.convertElapsedTimeToReadable(elapsedHours);
+              duration = SabreParser.convertElapsedTimeToHumanReadable(elapsedHours);
+              console.log(`✅ Enhanced I-Format ELPD extraction: "${durationMatch[1]}" → "${duration}"`);
+            } else {
+              console.log(`⚠️ Enhanced I-Format: No ELPD found in line: "${line}"`);
             }
           }
         } catch (dbError) {

@@ -365,7 +365,64 @@ export class SabreParser {
 
     const segments: FlightSegment[] = [];
     
-    // ENHANCED PATTERN 1: Complex multi-segment with concatenated airports like "EWRBOS/FRAFRA/LGSLGS"
+    // ENHANCED PATTERN 1: I-Format with ELPD - "LO 7 20SEP F JFKWAW 545P 815A+1 8.30" 
+    const iFormatWithELPDPattern = /^([A-Z]{2})\s+(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s+(\d+\.\d+)\s*.*$/;
+    const iFormatELPDMatch = line.match(iFormatWithELPDPattern);
+    
+    if (iFormatELPDMatch) {
+      console.log(`✅ I-Format with ELPD pattern matched: ${iFormatELPDMatch[0]}`);
+      const [, airlineCode, flightNum, dateStr, bookingClass, route, depTime, arrTime, arrivalDayOffset, elapsedStr] = iFormatELPDMatch;
+      
+      // Validate route format
+      if (route.length !== 6) {
+        console.error(`❌ Invalid route format in I-Format with ELPD: ${route}`);
+        return [];
+      }
+      
+      const departureAirport = route.substring(0, 3);
+      const arrivalAirport = route.substring(3, 6);
+      const flightNumber = `${airlineCode}${flightNum}`;
+      const flightDate = this.parseDateFromString(dateStr);
+        const formattedDepTime = this.convert12hTo24h(depTime);
+        const formattedArrTime = this.convert12hTo24h(arrTime);
+      
+      // Convert ELPD to human-readable duration
+      const elapsedHours = parseFloat(elapsedStr);
+      const duration = this.convertElapsedTimeToHumanReadable(elapsedHours);
+      
+      console.log(`✅ I-Format ELPD extraction successful:`, {
+        flight: flightNumber,
+        route: `${departureAirport}→${arrivalAirport}`,
+        elapsedStr,
+        elapsedHours,
+        duration,
+        times: `${formattedDepTime}→${formattedArrTime}`
+      });
+      
+      const segment: FlightSegment = {
+        segmentNumber: 1,
+        flightNumber,
+        airlineCode,
+        bookingClass,
+        flightDate: flightDate || dateStr,
+        dayOfWeek: '',
+        departureAirport,
+        arrivalAirport,
+        statusCode: 'OK',
+        departureTime: formattedDepTime,
+        arrivalTime: formattedArrTime,
+        arrivalDayOffset: arrivalDayOffset ? parseInt(arrivalDayOffset) : 0,
+        cabinClass: 'Economy',
+        duration: duration,
+        elapsedTimeHours: elapsedHours
+      };
+      
+      segments.push(segment);
+      console.log(`✅ Successfully parsed I-Format with ELPD segment:`, segment);
+      return segments;
+    }
+    
+    // ENHANCED PATTERN 2: Complex multi-segment with concatenated airports like "EWRBOS/FRAFRA/LGSLGS"
     const complexMultiPattern = /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6,}(?:\/[A-Z]{3,6})*)\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*.*$/;
     const complexMatch = line.match(complexMultiPattern);
     
@@ -418,7 +475,7 @@ export class SabreParser {
       }
     }
     
-    // ENHANCED PATTERN 2: Standard single segment with all details
+    // ENHANCED PATTERN 3: Standard single segment with all details  
     const enhancedPatterns = [
       // Full detailed pattern with equipment and status
       /^\s*(\d+)\s+([A-Z]{2})\s*(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{3})([A-Z]{3})\*?([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*(?:\/([A-Z0-9]+))?\s*(?:OPERATED BY (.+))?.*$/,
@@ -1865,8 +1922,8 @@ export class SabreParser {
   }
 
 
-  // Helper method to convert decimal hours to human-readable format
-  private static convertElapsedTimeToHumanReadable(elapsedTimeHours: number): string {
+  // Enhanced helper method to convert decimal hours to human-readable format
+  public static convertElapsedTimeToHumanReadable(elapsedTimeHours: number): string {
     console.log(`🔄 Converting elapsed time: ${elapsedTimeHours} hours`);
     
     if (isNaN(elapsedTimeHours) || elapsedTimeHours <= 0) {
