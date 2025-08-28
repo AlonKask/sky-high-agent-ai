@@ -135,9 +135,9 @@ interface EmailDetailViewProps {
   const { date, time } = formatDate(email.created_at);
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b space-y-4">
+      <div className="p-4 border-b space-y-4 shrink-0">
         <div className="flex items-start justify-between">
           <div className="space-y-2 flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -250,7 +250,7 @@ interface EmailDetailViewProps {
       {/* Email Content */}
       <div className="flex-1">
         <ScrollArea className="h-full max-h-full">
-          <div className="p-4 space-y-6">
+          <div className="p-4 space-y-6 h-0 min-h-full">
             {/* Attachments */}
             {email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (
               <div className="border rounded-lg p-4 bg-muted/30">
