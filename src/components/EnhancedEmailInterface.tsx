@@ -447,23 +447,8 @@ const EnhancedEmailInterface = ({
                   <span className="text-xs">Syncing...</span>
                 </div>
               )}
-              {lastSyncTime && !isAutoSyncing && (
-                <span className="text-xs">
-                  Last sync: {lastSyncTime.toLocaleTimeString()}
-                </span>
-              )}
             </div>
           )}
-          
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setIsComposerOpen(true)}
-            className="shrink-0"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Compose
-          </Button>
         </div>
       </div>
 
