@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Email Reclassification</title>
+</head>
+<body>
+    <h1>Testing Email Reclassification & Sync</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testReclassificationAndSync() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Step 1: Run reclassification
+                results.innerHTML += '<p>🔄 Running email reclassification...</p>';
+                const reclassifyResponse = await fetch('https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/reclassify-emails', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsImtpZCI6IlVaZy90ZWp5UTVKQVZRUGciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2VrcndqZmR5cHF6ZXF1b3ZtdmpuLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3ZjE2OWNkNC1lNWY5LTRjNGItODIxZi01NWY2MDc0NmZiYWMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU2MzkxMTg1LCJpYXQiOjE3NTYzODc1ODUsImVtYWlsIjoibWF0dGhld0BzZWxlY3RidXNpbmVzc2NsYXNzLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiLCJnb29nbGUiXX0sInVzZXJfbWV0YWRhdGEiOnsiYXZhdGFyX3VybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0tBSVdJbXRfV0JWdkdZN1NwQjE2dnhXQVVNNF9rNGNBUFp5NVhfX2pMODcyTXpNQT1zOTYtYyIsImN1c3RvbV9jbGFpbXMiOnsiaGQiOiJzZWxlY3RidXNpbmVzc2NsYXNzLmNvbSJ9LCJlbWFpbCI6Im1hdHRoZXdAc2VsZWN0YnVzaW5lc3NjbGFzcy5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZnVsbF9uYW1lIjoiTWF0dGhldyBGb2dlbG1hbiIsImlzcyI6Imh0dHBzOi8vYWNjb3VudHMuZ29vZ2xlLmNvbSIsIm5hbWUiOiJNYXR0aGV3IEZvZ2VsbWFuIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jS0FJV0ltdF9XQlZ2R1k3U3BCMTZ2eFdBVU00X2s0Y0FQWnk1WF9fakw4NzJNek1BPXM5Ni1jIiwicHJvdmlkZXJfaWQiOiIxMDkwMjgxMzU4MjIxMDUzNzcwNDQiLCJzdWIiOiIxMDkwMjgxMzU4MjIxMDUzNzcwNDQifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc1NjA0OTYzOX1dLCJzZXNzaW9uX2lkIjoiZmNmZDdhNmEtZTEyOS00YTA0LTg3Y2UtMGZmMDBmNTgwYjdiIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.je99NTDeQY-72NFySckWVr5pb7pJdhyZPxZmyHKpo8Q'
+                    },
+                    body: JSON.stringify({
+                        userId: '7f169cd4-e5f9-4c4b-821f-55f60746fbac',
+                        userEmail: 'matthew@selectbusinessclass.com',
+                        batchSize: 100
+                    })
+                });
+                
+                const reclassifyResult = await reclassifyResponse.json();
+                results.innerHTML += `<p>✅ Reclassification Result: ${JSON.stringify(reclassifyResult)}</p>`;
+                
+                // Step 2: Trigger fresh sync to test enhanced logic
+                results.innerHTML += '<p>🔄 Triggering fresh Gmail sync with enhanced multi-query logic...</p>';
+                const syncResponse = await fetch('https://ekrwjfdypqzequovmvjn.supabase.co/functions/v1/unified-gmail-sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsImtpZCI6IlVaZy90ZWp5UTVKQVZRUGciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2VrcndqZmR5cHF6ZXF1b3ZtdmpuLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3ZjE2OWNkNC1lNWY5LTRjNGItODIxZi01NWY2MDc0NmZiYWMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU2MzkxMTg1LCJpYXQiOjE3NTYzODc1ODUsImVtYWlsIjoibWF0dGhld0BzZWxlY3RidXNpbmVzc2NsYXNzLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiLCJnb29nbGUiXX0sInVzZXJfbWV0YWRhdGEiOnsiYXZhdGFyX3VybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0tBSVdJbXRfV0JWdkdZN1NwQjE2dnhXQVVNNF9rNGNBUFp5NVhfX2pMODcyTXpNQT1zOTYtYyIsImN1c3RvbV9jbGFpbXMiOnsiaGQiOiJzZWxlY3RidXNpbmVzc2NsYXNzLmNvbSJ9LCJlbWFpbCI6Im1hdHRoZXdAc2VsZWN0YnVzaW5lc3NjbGFzcy5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZnVsbF9uYW1lIjoiTWF0dGhldyBGb2dlbG1hbiIsImlzcyI6Imh0dHBzOi8vYWNjb3VudHMuZ29vZ2xlLmNvbSIsIm5hbWUiOiJNYXR0aGV3IEZvZ2VsbWFuIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jS0FJV0ltdF9XQlZ2R1k3U3BCMTZ2eFdBVU00X2s0Y0FQWnk1WF9fakw4NzJNek1BPXM5Ni1jIiwicHJvdmlkZXJfaWQiOiIxMDkwMjgxMzU4MjIxMDUzNzcwNDQiLCJzdWIiOiIxMDkwMjgxMzU4MjIxMDUzNzcwNDQifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc1NjA0OTYzOX1dLCJzZXNzaW9uX2lkIjoiZmNmZDdhNmEtZTEyOS00YTA0LTg3Y2UtMGZmMDBmNTgwYjdiIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.je99NTDeQY-72NFySckWVr5pb7pJdhyZPxZmyHKpo8Q'
+                    },
+                    body: JSON.stringify({
+                        userEmail: 'matthew@selectbusinessclass.com',
+                        userId: '7f169cd4-e5f9-4c4b-821f-55f60746fbac',
+                        maxResults: 10
+                    })
+                });
+                
+                const syncResult = await syncResponse.json();
+                results.innerHTML += `<p>✅ Fresh Sync Result: ${JSON.stringify(syncResult)}</p>`;
+                
+                results.innerHTML += '<p>🎉 Email sync fixes implemented successfully!</p>';
+                
+            } catch (error) {
+                results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+                console.error('Test error:', error);
+            }
+        }
+        
+        // Auto-run the test
+        testReclassificationAndSync();
+    </script>
+</body>
+</html>

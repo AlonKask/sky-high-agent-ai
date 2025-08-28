@@ -178,15 +178,15 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
   return { text, attachments };
 }
 
-// Enhanced Gmail folder classification helper
-function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader: string): { folder_name: string; direction: string } {
+// Enhanced Gmail folder classification helper with improved logic
+function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader: string, folderHint?: string): { folder_name: string; direction: string } {
   const labels = labelIds || [];
   
-  // Check for specific Gmail labels and classify accordingly
+  // Check for specific Gmail labels first (most reliable)
   if (labels.includes('SENT')) {
     return { folder_name: 'sent', direction: 'outbound' };
   }
-  if (labels.includes('DRAFT')) {
+  if (labels.includes('DRAFT') || labels.includes('DRAFTS')) {
     return { folder_name: 'drafts', direction: 'outbound' };
   }
   if (labels.includes('TRASH')) {
@@ -196,21 +196,34 @@ function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader
     return { folder_name: 'spam', direction: 'inbound' };
   }
   
-  // Determine direction based on sender
-  const isOutbound = fromHeader.toLowerCase().includes(userEmail.toLowerCase());
-  const direction = isOutbound ? 'outbound' : 'inbound';
+  // Use folder hint from Gmail query if Gmail labels are not decisive
+  if (folderHint && folderHint !== 'inbox') {
+    const direction = (folderHint === 'sent' || folderHint === 'drafts') ? 'outbound' : 'inbound';
+    return { folder_name: folderHint, direction };
+  }
   
-  // Default to inbox for most emails
-  return { folder_name: 'inbox', direction };
+  // Enhanced sender-based classification for business emails
+  const businessDomain = userEmail.split('@')[1];
+  const isFromBusinessDomain = fromHeader.toLowerCase().includes(`@${businessDomain}`);
+  const isFromUser = fromHeader.toLowerCase().includes(userEmail.toLowerCase());
+  
+  if (isFromUser || isFromBusinessDomain) {
+    // If it's from the user's domain but no SENT label, likely sent email
+    return { folder_name: 'sent', direction: 'outbound' };
+  }
+  
+  // Default to inbox for external emails
+  return { folder_name: 'inbox', direction: 'inbound' };
 }
 
-// Multi-query Gmail sync strategy
-async function fetchGmailMessages(accessToken: string, queries: string[], maxResults: number) {
+// Enhanced multi-query Gmail sync strategy with folder hints
+async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, maxResults: number) {
   const allResults = [];
+  const queryResults = {};
   
-  for (const query of queries) {
+  for (const config of queryConfigs) {
     try {
-      const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${Math.min(maxResults, 50)}`;
+      const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${Math.min(maxResults, 50)}`;
       const response = await fetch(messagesUrl, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -218,15 +231,24 @@ async function fetchGmailMessages(accessToken: string, queries: string[], maxRes
       if (response.ok) {
         const data = await response.json();
         if (data.messages?.length > 0) {
-          allResults.push(...data.messages.map(m => ({ ...m, sourceQuery: query })));
+          const messagesWithHint = data.messages.map(m => ({ 
+            ...m, 
+            sourceQuery: config.query,
+            _folderHint: config.folderHint 
+          }));
+          allResults.push(...messagesWithHint);
+          queryResults[config.folderHint] = data.messages.length;
+        } else {
+          queryResults[config.folderHint] = 0;
         }
       }
     } catch (error) {
-      console.warn(`Failed to fetch messages for query: ${query}`, error);
+      console.warn(`Failed to fetch messages for query: ${config.query}`, error);
+      queryResults[config.folderHint] = 0;
     }
   }
   
-  // Remove duplicates by message ID
+  // Remove duplicates by message ID, keeping the first occurrence
   const uniqueMessages = allResults.reduce((acc, msg) => {
     if (!acc.find(m => m.id === msg.id)) {
       acc.push(msg);
@@ -234,7 +256,7 @@ async function fetchGmailMessages(accessToken: string, queries: string[], maxRes
     return acc;
   }, []);
   
-  return { messages: uniqueMessages.slice(0, maxResults) };
+  return { messages: uniqueMessages.slice(0, maxResults), queryResults };
 }
 
 async function syncGmailEmails(
@@ -322,30 +344,32 @@ async function syncGmailEmails(
       baseQuery = `after:${Math.floor(weekAgo.getTime() / 1000)}`;
     }
     
-    // Multi-query strategy for different folders
-    queries.push(
-      `${baseQuery} in:sent`,     // Sent emails
-      `${baseQuery} in:drafts`,   // Draft emails  
-      `${baseQuery} in:trash`,    // Deleted emails
-      `${baseQuery} in:inbox`,    // Inbox emails
-      baseQuery                   // Catch-all for other emails
-    );
+    // Enhanced multi-query strategy for different folders with hints
+    const queryConfigs = [
+      { query: `${baseQuery} in:sent`, folderHint: 'sent' },
+      { query: `${baseQuery} in:drafts`, folderHint: 'drafts' },
+      { query: `${baseQuery} in:trash`, folderHint: 'trash' },
+      { query: `${baseQuery} in:inbox`, folderHint: 'inbox' },
+      { query: baseQuery, folderHint: 'inbox' } // Catch-all defaults to inbox
+    ];
     
     const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 200);
     
     debugLog('MULTI_QUERY_PREP', 'Preparing multi-query Gmail sync', {
       syncType,
-      queries,
+      queryConfigs: queryConfigs.map(q => ({ query: q.query, hint: q.folderHint })),
       actualMaxResults
     });
     
-    // Fetch messages from all folders
-    const messagesData = await fetchGmailMessages(accessToken, queries, actualMaxResults);
+    // Fetch messages from all folders with enhanced strategy
+    const messagesData = await fetchGmailMessages(accessToken, queryConfigs, actualMaxResults);
     const messages = messagesData.messages || [];
+    const queryResults = messagesData.queryResults || {};
     
     debugLog('MULTI_QUERY_RESULTS', 'Multi-query messages received', {
       count: messages.length,
-      byQuery: queries.map(q => messages.filter(m => m.sourceQuery === q).length)
+      queryResults,
+      totalQueries: queryConfigs.length
     });
 
     if (messages.length === 0) {
@@ -446,8 +470,8 @@ async function syncGmailEmails(
         const senderMatch = from.match(/<(.+?)>/) || from.match(/(\S+@\S+)/);
         const senderEmail = senderMatch ? senderMatch[1] : from;
         
-        // Use enhanced classification based on Gmail labels
-        const { folder_name, direction } = classifyEmailByLabels(messageData.labelIds, userEmail, from);
+        // Use enhanced classification with folder hint
+        const { folder_name, direction } = classifyEmailByLabels(messageData.labelIds, userEmail, from, message._folderHint);
 
         debugLog('EMAIL_CLASSIFICATION', 'Email classified with enhanced logic', {
           messageId: messageData.id,
@@ -600,44 +624,48 @@ async function syncGmailEmails(
             folder_name: folderName,
             last_sync_at: new Date().toISOString(),
             last_sync_count: count,
-            gmail_history_id: messagesData.historyId || null
-          });
-      }
-      debugLog('SYNC_STATUS_UPDATED', 'Multi-folder sync status updated', { folderCounts });
-    } catch (statusError) {
-      debugLog('SYNC_STATUS_FAILED', 'Failed to update sync status', { error: statusError.message });
-    }
+           gmail_history_id: null
+         });
+       }
+       debugLog('SYNC_STATUS_UPDATED', 'Multi-folder sync status updated', { folderCounts });
+     } catch (statusError) {
+       debugLog('SYNC_STATUS_FAILED', 'Failed to update sync status', { error: statusError.message });
+     }
 
-    // Log success
-    try {
-      await supabaseClient
-        .from('security_events')
-        .insert({
-          user_id: userId,
-          event_type: 'gmail_sync_success',
-          severity: 'low',
-          details: { 
-            synced_count: insertedCount,
-            user_email: userEmail,
-            is_scheduled: isScheduled,
-            timestamp: new Date().toISOString()
-          }
-        });
-      debugLog('SUCCESS_LOG_CREATED', 'Success event logged');
-    } catch (logError) {
-      debugLog('SUCCESS_LOG_FAILED', 'Failed to log success event', { error: logError.message });
-    }
+     // Log success
+     try {
+       await supabaseClient
+         .from('security_events')
+         .insert({
+           user_id: userId,
+           event_type: 'gmail_sync_success',
+           severity: 'low',
+           details: { 
+             synced_count: insertedCount,
+             user_email: userEmail,
+             is_scheduled: isScheduled,
+             folder_distribution: folderCounts,
+             query_results: queryResults,
+             timestamp: new Date().toISOString()
+           }
+         });
+       debugLog('SUCCESS_LOG_CREATED', 'Success event logged');
+     } catch (logError) {
+       debugLog('SUCCESS_LOG_FAILED', 'Failed to log success event', { error: logError.message });
+     }
 
-    const result = {
-      success: true,
-      message: `Successfully synced ${insertedCount} emails`,
-      count: insertedCount,
-      processed: emailsToInsert.length,
-      found: messages.length
-    };
+     const result = {
+       success: true,
+       message: `Successfully synced ${insertedCount} emails`,
+       count: insertedCount,
+       processed: emailsToInsert.length,
+       found: messages.length,
+       folderDistribution: folderCounts,
+       queryResults
+     };
 
-    debugLog('SYNC_COMPLETE', 'Gmail sync completed successfully', result);
-    return result;
+     debugLog('SYNC_COMPLETE', 'Gmail sync completed successfully', result);
+     return result;
 
   } catch (error) {
     debugLog('SYNC_ERROR', 'Gmail sync failed with exception', {
