@@ -295,10 +295,38 @@ export default function UnifiedEmailBuilder({
   };
 
   // Convert Quote format to SabreOption format for EmailTemplateGenerator
-  const convertQuoteToSabreOption = (quote: Quote): SabreOption => {
+  const convertQuoteToSabreOption = async (quote: Quote): Promise<SabreOption> => {
+    console.log("🔄 Converting quote to SabreOption:", quote.id);
+    console.log("📋 Quote has parsedItinerary:", !!quote.parsedItinerary);
+    
+    let parsedInfo = quote.parsedItinerary;
+    
+    // Force parsing if missing and we have content
+    if (!parsedInfo && quote.content?.trim()) {
+      console.log("⚡ No parsed data found, forcing parse of content...");
+      try {
+        const format = EnhancedSabreParser.detectFormat(quote.content);
+        console.log(`🔍 Detected format: ${format}`);
+        
+        if (format === "VI") {
+          parsedInfo = await EnhancedSabreParser.parseVIFormatWithDatabase(quote.content);
+        } else {
+          parsedInfo = await EnhancedSabreParser.parseIFormatWithDatabase(quote.content);
+        }
+        
+        if (parsedInfo?.segments?.length > 0) {
+          console.log(`✅ Force parsing successful: ${parsedInfo.segments.length} segments`);
+        } else {
+          console.log("⚠️ Force parsing returned no segments");
+        }
+      } catch (error) {
+        console.error("❌ Force parsing failed:", error);
+      }
+    }
+    
     return {
       id: quote.id,
-      parsedInfo: quote.parsedItinerary || null,
+      parsedInfo: parsedInfo || null,
       quoteType: quote.quote_type === 'award' ? 'award' : 'revenue',
       sellingPrice: quote.total_price,
       netPrice: quote.net_price,
@@ -329,7 +357,9 @@ export default function UnifiedEmailBuilder({
     // Use the first quote's data for the template - if multiple quotes are selected,
     // we'll need a different approach, but for now this maintains existing functionality
     const primaryQuote = selectedQuoteData[0];
-    const sabreOption = convertQuoteToSabreOption(primaryQuote);
+    console.log("📧 Generating email HTML for quote:", primaryQuote.id);
+    const sabreOption = await convertQuoteToSabreOption(primaryQuote);
+    console.log("✅ Converted to SabreOption, has parsedInfo:", !!sabreOption.parsedInfo);
     
     return await EmailTemplateGenerator.generateItineraryEmail(sabreOption, clientName);
   };
@@ -340,7 +370,7 @@ export default function UnifiedEmailBuilder({
     
     const clientName = `${client?.first_name || ''} ${client?.last_name || ''}`.trim() || 'Valued Client';
     const primaryQuote = quotes[0];
-    const sabreOption = convertQuoteToSabreOption(primaryQuote);
+    const sabreOption = await convertQuoteToSabreOption(primaryQuote);
     
     return await EmailTemplateGenerator.generateItineraryEmail(sabreOption, clientName);
   };

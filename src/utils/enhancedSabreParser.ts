@@ -189,13 +189,21 @@ export class EnhancedSabreParser {
           .split('\n')
           .map(line => line.trim())
           .filter(line => {
-            return line.length > 10 && 
-                   !line.startsWith('OPERATED BY') &&
-                   !line.startsWith('CHECK-IN WITH') &&
-                   !line.startsWith('SEAT MAP') &&
-                   !line.startsWith('MEAL') &&
-                   // Support both formats: "1 UA2033P 20AUG" and "LO 7 20SEP F JFKWAW"
-                   (/^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line) || /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}/.test(line));
+            if (line.length <= 10) return false;
+            if (line.startsWith('OPERATED BY') || 
+                line.startsWith('CHECK-IN WITH') || 
+                line.startsWith('SEAT MAP') || 
+                line.startsWith('MEAL')) return false;
+            
+            // Enhanced pattern matching for various I-format variations
+            const patterns = [
+              /^\s*\d+\s+[A-Z]{2}\d+[A-Z]/,        // "1 UA2033P 20AUG"
+              /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}/,  // "LO 7 20SEP F JFKWAW"
+              /^[A-Z]{2}\s*\d+\s+\d{1,2}[A-Z]{3}/,  // "LO7 20SEP F JFKWAW" 
+              /^\d+\s+[A-Z]{2}\s*\d+/              // "1 LO 7" variations
+            ];
+            
+            return patterns.some(pattern => pattern.test(line));
           });
         
         logger.info(`Processing ${lines.length} flight lines`, { lines: lines.length, operationId });
@@ -223,6 +231,24 @@ export class EnhancedSabreParser {
         }
         
         if (segments.length === 0) {
+          console.log("⚠️ No valid segments found, attempting to extract basic flight info");
+          console.log("Original input preview:", rawItinerary.substring(0, 300));
+          console.log("Lines found:", lines);
+          
+          // Try to extract basic route info even if parsing fails
+          const basicRoute = this.extractBasicRouteInfo(cleaned);
+          if (basicRoute) {
+            console.log("✅ Extracted basic route:", basicRoute);
+            return {
+              segments: [],
+              route: basicRoute,
+              totalDuration: "N/A",
+              totalSegments: 0,
+              isRoundTrip: false,
+              layoverInfo: []
+            };
+          }
+          
           throw ErrorHandler.createError(
             ErrorType.PARSING_ERROR,
             'No valid flight segments could be parsed',
@@ -1202,5 +1228,31 @@ export class EnhancedSabreParser {
     const mappedClass = fallbackMapping[bookingClass] || 'Economy Class';
     console.log(`✓ Fallback mapping: ${bookingClass} = ${mappedClass}`);
     return mappedClass;
+  }
+
+  private static extractBasicRouteInfo(content: string): string | null {
+    // Try to extract route from various patterns in the content
+    const routePatterns = [
+      /([A-Z]{3})\s*(?:->|→)\s*([A-Z]{3})/g,    // JFK -> WAW
+      /([A-Z]{3})\s*([A-Z]{3})\s*([A-Z]{3})/g,   // JFK WAW DXB  
+      /\b([A-Z]{3})[A-Z]{3}\b/g                   // JFKWAW
+    ];
+    
+    const airports = new Set<string>();
+    
+    for (const pattern of routePatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        if (match[1]) airports.add(match[1]);
+        if (match[2]) airports.add(match[2]);
+        if (match[3]) airports.add(match[3]);
+      }
+    }
+    
+    if (airports.size >= 2) {
+      return Array.from(airports).join(' → ');
+    }
+    
+    return null;
   }
 }
