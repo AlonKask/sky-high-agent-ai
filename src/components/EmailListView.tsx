@@ -198,7 +198,7 @@ const EmailListView: React.FC<EmailListViewProps> = ({
       </div>
 
       {/* Email List - Fixed height with proper scroll */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           {emails.length === 0 ? (
             <div className="flex items-center justify-center h-64 text-muted-foreground">
