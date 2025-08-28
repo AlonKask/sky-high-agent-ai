@@ -307,7 +307,14 @@ export default function UnifiedEmailBuilder({
       numberOfPoints: quote.number_of_points,
       awardProgram: quote.award_program,
       fareType: quote.fare_type,
-      notes: quote.notes
+      notes: quote.notes,
+      // Include passenger data for detailed pricing
+      adultsCount: quote.adults_count,
+      childrenCount: quote.children_count,
+      infantsCount: quote.infants_count,
+      adultPrice: quote.adult_price,
+      childPrice: quote.child_price,
+      infantPrice: quote.infant_price
     };
   };
 
