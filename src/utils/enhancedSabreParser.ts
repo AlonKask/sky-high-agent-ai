@@ -609,7 +609,13 @@ export class EnhancedSabreParser {
               { latitude: arrAirport.latitude, longitude: arrAirport.longitude }
             );
             
-            segment.duration = this.estimateFlightDuration(distance);
+            // Only estimate duration if not already present from Sabre data
+            if (!segment.duration) {
+              segment.duration = this.estimateFlightDuration(distance);
+              logger.debug(`Estimated duration for segment ${index + 1}: ${segment.duration}`);
+            } else {
+              logger.debug(`Preserved Sabre duration for segment ${index + 1}: ${segment.duration}`);
+            }
             segment.aircraftType = this.estimateAircraftType(distance);
             
             // Add rich airport information
@@ -673,7 +679,10 @@ export class EnhancedSabreParser {
           });
           // Apply basic enhancement as fallback
           try {
-            segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+            // Only estimate duration if not already present from Sabre data
+            if (!segment.duration) {
+              segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+            }
             segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
           } catch (fallbackError) {
             logger.error(`Even basic enhancement failed for segment ${index + 1}`, { error: fallbackError.message });
@@ -695,7 +704,10 @@ export class EnhancedSabreParser {
     // Fallback enhancement without database
     segments.forEach((segment, index) => {
       try {
-        segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+        // Only estimate duration if not already present from Sabre data
+        if (!segment.duration) {
+          segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+        }
         segment.aircraftType = this.estimateAircraftType(3000); // Default distance
         segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
         
