@@ -1,4 +1,3 @@
-
 import { ParsedItinerary } from './sabreParser';
 import { DatabaseUtils } from './databaseUtils';
 import { getCompanyLogoUrl } from './logoService';
@@ -112,28 +111,9 @@ export class EmailTemplateGenerator {
     totalSegments?: number,
     companyLogoUrl?: string
   ): string {
-    const segmentCards = segments.map((segment, index) => {
-      const segmentDate = new Date(segment.flightDate);
-      const formattedDate = segmentDate.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-
-      const layoverCard = (index < segments.length - 1 && segment.layoverTime) ? 
-        this.generateLayoverCard(segment.arrivalAirport, segment.layoverTime) : '';
-
-      return `
-        ${this.generateSegmentCard(segment, formattedDate, index + 1)}
-        ${layoverCard}
-      `;
-    }).join('');
-
-    const pricingSection = this.generatePricingSection(option);
-    const journeyOverview = this.generateJourneyOverview(route, totalDuration, totalSegments || segments.length);
-    const bookingButton = this.generateBookingButton(option.id);
-    const flightPath = this.generateFlightPath(segments);
+    const flightPath = this.generateCleanFlightPath(segments);
+    const pricingSection = this.generateCleanPricingSection(option);
+    const bookingButton = this.generateCleanBookingButton(option.id);
 
     return `
 <!DOCTYPE html>
@@ -141,1116 +121,258 @@ export class EmailTemplateGenerator {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Flight Itinerary</title>
-    <style>
-        ${this.getEmailStyles()}
-    </style>
+    <title>Flight Options - ${clientName}</title>
 </head>
-<body>
-    <div class="email-container">
-        <div class="header">
-            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="height: 48px; margin-bottom: 20px;">` : ''}
-            <h1>🛫 Your Flight Itinerary</h1>
-            <p class="greeting">Dear ${clientName},</p>
-            <p>Thank you for choosing our travel services. Here are your flight options:</p>
+<body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="padding: 30px; background-color: #fff; border-bottom: 1px solid #e9ecef; text-align: center;">
+            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="height: 40px; margin-bottom: 20px;">` : ''}
+            <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #2c3e50;">Flight Options</h1>
+            <p style="margin: 0; color: #6c757d; font-size: 16px;">Dear ${clientName},</p>
         </div>
 
-        ${journeyOverview}
-        
+        <!-- Flight Path -->
         ${flightPath}
-        
-        <div class="segments-container">
-            <h2>✈️ Flight Details</h2>
-            ${segmentCards}
-        </div>
 
+        <!-- Pricing -->
         ${pricingSection}
 
-        <div class="booking-section">
+        <!-- Booking Button -->
+        <div style="padding: 30px; text-align: center; background-color: #fff;">
             ${bookingButton}
         </div>
 
-        <div class="important-info">
-            <h3>✈️ Important Travel Information</h3>
-            <ul>
-                <li><strong>Check-in:</strong> Arrive at airport 2-3 hours before international flights</li>
-                <li><strong>Documents:</strong> Ensure passport is valid for at least 6 months</li>
-                <li><strong>Visa:</strong> Check visa requirements for your destination</li>
-                <li><strong>Baggage:</strong> Review airline baggage policies and restrictions</li>
-            </ul>
+        <!-- Footer -->
+        <div style="padding: 25px; background-color: #f8f9fa; text-align: center; border-top: 1px solid #e9ecef;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #6c757d;">
+                Questions? Contact us for assistance with your booking.
+            </p>
+            <p style="margin: 0; font-size: 14px; color: #6c757d;">
+                Best regards,<br><strong>Your Travel Team</strong>
+            </p>
         </div>
 
-        ${option.notes ? `
-        <div class="notes-section">
-            <h3>📝 Additional Notes</h3>
-            <p>${option.notes}</p>
-        </div>
-        ` : ''}
-
-        <div class="footer">
-            <p>If you have any questions or need to make changes, please contact us immediately.</p>
-            <p><strong>Thank you for your business!</strong></p>
-            <p class="signature">Best regards,<br>Your Travel Team</p>
-        </div>
     </div>
 </body>
-</html>
-    `;
+</html>`;
   }
 
-  private static generateSegmentCard(segment: any, formattedDate: string, segmentNumber: number): string {
-    const aircraftInfo = segment.aircraftType ? `<span class="aircraft">✈️ ${segment.aircraftType}</span>` : '';
-    const operatingAirline = segment.operatingAirline ? `<br><small>Operated by ${segment.operatingAirline}</small>` : '';
-    const duration = segment.duration ? `<span class="duration">⏱️ ${segment.duration}</span>` : '';
-
-    // Use enriched data if available, fallback to original
-    const departureAirportDisplay = segment.enrichedDepartureAirport?.fullDisplay || this.getAirportName(segment.departureAirport);
-    const arrivalAirportDisplay = segment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(segment.arrivalAirport);
-    const airlineDisplay = segment.enrichedAirline?.fullDisplay || this.getAirlineName(segment.airlineCode);
-    const airlineLogo = segment.enrichedAirline?.logo_url ? `<img src="${segment.enrichedAirline.logo_url}" alt="${segment.enrichedAirline.name}" class="airline-logo">` : '';
-
-    return `
-    <div class="segment-card">
-        <div class="segment-header">
-            <span class="segment-number">Segment ${segmentNumber}</span>
-            <span class="route">${segment.departureAirport} → ${segment.arrivalAirport}</span>
-        </div>
-        
-        <div class="flight-info">
-            <div class="airline-flight">
-                ${airlineLogo}
-                <div class="flight-details-text">
-                    <strong>${segment.flightNumber}</strong> - ${airlineDisplay}
-                    ${operatingAirline}
-                </div>
-            </div>
-            <div class="flight-details">
-                ${aircraftInfo}
-                ${duration}
-                <span class="class">${segment.cabinClass}</span>
-            </div>
-        </div>
-
-        <div class="time-info">
-            <div class="departure">
-                <div class="time">${segment.departureTime}</div>
-                <div class="airport">${departureAirportDisplay}</div>
-                <div class="date">${formattedDate}</div>
-            </div>
-            <div class="flight-path">
-                <div class="plane-icon">✈️</div>
-            </div>
-            <div class="arrival">
-                <div class="time">${segment.arrivalTime}${segment.arrivalDayOffset ? '+1' : ''}</div>
-                <div class="airport">${arrivalAirportDisplay}</div>
-                <div class="status">${this.getStatusDescription(segment.statusCode)}</div>
-            </div>
-        </div>
-    </div>
-    `;
-  }
-
-  private static async generateLayoverCard(airport: string, layoverTime: number): Promise<string> {
-    const hours = Math.floor(layoverTime / 60);
-    const minutes = layoverTime % 60;
-    const layoverDisplay = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-
-    // Get enriched airport information
-    const airportInfo = await DatabaseUtils.enrichAirportInfo(airport);
-
-    return `
-    <div class="layover-card">
-        <div class="layover-info">
-            <span class="layover-icon">🕐</span>
-            <span class="layover-text">
-                <strong>Layover in ${airportInfo.fullDisplay}</strong><br>
-                Connection time: ${layoverDisplay}
-            </span>
-        </div>
-    </div>
-    `;
-  }
-
-  private static generateJourneyOverview(route?: string, totalDuration?: string, totalSegments?: number): string {
-    return `
-    <div class="journey-overview">
-        <div class="overview-item">
-            <div class="overview-label">🛫 Route</div>
-            <div class="overview-value">${route || 'Multi-city journey'}</div>
-        </div>
-        ${totalDuration ? `
-        <div class="overview-item">
-            <div class="overview-label">⏱️ Total Duration</div>
-            <div class="overview-value">${totalDuration}</div>
-        </div>
-        ` : ''}
-        <div class="overview-item">
-            <div class="overview-label">✈️ Segments</div>
-            <div class="overview-value">${totalSegments} flight${totalSegments !== 1 ? 's' : ''}</div>
-        </div>
-    </div>
-    `;
-  }
-
-  private static generateFlightPath(segments: any[]): string {
+  private static generateCleanFlightPath(segments: any[]): string {
     if (!segments || segments.length === 0) return '';
-    
-    console.log(`🗺️ Generating horizontal flight path for ${segments.length} segments`);
-    
-    // Create horizontal flight path visualization
-    const flightConnections = this.generateFlightConnections(segments);
-    
-    // Generate clean route string
+
+    // Calculate layover durations
+    const flightInfo = segments.map((segment, index) => {
+      let layoverDuration = '';
+      if (index < segments.length - 1 && segment.layoverTime) {
+        const hours = Math.floor(segment.layoverTime / 60);
+        const minutes = segment.layoverTime % 60;
+        layoverDuration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+      }
+      
+      return {
+        ...segment,
+        layoverDuration
+      };
+    });
+
+    // Generate route string
     const routeString = [segments[0].departureAirport]
       .concat(segments.map(s => s.arrivalAirport))
       .join(' → ');
 
-    return `
-    <div class="flight-path-container">
-        <h3>🛫 Your Complete Journey</h3>
-        <div class="horizontal-flight-path">
-            ${flightConnections}
-        </div>
-        <div class="journey-summary">
-          <div class="summary-item">
-            <span class="label">Total Flights:</span>
-            <span class="value">${segments.length} segment${segments.length > 1 ? 's' : ''}</span>
-          </div>
-          <div class="summary-item">
-            <span class="label">Complete Route:</span>
-            <span class="value">${routeString}</span>
-          </div>
-        </div>
-    </div>
-    `;
-  }
-
-  private static generateFlightConnections(segments: any[]): string {
-    if (!segments || segments.length === 0) return '';
-
-    let connections = '';
-    
-    // Group segments to find connecting flights with same layover airports
-    const flightGroups = this.groupConnectedSegments(segments);
-    
-    flightGroups.forEach((group, groupIndex) => {
-      if (groupIndex > 0) {
-        // Add connection between groups (different airports)
-        connections += '<div class="group-separator">• • •</div>';
-      }
-      
-      connections += this.generateFlightGroup(group);
-    });
-
-    return connections;
-  }
-
-  private static groupConnectedSegments(segments: any[]): any[][] {
-    const groups = [];
-    let currentGroup = [segments[0]];
-    
-    for (let i = 1; i < segments.length; i++) {
-      const prevSegment = segments[i - 1];
-      const currentSegment = segments[i];
-      
-      // Check if this segment connects directly (same arrival/departure airport)
-      if (prevSegment.arrivalAirport === currentSegment.departureAirport) {
-        currentGroup.push(currentSegment);
-      } else {
-        // Different airport connection - start new group
-        groups.push(currentGroup);
-        currentGroup = [currentSegment];
-      }
-    }
-    
-    groups.push(currentGroup);
-    return groups;
-  }
-
-  private static generateFlightGroup(groupSegments: any[]): string {
-    const firstSegment = groupSegments[0];
-    const lastSegment = groupSegments[groupSegments.length - 1];
-    
-    // Get airport displays
-    const departureDisplay = firstSegment.enrichedDepartureAirport?.fullDisplay || this.getAirportName(firstSegment.departureAirport);
-    const arrivalDisplay = lastSegment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(lastSegment.arrivalAirport);
-    
-    let layoversHtml = '';
-    let flightInfoHtml = '';
-    
-    // Generate layover circles and flight info
-    if (groupSegments.length > 1) {
-      // Multi-segment with layovers
-      const layovers = [];
-      
-      for (let i = 0; i < groupSegments.length - 1; i++) {
-        const segment = groupSegments[i];
-        const nextSegment = groupSegments[i + 1];
-        
-        if (segment.arrivalAirport === nextSegment.departureAirport) {
-          const layoverTime = segment.layoverTime;
-          const layoverDuration = layoverTime ? 
-            `${Math.floor(layoverTime / 60)}h ${layoverTime % 60}m` : 'Quick connection';
-          
-          layovers.push({
-            airport: segment.arrivalAirport,
-            duration: layoverDuration,
-            position: ((i + 1) / groupSegments.length) * 100 // Position percentage along the line
-          });
-        }
-      }
-      
-      layoversHtml = layovers.map(layover => `
-        <div class="layover-circle" style="left: ${layover.position}%;">
-          <div class="layover-airport">${layover.airport}</div>
-          <div class="layover-duration">${layover.duration}</div>
-        </div>
-      `).join('');
-      
-      // Flight info for multi-segment
-      flightInfoHtml = groupSegments.map(segment => {
-        const airlineDisplay = segment.enrichedAirline?.name || this.getAirlineName(segment.airlineCode);
-        const logoHtml = segment.enrichedAirline?.logo_url ? 
-          `<img src="${segment.enrichedAirline.logo_url}" alt="${segment.enrichedAirline.name}" class="airline-logo-small">` : '';
-        
-        return `<div class="flight-info-item">${logoHtml} ${segment.flightNumber} (${airlineDisplay})</div>`;
-      }).join('');
-    } else {
-      // Single segment
-      const segment = groupSegments[0];
+    // Generate clean horizontal visualization using tables for email compatibility
+    const flightSteps = flightInfo.map((segment, index) => {
+      const isLast = index === segments.length - 1;
+      const departureAirportDisplay = segment.enrichedDepartureAirport?.fullDisplay || this.getAirportName(segment.departureAirport);
+      const arrivalAirportDisplay = segment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(segment.arrivalAirport);
       const airlineDisplay = segment.enrichedAirline?.name || this.getAirlineName(segment.airlineCode);
-      const logoHtml = segment.enrichedAirline?.logo_url ? 
-        `<img src="${segment.enrichedAirline.logo_url}" alt="${segment.enrichedAirline.name}" class="airline-logo-small">` : '';
-      
-      flightInfoHtml = `<div class="flight-info-item">${logoHtml} ${segment.flightNumber} (${airlineDisplay})</div>`;
-    }
+      const airlineLogo = segment.enrichedAirline?.logo_url ? 
+        `<img src="${segment.enrichedAirline.logo_url}" alt="${segment.enrichedAirline.name}" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">` : '';
 
-    return `
-    <div class="flight-group">
-      <div class="airport-circle origin">
-        <div class="airport-code">${firstSegment.departureAirport}</div>
-        <div class="airport-name">${departureDisplay}</div>
-        <div class="flight-time">Depart: ${firstSegment.departureTime}</div>
-      </div>
-      
-      <div class="connection-line-container">
-        <div class="connection-line">
-          <div class="plane-on-line">✈️</div>
-          ${layoversHtml}
-        </div>
-        <div class="flight-info-below">
-          ${flightInfoHtml}
-        </div>
-      </div>
-      
-      <div class="airport-circle destination">
-        <div class="airport-code">${lastSegment.arrivalAirport}</div>
-        <div class="airport-name">${arrivalDisplay}</div>
-        <div class="flight-time">Arrive: ${lastSegment.arrivalTime}${lastSegment.arrivalDayOffset ? '+1' : ''}</div>
-      </div>
-    </div>
-    `;
-  }
+      const segmentDate = new Date(segment.flightDate);
+      const formattedDate = segmentDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric'
+      });
 
-  private static generatePricingSection(option: SabreOption): string {
+      return `
+        <!-- Departure Airport -->
+        <td style="text-align: center; padding: 15px; vertical-align: top; min-width: 120px;">
+          <div style="background: white; border: 2px solid #10b981; border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="font-weight: bold; font-size: 14px; color: #1e293b;">${segment.departureAirport}</div>
+            <div style="font-size: 10px; color: #64748b;">${formattedDate}</div>
+          </div>
+          <div style="font-size: 11px; color: #334155; font-weight: 600;">
+            Depart ${segment.departureTime}
+          </div>
+          <div style="font-size: 9px; color: #64748b; margin-top: 2px; max-width: 100px; overflow: hidden; text-overflow: ellipsis;">
+            ${departureAirportDisplay.split('(')[0].trim()}
+          </div>
+        </td>
 
-    let pricingContent = '';
-
-    if (option.quoteType === "revenue") {
-      pricingContent = `
-        <div class="pricing-row">
-            <span>Quote Type:</span>
-            <span>Revenue Ticket</span>
-        </div>
-        ${option.fareType ? `
-        <div class="pricing-row">
-            <span>Fare Type:</span>
-            <span>${this.formatFareType(option.fareType)}</span>
-        </div>
-        ` : ''}
-        ${option.netPrice ? `
-        <div class="pricing-row">
-            <span>Base Fare:</span>
-            <span>$${option.netPrice.toFixed(2)}</span>
-        </div>
-        ` : ''}
-        ${option.markup ? `
-        <div class="pricing-row">
-            <span>Service Fee:</span>
-            <span>$${option.markup.toFixed(2)}</span>
-        </div>
-        ` : ''}
-      `;
-    } else if (option.quoteType === "award") {
-      pricingContent = `
-        <div class="pricing-row">
-            <span>Quote Type:</span>
-            <span>Award Ticket</span>
-        </div>
-        ${option.awardProgram ? `
-        <div class="pricing-row">
-            <span>Program:</span>
-            <span>${option.awardProgram}</span>
-        </div>
-        ` : ''}
-        ${option.numberOfPoints ? `
-        <div class="pricing-row">
-            <span>Points Required:</span>
-            <span>${option.numberOfPoints.toLocaleString()} points</span>
-        </div>
-        ` : ''}
-        ${option.taxes ? `
-        <div class="pricing-row">
-            <span>Taxes & Fees:</span>
-            <span>$${option.taxes.toFixed(2)}</span>
-        </div>
-        ` : ''}
-        ${option.markup ? `
-        <div class="pricing-row">
-            <span>Service Fee:</span>
-            <span>$${option.markup.toFixed(2)}</span>
-        </div>
-        ` : ''}
-      `;
-    }
-
-    return `
-    <div class="pricing-section">
-        <h2>💰 Pricing Details</h2>
-        <div class="pricing-table">
-            ${pricingContent}
-            ${option.sellingPrice ? `
-            <div class="pricing-row total">
-                <span><strong>Total Price:</strong></span>
-                <span><strong>$${option.sellingPrice.toFixed(2)}</strong></span>
+        ${!isLast ? `
+        <!-- Connection Line and Flight Info -->
+        <td style="text-align: center; padding: 15px; vertical-align: middle; min-width: 150px;">
+          <div style="position: relative; height: 4px; background: linear-gradient(to right, #10b981, #3b82f6); border-radius: 2px; margin: 20px 0;">
+            <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 16px; background: white; padding: 2px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              ✈️
+            </div>
+          </div>
+          <div style="margin-top: 15px;">
+            <div style="background: white; border-radius: 15px; padding: 6px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block; margin-bottom: 5px;">
+              <span style="font-size: 12px; font-weight: 500; color: #475569;">
+                ${airlineLogo}${segment.flightNumber}
+              </span>
+            </div>
+            <div style="font-size: 11px; color: #6c757d;">
+              ${airlineDisplay}
+            </div>
+            ${segment.duration ? `
+            <div style="font-size: 10px; color: #6c757d; margin-top: 2px;">
+              ${segment.duration}
             </div>
             ` : ''}
+          </div>
+        </td>
+        ` : ''}
+
+        ${!isLast && index < segments.length - 1 ? `
+        <!-- Layover (if exists) -->
+        ${segment.layoverDuration ? `
+        <td style="text-align: center; padding: 15px; vertical-align: top; min-width: 100px;">
+          <div style="background: white; border: 2px solid #f59e0b; border-radius: 50%; width: 60px; height: 60px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 2px 6px rgba(245,158,11,0.2);">
+            <div style="font-weight: bold; font-size: 12px; color: #92400e;">${segment.arrivalAirport}</div>
+          </div>
+          <div style="font-size: 10px; color: #f59e0b; font-weight: 600;">
+            ${segment.layoverDuration}
+          </div>
+          <div style="font-size: 9px; color: #92400e; margin-top: 2px;">
+            layover
+          </div>
+        </td>
+        ` : ''}
+        ` : ''}
+      `;
+    }).join('');
+
+    // Add final destination
+    const lastSegment = segments[segments.length - 1];
+    const lastAirportDisplay = lastSegment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(lastSegment.arrivalAirport);
+    const lastDate = new Date(lastSegment.flightDate);
+    const lastFormattedDate = lastDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric'
+    });
+
+    return `
+    <div style="padding: 25px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+      <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50; text-align: center;">Flight Route</h2>
+      
+      <!-- Email-compatible table layout -->
+      <table style="width: 100%; max-width: 100%; border-collapse: collapse; margin: 0 auto;">
+        <tr>
+          ${flightSteps}
+          
+          <!-- Final Destination -->
+          <td style="text-align: center; padding: 15px; vertical-align: top; min-width: 120px;">
+            <div style="background: white; border: 2px solid #3b82f6; border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="font-weight: bold; font-size: 14px; color: #1e293b;">${lastSegment.arrivalAirport}</div>
+              <div style="font-size: 10px; color: #64748b;">${lastFormattedDate}</div>
+            </div>
+            <div style="font-size: 11px; color: #334155; font-weight: 600;">
+              Arrive ${lastSegment.arrivalTime}${lastSegment.arrivalDayOffset ? '+1' : ''}
+            </div>
+            <div style="font-size: 9px; color: #64748b; margin-top: 2px; max-width: 100px; overflow: hidden; text-overflow: ellipsis;">
+              ${lastAirportDisplay.split('(')[0].trim()}
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Route Summary -->
+      <div style="text-align: center; margin-top: 20px; padding: 12px; background: white; border-radius: 6px;">
+        <span style="font-size: 14px; font-weight: 500; color: #2c3e50;">
+          Route: ${routeString}
+        </span>
+      </div>
+    </div>
+    `;
+  }
+
+  private static generateCleanPricingSection(option: SabreOption): string {
+    if (!option.sellingPrice && !option.numberOfPoints) return '';
+
+    let passengerBreakdown = '';
+    let totalPrice = '';
+
+    if (option.quoteType === "revenue" && option.sellingPrice) {
+      // Simple pricing display matching user's reference
+      totalPrice = `
+        <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 6px; margin-top: 10px;">
+          <span style="font-size: 18px; font-weight: 600; color: #2c3e50;">
+            Total: $${option.sellingPrice.toFixed(2)}
+          </span>
         </div>
+      `;
+    } else if (option.quoteType === "award" && option.numberOfPoints) {
+      totalPrice = `
+        <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 6px; margin-top: 10px;">
+          <span style="font-size: 18px; font-weight: 600; color: #2c3e50;">
+            ${option.numberOfPoints.toLocaleString()} points
+          </span>
+          ${option.taxes ? `<br><span style="font-size: 14px; color: #6c757d;">+ $${option.taxes.toFixed(2)} taxes</span>` : ''}
+        </div>
+      `;
+    }
+
+    return `
+    <div style="padding: 25px; background-color: #fff; border-bottom: 1px solid #e9ecef;">
+      <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #2c3e50; text-align: center;">Pricing</h2>
+      ${totalPrice}
     </div>
     `;
   }
 
-  private static generateBookingButton(optionId: string): string {
+  private static generateCleanBookingButton(optionId: string): string {
     return `
-    <div class="booking-button-container">
-        <a href="#book-${optionId}" class="booking-button">
-            🎯 Book This Option
-        </a>
-        <p class="booking-subtitle">Secure your booking with one click</p>
-    </div>
-    `;
-  }
-
-  private static getEmailStyles(): string {
-    return `
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #1a202c;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 0;
-            padding: 20px;
-        }
-        
-        .email-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 15px;
-        }
-        
-        .greeting {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        
-        .journey-overview {
-            background-color: #f8f9fa;
-            padding: 20px;
-            display: flex;
-            justify-content: space-around;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .overview-item {
-            text-align: center;
-        }
-        
-        .overview-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            color: #6c757d;
-            margin-bottom: 5px;
-        }
-        
-        .overview-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #495057;
-        }
-        
-        .segments-container {
-            padding: 30px;
-        }
-        
-        .segments-container h2 {
-            color: #495057;
-            margin-bottom: 20px;
-            font-size: 22px;
-        }
-        
-        .segment-card {
-            background-color: #ffffff;
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .segment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .segment-number {
-            background-color: #667eea;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        .route {
-            font-size: 18px;
-            font-weight: bold;
-            color: #495057;
-        }
-        
-        .flight-info {
-            margin-bottom: 15px;
-        }
-        
-        .airline-flight {
-            font-size: 16px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .airline-logo {
-            width: 31px;
-            height: 31px;
-            object-fit: contain;
-            border-radius: 4px;
-        }
-
-        .airline-logo-small {
-            width: 20px;
-            height: 20px;
-            object-fit: contain;
-            border-radius: 3px;
-            margin-right: 6px;
-        }
-        
-        .flight-details-text {
-            flex: 1;
-        }
-        
-        .flight-details {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .aircraft, .duration, .class {
-            background-color: #f8f9fa;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #495057;
-        }
-
-        /* Horizontal Flight Path Styles */
-        .flight-path-container {
-            background-color: #f8fafc;
-            padding: 25px;
-            margin: 20px 0;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .flight-path-container h3 {
-            color: #1e293b;
-            margin-bottom: 20px;
-            font-size: 18px;
-            text-align: center;
-        }
-
-        .horizontal-flight-path {
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            padding: 20px 0;
-        }
-
-        .flight-group {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: nowrap;
-            min-height: 120px;
-        }
-
-        .airport-circle {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            background: white;
-            border-radius: 50%;
-            width: 120px;
-            height: 120px;
-            padding: 15px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            justify-content: center;
-            position: relative;
-        }
-
-        .airport-circle.origin {
-            border: 3px solid #10b981;
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-        }
-
-        .airport-circle.destination {
-            border: 3px solid #3b82f6;
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-        }
-
-        .airport-circle .airport-code {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1e293b;
-            margin-bottom: 4px;
-        }
-
-        .airport-circle .airport-name {
-            font-size: 10px;
-            color: #64748b;
-            line-height: 1.2;
-            margin-bottom: 4px;
-            max-width: 90px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .airport-circle .flight-time {
-            font-size: 11px;
-            font-weight: 600;
-            color: #334155;
-        }
-
-        .connection-line-container {
-            flex: 1;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 200px;
-        }
-
-        .connection-line {
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(to right, #10b981, #3b82f6);
-            border-radius: 2px;
-            position: relative;
-            margin: 20px 0;
-        }
-
-        .plane-on-line {
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 18px;
-            background: white;
-            padding: 4px;
-            border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .layover-circle {
-            position: absolute;
-            top: -40px;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background: white;
-            border: 2px solid #f59e0b;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            padding: 8px;
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
-            justify-content: center;
-        }
-
-        .layover-airport {
-            font-size: 11px;
-            font-weight: bold;
-            color: #92400e;
-            text-align: center;
-        }
-
-        .layover-duration {
-            position: absolute;
-            top: 65px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 10px;
-            color: #f59e0b;
-            font-weight: 600;
-            white-space: nowrap;
-            background: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid #fde68a;
-        }
-
-        .flight-info-below {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .flight-info-item {
-            display: flex;
-            align-items: center;
-            background: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            font-size: 12px;
-            color: #475569;
-            font-weight: 500;
-        }
-
-        .group-separator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 20px 0;
-            font-size: 24px;
-            color: #cbd5e1;
-            font-weight: bold;
-        }
-        
-        .time-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .departure, .arrival {
-            text-align: center;
-            flex: 1;
-        }
-        
-        .flight-path {
-            flex: 0 0 60px;
-            text-align: center;
-        }
-        
-        .plane-icon {
-            font-size: 24px;
-            color: #667eea;
-        }
-        
-        .time {
-            font-size: 20px;
-            font-weight: bold;
-            color: #495057;
-        }
-        
-        .airport {
-            font-size: 14px;
-            color: #6c757d;
-            margin: 5px 0;
-        }
-        
-        .date, .status {
-            font-size: 12px;
-            color: #6c757d;
-        }
-        
-        .layover-card {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
-            text-align: center;
-        }
-        
-        .layover-info {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .layover-icon {
-            font-size: 18px;
-        }
-        
-        .pricing-section {
-            background-color: #f8f9fa;
-            padding: 30px;
-            border-top: 1px solid #e9ecef;
-        }
-        
-        .pricing-section h2 {
-            color: #495057;
-            margin-bottom: 20px;
-            font-size: 22px;
-        }
-        
-        .pricing-table {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .pricing-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .pricing-row:last-child {
-            border-bottom: none;
-        }
-        
-        .pricing-row.total {
-            background-color: #f8f9fa;
-            margin: 10px -20px -20px -20px;
-            padding: 15px 20px;
-            border-bottom: none;
-            font-size: 18px;
-        }
-        
-        .booking-section {
-            padding: 30px;
-            text-align: center;
-            background-color: #ffffff;
-        }
-        
-        .booking-button-container {
-            margin: 20px 0;
-        }
-        
-        .booking-button {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            padding: 15px 40px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-size: 18px;
-            font-weight: bold;
-            display: inline-block;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-            transition: transform 0.2s;
-        }
-        
-        .booking-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
-        }
-        
-        .booking-subtitle {
-            color: #6c757d;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        
-        .important-info {
-            background-color: #e3f2fd;
-            padding: 25px;
-            border-left: 4px solid #2196f3;
-        }
-        
-        .important-info h3 {
-            color: #1976d2;
-            margin-bottom: 15px;
-        }
-        
-        .important-info ul {
-            list-style: none;
-            padding-left: 0;
-        }
-        
-        .important-info li {
-            margin-bottom: 8px;
-            padding-left: 20px;
-            position: relative;
-        }
-        
-        .important-info li::before {
-            content: "•";
-            color: #2196f3;
-            font-weight: bold;
-            position: absolute;
-            left: 0;
-        }
-        
-        .notes-section {
-            background-color: #fff3e0;
-            padding: 25px;
-            border-left: 4px solid #ff9800;
-        }
-        
-        .notes-section h3 {
-            color: #f57c00;
-            margin-bottom: 15px;
-        }
-        
-        .footer {
-            background-color: #343a40;
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        
-        .signature {
-            margin-top: 20px;
-            font-style: italic;
-        }
-         
-        @media (max-width: 600px) {
-            .email-container {
-                margin: 0;
-                box-shadow: none;
-            }
-            
-            .journey-overview {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .flight-group {
-                flex-direction: column;
-                gap: 15px;
-                min-height: auto;
-            }
-            
-            .connection-line-container {
-                min-width: 100%;
-                margin: 10px 0;
-            }
-            
-            .airport-circle {
-                width: 100px;
-                height: 100px;
-                font-size: 12px;
-            }
-            
-            .layover-circle {
-                width: 50px;
-                height: 50px;
-            }
-            
-            .flight-info-item {
-                font-size: 11px;
-            }
-        }
-        
-        .journey-summary {
-            display: flex;
-            justify-content: space-around;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .summary-item {
-            text-align: center;
-            flex: 1;
-            min-width: 120px;
-        }
-        
-        .summary-item .label {
-            display: block;
-            font-size: 12px;
-            color: #6c757d;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-        
-        .summary-item .value {
-            font-weight: bold;
-            color: #495057;
-            font-size: 14px;
-        }
+    <a href="#book-${optionId}" style="display: inline-block; padding: 15px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+      Book / Hold
+    </a>
     `;
   }
 
   private static getAirportName(code: string): string {
-    const airports: { [key: string]: string } = {
-      'JFK': 'John F. Kennedy International Airport (New York)',
-      'LGA': 'LaGuardia Airport (New York)',
-      'EWR': 'Newark Liberty International Airport (New York)',
-      'LAX': 'Los Angeles International Airport',
-      'ORD': 'Chicago O\'Hare International Airport',
-      'DFW': 'Dallas/Fort Worth International Airport',
-      'DEN': 'Denver International Airport',
-      'ATL': 'Hartsfield-Jackson Atlanta International Airport',
-      'MIA': 'Miami International Airport',
-      'SFO': 'San Francisco International Airport',
-      'SEA': 'Seattle-Tacoma International Airport',
-      'BOS': 'Logan International Airport (Boston)',
-      'LHR': 'London Heathrow Airport',
-      'CDG': 'Charles de Gaulle Airport (Paris)',
-      'FRA': 'Frankfurt Airport',
-      'AMS': 'Amsterdam Airport Schiphol',
-      'MAD': 'Madrid-Barajas Airport',
-      'BCN': 'Barcelona-El Prat Airport',
-      'FCO': 'Leonardo da Vinci-Fiumicino Airport (Rome)',
-      'MXP': 'Malpensa Airport (Milan)',
-      'ZUR': 'Zurich Airport',
-      'VIE': 'Vienna International Airport',
-      'CPH': 'Copenhagen Airport',
-      'ARN': 'Stockholm Arlanda Airport',
-      'OSL': 'Oslo Airport',
-      'HEL': 'Helsinki Airport',
-      'ICN': 'Incheon International Airport (Seoul)',
-      'NRT': 'Narita International Airport (Tokyo)',
-      'HND': 'Haneda Airport (Tokyo)',
-      'PEK': 'Beijing Capital International Airport',
-      'PVG': 'Shanghai Pudong International Airport',
-      'HKG': 'Hong Kong International Airport',
-      'SIN': 'Singapore Changi Airport',
-      'BKK': 'Suvarnabhumi Airport (Bangkok)',
-      'DXB': 'Dubai International Airport',
-      'DOH': 'Hamad International Airport (Doha)',
-      'AUH': 'Abu Dhabi International Airport',
-      'CAI': 'Cairo International Airport',
-      'JNB': 'O.R. Tambo International Airport (Johannesburg)',
-      'CPT': 'Cape Town International Airport',
-      'SYD': 'Kingsford Smith Airport (Sydney)',
-      'MEL': 'Melbourne Airport',
-      'PER': 'Perth Airport',
-      'AKL': 'Auckland Airport',
-      'YYZ': 'Toronto Pearson International Airport',
-      'YVR': 'Vancouver International Airport',
-      'GRU': 'Sao Paulo-Guarulhos International Airport',
-      'GIG': 'Rio de Janeiro-Galeao International Airport',
-      'SCL': 'Santiago International Airport',
-      'LIM': 'Jorge Chavez International Airport (Lima)',
-      'BOG': 'El Dorado International Airport (Bogota)',
-      'MEX': 'Mexico City International Airport',
-      'CUN': 'Cancun International Airport'
-    };
-    
-    return airports[code] || `${code} Airport`;
+    return code || 'Unknown Airport';
   }
 
   private static getAirlineName(code: string): string {
-    const airlines: { [key: string]: string } = {
-      'AA': 'American Airlines',
-      'AC': 'Air Canada',
-      'AF': 'Air France',
-      'AS': 'Alaska Airlines',
-      'AV': 'Avianca',
-      'AY': 'Finnair',
-      'B6': 'JetBlue Airways',
-      'BA': 'British Airways',
-      'CM': 'Copa Airlines',
-      'CX': 'Cathay Pacific',
-      'DL': 'Delta Air Lines',
-      'EK': 'Emirates',
-      'EY': 'Etihad Airways',
-      'G3': 'Gol Linhas Aereas',
-      'HA': 'Hawaiian Airlines',
-      'IB': 'Iberia',
-      'KL': 'KLM Royal Dutch Airlines',
-      'LA': 'LATAM Airlines',
-      'LH': 'Lufthansa',
-      'LY': 'El Al',
-      'NH': 'All Nippon Airways',
-      'QF': 'Qantas',
-      'QR': 'Qatar Airways',
-      'SK': 'SAS Scandinavian Airlines',
-      'SQ': 'Singapore Airlines',
-      'TK': 'Turkish Airlines',
-      'TP': 'TAP Air Portugal',
-      'UA': 'United Airlines',
-      'VA': 'Virgin Australia',
-      'VS': 'Virgin Atlantic',
-      'WN': 'Southwest Airlines'
-    };
-    
-    return airlines[code] || `${code} Airlines`;
+    return code || 'Unknown Airline';
   }
 
-  private static getStatusDescription(status: string): string {
-    const statusMap: { [key: string]: string } = {
-      'GK': 'Confirmed',
-      'SS': 'Confirmed',
-      'HK': 'Confirmed',
-      'OK': 'Confirmed',
-      'RR': 'Waitlisted',
-      'HL': 'Waitlisted',
-      'TK': 'Schedule Change',
-      'UN': 'Unable to Confirm',
-      'UC': 'Unable to Confirm',
-      'NO': 'No Action Taken'
-    };
+  private static getStatusDescription(statusCode?: string): string {
+    if (!statusCode) return '';
     
-    const baseStatus = status.replace(/\d+$/, ''); // Remove trailing numbers
-    return statusMap[baseStatus] || 'Pending Confirmation';
+    const statusMap: Record<string, string> = {
+      'OK': 'Available',
+      'HK': 'Confirmed',
+      'RQ': 'Requested',
+      'WL': 'Waitlisted',
+      'TK': 'Ticketed'
+    };
+
+    return statusMap[statusCode] || statusCode;
   }
 
   private static formatFareType(fareType: string): string {
-    const fareMap: { [key: string]: string } = {
-      'tour_fare': 'Tour Fare',
-      'private': 'Private Fare',
-      'published': 'Published Fare'
+    const fareTypeMap: Record<string, string> = {
+      'NONREF': 'Non-Refundable',
+      'REF': 'Refundable',
+      'FLEX': 'Flexible',
+      'PREM': 'Premium'
     };
-    
-    return fareMap[fareType] || fareType;
+
+    return fareTypeMap[fareType] || fareType;
   }
 }
