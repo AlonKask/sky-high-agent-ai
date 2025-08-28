@@ -667,7 +667,9 @@ async function syncGmailEmails(
         const { data, error: insertError } = await supabaseClient
           .from('email_exchanges')
           .insert(emailsToInsert)
-          .select('id');
+          .select('id')
+          .onConflict('user_id, message_id')
+          .ignoreDuplicates();
 
         debugLog('DB_INSERT_RESPONSE', 'Database insert response', {
           success: !insertError,

@@ -325,18 +325,31 @@ const EnhancedEmailInterface = ({
 
   // Auto-sync helper function
   const performAutoSync = async () => {
-    if (isAutoSyncing || !authStatus.isConnected) return;
+    if (isAutoSyncing || !authStatus.isConnected || !user?.id) return;
+    
+    // Global sync lock to prevent concurrent syncs
+    const syncLockKey = `sync_lock_${user.id}`;
+    const existingLock = localStorage.getItem(syncLockKey);
+    if (existingLock && Date.now() - parseInt(existingLock) < 60000) {
+      console.log('🔒 Sync already in progress, skipping');
+      return;
+    }
     
     setIsAutoSyncing(true);
+    localStorage.setItem(syncLockKey, Date.now().toString());
+    
     try {
       console.log('🔄 Auto-sync triggered, emails:', emails.length);
       await triggerSync();
-      setLastSyncTime(new Date());
+      const now = new Date();
+      setLastSyncTime(now);
+      localStorage.setItem(`last_sync_${user.id}`, now.toISOString());
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('❌ Auto-sync failed:', error);
     } finally {
       setIsAutoSyncing(false);
+      localStorage.removeItem(syncLockKey);
     }
   };
 
@@ -363,32 +376,44 @@ const EnhancedEmailInterface = ({
     return () => window.removeEventListener('gmail-sync-complete', handleSyncComplete as EventListener);
   }, []);
 
-  // Enhanced real-time auto-sync with adaptive intervals
+  // Reasonable auto-sync intervals to prevent duplication
   useEffect(() => {
     if (!authStatus.isConnected || !user?.id) return;
     
-    // More frequent sync intervals for real-time feel
+    // Much more reasonable sync intervals (5-15 minutes)
     const getAutoSyncInterval = () => {
-      if (emails.length === 0) return 5000;  // 5s for empty inbox
-      if (emails.length < 50) return 15000;  // 15s for light users
-      return 25000; // 25s for regular users
+      if (emails.length === 0) return 5 * 60 * 1000;   // 5 minutes for empty inbox
+      if (emails.length < 50) return 10 * 60 * 1000;   // 10 minutes for light users
+      return 15 * 60 * 1000; // 15 minutes for regular users
     };
 
-    // Initial sync
-    performAutoSync();
+    // Initial sync only if no recent sync
+    const lastSync = localStorage.getItem(`last_sync_${user.id}`);
+    const lastSyncTime = lastSync ? new Date(lastSync).getTime() : 0;
+    const now = Date.now();
+    const timeSinceLastSync = now - lastSyncTime;
     
-    // Set up interval
-    const interval = setInterval(performAutoSync, getAutoSyncInterval());
+    // Only auto-sync if more than 5 minutes since last sync
+    if (timeSinceLastSync > 5 * 60 * 1000) {
+      performAutoSync();
+    }
     
-    // Sync on window focus for immediate updates
-    const handleFocus = () => performAutoSync();
-    window.addEventListener('focus', handleFocus);
+    // Set up interval with reasonable timing
+    const interval = setInterval(() => {
+      const currentLastSync = localStorage.getItem(`last_sync_${user.id}`);
+      const currentLastSyncTime = currentLastSync ? new Date(currentLastSync).getTime() : 0;
+      const currentTimeSinceLastSync = Date.now() - currentLastSyncTime;
+      
+      // Only sync if enough time has passed
+      if (currentTimeSinceLastSync > getAutoSyncInterval()) {
+        performAutoSync();
+      }
+    }, getAutoSyncInterval());
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
     };
-  }, [authStatus.isConnected, user?.id, emails.length]);
+  }, [authStatus.isConnected, user?.id]);
 
   // Real-time database listener for immediate updates
   useEffect(() => {
