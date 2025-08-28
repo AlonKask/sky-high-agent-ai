@@ -197,53 +197,76 @@ function extractTextContent(payload: any): { text: string; html: string; attachm
   return { text, html: html.substring(0, 50000), attachments }; // Limit HTML to 50k chars
 }
 
-// Fixed Gmail folder classification - prioritize Gmail labels over domain logic
+// Phase 2: Fixed Gmail folder classification - ONLY use Gmail labels for sent classification
 function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader: string, folderHint?: string): { folder_name: string; direction: string } {
   const labels = labelIds || [];
   
-  // Priority 1: Gmail-specific labels (most reliable)
+  debugLog('EMAIL_CLASSIFICATION', 'Classifying email with Gmail labels', {
+    labels,
+    userEmail,
+    fromHeader: fromHeader.substring(0, 50),
+    folderHint
+  });
+  
+  // Priority 1: ONLY Gmail SENT label determines sent emails (critical fix)
   if (labels.includes('SENT')) {
+    debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified as SENT via Gmail label', { folder: 'sent', direction: 'outbound' });
     return { folder_name: 'sent', direction: 'outbound' };
   }
+  
+  // Priority 2: Other Gmail-specific labels
   if (labels.includes('DRAFT') || labels.includes('DRAFTS')) {
+    debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified as DRAFT via Gmail label', { folder: 'drafts', direction: 'outbound' });
     return { folder_name: 'drafts', direction: 'outbound' };
   }
   if (labels.includes('TRASH')) {
+    debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified as TRASH via Gmail label', { folder: 'trash', direction: 'inbound' });
     return { folder_name: 'trash', direction: 'inbound' };
   }
   if (labels.includes('SPAM')) {
+    debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified as SPAM via Gmail label', { folder: 'spam', direction: 'inbound' });
     return { folder_name: 'spam', direction: 'inbound' };
   }
   
-  // Priority 2: Folder hint from Gmail search query
+  // Priority 3: Folder hint from Gmail search query (but validate with labels)
+  if (folderHint === 'sent' && !labels.includes('SENT')) {
+    debugLog('EMAIL_CLASSIFICATION_WARNING', 'Folder hint says sent but no SENT label found - defaulting to inbox', {
+      folderHint,
+      labels
+    });
+    // Don't trust folder hint for sent emails without SENT label
+    return { folder_name: 'inbox', direction: 'inbound' };
+  }
+  
   if (folderHint && folderHint !== 'inbox') {
-    const direction = (folderHint === 'sent' || folderHint === 'drafts') ? 'outbound' : 'inbound';
+    const direction = (folderHint === 'drafts') ? 'outbound' : 'inbound';
+    debugLog('EMAIL_CLASSIFICATION_RESULT', 'Classified via folder hint', { folder: folderHint, direction });
     return { folder_name: folderHint, direction };
   }
   
-  // Priority 3: Direct user email match (exact sender check)
-  const senderMatch = fromHeader.match(/<(.+?)>/) || fromHeader.match(/(\S+@\S+)/);
-  const senderEmail = senderMatch ? senderMatch[1].toLowerCase() : fromHeader.toLowerCase();
-  const userEmailNormalized = userEmail.toLowerCase();
-  
-  if (senderEmail === userEmailNormalized) {
-    // Exact match - this is definitely sent by user
-    return { folder_name: 'sent', direction: 'outbound' };
-  }
-  
-  // Priority 4: Default to inbox (safer assumption)
-  // Don't assume business domain emails are sent - they could be received from colleagues
+  // Priority 4: Default to inbox - REMOVED sender email matching logic
+  // All emails without SENT label are considered received emails
+  debugLog('EMAIL_CLASSIFICATION_RESULT', 'Defaulted to inbox classification', { folder: 'inbox', direction: 'inbound' });
   return { folder_name: 'inbox', direction: 'inbound' };
 }
 
-// Enhanced multi-query Gmail sync strategy with folder hints
+// Phase 3: Enhanced multi-query Gmail sync strategy with higher limits
 async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, maxResults: number) {
   const allResults = [];
   const queryResults = {};
   
   for (const config of queryConfigs) {
     try {
-      const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${Math.min(maxResults, 100)}`;
+      // Phase 3 fix: Increase per-query limit from 100 to 200
+      const perQueryLimit = Math.min(200, maxResults);
+      const messagesUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(config.query)}&maxResults=${perQueryLimit}`;
+      
+      debugLog('GMAIL_QUERY_START', `Executing Gmail query: ${config.folderHint}`, {
+        query: config.query,
+        perQueryLimit,
+        folderHint: config.folderHint
+      });
+      
       const response = await fetch(messagesUrl, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -258,9 +281,23 @@ async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{quer
           }));
           allResults.push(...messagesWithHint);
           queryResults[config.folderHint] = data.messages.length;
+          
+          debugLog('GMAIL_QUERY_SUCCESS', `Query completed for ${config.folderHint}`, {
+            messagesFound: data.messages.length,
+            query: config.query
+          });
         } else {
           queryResults[config.folderHint] = 0;
+          debugLog('GMAIL_QUERY_EMPTY', `No messages found for ${config.folderHint}`, {
+            query: config.query
+          });
         }
+      } else {
+        debugLog('GMAIL_QUERY_FAILED', `Query failed for ${config.folderHint}`, {
+          status: response.status,
+          query: config.query
+        });
+        queryResults[config.folderHint] = 0;
       }
     } catch (error) {
       console.warn(`Failed to fetch messages for query: ${config.query}`, error);
@@ -268,13 +305,24 @@ async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{quer
     }
   }
   
-  // Remove duplicates by message ID, keeping the first occurrence
-  const uniqueMessages = allResults.reduce((acc, msg) => {
-    if (!acc.find(m => m.id === msg.id)) {
-      acc.push(msg);
+  // Smart deduplication: Keep sent emails from 'sent' queries, inbox from 'inbox' queries
+  const messageMap = new Map();
+  
+  for (const msg of allResults) {
+    const existing = messageMap.get(msg.id);
+    if (!existing || (msg._folderHint === 'sent' && existing._folderHint !== 'sent')) {
+      // Prefer sent folder classification over inbox
+      messageMap.set(msg.id, msg);
     }
-    return acc;
-  }, []);
+  }
+  
+  const uniqueMessages = Array.from(messageMap.values());
+  
+  debugLog('GMAIL_DEDUPLICATION', 'Message deduplication completed', {
+    totalFetched: allResults.length,
+    afterDeduplication: uniqueMessages.length,
+    maxResults
+  });
   
   return { messages: uniqueMessages.slice(0, maxResults), queryResults };
 }
@@ -340,40 +388,67 @@ async function syncGmailEmails(
       enable_historical_sync: true
     };
 
-    // Phase 3: Build multi-query strategy for comprehensive folder sync
+    // Phase 1: Build multi-query strategy with ABSOLUTE DATE from June 18, 2024
     let baseQuery = '';
     const queries = [];
     
+    // CRITICAL FIX: Use absolute date from June 18, 2024 instead of relative dates
+    const historicalStartDate = new Date('2024-06-18T00:00:00Z');
+    const historicalStartTimestamp = Math.floor(historicalStartDate.getTime() / 1000);
+    
     if (syncType === 'full' || !syncConfig?.last_full_sync_at) {
-      const syncDaysBack = config.sync_days_back || 365;
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - syncDaysBack);
-      baseQuery = `after:${Math.floor(cutoffDate.getTime() / 1000)}`;
+      // Use absolute historical start date
+      baseQuery = `after:${historicalStartTimestamp}`;
+      
+      debugLog('SYNC_DATE_RANGE', 'Using absolute date range for full sync', {
+        historicalStartDate: historicalStartDate.toISOString(),
+        historicalStartTimestamp,
+        baseQuery
+      });
       
       await supabaseClient
         .from('email_sync_config')
         .update({ last_full_sync_at: new Date().toISOString() })
         .eq('user_id', userId);
     } else if (syncType === 'historical') {
-      const twoYearsAgo = new Date();
-      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-      baseQuery = `after:${Math.floor(twoYearsAgo.getTime() / 1000)}`;
+      // For historical sync, use the absolute start date
+      baseQuery = `after:${historicalStartTimestamp}`;
+      
+      debugLog('SYNC_DATE_RANGE', 'Using absolute date range for historical sync', {
+        historicalStartDate: historicalStartDate.toISOString(),
+        historicalStartTimestamp,
+        baseQuery
+      });
     } else {
-      const twoWeeksAgo = new Date();
-      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-      baseQuery = `after:${Math.floor(twoWeeksAgo.getTime() / 1000)}`;
+      // For incremental sync, use a wider window (30 days instead of 14)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const incrementalTimestamp = Math.max(
+        Math.floor(thirtyDaysAgo.getTime() / 1000),
+        historicalStartTimestamp
+      );
+      baseQuery = `after:${incrementalTimestamp}`;
+      
+      debugLog('SYNC_DATE_RANGE', 'Using expanded incremental date range', {
+        thirtyDaysAgo: thirtyDaysAgo.toISOString(),
+        incrementalTimestamp,
+        historicalStartTimestamp,
+        baseQuery
+      });
     }
     
-    // Enhanced multi-query strategy for different folders with hints
+    // Phase 3: Enhanced multi-query strategy with better coverage
     const queryConfigs = [
       { query: `${baseQuery} in:sent`, folderHint: 'sent' },
       { query: `${baseQuery} in:drafts`, folderHint: 'drafts' },
       { query: `${baseQuery} in:trash`, folderHint: 'trash' },
       { query: `${baseQuery} in:inbox`, folderHint: 'inbox' },
-      { query: baseQuery, folderHint: 'inbox' } // Catch-all defaults to inbox
+      // Additional comprehensive query to catch any missed emails
+      { query: `${baseQuery} -in:spam -in:trash`, folderHint: 'inbox' }
     ];
     
-    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 500);
+    // Phase 3: Increase overall sync limit significantly
+    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 1000);
     
     debugLog('MULTI_QUERY_PREP', 'Preparing multi-query Gmail sync', {
       syncType,
@@ -484,19 +559,31 @@ async function syncGmailEmails(
           attachmentCount: textContent.attachments.length
         });
 
-        // Enhanced direction and folder classification
+        // Phase 4: Enhanced direction and folder classification with validation
         const recipientEmails = to ? to.split(',').map(email => email.trim()).filter(Boolean).slice(0, 5) : [];
         const ccEmails = cc ? cc.split(',').map(email => email.trim()).filter(Boolean).slice(0, 3) : [];
         const senderMatch = from.match(/<(.+?)>/) || from.match(/(\S+@\S+)/);
         const senderEmail = senderMatch ? senderMatch[1] : from;
         
-        // Use enhanced classification with folder hint
-        const { folder_name, direction } = classifyEmailByLabels(messageData.labelIds, userEmail, from, message._folderHint);
+        // Use enhanced classification with strict Gmail label validation
+        const classification = classifyEmailByLabels(messageData.labelIds, userEmail, from, message._folderHint);
+        const folderName = classification.folder_name;
+        const direction = classification.direction;
+        
+        debugLog('EMAIL_CLASSIFICATION_FINAL', 'Final email classification', {
+          messageId: messageData.id,
+          labels: messageData.labelIds,
+          folderHint: message._folderHint,
+          finalFolder: folderName,
+          finalDirection: direction,
+          from: from.substring(0, 50),
+          userEmail
+        });
 
         debugLog('EMAIL_CLASSIFICATION', 'Email classified with enhanced logic', {
           messageId: messageData.id,
           direction,
-          folder_name,
+          folder_name: folderName,
           senderEmail,
           gmailLabels: messageData.labelIds,
           recipientCount: recipientEmails.length,
@@ -542,7 +629,7 @@ async function syncGmailEmails(
           body: textContent.text.substring(0, 5000),
           html_body: textContent.html ? textContent.html.substring(0, 50000) : null, // Store HTML content
           direction,
-          folder_name,  // Now properly classified
+          folder_name: folderName,  // Now properly classified
           status: 'received',
           client_id: clientId,
           created_at: date ? new Date(date).toISOString() : new Date().toISOString(),
@@ -752,7 +839,8 @@ serve(async (req) => {
       const { 
         userEmail, 
         userId, 
-        maxResults = 500, // Significantly increased for comprehensive sync
+        // Phase 2: Update maxResults for comprehensive sync from frontend
+        maxResults = 1000, // Significantly increased for comprehensive sync
         isScheduled = false
       } = requestBody;
 

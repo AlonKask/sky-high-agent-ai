@@ -47,7 +47,7 @@ export const useEmailSync = () => {
   const performSync = useCallback(async (options: EmailSyncOptions = {}): Promise<EmailSyncResult> => {
     const {
       syncType = 'incremental',
-      maxResults = 500, // Increased to match backend capability
+      maxResults = 1000, // Significantly increased to match enhanced backend capability
       includeAIProcessing = false,
       showProgress = false // Default to false for silent operation
     } = options;
@@ -87,6 +87,8 @@ export const useEmailSync = () => {
       
       const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
         body: {
+          userEmail: user.email,
+          userId: user.id,
           syncType,
           maxResults,
           includeAIProcessing
@@ -144,11 +146,11 @@ export const useEmailSync = () => {
     }
   }, []);
 
-  // All sync methods now operate silently by default
+  // Enhanced sync methods with higher limits for comprehensive coverage
   const performFullSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'full',
-      maxResults: 500, // Increased for comprehensive sync
+      maxResults: 1000, // Increased significantly for comprehensive sync from June 18, 2024
       includeAIProcessing: false,
       showProgress
     });
@@ -157,7 +159,7 @@ export const useEmailSync = () => {
   const performHistoricalSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'historical',
-      maxResults: 500, // Increased for comprehensive sync
+      maxResults: 1000, // Increased significantly for historical coverage from June 18, 2024
       includeAIProcessing: false,
       showProgress
     });
@@ -166,7 +168,7 @@ export const useEmailSync = () => {
   const performQuickSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'incremental',
-      maxResults: 250, // Reasonable limit for quick sync
+      maxResults: 500, // Increased for better incremental coverage
       includeAIProcessing: false,
       showProgress
     });
