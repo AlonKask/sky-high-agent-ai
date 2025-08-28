@@ -339,14 +339,41 @@ const EnhancedEmailInterface = ({
     localStorage.setItem(syncLockKey, Date.now().toString());
     
     try {
-      console.log('🔄 Auto-sync triggered, emails:', emails.length);
-      await triggerSync();
+      console.log('🔄 Starting comprehensive Gmail sync...');
+      console.log(`📊 Current emails in UI: ${emails.length}`);
+      
+      // Call enhanced sync with comprehensive parameters
+      const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
+        body: {
+          userEmail: authStatus.userEmail,
+          userId: user.id,
+          syncType: 'comprehensive',
+          maxResults: 50000,
+          includeHistorical: true,
+          enableProgressTracking: true
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
       const now = new Date();
       setLastSyncTime(now);
       localStorage.setItem(`last_sync_${user.id}`, now.toISOString());
+      
+      console.log(`✅ Comprehensive sync completed: ${data?.stored || 0} emails processed`);
+      
+      // Force refresh emails from database
       setRefreshKey(prev => prev + 1);
+      
     } catch (error) {
-      console.error('❌ Auto-sync failed:', error);
+      console.error('❌ Comprehensive sync failed:', error);
+      toast({
+        title: "Sync Failed",
+        description: "Could not complete email sync. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsAutoSyncing(false);
       localStorage.removeItem(syncLockKey);
@@ -464,14 +491,29 @@ const EnhancedEmailInterface = ({
         <div className="flex items-center gap-2">
           <GmailStatusButton />
           
-          {/* Subtle sync status indicator */}
+          {/* Enhanced sync controls and status */}
           {authStatus.isConnected && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={performAutoSync}
+                disabled={isAutoSyncing}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-3 h-3 ${isAutoSyncing ? 'animate-spin' : ''}`} />
+                {isAutoSyncing ? 'Syncing...' : 'Full Sync'}
+              </Button>
               {isAutoSyncing && (
                 <div className="flex items-center gap-1">
                   <RefreshCw className="w-3 h-3 animate-spin" />
-                  <span className="text-xs">Syncing...</span>
+                  <span className="text-xs">Processing emails...</span>
                 </div>
+              )}
+              {lastSyncTime && !isAutoSyncing && (
+                <span className="text-xs text-muted-foreground">
+                  Last: {lastSyncTime.toLocaleTimeString()}
+                </span>
               )}
             </div>
           )}

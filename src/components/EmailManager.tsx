@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Send, Plus } from "lucide-react";
+import { Mail, Send, Plus, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -293,6 +293,18 @@ const EmailManager = ({ clientEmail, clientId, requestId }: EmailManagerProps) =
               </span>
             )}
           </div>
+          {authStatus.isConnected && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={triggerSync}
+              disabled={authStatus.isLoading}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${authStatus.isLoading ? 'animate-spin' : ''}`} />
+              {authStatus.isLoading ? 'Syncing...' : 'Manual Sync'}
+            </Button>
+          )}
         </div>
         {!authStatus.isConnected && (
           <div className="mb-4 p-3 border rounded-lg bg-muted/50">

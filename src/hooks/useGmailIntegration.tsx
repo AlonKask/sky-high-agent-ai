@@ -327,7 +327,10 @@ export const useGmailIntegration = () => {
         body: {
           userEmail: authStatus.userEmail,
           userId: user.id,
-          maxResults: 200 // Increased to sync more emails per operation
+          syncType: 'comprehensive', // Enable full historical sync
+          maxResults: 50000, // Massive increase for complete coverage
+          includeHistorical: true, // Sync from account creation
+          enableProgressTracking: true // Enhanced progress feedback
         }
       });
 
