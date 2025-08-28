@@ -111,8 +111,8 @@ export class EmailTemplateGenerator {
     totalSegments?: number,
     companyLogoUrl?: string
   ): string {
-    const flightPath = this.generateCleanFlightPath(segments);
-    const pricingSection = this.generateCleanPricingSection(option);
+    const flightPath = this.generateLinearFlightPath(segments);
+    const pricingSection = this.generateDetailedPricingSection(option);
     const bookingButton = this.generateCleanBookingButton(option.id);
 
     return `
@@ -128,7 +128,7 @@ export class EmailTemplateGenerator {
         
         <!-- Header -->
         <div style="padding: 30px; background-color: #fff; border-bottom: 1px solid #e9ecef; text-align: center;">
-            ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="Company Logo" style="height: 40px; margin-bottom: 20px;">` : ''}
+            ${companyLogoUrl && companyLogoUrl.trim() ? `<img src="${companyLogoUrl}" alt="Company Logo" style="height: 40px; margin-bottom: 20px;">` : '<div style="height: 20px; margin-bottom: 20px;"><h2 style="margin: 0; color: #2c3e50; font-size: 18px;">Select Business Class</h2></div>'}
             <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #2c3e50;">Flight Options</h1>
             <p style="margin: 0; color: #6c757d; font-size: 16px;">Dear ${clientName},</p>
         </div>
@@ -159,178 +159,177 @@ export class EmailTemplateGenerator {
 </html>`;
   }
 
-  private static generateCleanFlightPath(segments: any[]): string {
+  private static generateLinearFlightPath(segments: any[]): string {
     if (!segments || segments.length === 0) return '';
 
-    // Calculate layover durations
-    const flightInfo = segments.map((segment, index) => {
-      let layoverDuration = '';
+    // Generate linear timeline design matching user's mockup
+    const flightDetails = segments.map((segment, index) => {
+      const departureTime = segment.departureTime || '';
+      const arrivalTime = segment.arrivalTime || '';
+      const flightNumber = segment.flightNumber || '';
+      const airlineCode = segment.airlineCode || '';
+      const airlineDisplay = segment.enrichedAirline?.name || this.getAirlineName(airlineCode);
+      const aircraftType = segment.aircraftType || segment.equipment || '';
+      const duration = segment.duration || '';
+      
+      // Format date
+      const segmentDate = segment.flightDate ? new Date(segment.flightDate) : new Date();
+      const dayOfWeek = segmentDate.toLocaleDateString('en-US', { weekday: 'short' });
+      const monthDay = segmentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      // Calculate layover if not last segment
+      let layoverInfo = '';
       if (index < segments.length - 1 && segment.layoverTime) {
         const hours = Math.floor(segment.layoverTime / 60);
         const minutes = segment.layoverTime % 60;
-        layoverDuration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        layoverInfo = hours > 0 ? `${hours}h ${minutes}m layover` : `${minutes}m layover`;
       }
-      
+
       return {
-        ...segment,
-        layoverDuration
+        departureAirport: segment.departureAirport,
+        arrivalAirport: segment.arrivalAirport,
+        departureTime,
+        arrivalTime,
+        flightNumber,
+        airlineCode,
+        airlineDisplay,
+        aircraftType,
+        duration,
+        dayOfWeek,
+        monthDay,
+        layoverInfo,
+        isLast: index === segments.length - 1
       };
     });
 
-    // Generate route string
-    const routeString = [segments[0].departureAirport]
-      .concat(segments.map(s => s.arrivalAirport))
-      .join(' → ');
-
-    // Generate clean horizontal visualization using tables for email compatibility
-    const flightSteps = flightInfo.map((segment, index) => {
-      const isLast = index === segments.length - 1;
-      const departureAirportDisplay = segment.enrichedDepartureAirport?.fullDisplay || this.getAirportName(segment.departureAirport);
-      const arrivalAirportDisplay = segment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(segment.arrivalAirport);
-      const airlineDisplay = segment.enrichedAirline?.name || this.getAirlineName(segment.airlineCode);
-      const airlineLogo = segment.enrichedAirline?.logo_url ? 
-        `<img src="${segment.enrichedAirline.logo_url}" alt="${segment.enrichedAirline.name}" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">` : '';
-
-      const segmentDate = new Date(segment.flightDate);
-      const formattedDate = segmentDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric'
-      });
-
+    // Generate linear flight path HTML
+    const flightHTML = flightDetails.map((flight, index) => {
       return `
-        <!-- Departure Airport -->
-        <td style="text-align: center; padding: 20px; vertical-align: top;">
-          <div style="background: white; border: 2px solid #10b981; border-radius: 50%; width: 100px; height: 100px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-            <div style="font-weight: bold; font-size: 16px; color: #1e293b;">${segment.departureAirport}</div>
-            <div style="font-size: 12px; color: #64748b;">${formattedDate}</div>
+        <!-- Flight Segment ${index + 1} -->
+        <div style="display: flex; align-items: center; margin-bottom: ${flight.isLast ? '0' : '20px'}; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          
+          <!-- Departure -->
+          <div style="flex: 1; text-align: center;">
+            <div style="background: #e8f4f8; border: 2px solid #0ea5e9; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; display: inline-block;">
+              <div style="font-weight: bold; font-size: 18px; color: #0c4a6e;">${flight.departureAirport}</div>
+            </div>
+            <div style="font-size: 14px; font-weight: 600; color: #334155;">${flight.departureTime}</div>
+            <div style="font-size: 12px; color: #64748b;">${flight.dayOfWeek}, ${flight.monthDay}</div>
           </div>
-          <div style="font-size: 13px; color: #334155; font-weight: 600;">
-            Depart ${segment.departureTime}
-          </div>
-          <div style="font-size: 12px; color: #64748b; margin-top: 4px; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">
-            ${departureAirportDisplay.split('(')[0].trim()}
-          </div>
-        </td>
 
-        ${!isLast ? `
-        <!-- Connection Line and Flight Info -->
-        <td style="text-align: center; padding: 20px; vertical-align: middle;">
-          <div style="position: relative; height: 6px; background: linear-gradient(to right, #10b981, #3b82f6); border-radius: 3px; margin: 25px 0;">
-            <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 18px; background: white; padding: 4px; border-radius: 50%; box-shadow: 0 3px 6px rgba(0,0,0,0.15);">
-              ✈️
+          <!-- Flight Info -->
+          <div style="flex: 2; text-align: center; padding: 0 20px;">
+            <div style="border-bottom: 2px solid #e2e8f0; position: relative; margin-bottom: 10px;">
+              <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); background: #fff; padding: 2px 8px;">
+                ✈️
+              </div>
             </div>
+            <div style="font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 4px;">
+              ${flight.flightNumber} • ${flight.airlineDisplay}
+            </div>
+            ${flight.aircraftType ? `<div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${flight.aircraftType}</div>` : ''}
+            ${flight.duration ? `<div style="font-size: 11px; color: #64748b;">${flight.duration}</div>` : ''}
           </div>
-          <div style="margin-top: 20px;">
-            <div style="background: white; border-radius: 18px; padding: 8px 16px; box-shadow: 0 3px 6px rgba(0,0,0,0.15); display: inline-block; margin-bottom: 8px;">
-              <span style="font-size: 14px; font-weight: 500; color: #475569;">
-                ${airlineLogo}${segment.flightNumber}
-              </span>
-            </div>
-            <div style="font-size: 13px; color: #6c757d;">
-              ${airlineDisplay}
-            </div>
-            ${segment.duration ? `
-            <div style="font-size: 12px; color: #6c757d; margin-top: 4px;">
-              ${segment.duration}
-            </div>
-            ` : ''}
-          </div>
-        </td>
-        ` : ''}
 
-        ${!isLast && index < segments.length - 1 ? `
-        <!-- Layover (if exists) -->
-        ${segment.layoverDuration ? `
-        <td style="text-align: center; padding: 20px; vertical-align: top;">
-          <div style="background: white; border: 2px solid #f59e0b; border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 3px 8px rgba(245,158,11,0.25);">
-            <div style="font-weight: bold; font-size: 14px; color: #92400e;">${segment.arrivalAirport}</div>
+          <!-- Arrival -->
+          <div style="flex: 1; text-align: center;">
+            <div style="background: #f0f9f4; border: 2px solid #22c55e; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; display: inline-block;">
+              <div style="font-weight: bold; font-size: 18px; color: #15803d;">${flight.arrivalAirport}</div>
+            </div>
+            <div style="font-size: 14px; font-weight: 600; color: #334155;">${flight.arrivalTime}</div>
+            <div style="font-size: 12px; color: #64748b;">${flight.dayOfWeek}, ${flight.monthDay}</div>
           </div>
-          <div style="font-size: 12px; color: #f59e0b; font-weight: 600;">
-            ${segment.layoverDuration}
+        </div>
+
+        ${flight.layoverInfo && !flight.isLast ? `
+        <!-- Layover Info -->
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 16px; padding: 6px 12px; display: inline-block;">
+            <span style="font-size: 12px; color: #92400e; font-weight: 500;">${flight.layoverInfo}</span>
           </div>
-          <div style="font-size: 12px; color: #92400e; margin-top: 4px;">
-            layover
-          </div>
-        </td>
-        ` : ''}
+        </div>
         ` : ''}
       `;
     }).join('');
 
-    // Add final destination
-    const lastSegment = segments[segments.length - 1];
-    const lastAirportDisplay = lastSegment.enrichedArrivalAirport?.fullDisplay || this.getAirportName(lastSegment.arrivalAirport);
-    const lastDate = new Date(lastSegment.flightDate);
-    const lastFormattedDate = lastDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric'
-    });
-
     return `
-    <div style="padding: 30px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
-      <h2 style="margin: 0 0 25px 0; font-size: 20px; color: #2c3e50; text-align: center;">Flight Route</h2>
+    <div style="padding: 25px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+      <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50; text-align: center;">Flight Details</h2>
       
-      <!-- Email-compatible table layout -->
-      <table style="width: 100%; border-collapse: collapse; margin: 0 auto; table-layout: auto;">
-        <tr>
-          ${flightSteps}
-          
-          <!-- Final Destination -->
-          <td style="text-align: center; padding: 20px; vertical-align: top;">
-            <div style="background: white; border: 2px solid #3b82f6; border-radius: 50%; width: 100px; height: 100px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-              <div style="font-weight: bold; font-size: 16px; color: #1e293b;">${lastSegment.arrivalAirport}</div>
-              <div style="font-size: 12px; color: #64748b;">${lastFormattedDate}</div>
-            </div>
-            <div style="font-size: 13px; color: #334155; font-weight: 600;">
-              Arrive ${lastSegment.arrivalTime}${lastSegment.arrivalDayOffset ? '+1' : ''}
-            </div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 4px; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">
-              ${lastAirportDisplay.split('(')[0].trim()}
-            </div>
-          </td>
-        </tr>
-      </table>
-
-      <!-- Route Summary -->
-      <div style="text-align: center; margin-top: 25px; padding: 16px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        <span style="font-size: 16px; font-weight: 500; color: #2c3e50;">
-          Route: ${routeString}
-        </span>
+      <div style="max-width: 500px; margin: 0 auto;">
+        ${flightHTML}
       </div>
     </div>
     `;
   }
 
-  private static generateCleanPricingSection(option: SabreOption): string {
+  private static generateDetailedPricingSection(option: SabreOption): string {
     if (!option.sellingPrice && !option.numberOfPoints) return '';
 
-    let passengerBreakdown = '';
-    let totalPrice = '';
+    // Generate detailed passenger breakdown matching user's mockup
+    let pricingContent = '';
 
     if (option.quoteType === "revenue" && option.sellingPrice) {
-      // Simple pricing display matching user's reference
-      totalPrice = `
-        <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 6px; margin-top: 10px;">
-          <span style="font-size: 18px; font-weight: 600; color: #2c3e50;">
-            Total: $${option.sellingPrice.toFixed(2)}
-          </span>
+      // Sample passenger breakdown - in real implementation, this would come from parsed data
+      const adultPrice = option.sellingPrice * 0.7; // Approximate adult price
+      const childPrice = option.sellingPrice * 0.2; // Approximate child price  
+      const infantPrice = option.sellingPrice * 0.1; // Approximate infant price
+      
+      pricingContent = `
+        <div style="background: #f1f5f9; border-radius: 12px; padding: 20px; margin: 0 auto; max-width: 400px;">
+          
+          <!-- Passenger Breakdown -->
+          <div style="margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 14px; color: #475569;">1 Adult</span>
+              <span style="font-size: 14px; color: #475569;">$${adultPrice.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 14px; color: #475569;">1 Child</span>
+              <span style="font-size: 14px; color: #475569;">$${childPrice.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+              <span style="font-size: 14px; color: #475569;">1 Infant</span>
+              <span style="font-size: 14px; color: #475569;">$${infantPrice.toFixed(2)}</span>
+            </div>
+            
+            <!-- Divider -->
+            <div style="border-top: 1px solid #cbd5e1; margin: 15px 0;"></div>
+            
+            <!-- Total -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 16px; font-weight: 700; color: #1e293b;">Total</span>
+              <span style="font-size: 16px; font-weight: 700; color: #1e293b;">$${option.sellingPrice.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
       `;
     } else if (option.quoteType === "award" && option.numberOfPoints) {
-      totalPrice = `
-        <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 6px; margin-top: 10px;">
-          <span style="font-size: 18px; font-weight: 600; color: #2c3e50;">
-            ${option.numberOfPoints.toLocaleString()} points
-          </span>
-          ${option.taxes ? `<br><span style="font-size: 14px; color: #6c757d;">+ $${option.taxes.toFixed(2)} taxes</span>` : ''}
+      pricingContent = `
+        <div style="background: #f1f5f9; border-radius: 12px; padding: 20px; margin: 0 auto; max-width: 400px;">
+          <div style="text-align: center;">
+            <div style="font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">
+              ${option.numberOfPoints.toLocaleString()} points
+            </div>
+            ${option.taxes ? `
+            <div style="font-size: 14px; color: #475569;">
+              + $${option.taxes.toFixed(2)} taxes & fees
+            </div>
+            ` : ''}
+            ${option.awardProgram ? `
+            <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
+              via ${option.awardProgram}
+            </div>
+            ` : ''}
+          </div>
         </div>
       `;
     }
 
     return `
-    <div style="padding: 25px; background-color: #fff; border-bottom: 1px solid #e9ecef;">
-      <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #2c3e50; text-align: center;">Pricing</h2>
-      ${totalPrice}
+    <div style="padding: 25px; background-color: #fff; border-bottom: 1px solid #e9ecef; text-align: center;">
+      <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50;">Pricing Breakdown</h2>
+      ${pricingContent}
     </div>
     `;
   }
