@@ -491,7 +491,7 @@ const EnhancedEmailInterface = ({
           ) : (
             <>
               {/* Email List */}
-              <ResizablePanel defaultSize={50} minSize={30}>
+              <ResizablePanel defaultSize={50} minSize={30} className="h-full">
                 {emails.length === 0 && !isLoading ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
