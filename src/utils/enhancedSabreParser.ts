@@ -288,37 +288,57 @@ export class EnhancedSabreParser {
       return [];
     }
     
-    // Enhanced format validation - support both formats
+    // Enhanced format validation - support structured I-Format, standard format, and simple format
     const hasStandardFormat = /^\s*\d+\s+[A-Z]{2}\d+[A-Z]/.test(line);
     const hasSimpleFormat = /^[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}/.test(line);
+    const hasStructuredIFormat = /^\s*\d+\s+[A-Z]{2}\s+\d+\s+\d{1,2}[A-Z]{3}\s+[A-Z]{3}\s+[A-Z]{3}\s+\d+[AP]\s+\d+[AP][¥+]\d/.test(line);
     
-    if (!hasStandardFormat && !hasSimpleFormat) {
+    if (!hasStandardFormat && !hasSimpleFormat && !hasStructuredIFormat) {
       console.warn(`⚠️ Line doesn't match any expected flight format: "${line}"`);
       return [];
     }
 
     const segments: FlightSegment[] = [];
     
-    // PATTERN 1: Standard format: "1 UA2033P 20AUG W EWRBOS*SS1   310P  428P /DCUA /E"
+    // PATTERN 1: Structured I-Format: " 1 LO    7 20SEP JFK WAW  545P  815A¥1 DB   789  8.30  4267  N"
+    const structuredIPattern = /^\s*(\d+)\s+([A-Z]{2})\s+(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d+[AP])\s+(\d+[AP])[¥+](\d+)\s+([A-Z]+)\s+([A-Z0-9]+)\s+(\d+\.\d+)\s+(\d+)\s+([A-Z]).*$/;
+    
+    // PATTERN 2: Standard format: "1 UA2033P 20AUG W EWRBOS*SS1   310P  428P /DCUA /E"
     const sabrePattern = /^\s*(\d+)\s+([A-Z]{2})(\d+)([A-Z])\s+(\d+[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\*([A-Z]*\d*)\s+(\d+[AP])\s+(\d+[AP])(?:\s+(\d+[A-Z]{3})\s+([A-Z]))?\s*(?:\/([A-Z0-9]+))?\s*(?:\/([A-Z]+))?\s*.*$/;
     
-    // PATTERN 2: Simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 BOEING 789 BUSINESS"
+    // PATTERN 3: Simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 BOEING 789 BUSINESS"
     const simplePattern = /^([A-Z]{2})\s+(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s*(?:(.+?)\s+(.+?)\s+(.+))?$/;
     
-    let match = line.match(sabrePattern);
-    let useSimpleFormat = false;
+    // Try patterns in order of complexity: structured I-Format first, then standard, then simple
+    let match = line.match(structuredIPattern);
+    let formatType = 'structured-i';
+    
+    if (!match) {
+      match = line.match(sabrePattern);
+      formatType = 'standard';
+    }
     
     if (!match) {
       match = line.match(simplePattern);
-      useSimpleFormat = true;
+      formatType = 'simple';
     }
     
     if (match) {
-      console.log(`✅ ${useSimpleFormat ? 'Simple' : 'Standard'} format pattern matched`);
+      console.log(`✅ ${formatType} format pattern matched`);
       
-      let segmentNumber, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime, arrivalDayOffset, aircraftInfo, cabinInfo;
+      let segmentNumber, airlineCode, flightNum, bookingClass, dateStr, dayOfWeek, route, statusCode, depTime, arrTime, arrivalDayOffset, aircraftInfo, cabinInfo, departureAirport, arrivalAirport, elpd;
       
-      if (useSimpleFormat) {
+      if (formatType === 'structured-i') {
+        // Structured I-Format: " 1 LO    7 20SEP JFK WAW  545P  815A¥1 DB   789  8.30  4267  N"
+        [, segmentNumber, airlineCode, flightNum, dateStr, departureAirport, arrivalAirport, depTime, arrTime, arrivalDayOffset, , aircraftInfo, elpd] = match;
+        segmentNumber = parseInt(segmentNumber);
+        route = departureAirport + arrivalAirport;
+        dayOfWeek = ''; // Not provided in structured I-Format
+        statusCode = 'OK'; // Default status
+        bookingClass = 'Y'; // Default booking class, will be enhanced from database
+        arrivalDayOffset = parseInt(arrivalDayOffset);
+        console.log(`🎯 Structured I-Format ELPD extracted: ${elpd} for flight ${airlineCode}${flightNum}`);
+      } else if (formatType === 'simple') {
         // Simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 BOEING 789 BUSINESS"
         [, airlineCode, flightNum, dateStr, bookingClass, route, depTime, arrTime, arrivalDayOffset, aircraftInfo, , cabinInfo] = match;
         segmentNumber = 1; // Default segment number for simple format
@@ -343,16 +363,17 @@ export class EnhancedSabreParser {
         return [];
       }
       
-      if (!route || route.length !== 6) {
-        console.error(`❌ Invalid route format: ${route} (expected 6 characters)`);
-        return [];
-      }
-      
       const flightNumber = `${airlineCode}${flightNum}`;
       
-      // Enhanced route parsing with validation
-      const departureAirport = route.substring(0, 3);
-      const arrivalAirport = route.substring(3, 6);
+      // Enhanced route parsing with validation - handle both structured and concatenated formats
+      if (formatType !== 'structured-i') {
+        if (!route || route.length !== 6) {
+          console.error(`❌ Invalid route format: ${route} (expected 6 characters)`);
+          return [];
+        }
+        departureAirport = route.substring(0, 3);
+        arrivalAirport = route.substring(3, 6);
+      }
       
       // Validate airport codes
       if (!/^[A-Z]{3}$/.test(departureAirport)) {
@@ -394,17 +415,22 @@ export class EnhancedSabreParser {
         try {
           cabinClass = await this.mapBookingClassWithDatabase(bookingClass, airlineCode);
           
-          // Enhanced ELPD extraction from I-Format with ELPD data
-          if (useSimpleFormat) {
-            // Check for ELPD pattern in the line: "LO 7 20SEP F JFKWAW 545P 815A+1 8.30"
+          // Enhanced ELPD extraction based on format type
+          if (formatType === 'structured-i' && elpd) {
+            // Structured I-Format has ELPD in dedicated column
+            const elapsedHours = parseFloat(elpd);
+            duration = SabreParser.convertElapsedTimeToHumanReadable(elapsedHours);
+            console.log(`🎯 Structured I-Format ELPD conversion: "${elpd}" → "${duration}"`);
+          } else if (formatType === 'simple') {
+            // Check for ELPD pattern in simple format: "LO 7 20SEP F JFKWAW 545P 815A+1 8.30"
             const elpdPattern = /(\d+\.\d+)/;
             const durationMatch = line.match(elpdPattern);
             if (durationMatch) {
               const elapsedHours = parseFloat(durationMatch[1]);
               duration = SabreParser.convertElapsedTimeToHumanReadable(elapsedHours);
-              console.log(`✅ Enhanced I-Format ELPD extraction: "${durationMatch[1]}" → "${duration}"`);
+              console.log(`✅ Simple I-Format ELPD extraction: "${durationMatch[1]}" → "${duration}"`);
             } else {
-              console.log(`⚠️ Enhanced I-Format: No ELPD found in line: "${line}"`);
+              console.log(`⚠️ Simple I-Format: No ELPD found in line: "${line}"`);
             }
           }
         } catch (dbError) {
@@ -413,7 +439,7 @@ export class EnhancedSabreParser {
         }
         
         // Override with explicit cabin info if available (simple format)
-        if (cabinInfo && useSimpleFormat) {
+        if (cabinInfo && formatType === 'simple') {
           cabinClass = cabinInfo.toLowerCase().includes('business') ? 'Business' :
                       cabinInfo.toLowerCase().includes('first') ? 'First' :
                       cabinInfo.toLowerCase().includes('economy') ? 'Economy' : cabinClass;
@@ -421,11 +447,20 @@ export class EnhancedSabreParser {
         
         // Determine aircraft type from aircraft info if available
         let aircraftType;
-        if (aircraftInfo && useSimpleFormat) {
-          aircraftType = aircraftInfo.includes('BOEING') ? aircraftInfo.replace('BOEING ', 'Boeing ') :
-                        aircraftInfo.includes('AIRBUS') ? aircraftInfo.replace('AIRBUS ', 'Airbus ') :
-                        aircraftInfo.includes('A3') ? `Airbus ${aircraftInfo}` :
-                        aircraftInfo.includes('7') ? `Boeing ${aircraftInfo}` : aircraftInfo;
+        if (aircraftInfo) {
+          if (formatType === 'structured-i') {
+            // Structured I-Format: aircraft code like "789", "77W"
+            aircraftType = aircraftInfo.startsWith('7') ? `Boeing ${aircraftInfo}` :
+                          aircraftInfo.startsWith('A') ? `Airbus ${aircraftInfo}` :
+                          aircraftInfo === '77W' ? 'Boeing 777-300ER' :
+                          aircraftInfo === '789' ? 'Boeing 787-9' : aircraftInfo;
+          } else if (formatType === 'simple') {
+            // Simple format: full aircraft name
+            aircraftType = aircraftInfo.includes('BOEING') ? aircraftInfo.replace('BOEING ', 'Boeing ') :
+                          aircraftInfo.includes('AIRBUS') ? aircraftInfo.replace('AIRBUS ', 'Airbus ') :
+                          aircraftInfo.includes('A3') ? `Airbus ${aircraftInfo}` :
+                          aircraftInfo.includes('7') ? `Boeing ${aircraftInfo}` : aircraftInfo;
+          }
         }
         
         const segment: FlightSegment = {
