@@ -122,24 +122,40 @@ export function FlightPathVisualization({
   className,
   showAirlineLogos = true 
 }: FlightPathVisualizationProps) {
-  if (!segments || segments.length === 0) return null;
+  if (!segments || segments.length === 0) {
+    return (
+      <div className="p-4 bg-red-100 border-2 border-red-300 rounded-lg">
+        <div className="text-red-800 font-bold">🚨 FlightPathVisualization: NO SEGMENTS</div>
+        <div className="text-red-600 text-sm">Component received empty or null segments</div>
+      </div>
+    );
+  }
 
-  // Debug logging for received segment data with detailed inspection
-  console.log(`🎨 FlightPathVisualization: Received ${segments.length} segments for display:`);
-  segments.forEach((segment, index) => {
-    const route = `${segment.departureAirport.code}→${segment.arrivalAirport.code}`;
-    console.log(`  🔍 Segment ${index + 1} (${route}):`, {
+  // EXTREMELY VISIBLE DEBUG LOGGING - Force console visibility
+  console.log(`🎨🎨🎨 FlightPathVisualization COMPONENT IS RENDERING 🎨🎨🎨`);
+  console.log(`📊 Received ${segments.length} segments for display:`);
+  
+  const debugSegments = segments.map((segment, index) => {
+    const route = `${segment.departureAirport?.code || 'UNK'}→${segment.arrivalAirport?.code || 'UNK'}`;
+    const hasValidDuration = segment.duration && segment.duration.trim().length > 0;
+    
+    console.log(`🔍 SEGMENT ${index + 1} (${route}):`, {
       duration: segment.duration,
       durationType: typeof segment.duration,
-      hasOwnDuration: segment.hasOwnProperty('duration'),
-      allKeys: Object.keys(segment),
-      flightNumber: segment.flightNumber
+      durationLength: segment.duration?.length || 0,
+      hasValidDuration,
+      flightNumber: segment.flightNumber,
+      rawSegment: segment
     });
-    if (segment.duration) {
-      console.log(`  ✅ Display segment ${index + 1} (${route}): Duration "${segment.duration}" will be shown`);
-    } else {
-      console.log(`  ❌ Display segment ${index + 1} (${route}): Duration is missing/falsy - value: ${segment.duration}`);
-    }
+    
+    return {
+      ...segment,
+      debugInfo: {
+        route,
+        hasValidDuration,
+        durationDisplay: hasValidDuration ? segment.duration : 'MISSING'
+      }
+    };
   });
 
   // Calculate unique airports for the route with layover durations
@@ -171,6 +187,21 @@ export function FlightPathVisualization({
 
   return (
     <div className={cn("flex flex-col space-y-4", className)}>
+      {/* ULTRA-VISIBLE DEBUG BANNER */}
+      <div className="bg-yellow-200 border-2 border-yellow-500 rounded-lg p-3 mb-4">
+        <div className="text-yellow-800 font-bold text-lg">🛩️ FlightPathVisualization DEBUG</div>
+        <div className="text-yellow-700 text-sm">
+          Rendering {debugSegments.length} segments • Debug mode active
+        </div>
+        <div className="text-xs text-yellow-600 mt-1">
+          {debugSegments.map((seg, idx) => (
+            <div key={idx}>
+              Segment {idx + 1}: {seg.debugInfo.route} → Duration: "{seg.debugInfo.durationDisplay}"
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Flight Path Visualization */}
       <div className="relative flex items-center justify-between px-2">
         {/* Horizontal line connecting all airports */}
@@ -230,34 +261,76 @@ export function FlightPathVisualization({
         })}
       </div>
 
-      {/* Airline Information with 30% larger logos */}
-      {showAirlineLogos && segments.length > 0 && (
-        <div className="flex items-center justify-center space-x-6 pt-3">
-          {segments.map((segment, index) => (
-            <div key={index} className="flex items-center space-x-2">
-              <div className="transform scale-130">
-                <AirlineLogo
-                  logoUrl={segment.logoUrl}
-                  airlineName={segment.airlineName || segment.airlineCode}
-                  iataCode={segment.airlineCode}
-                  icaoCode={segment.icaoCode}
-                  size="sm"
-                  className="shadow-sm"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <div className="font-medium">{segment.flightNumber}</div>
-                {/* Enhanced duration display with debugging */}
-                {segment.duration ? (
-                  <div className="text-[10px] text-primary font-medium">{segment.duration}</div>
-                ) : (
-                  <div className="text-[9px] text-red-500">No duration</div>
-                )}
-              </div>
+      {/* ENHANCED Airline Information with ULTRA-VISIBLE Duration Display */}
+      {showAirlineLogos && debugSegments.length > 0 && (
+        <div className="space-y-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="text-blue-800 font-medium mb-2">✈️ Flight Segments</div>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {debugSegments.map((segment, index) => (
+                <div key={index} className="flex flex-col items-center space-y-2 p-3 bg-white rounded-lg border shadow-sm min-w-[120px]">
+                  {/* Airline Logo */}
+                  <div className="transform scale-130">
+                    <AirlineLogo
+                      logoUrl={segment.logoUrl}
+                      airlineName={segment.airlineName || segment.airlineCode}
+                      iataCode={segment.airlineCode}
+                      icaoCode={segment.icaoCode}
+                      size="sm"
+                      className="shadow-sm"
+                    />
+                  </div>
+                  
+                  {/* Flight Number */}
+                  <div className="text-center">
+                    <div className="font-bold text-sm text-gray-800">
+                      {segment.flightNumber || 'No Flight #'}
+                    </div>
+                  </div>
+                  
+                  {/* ULTRA-VISIBLE Duration Display */}
+                  <div className="text-center w-full">
+                    {segment.debugInfo.hasValidDuration ? (
+                      <div className="bg-green-100 border-2 border-green-500 rounded-lg p-2">
+                        <div className="text-green-800 font-bold text-lg">
+                          {segment.duration}
+                        </div>
+                        <div className="text-green-600 text-xs">Flight Duration</div>
+                      </div>
+                    ) : (
+                      <div className="bg-red-100 border-2 border-red-500 rounded-lg p-2">
+                        <div className="text-red-800 font-bold text-sm">
+                          NO DURATION
+                        </div>
+                        <div className="text-red-600 text-xs">Missing Data</div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Route Info */}
+                  <div className="text-center">
+                    <div className="text-xs text-gray-600">
+                      {segment.debugInfo.route}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
+      
+      {/* Raw Data Debug */}
+      <div className="bg-gray-100 border border-gray-300 rounded-lg p-2">
+        <div className="text-gray-700 font-medium text-sm mb-1">🔍 Raw Segment Data</div>
+        <div className="text-xs text-gray-600 font-mono">
+          {JSON.stringify(debugSegments.map(s => ({ 
+            flight: s.flightNumber, 
+            duration: s.duration,
+            route: s.debugInfo.route 
+          })), null, 2)}
+        </div>
+      </div>
     </div>
   );
 }
