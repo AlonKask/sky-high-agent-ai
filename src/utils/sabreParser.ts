@@ -1520,7 +1520,7 @@ export class SabreParser {
           /([A-Z]{3})\s+/,               // 5. Origin airport code
           /([A-Z]{3})\s+/,               // 6. Destination airport code
           /(\d{1,2}:?\d{2}[AP])\s+/,     // 7. Departure time (allow optional colon, e.g. "335P" or "3:35P")
-          /(\d{1,2}:?\d{2}[AP])\s+/,     // 8. Arrival time
+          /(\d{1,2}:?\d{2}[AP])(?:¥(\d+))?\s+/, // 8. Arrival time with optional day offset (e.g. "815A¥1")
           /([A-Z]?)\s*/,                 // 9. Meal code (M, S, or blank; allow extra spacing)
           /([A-Z0-9]+)?\s+/,             // 10. Equipment code (aircraft, e.g. 319, 77W; optional)
           /(\d+\.\d+)?\s+/,              // 11. Elapsed time in hours (e.g. 1.55 for 1h55m; optional)
@@ -1531,7 +1531,7 @@ export class SabreParser {
       );
       
       // Fallback pattern for simpler VI format variations
-      const fallbackPattern = /^(\d+)\s+([A-Z]{2})\*?\s*(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{1,2}:?\d{2}[AP])\s+(\d{1,2}:?\d{2}[AP])/i;
+      const fallbackPattern = /^(\d+)\s+([A-Z]{2})\*?\s*(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{1,2}:?\d{2}[AP])\s+(\d{1,2}:?\d{2}[AP])(?:¥(\d+))?/i;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -1562,6 +1562,7 @@ export class SabreParser {
             dest,
             depTimeStr,
             arrTimeStr,
+            arrDayOffset,  // New: day offset from ¥N notation
             mealCode,
             equipment,
             elapsedStr,
@@ -1585,7 +1586,7 @@ export class SabreParser {
             arrivalAirport: dest,
             departureTime: depTime,
             arrivalTime: arrTime,
-            arrivalDayOffset: 0,    // (VI format output already accounts for day changes in the date if any, so default 0)
+            arrivalDayOffset: arrDayOffset ? parseInt(arrDayOffset) : 0,  // Parse day offset from ¥N notation
             statusCode: "OK",       // VI output doesn't show status codes per segment line; assume "OK" or confirmed
             bookingClass: "Y",      // will adjust based on cabin info line
             cabinClass: "Economy",  // default, will adjust when we see CABIN- line
@@ -1593,15 +1594,19 @@ export class SabreParser {
             equipmentCode: equipment || undefined,
             aircraftType: equipment ? this.parseAircraftType(equipment) : undefined,
             elapsedTimeHours: elapsedStr ? parseFloat(elapsedStr) : undefined,
+            duration: elapsedStr ? this.convertElapsedTimeToHumanReadable(parseFloat(elapsedStr)) : undefined,
             miles: milesStr ? parseInt(milesStr) : undefined
           };
 
           console.log(`✅ Successfully parsed segment #${segNum}:`, {
             route: `${origin} → ${dest}`,
             flight: `${airlineCode}${flightNum}`,
-            date: flightDate,
-            times: `${depTime} - ${arrTime}`,
-            pattern: patternUsed
+            departureTime: depTime,
+            arrivalTime: arrTime,
+            arrivalDayOffset: arrDayOffset ? parseInt(arrDayOffset) : 0,
+            elapsedTime: elapsedStr,
+            duration: elapsedStr ? this.convertElapsedTimeToHumanReadable(parseFloat(elapsedStr)) : undefined,
+            equipment: equipment
           });
           continue;  // move to next line
         }
