@@ -751,7 +751,7 @@ serve(async (req) => {
       const { 
         userEmail, 
         userId, 
-        maxResults = 5, // Phase 3: Start with very small batches 
+        maxResults = 200, // Increased to sync more emails per operation
         isScheduled = false 
       } = requestBody;
 

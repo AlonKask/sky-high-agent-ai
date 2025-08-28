@@ -327,7 +327,7 @@ export const useGmailIntegration = () => {
         body: {
           userEmail: authStatus.userEmail,
           userId: user.id,
-          maxResults: 5 // Phase 3: Start with very small batches
+          maxResults: 200 // Increased to sync more emails per operation
         }
       });
 
