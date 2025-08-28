@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { SafeHtmlRenderer } from "@/components/SafeHtmlRenderer";
-import RichEmailRenderer from "@/components/RichEmailRenderer/RichEmailRenderer";
+import EnhancedEmailRenderer from "@/components/EnhancedEmailRenderer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,9 +16,7 @@ import {
   Loader2,
   CheckCircle,
   AlertTriangle,
-  XCircle,
-  Sparkles,
-  FileText
+  XCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AIReplyGenerator from "./AIReplyGenerator";
@@ -28,6 +25,7 @@ interface EmailExchange {
   id: string;
   subject: string;
   body: string;
+  html_body?: string;  // Add HTML body field
   sender_email: string;
   recipient_emails: string[];
   direction: 'inbound' | 'outbound';
@@ -62,7 +60,6 @@ const ExpandableEmailCard = ({
   requestId 
 }: ExpandableEmailCardProps) => {
   const [showReplyGenerator, setShowReplyGenerator] = useState(false);
-  const [useRichRenderer, setUseRichRenderer] = useState(true);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -199,40 +196,19 @@ const ExpandableEmailCard = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
                 <h5 className="font-medium">Message Content</h5>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setUseRichRenderer(!useRichRenderer)}
-                  className="gap-2"
-                >
-                  {useRichRenderer ? (
-                    <>
-                      <FileText className="h-4 w-4" />
-                      Show Basic
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Show Rich
-                    </>
-                  )}
-                </Button>
+                {email.html_body && (
+                  <Badge variant="secondary" className="text-xs">
+                    Rich HTML Content
+                  </Badge>
+                )}
               </div>
               
-              {useRichRenderer ? (
-                <RichEmailRenderer 
-                  emailBody={email.body}
-                  subject={email.subject}
-                  showRawContent={false}
-                  onToggleRaw={() => setUseRichRenderer(false)}
-                />
-              ) : (
-                <SafeHtmlRenderer 
-                  html={formatEmailBody(email.body)}
-                  className="prose prose-sm max-w-none bg-muted/30 rounded-lg p-4 border"
-                  type="email"
-                />
-              )}
+              <EnhancedEmailRenderer
+                htmlContent={email.html_body}
+                textContent={email.body}
+                subject={email.subject}
+                className="bg-muted/30 rounded-lg border"
+              />
 
               {/* Attachments */}
               {email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (

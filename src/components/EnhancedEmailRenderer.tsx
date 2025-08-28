@@ -18,21 +18,14 @@ interface EnhancedEmailRendererProps {
   textContent: string;
   subject?: string;
   className?: string;
-  showToggle?: boolean;
-  defaultView?: 'html' | 'text';
 }
 
 const EnhancedEmailRenderer: React.FC<EnhancedEmailRendererProps> = ({
   htmlContent,
   textContent,
   subject = '',
-  className,
-  showToggle = true,
-  defaultView = 'html'
+  className
 }) => {
-  const [viewMode, setViewMode] = React.useState<'html' | 'text'>(
-    htmlContent ? defaultView : 'text'
-  );
 
   // Sanitize and enhance HTML for safe Gmail-like rendering
   const sanitizedHtml = useMemo(() => {
@@ -79,59 +72,10 @@ const EnhancedEmailRenderer: React.FC<EnhancedEmailRendererProps> = ({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* View Controls */}
-      {showToggle && canShowHtml && (
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <Badge variant={viewMode === 'html' ? 'default' : 'outline'}>
-              {viewMode === 'html' ? (
-                <>
-                  <Globe className="h-3 w-3 mr-1" />
-                  Gmail View
-                </>
-              ) : (
-                <>
-                  <FileText className="h-3 w-3 mr-1" />
-                  Plain Text
-                </>
-              )}
-            </Badge>
-            {canShowHtml && (
-              <Badge variant="secondary" className="text-xs">
-                Rich HTML Available
-              </Badge>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant={viewMode === 'text' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('text')}
-              className="gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Text
-            </Button>
-            {canShowHtml && (
-              <Button
-                variant={viewMode === 'html' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('html')}
-                className="gap-2"
-              >
-                <Sparkles className="h-4 w-4" />
-                Rich
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Content Display */}
       <Card>
         <CardContent className="p-0">
-          {viewMode === 'html' && canShowHtml ? (
+          {canShowHtml ? (
             <div className="gmail-email-content">
               {/* Gmail-like HTML rendering */}
               <div 
@@ -148,8 +92,8 @@ const EnhancedEmailRenderer: React.FC<EnhancedEmailRendererProps> = ({
             </div>
           ) : (
             <div className="p-4">
-              {/* Plain text rendering with basic formatting */}
-              <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
+              {/* Enhanced plain text rendering with smart formatting */}
+              <div className="whitespace-pre-wrap text-sm leading-relaxed" style={{ fontFamily: 'Arial, sans-serif' }}>
                 {formattedTextContent.split('\n\n').map((paragraph, index) => (
                   <p key={index} className="mb-4 last:mb-0">
                     {paragraph.split('\n').map((line, lineIndex) => (
@@ -167,7 +111,7 @@ const EnhancedEmailRenderer: React.FC<EnhancedEmailRendererProps> = ({
                   <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="h-4 w-4" />
                     <span className="text-sm font-medium">
-                      HTML content could not be safely rendered
+                      HTML content could not be safely rendered - using text fallback
                     </span>
                   </div>
                 </div>
@@ -176,19 +120,6 @@ const EnhancedEmailRenderer: React.FC<EnhancedEmailRendererProps> = ({
           )}
         </CardContent>
       </Card>
-
-      {/* Email Statistics */}
-      {(canShowHtml || textContent) && (
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div>Content: {canShowHtml ? 'HTML + Text' : 'Text Only'}</div>
-          <div>
-            Size: {canShowHtml ? 
-              `${Math.round(sanitizedHtml.length / 1024)}KB HTML, ${Math.round(textContent.length / 1024)}KB text` :
-              `${Math.round(textContent.length / 1024)}KB text`
-            }
-          </div>
-        </div>
-      )}
     </div>
   );
 };
