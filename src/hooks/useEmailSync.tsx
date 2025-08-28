@@ -47,7 +47,7 @@ export const useEmailSync = () => {
   const performSync = useCallback(async (options: EmailSyncOptions = {}): Promise<EmailSyncResult> => {
     const {
       syncType = 'incremental',
-      maxResults = 5000, // Comprehensive sync with pagination
+      maxResults = 10000, // Comprehensive sync with massive limits
       includeAIProcessing = false,
       showProgress = false // Default to false for silent operation
     } = options;

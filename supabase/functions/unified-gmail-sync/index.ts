@@ -242,7 +242,7 @@ function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader
 }
 
 // Phase 1: Enhanced Gmail sync with comprehensive pagination and unlimited results
-async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, targetBatchSize: number = 1000) {
+async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, targetBatchSize: number = 5000) {
   const allResults = [];
   const queryResults = {};
   
@@ -435,13 +435,13 @@ async function syncGmailEmails(
     }
 
     const config = syncConfig || {
-      max_emails_per_sync: 10000,
-      sync_days_back: 1825, // 5 years
+      max_emails_per_sync: 50000, // Massive increase for comprehensive sync
+      sync_days_back: 0, // No day limits - sync everything
       enable_full_mailbox_sync: true,
       enable_historical_sync: true
     };
 
-    // Phase 3: Comprehensive date range strategy - NO ARBITRARY LIMITS
+    // Phase 3: Comprehensive date range strategy - REMOVE ALL ARTIFICIAL LIMITS
     let baseQuery = '';
     
     // Get last successful sync timestamp for smart incremental syncing
@@ -454,13 +454,13 @@ async function syncGmailEmails(
       .maybeSingle();
     
     if (syncType === 'full' || !syncConfig?.last_full_sync_at) {
-      // NO DATE RESTRICTIONS - sync everything available
-      baseQuery = ''; // Empty query = all emails
+      // COMPLETE HISTORICAL SYNC - No date restrictions at all
+      baseQuery = ''; // Empty query = all emails from beginning of time
       
-      debugLog('SYNC_DATE_RANGE', 'Using unrestricted query for full historical sync', {
+      debugLog('SYNC_DATE_RANGE', 'Using complete unrestricted query for full historical sync', {
         syncType: 'full',
-        restriction: 'none',
-        baseQuery: 'all_emails'
+        restriction: 'none - complete history',
+        baseQuery: 'all_emails_ever'
       });
       
       await supabaseClient
@@ -469,32 +469,29 @@ async function syncGmailEmails(
         .eq('user_id', userId);
         
     } else if (syncType === 'historical') {
-      // Historical sync with very broad range - 10 years back
-      const tenYearsAgo = new Date();
-      tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
-      const historicalTimestamp = Math.floor(tenYearsAgo.getTime() / 1000);
-      baseQuery = `after:${historicalTimestamp}`;
+      // Historical sync with complete range - no date limits
+      baseQuery = ''; // No restrictions for true historical sync
       
-      debugLog('SYNC_DATE_RANGE', 'Using 10-year historical range', {
-        historicalStartDate: tenYearsAgo.toISOString(),
-        historicalTimestamp,
-        baseQuery
+      debugLog('SYNC_DATE_RANGE', 'Using complete historical range with no date limits', {
+        restriction: 'none - all historical emails',
+        baseQuery: 'complete_history'
       });
       
     } else {
-      // Smart incremental sync based on last successful sync
+      // Smart incremental sync - only limit for performance, not coverage
       const incrementalStartDate = lastSyncData?.last_sync_at 
-        ? new Date(new Date(lastSyncData.last_sync_at).getTime() - 7 * 24 * 60 * 60 * 1000) // 7 days overlap
-        : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // 90 days back as fallback
+        ? new Date(new Date(lastSyncData.last_sync_at).getTime() - 30 * 24 * 60 * 60 * 1000) // 30 days overlap for safety
+        : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000); // 1 year back as fallback
         
       const incrementalTimestamp = Math.floor(incrementalStartDate.getTime() / 1000);
       baseQuery = `after:${incrementalTimestamp}`;
       
-      debugLog('SYNC_DATE_RANGE', 'Using smart incremental range with overlap', {
+      debugLog('SYNC_DATE_RANGE', 'Using expanded incremental range with generous overlap', {
         lastSyncAt: lastSyncData?.last_sync_at,
         incrementalStartDate: incrementalStartDate.toISOString(),
         incrementalTimestamp,
-        baseQuery
+        baseQuery,
+        overlapDays: 30
       });
     }
     
@@ -514,8 +511,8 @@ async function syncGmailEmails(
       { query: baseQuery ? `${baseQuery} -in:spam` : '-in:spam', folderHint: 'inbox' }
     ];
     
-    // Phase 1: Remove artificial limits - use comprehensive batching
-    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 10000);
+    // Phase 1: Remove artificial limits - use comprehensive batching for massive sync
+    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 50000);
     
     debugLog('MULTI_QUERY_PREP', 'Preparing multi-query Gmail sync', {
       syncType,
@@ -643,6 +640,8 @@ async function syncGmailEmails(
         }
 
         const existing = existingEmails?.[0];
+        let isUpdate = false;
+        
         if (existing) {
           // Check if content has meaningfully changed (before extracting new content)
           const headers = messageData.payload.headers || [];
@@ -655,6 +654,7 @@ async function syncGmailEmails(
             });
             
           if (contentChanged) {
+            isUpdate = true;
             debugLog('EMAIL_CONTENT_CHANGED', 'Existing email has changed content, updating', {
               messageId: messageData.id,
               changes: {
@@ -1019,7 +1019,7 @@ serve(async (req) => {
         userEmail, 
         userId, 
         // Phase 2: Update maxResults for comprehensive sync from frontend
-        maxResults = 1000, // Significantly increased for comprehensive sync
+        maxResults = 5000, // Significantly increased for comprehensive sync
         isScheduled = false
       } = requestBody;
 
