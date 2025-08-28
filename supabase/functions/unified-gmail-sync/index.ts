@@ -242,7 +242,7 @@ function classifyEmailByLabels(labelIds: string[], userEmail: string, fromHeader
 }
 
 // Phase 1: Enhanced Gmail sync with comprehensive pagination and unlimited results
-async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, targetBatchSize: number = 5000) {
+async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{query: string, folderHint: string}>, targetBatchSize: number = 5000, isComprehensive: boolean = false) {
   const allResults = [];
   const queryResults = {};
   
@@ -254,8 +254,9 @@ async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{quer
       
       debugLog('GMAIL_QUERY_START', `Starting paginated query: ${config.folderHint}`, {
         query: config.query,
-        targetBatchSize,
-        folderHint: config.folderHint
+        targetBatchSize: isComprehensive ? 'unlimited' : targetBatchSize,
+        folderHint: config.folderHint,
+        isComprehensive
       });
       
       do {
@@ -299,8 +300,8 @@ async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{quer
           // Update page token for next iteration
           currentPageToken = data.nextPageToken || '';
           
-          // Break if we've reached our target batch size for this query
-          if (totalForQuery >= targetBatchSize) {
+          // CRITICAL FIX: Skip batch limit check for comprehensive sync
+          if (!isComprehensive && totalForQuery >= targetBatchSize) {
             debugLog('GMAIL_QUERY_BATCH_LIMIT', `Reached batch limit for ${config.folderHint}`, {
               totalForQuery,
               targetBatchSize,
@@ -317,14 +318,15 @@ async function fetchGmailMessages(accessToken: string, queryConfigs: Array<{quer
           break;
         }
         
-      } while (currentPageToken && totalForQuery < targetBatchSize);
+      } while (currentPageToken && (isComprehensive || totalForQuery < targetBatchSize));
       
       queryResults[config.folderHint] = totalForQuery;
       
       debugLog('GMAIL_QUERY_COMPLETE', `Query completed for ${config.folderHint}`, {
         totalMessages: totalForQuery,
         pagesProcessed: pageCount,
-        query: config.query
+        query: config.query,
+        isComprehensive
       });
       
     } catch (error) {
@@ -372,10 +374,18 @@ async function syncGmailEmails(
   refreshTokenEncrypted: string | null,
   maxResults: number = 5000,
   isScheduled: boolean = false,
-  syncType: string = 'incremental'
+  syncType: string = 'incremental',
+  includeHistorical: boolean = false,
+  enableProgressTracking: boolean = false
 ) {
   try {
-    debugLog('SYNC_START', `Starting multi-folder sync for ${userEmail}`, { maxResults, isScheduled, syncType });
+    debugLog('SYNC_START', `Starting comprehensive multi-folder sync for ${userEmail}`, { 
+      maxResults, 
+      isScheduled, 
+      syncType, 
+      includeHistorical, 
+      enableProgressTracking 
+    });
     
     // Phase 2: Enhanced Token Management with proactive refresh
     let currentAccessToken = accessToken;
@@ -434,14 +444,16 @@ async function syncGmailEmails(
         });
     }
 
+    // CRITICAL FIX: Force unlimited sync for comprehensive mode
+    const isComprehensiveSync = syncType === 'comprehensive' || includeHistorical;
     const config = syncConfig || {
-      max_emails_per_sync: 50000, // Massive increase for comprehensive sync
-      sync_days_back: 0, // No day limits - sync everything
+      max_emails_per_sync: isComprehensiveSync ? 500000 : 50000, // Unlimited for comprehensive
+      sync_days_back: isComprehensiveSync ? 0 : 30, // No limits for comprehensive
       enable_full_mailbox_sync: true,
-      enable_historical_sync: true
+      enable_historical_sync: isComprehensiveSync
     };
 
-    // Phase 3: Comprehensive date range strategy - REMOVE ALL ARTIFICIAL LIMITS
+    // Phase 3: CRITICAL FIX - Force complete historical sync for comprehensive mode
     let baseQuery = '';
     
     // Get last successful sync timestamp for smart incremental syncing
@@ -453,14 +465,16 @@ async function syncGmailEmails(
       .limit(1)
       .maybeSingle();
     
-    if (syncType === 'full' || !syncConfig?.last_full_sync_at) {
-      // COMPLETE HISTORICAL SYNC - No date restrictions at all
-      baseQuery = ''; // Empty query = all emails from beginning of time
+    if (isComprehensiveSync || syncType === 'full' || syncType === 'comprehensive' || includeHistorical) {
+      // FORCE COMPLETE UNRESTRICTED HISTORICAL SYNC
+      baseQuery = ''; // Empty query = ALL emails from account creation
       
-      debugLog('SYNC_DATE_RANGE', 'Using complete unrestricted query for full historical sync', {
-        syncType: 'full',
-        restriction: 'none - complete history',
-        baseQuery: 'all_emails_ever'
+      debugLog('SYNC_DATE_RANGE', 'COMPREHENSIVE MODE: Complete unrestricted historical sync', {
+        syncType,
+        includeHistorical,
+        isComprehensiveSync,
+        restriction: 'NONE - Complete account history',
+        baseQuery: 'all_emails_from_account_creation'
       });
       
       await supabaseClient
@@ -511,13 +525,15 @@ async function syncGmailEmails(
       { query: baseQuery ? `${baseQuery} -in:spam` : '-in:spam', folderHint: 'inbox' }
     ];
     
-    // Phase 1: Remove artificial limits - use comprehensive batching for massive sync
-    const actualMaxResults = Math.min(maxResults, config.max_emails_per_sync || 50000);
+    // CRITICAL FIX: Remove ALL artificial limits for comprehensive sync
+    const actualMaxResults = isComprehensiveSync ? 500000 : Math.min(maxResults, config.max_emails_per_sync || 50000);
     
-    debugLog('MULTI_QUERY_PREP', 'Preparing multi-query Gmail sync', {
+    debugLog('MULTI_QUERY_PREP', 'Preparing comprehensive multi-query Gmail sync', {
       syncType,
+      isComprehensiveSync,
+      includeHistorical,
       queryConfigs: queryConfigs.map(q => ({ query: q.query, hint: q.folderHint })),
-      actualMaxResults
+      actualMaxResults: isComprehensiveSync ? 'UNLIMITED' : actualMaxResults
     });
     
     // Fetch messages with comprehensive pagination and token refresh
@@ -525,12 +541,12 @@ async function syncGmailEmails(
     try {
       // Refresh token before large operations
       await validateAndRefreshToken();
-      messagesData = await fetchGmailMessages(currentAccessToken, queryConfigs, actualMaxResults);
+      messagesData = await fetchGmailMessages(currentAccessToken, queryConfigs, actualMaxResults, isComprehensiveSync);
     } catch (error) {
       // Retry once with fresh token on failure
       debugLog('FETCH_RETRY', 'Retrying with fresh token after fetch error');
       if (await validateAndRefreshToken()) {
-        messagesData = await fetchGmailMessages(currentAccessToken, queryConfigs, actualMaxResults);
+        messagesData = await fetchGmailMessages(currentAccessToken, queryConfigs, actualMaxResults, isComprehensiveSync);
       } else {
         throw error;
       }
@@ -1018,9 +1034,12 @@ serve(async (req) => {
       const { 
         userEmail, 
         userId, 
-        // Phase 2: Update maxResults for comprehensive sync from frontend
-        maxResults = 5000, // Significantly increased for comprehensive sync
-        isScheduled = false
+        // CRITICAL FIX: Extract new comprehensive sync parameters
+        maxResults = 5000,
+        isScheduled = false,
+        syncType = 'incremental',
+        includeHistorical = false,
+        enableProgressTracking = false
       } = requestBody;
 
       // Handle manual sync requests
@@ -1082,9 +1101,10 @@ serve(async (req) => {
           }
         }
 
-        console.log('🚀 Starting Gmail sync process...');
+        console.log('🚀 Starting comprehensive Gmail sync process...');
+        console.log(`📊 Sync parameters: type=${syncType}, historical=${includeHistorical}, maxResults=${maxResults}`);
         
-        // Call the sync function with detailed logging
+        // CRITICAL FIX: Call sync function with new comprehensive parameters
         const syncResult = await syncGmailEmails(
           supabaseClient,
           userId,
@@ -1092,7 +1112,10 @@ serve(async (req) => {
           accessToken,
           refreshToken,
           maxResults,
-          isScheduled
+          isScheduled,
+          syncType,
+          includeHistorical,
+          enableProgressTracking
         );
 
         console.log('📊 Sync result:', JSON.stringify(syncResult, null, 2));
