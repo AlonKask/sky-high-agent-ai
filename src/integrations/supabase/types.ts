@@ -1896,6 +1896,7 @@ export type Database = {
           email_type: string | null
           folder_name: string | null
           forwarded_from_message_id: string | null
+          html_body: string | null
           id: string
           is_archived: boolean | null
           is_deleted: boolean | null
@@ -1927,6 +1928,7 @@ export type Database = {
           email_type?: string | null
           folder_name?: string | null
           forwarded_from_message_id?: string | null
+          html_body?: string | null
           id?: string
           is_archived?: boolean | null
           is_deleted?: boolean | null
@@ -1958,6 +1960,7 @@ export type Database = {
           email_type?: string | null
           folder_name?: string | null
           forwarded_from_message_id?: string | null
+          html_body?: string | null
           id?: string
           is_archived?: boolean | null
           is_deleted?: boolean | null

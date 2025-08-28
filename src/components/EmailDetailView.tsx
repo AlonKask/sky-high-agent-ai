@@ -23,12 +23,14 @@ import {
 import { cn } from "@/lib/utils";
 import { SafeHtmlRenderer } from "@/components/SafeHtmlRenderer";
 import RichEmailRenderer from "@/components/RichEmailRenderer/RichEmailRenderer";
+import EnhancedEmailRenderer from "@/components/EnhancedEmailRenderer";
 import AIReplyGenerator from "./AIReplyGenerator";
 
 interface EmailExchange {
   id: string;
   subject: string;
   body: string;
+  html_body?: string;  // Add HTML body field
   sender_email: string;
   recipient_emails: string[];
   direction: 'inbound' | 'outbound';
@@ -58,7 +60,7 @@ interface EmailDetailViewProps {
   onDelete?: () => void;
 }
 
-const EmailDetailView = ({
+  const EmailDetailView = ({
   email,
   clientId,
   requestId,
@@ -69,7 +71,7 @@ const EmailDetailView = ({
   onDelete
 }: EmailDetailViewProps) => {
   const [showReplyGenerator, setShowReplyGenerator] = useState(false);
-  const [useRichRenderer, setUseRichRenderer] = useState(true);
+  const [renderMode, setRenderMode] = useState<'enhanced' | 'rich' | 'safe'>('enhanced');
 
   if (!email) {
     return (
@@ -283,35 +285,58 @@ const EmailDetailView = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-medium">Message Content</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setUseRichRenderer(!useRichRenderer)}
-                className="gap-2"
-              >
-                {useRichRenderer ? (
-                  <>
-                    <FileText className="h-4 w-4" />
-                    Show Basic
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    Show Rich
-                  </>
+              <div className="flex items-center gap-2">
+                {email.html_body && (
+                  <Badge variant="secondary" className="text-xs">
+                    Rich HTML Available
+                  </Badge>
                 )}
-              </Button>
+                <Button
+                  variant={renderMode === 'enhanced' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRenderMode('enhanced')}
+                  className="gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Enhanced
+                </Button>
+                <Button
+                  variant={renderMode === 'rich' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRenderMode('rich')}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Rich
+                </Button>
+                <Button
+                  variant={renderMode === 'safe' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRenderMode('safe')}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Basic
+                </Button>
+              </div>
             </div>
 
             <Separator />
             
             <div className="min-h-[200px]">
-              {useRichRenderer ? (
+              {renderMode === 'enhanced' ? (
+                <EnhancedEmailRenderer
+                  htmlContent={email.html_body}
+                  textContent={email.body}
+                  subject={email.subject}
+                  showToggle={false}
+                  defaultView={email.html_body ? 'html' : 'text'}
+                />
+              ) : renderMode === 'rich' ? (
                 <RichEmailRenderer 
                   emailBody={email.body}
                   subject={email.subject}
                   showRawContent={false}
-                  onToggleRaw={() => setUseRichRenderer(false)}
                 />
               ) : (
                 <SafeHtmlRenderer 

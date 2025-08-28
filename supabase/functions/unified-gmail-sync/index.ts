@@ -124,9 +124,10 @@ async function refreshGmailToken(refreshToken: string, supabaseClient: any, user
   }
 }
 
-// Simplified content extraction
-function extractTextContent(payload: any): { text: string; attachments: any[] } {
+// Enhanced content extraction with HTML preservation
+function extractTextContent(payload: any): { text: string; html: string; attachments: any[] } {
   let text = '';
+  let html = '';
   const attachments: any[] = [];
 
   function extractFromParts(parts: any[]): void {
@@ -144,7 +145,10 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
           const normalizedData = part.body.data.replace(/-/g, '+').replace(/_/g, '/');
           const decodedBytes = decodeBase64(normalizedData);
           const decoded = new TextDecoder().decode(decodedBytes);
-          if (!text || part.mimeType?.includes('text/plain')) {
+          
+          if (part.mimeType?.includes('text/html')) {
+            html = decoded;
+          } else if (part.mimeType?.includes('text/plain')) {
             text = decoded;
           }
         } catch (e) {
@@ -163,7 +167,13 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
     try {
       const normalizedData = payload.body.data.replace(/-/g, '+').replace(/_/g, '/');
       const decodedBytes = decodeBase64(normalizedData);
-      text = new TextDecoder().decode(decodedBytes);
+      const decoded = new TextDecoder().decode(decodedBytes);
+      
+      if (payload.mimeType?.includes('text/html')) {
+        html = decoded;
+      } else {
+        text = decoded;
+      }
     } catch (e) {
       // Continue if decode fails
       console.warn('Failed to decode email body:', e.message);
@@ -172,10 +182,19 @@ function extractTextContent(payload: any): { text: string; attachments: any[] } 
     extractFromParts(payload.parts);
   }
 
-  // Clean and limit text
-  text = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 10000);
+  // If we have HTML but no plain text, extract text from HTML
+  if (html && !text) {
+    try {
+      text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    } catch (e) {
+      console.warn('Failed to extract text from HTML:', e.message);
+    }
+  }
 
-  return { text, attachments };
+  // Clean and limit text for storage
+  text = text.replace(/\s+/g, ' ').trim().substring(0, 10000);
+
+  return { text, html: html.substring(0, 50000), attachments }; // Limit HTML to 50k chars
 }
 
 // Enhanced Gmail folder classification helper with improved logic
@@ -509,7 +528,7 @@ async function syncGmailEmails(
           }
         }
 
-        // Create email record with proper folder classification
+        // Create email record with HTML and text content
         const emailRecord = {
           user_id: userId,
           message_id: messageData.id,
@@ -520,6 +539,7 @@ async function syncGmailEmails(
           cc_emails: ccEmails,
           bcc_emails: [],
           body: textContent.text.substring(0, 5000),
+          html_body: textContent.html ? textContent.html.substring(0, 50000) : null, // Store HTML content
           direction,
           folder_name,  // Now properly classified
           status: 'received',
@@ -528,6 +548,7 @@ async function syncGmailEmails(
           metadata: {
             gmail_labels: (messageData.labelIds || []).slice(0, 5),
             has_attachments: textContent.attachments.length > 0,
+            has_html_content: !!textContent.html,
             batch_id: `sync_${Date.now()}`,
             source_query: message.sourceQuery || 'default'
           },

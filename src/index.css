@@ -169,3 +169,88 @@
     background: linear-gradient(135deg, hsl(var(--warning)), hsl(var(--warning) / 0.8));
   }
 }
+
+/* Gmail-like email content styling */
+.gmail-email-content {
+  font-family: Arial, sans-serif;
+  line-height: 1.4;
+  color: hsl(var(--foreground));
+}
+
+.gmail-email-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.gmail-email-content td, .gmail-email-content th {
+  border: 1px solid hsl(var(--border));
+  padding: 8px;
+  text-align: left;
+}
+
+.gmail-email-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.gmail-email-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+.gmail-email-content a:hover {
+  color: hsl(var(--primary-foreground));
+  background-color: hsl(var(--primary));
+}
+
+.gmail-email-content blockquote {
+  border-left: 4px solid hsl(var(--border));
+  margin: 16px 0;
+  padding: 0 16px;
+  color: hsl(var(--muted-foreground));
+}
+
+.gmail-email-content pre {
+  background-color: hsl(var(--muted));
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+}
+
+.gmail-email-content code {
+  background-color: hsl(var(--muted));
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+}
+
+.gmail-email-content ul, .gmail-email-content ol {
+  margin: 16px 0;
+  padding-left: 24px;
+}
+
+.gmail-email-content li {
+  margin: 4px 0;
+}
+
+.gmail-email-content h1, .gmail-email-content h2, .gmail-email-content h3 {
+  margin: 16px 0 8px 0;
+  color: hsl(var(--foreground));
+}
+
+.gmail-email-content p {
+  margin: 8px 0;
+}
+
+/* Responsive email content */
+@media (max-width: 768px) {
+  .gmail-email-content {
+    font-size: 14px;
+  }
+  
+  .gmail-email-content table {
+    font-size: 12px;
+  }
+}
