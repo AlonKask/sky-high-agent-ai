@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.unified-gmail-sync]
 verify_jwt = true
 
+[functions.reclassify-emails]
+verify_jwt = true
+
 [functions.captcha-health-check]
 verify_jwt = false
 

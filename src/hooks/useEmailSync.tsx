@@ -85,7 +85,7 @@ export const useEmailSync = () => {
     try {
       console.log(`🚀 Starting ${syncType} email sync with max ${maxResults} emails...`);
       
-      const { data, error } = await supabase.functions.invoke('enhanced-gmail-sync', {
+      const { data, error } = await supabase.functions.invoke('unified-gmail-sync', {
         body: {
           syncType,
           maxResults,
@@ -172,9 +172,50 @@ export const useEmailSync = () => {
     });
   }, [performSync]);
 
+  const performEmailReclassification = useCallback(async (): Promise<void> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: gmailCreds } = await supabase
+        .from('gmail_credentials')
+        .select('gmail_user_email')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!gmailCreds?.gmail_user_email) return;
+
+      console.log('🔄 Starting email reclassification...');
+      
+      const { data, error } = await supabase.functions.invoke('reclassify-emails', {
+        body: {
+          userId: user.id,
+          userEmail: gmailCreds.gmail_user_email,
+          batchSize: 200
+        }
+      });
+
+      if (error) {
+        console.error('❌ Email reclassification failed:', error);
+      } else {
+        console.log('✅ Email reclassification completed:', data);
+        
+        // Dispatch event to update UI
+        window.dispatchEvent(new CustomEvent('email-reclassification-complete', {
+          detail: { 
+            processed: data.processed,
+            folderDistribution: data.folder_distribution
+          }
+        }));
+      }
+    } catch (error: any) {
+      console.error('Email reclassification error:', error);
+    }
+  }, []);
+
   const performProgressiveSync = useCallback(async (): Promise<void> => {
     try {
-      // Silent progressive sync
+      // Step 1: Silent progressive sync
       console.log('📧 Starting silent progressive sync - Step 1: Full recent sync');
       const fullResult = await performFullSync(false);
       
@@ -182,9 +223,13 @@ export const useEmailSync = () => {
         throw new Error(`Full sync failed: ${fullResult.message}`);
       }
 
-      // Step 2: Historical sync if there's potentially more data
+      // Step 2: Reclassify existing emails to fix folder assignments
+      console.log('📧 Silent progressive sync - Step 2: Email reclassification');
+      await performEmailReclassification();
+
+      // Step 3: Historical sync if there's potentially more data
       if (fullResult.has_more) {
-        console.log('📧 Silent progressive sync - Step 2: Historical sync');
+        console.log('📧 Silent progressive sync - Step 3: Historical sync');
         await new Promise(resolve => setTimeout(resolve, 2000)); // Brief pause
         await performHistoricalSync(false);
       }
@@ -192,7 +237,7 @@ export const useEmailSync = () => {
     } catch (error: any) {
       console.error('Progressive sync error:', error);
     }
-  }, [performFullSync, performHistoricalSync]);
+  }, [performFullSync, performHistoricalSync, performEmailReclassification]);
 
   return {
     syncProgress,
@@ -201,6 +246,7 @@ export const useEmailSync = () => {
     performHistoricalSync,
     performQuickSync,
     performProgressiveSync,
+    performEmailReclassification,
     isSyncActive: syncProgress.isActive
   };
 };
