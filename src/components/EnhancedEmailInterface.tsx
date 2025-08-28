@@ -19,6 +19,7 @@ interface EmailExchange {
   id: string;
   subject: string;
   body: string;
+  html_body?: string;
   sender_email: string;
   recipient_emails: string[];
   direction: 'inbound' | 'outbound';
@@ -99,7 +100,7 @@ const EnhancedEmailInterface = ({
         .from('email_exchanges')
         .select(`
           id, subject, sender_email, recipient_emails, cc_emails, bcc_emails, 
-          body, direction, status, email_type, attachments, metadata, 
+          body, html_body, direction, status, email_type, attachments, metadata, 
           created_at, updated_at, received_at, message_id, thread_id, client_id,
           is_read, is_starred, is_archived, is_deleted, is_draft, folder_name
         `)

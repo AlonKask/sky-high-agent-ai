@@ -153,10 +153,10 @@ const EnhancedEmailRenderer: React.FC<EnhancedEmailRendererProps> = ({
                 {formattedTextContent.split('\n\n').map((paragraph, index) => (
                   <p key={index} className="mb-4 last:mb-0">
                     {paragraph.split('\n').map((line, lineIndex) => (
-                      <React.Fragment key={lineIndex}>
+                      <span key={lineIndex}>
                         {line}
                         {lineIndex < paragraph.split('\n').length - 1 && <br />}
-                      </React.Fragment>
+                      </span>
                     ))}
                   </p>
                 ))}

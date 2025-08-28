@@ -329,7 +329,7 @@ interface EmailDetailViewProps {
                   htmlContent={email.html_body}
                   textContent={email.body}
                   subject={email.subject}
-                  showToggle={false}
+                  showToggle={true}
                   defaultView={email.html_body ? 'html' : 'text'}
                 />
               ) : renderMode === 'rich' ? (
