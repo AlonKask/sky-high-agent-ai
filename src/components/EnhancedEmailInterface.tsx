@@ -472,7 +472,7 @@ const EnhancedEmailInterface = ({
         </div>
 
         {/* Resizable Email Panels */}
-        <ResizablePanelGroup direction="horizontal" className="h-full overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
           {/* Analytics Tab */}
           {selectedFolder === 'analytics' ? (
             <div className="flex-1 p-6">
@@ -491,7 +491,7 @@ const EnhancedEmailInterface = ({
           ) : (
             <>
               {/* Email List */}
-              <ResizablePanel defaultSize={50} minSize={30} className="h-full">
+              <ResizablePanel defaultSize={50} minSize={30}>
                 {emails.length === 0 && !isLoading ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
