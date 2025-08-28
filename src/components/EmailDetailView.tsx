@@ -248,58 +248,60 @@ interface EmailDetailViewProps {
       </div>
 
       {/* Email Content */}
-      <ScrollArea className="h-full">
-        <div className="p-4 space-y-6">
-          {/* Attachments */}
-          {email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (
-            <div className="border rounded-lg p-4 bg-muted/30">
-              <div className="flex items-center gap-2 mb-3">
-                <Paperclip className="h-4 w-4" />
-                <span className="font-medium text-sm">
-                  {email.attachments.length} Attachment{email.attachments.length > 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {email.attachments.map((attachment: any, index: number) => (
-                  <div key={index} className="flex items-center gap-2 p-2 bg-background rounded border">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm truncate">
-                      {attachment.filename || `Attachment ${index + 1}`}
-                    </span>
-                    {attachment.size && (
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        {Math.round(attachment.size / 1024)}KB
+      <div className="flex-1">
+        <ScrollArea className="h-full max-h-full">
+          <div className="p-4 space-y-6 h-0 min-h-full">
+            {/* Attachments */}
+            {email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <div className="flex items-center gap-2 mb-3">
+                  <Paperclip className="h-4 w-4" />
+                  <span className="font-medium text-sm">
+                    {email.attachments.length} Attachment{email.attachments.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {email.attachments.map((attachment: any, index: number) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-background rounded border">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm truncate">
+                        {attachment.filename || `Attachment ${index + 1}`}
                       </span>
-                    )}
-                  </div>
-                ))}
+                      {attachment.size && (
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {Math.round(attachment.size / 1024)}KB
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Email Body */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">Message Content</h3>
-              {email.html_body && (
-                <Badge variant="secondary" className="text-xs">
-                  Rich HTML Content
-                </Badge>
-              )}
-            </div>
+            {/* Email Body */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Message Content</h3>
+                {email.html_body && (
+                  <Badge variant="secondary" className="text-xs">
+                    Rich HTML Content
+                  </Badge>
+                )}
+              </div>
 
-            <Separator />
-            
-            <div className="min-h-[200px]">
-              <EnhancedEmailRenderer
-                htmlContent={email.html_body}
-                textContent={email.body}
-                subject={email.subject}
-              />
+              <Separator />
+              
+              <div className="min-h-[200px]">
+                <EnhancedEmailRenderer
+                  htmlContent={email.html_body}
+                  textContent={email.body}
+                  subject={email.subject}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+      </div>
 
       {/* AI Reply Generator Modal */}
       {showReplyGenerator && (
