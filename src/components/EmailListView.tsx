@@ -129,7 +129,7 @@ const EmailListView: React.FC<EmailListViewProps> = ({
   }
 
   return (
-    <div className="flex-1 border-r flex flex-col overflow-hidden">
+    <div className="h-full border-r flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b space-y-3 shrink-0">
         <div className="flex items-center gap-2">
