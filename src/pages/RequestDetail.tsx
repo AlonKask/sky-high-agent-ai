@@ -239,7 +239,7 @@ const RequestDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-card border-b border-border sticky top-0 z-10">
+      <div className="bg-card border-b border-border sticky top-0 z-20 backdrop-blur-sm bg-card/95">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
