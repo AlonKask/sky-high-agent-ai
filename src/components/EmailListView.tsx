@@ -129,7 +129,7 @@ const EmailListView: React.FC<EmailListViewProps> = ({
   }
 
   return (
-    <div className="h-full border-r flex flex-col overflow-hidden">
+    <div className="h-full border-r flex flex-col">
       {/* Header */}
       <div className="p-4 border-b space-y-3 shrink-0">
         <div className="flex items-center gap-2">
@@ -208,7 +208,7 @@ const EmailListView: React.FC<EmailListViewProps> = ({
               </div>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y h-0 min-h-full">
               {emails.map((email) => (
                 <div
                   key={email.id}
