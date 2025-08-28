@@ -110,25 +110,34 @@ const calculateCKFee = (quote: Quote): number => {
 
 // Transform segments for FlightPathVisualization 
 const transformSegmentsForVisualization = (segments: any[]) => {
-  return segments.map(segment => ({
-    airlineCode: segment.airlineCode,
-    airlineName: segment.airlineName,
-    icaoCode: segment.icaoCode,
-    logoUrl: segment.logoUrl,
-    flightNumber: segment.flightNumber,
-    duration: segment.duration,
-    departureTime: segment.departureTime,
-    arrivalTime: segment.arrivalTime,
-    arrivalDayOffset: segment.arrivalDayOffset || 0,
-    departureAirport: { 
-      code: segment.departureAirport,
-      name: segment.departureAirportName 
-    },
-    arrivalAirport: { 
-      code: segment.arrivalAirport,
-      name: segment.arrivalAirportName 
-    }
-  }));
+  console.log(`🔄 QuoteCard: Transforming ${segments.length} segments for visualization:`);
+  
+  const transformed = segments.map((segment, index) => {
+    console.log(`  Segment ${index + 1}: Duration "${segment.duration || 'MISSING'}" → Will display in FlightPathVisualization`);
+    
+    return {
+      airlineCode: segment.airlineCode,
+      airlineName: segment.airlineName,
+      icaoCode: segment.icaoCode,
+      logoUrl: segment.logoUrl,
+      flightNumber: segment.flightNumber,
+      duration: segment.duration,
+      departureTime: segment.departureTime,
+      arrivalTime: segment.arrivalTime,
+      arrivalDayOffset: segment.arrivalDayOffset || 0,
+      departureAirport: { 
+        code: segment.departureAirport,
+        name: segment.departureAirportName 
+      },
+      arrivalAirport: { 
+        code: segment.arrivalAirport,
+        name: segment.arrivalAirportName 
+      }
+    };
+  });
+  
+  console.log(`✅ QuoteCard: Transformation complete, ${transformed.length} segments ready for visualization`);
+  return transformed;
 };
 
 // Helper function to determine route display using segment logic
@@ -183,10 +192,14 @@ export function QuoteCard({
   // Parse Sabre content when segments are empty but content exists
   useEffect(() => {
     const parseContentData = async () => {
+      console.log(`🔍 QuoteCard: Checking quote ${quote.id} - segments: ${quote.segments?.length || 0}, content: ${!!quote.content}`);
+      
       if ((!quote.segments || quote.segments.length === 0) && quote.content && quote.content.trim()) {
+        console.log(`🔄 QuoteCard: Parsing content for quote ${quote.id}`);
         setIsParsingContent(true);
         try {
           const format = EnhancedSabreParser.detectFormat(quote.content);
+          console.log(`📋 QuoteCard: Detected format: ${format}`);
           let parsed;
           
           if (format === "VI") {
@@ -196,20 +209,27 @@ export function QuoteCard({
           }
           
           if (parsed?.segments) {
+            console.log(`✅ QuoteCard: Parsed ${parsed.segments.length} segments:`);
+            parsed.segments.forEach((seg: any, idx: number) => {
+              console.log(`  Segment ${idx + 1}: ${seg.departureAirport}-${seg.arrivalAirport}, Duration: "${seg.duration || 'MISSING'}"`);
+            });
             setParsedSegments(parsed.segments);
+          } else {
+            console.warn(`⚠️ QuoteCard: No segments in parsed result`);
           }
         } catch (error) {
-          console.error('Failed to parse quote content:', error);
+          console.error('❌ QuoteCard: Failed to parse quote content:', error);
         } finally {
           setIsParsingContent(false);
         }
       } else if (quote.segments && quote.segments.length > 0) {
+        console.log(`✅ QuoteCard: Using existing segments from quote (${quote.segments.length})`);
         setParsedSegments(quote.segments);
       }
     };
     
     parseContentData();
-  }, [quote.segments, quote.content]);
+  }, [quote.segments, quote.content, quote.id]);
   
   // Get route display using the same logic as expanded view
   const { origin, destination } = getRouteDisplay(quote, parsedSegments);

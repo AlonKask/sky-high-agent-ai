@@ -55,7 +55,16 @@ export class EnhancedSabreParser {
         }
 
         // Parse using base VI parser first
+        console.log(`🔍 VI Format: Starting base parsing...`);
         const baseResult = SabreParser.parseVIFormat(rawItinerary);
+        
+        if (baseResult && baseResult.segments.length > 0) {
+          console.log(`✅ VI Format: Base parsing extracted ${baseResult.segments.length} segments`);
+          baseResult.segments.forEach((segment, idx) => {
+            console.log(`📋 Segment ${idx + 1}: ${segment.departureAirport}-${segment.arrivalAirport}, Duration: "${segment.duration || 'MISSING'}"`);
+          });
+        }
+        
         if (!baseResult || baseResult.segments.length === 0) {
           throw ErrorHandler.createError(
             ErrorType.PARSING_ERROR,
@@ -66,7 +75,13 @@ export class EnhancedSabreParser {
         }
 
         // Enhance with database data
+        console.log(`🔍 VI Format: Starting database enhancement...`);
+        console.log(`📋 Pre-enhancement durations:`, baseResult.segments.map((s, idx) => `Segment ${idx + 1}: "${s.duration || 'MISSING'}"`));
+        
         await this.enhanceSegmentsWithDatabaseData(baseResult.segments);
+        
+        console.log(`📋 Post-enhancement durations:`, baseResult.segments.map((s, idx) => `Segment ${idx + 1}: "${s.duration || 'MISSING'}"`));
+        console.log(`✅ VI Format: Database enhancement completed`);
         
         // Re-analyze flight directions after database enhancement
         if (baseResult.segments.length > 0) {

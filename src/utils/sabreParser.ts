@@ -1605,9 +1605,22 @@ export class SabreParser {
             arrivalTime: arrTime,
             arrivalDayOffset: arrDayOffset ? parseInt(arrDayOffset) : 0,
             elapsedTime: elapsedStr,
+            elapsedTimeHours: elapsedStr ? parseFloat(elapsedStr) : undefined,
             duration: elapsedStr ? this.convertElapsedTimeToHumanReadable(parseFloat(elapsedStr)) : undefined,
             equipment: equipment
           });
+          
+          // CRITICAL: Log duration extraction for debugging
+          if (elapsedStr) {
+            console.log(`🕐 DURATION DEBUG - Segment #${segNum}:`, {
+              rawElapsedStr: elapsedStr,
+              parsedFloat: parseFloat(elapsedStr),
+              convertedDuration: this.convertElapsedTimeToHumanReadable(parseFloat(elapsedStr)),
+              willBeStored: currentSegment.duration
+            });
+          } else {
+            console.warn(`⚠️ DURATION MISSING - Segment #${segNum}: No elapsedStr found in regex match`);
+          }
           continue;  // move to next line
         }
 
@@ -1759,10 +1772,22 @@ export class SabreParser {
   }
 
   private static completeVISegment(segment: Partial<FlightSegment>): FlightSegment {
+    console.log(`🏁 Completing VI segment #${segment.segmentNumber}:`, {
+      hasExistingDuration: !!segment.duration,
+      existingDuration: segment.duration,
+      hasElapsedTimeHours: !!segment.elapsedTimeHours,
+      elapsedTimeHours: segment.elapsedTimeHours
+    });
+    
     // Convert elapsedTimeHours to readable duration format
     let duration = segment.duration;
     if (!duration && segment.elapsedTimeHours) {
       duration = this.convertElapsedTimeToHumanReadable(segment.elapsedTimeHours);
+      console.log(`✅ Generated duration from elapsedTimeHours: "${duration}"`);
+    } else if (duration) {
+      console.log(`✅ Using existing duration: "${duration}"`);
+    } else {
+      console.warn(`⚠️ No duration data available for segment #${segment.segmentNumber}`);
     }
     
     return {
@@ -1798,16 +1823,27 @@ export class SabreParser {
 
   // Helper method to convert decimal hours to human-readable format
   private static convertElapsedTimeToHumanReadable(elapsedTimeHours: number): string {
+    console.log(`🔄 Converting elapsed time: ${elapsedTimeHours} hours`);
+    
+    if (isNaN(elapsedTimeHours) || elapsedTimeHours <= 0) {
+      console.warn(`⚠️ Invalid elapsed time: ${elapsedTimeHours}`);
+      return '';
+    }
+    
     const hours = Math.floor(elapsedTimeHours);
     const minutes = Math.round((elapsedTimeHours - hours) * 60);
     
+    let result = '';
     if (hours === 0) {
-      return `${minutes}m`;
+      result = `${minutes}m`;
     } else if (minutes === 0) {
-      return `${hours}h`;
+      result = `${hours}h`;
     } else {
-      return `${hours}h ${minutes}m`;
+      result = `${hours}h ${minutes}m`;
     }
+    
+    console.log(`✅ Duration conversion: ${elapsedTimeHours}h → "${result}"`);
+    return result;
   }
 
   private static generateLayoverInfo(segments: FlightSegment[]): Array<{airport: string; duration: number; terminal?: string}> {
