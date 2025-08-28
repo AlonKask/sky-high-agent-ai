@@ -181,140 +181,164 @@ export class EmailTemplateGenerator {
   private static generateLinearFlightPath(segments: any[]): string {
     if (!segments || segments.length === 0) return '';
 
-    // Extract all unique airports from segments to create continuous timeline
-    const airports = [segments[0].departureAirport];
-    segments.forEach(segment => {
-      airports.push(segment.arrivalAirport);
-    });
+    // Helper function to format dates (20SEP -> 20 SEP)
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return '';
+      const match = dateStr.match(/(\d{1,2})([A-Z]{3})/);
+      return match ? `${match[1]} ${match[2]}` : dateStr;
+    };
 
-    // Build flight segment data for timeline
-    const flightSegments = segments.map((segment, index) => {
-      const departureTime = segment.departureTime || '';
-      const arrivalTime = segment.arrivalTime || '';
-      const flightNumber = segment.flightNumber || '';
-      const airlineCode = segment.airlineCode || '';
-      const airlineDisplay = segment.enrichedAirline?.name || this.getAirlineName(airlineCode);
-      const aircraftType = segment.aircraftType || segment.equipment || '';
-      const duration = segment.duration || '';
-      
-      // Calculate layover if not last segment
-      let layoverInfo = '';
-      if (index < segments.length - 1 && segment.layoverTime) {
-        const hours = Math.floor(segment.layoverTime / 60);
-        const minutes = segment.layoverTime % 60;
-        layoverInfo = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-      }
+    // Helper function to format times (1725 -> 5:25 PM)
+    const formatTime = (timeStr: string) => {
+      if (!timeStr || timeStr.length < 3) return timeStr;
+      const match = timeStr.match(/(\d{1,2})(\d{2})/);
+      if (!match) return timeStr;
+      let hours = parseInt(match[1]);
+      const minutes = match[2];
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    };
 
-      return {
-        departureAirport: segment.departureAirport,
-        arrivalAirport: segment.arrivalAirport,
-        departureTime,
-        arrivalTime,
-        flightNumber,
-        airlineDisplay,
-        aircraftType,
-        duration,
-        layoverInfo
-      };
-    });
+    // Helper function to calculate layover duration
+    const calculateLayover = (segment: any, nextSegment: any) => {
+      if (!segment.layoverTime) return '';
+      const hours = Math.floor(segment.layoverTime / 60);
+      const minutes = segment.layoverTime % 60;
+      return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    };
 
-    // Generate continuous horizontal timeline - single row with all airports
+    // Build the horizontal timeline layout matching the uploaded design
     const timelineHTML = `
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-        <tr>
-          <td style="padding: 20px;">
-            <!-- Continuous Airport Timeline -->
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                ${airports.map((airport, index) => {
-                  const isFirst = index === 0;
-                  const isLast = index === airports.length - 1;
-                  const segment = flightSegments[index - 1]; // Previous segment for arrival info, current for departure
+      <div style="background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; padding: 24px; margin: 20px 0;">
+        <!-- Flight Route Timeline -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+          <tr>
+            ${segments.map((segment, index) => {
+              const isLast = index === segments.length - 1;
+              const nextSegment = segments[index + 1];
+              const layoverDuration = !isLast ? calculateLayover(segment, nextSegment) : '';
+              
+              return `
+                <!-- Departure -->
+                <td width="${isLast ? '50%' : '25%'}" align="center" style="vertical-align: top;">
+                  <!-- Date -->
+                  <div style="font-size: 12px; font-weight: 600; color: #666; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                    ${formatDate(segment.departureDate)}
+                  </div>
                   
-                  return `
-                    <td ${isFirst || isLast ? 'width="15%"' : 'width="' + (70 / (airports.length - 2)) + '%"'} align="center" valign="top">
-                      <!-- Airport Circle -->
-                      <div style="position: relative; display: inline-block;">
-                        <div style="background-color: ${isFirst ? '#e0f2fe' : isLast ? '#f0fdf4' : '#fef3c7'}; 
-                                    border: 3px solid ${isFirst ? '#0284c7' : isLast ? '#16a34a' : '#f59e0b'}; 
-                                    border-radius: 50%; 
-                                    width: 50px; 
-                                    height: 50px; 
-                                    display: flex; 
-                                    align-items: center; 
-                                    justify-content: center; 
-                                    margin: 0 auto 12px auto;">
-                          <span style="font-weight: bold; font-size: 12px; color: ${isFirst ? '#0c4a6e' : isLast ? '#15803d' : '#92400e'}; font-family: Arial, sans-serif;">
-                            ${airport}
-                          </span>
-                        </div>
-                        
-                        <!-- Connection Line (except for last airport) -->
-                        ${!isLast ? `
-                          <div style="position: absolute; top: 25px; left: 50px; width: calc(100vw - 100px); height: 3px; background-color: #e2e8f0; z-index: -1;"></div>
-                        ` : ''}
-                      </div>
-                      
-                      <!-- Time Info -->
-                      ${isFirst && flightSegments[0] ? `
-                        <div style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 4px; font-family: Arial, sans-serif;">
-                          ${flightSegments[0].departureTime}
-                        </div>
-                        <div style="font-size: 11px; color: #64748b; font-family: Arial, sans-serif;">Departure</div>
-                      ` : ''}
-                      
-                      ${!isFirst && !isLast && segment ? `
-                        <div style="font-size: 11px; color: #64748b; margin-bottom: 2px; font-family: Arial, sans-serif;">
-                          ${segment.arrivalTime}
-                        </div>
-                        <div style="font-size: 10px; color: #94a3b8; font-family: Arial, sans-serif;">
-                          ${segment.layoverInfo} layover
-                        </div>
-                        <div style="font-size: 11px; color: #64748b; margin-top: 2px; font-family: Arial, sans-serif;">
-                          ${flightSegments[index] ? flightSegments[index].departureTime : ''}
-                        </div>
-                      ` : ''}
-                      
-                      ${isLast && segment ? `
-                        <div style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 4px; font-family: Arial, sans-serif;">
-                          ${segment.arrivalTime}
-                        </div>
-                        <div style="font-size: 11px; color: #64748b; font-family: Arial, sans-serif;">Arrival</div>
-                      ` : ''}
-                    </td>
-                  `;
-                }).join('')}
-              </tr>
-            </table>
-            
-            <!-- Flight Details Below Timeline -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
-              ${flightSegments.map((segment, index) => `
-                <tr>
-                  <td style="padding: 8px 0; border-bottom: ${index === flightSegments.length - 1 ? 'none' : '1px solid #f8fafc'};">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td width="25%" style="font-size: 12px; font-weight: 600; color: #475569; font-family: Arial, sans-serif;">
-                          ${segment.departureAirport} → ${segment.arrivalAirport}
-                        </td>
-                        <td width="25%" style="font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">
-                          ${segment.flightNumber} • ${segment.airlineDisplay}
-                        </td>
-                        <td width="25%" style="font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">
-                          ${segment.aircraftType || ''}
-                        </td>
-                        <td width="25%" style="font-size: 12px; color: #64748b; text-align: right; font-family: Arial, sans-serif;">
-                          ${segment.duration || ''}
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              `).join('')}
-            </table>
-          </td>
-        </tr>
-      </table>
+                  <!-- Time -->
+                  <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 6px; font-family: Arial, sans-serif;">
+                    ${formatTime(segment.departureTime)}
+                  </div>
+                  
+                  <!-- Airport Code -->
+                  <div style="font-size: 18px; font-weight: 800; color: #0066cc; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                    ${segment.departureAirport}
+                  </div>
+                  
+                  <!-- Airport Name -->
+                  <div style="font-size: 10px; color: #888; font-family: Arial, sans-serif;">
+                    ${segment.enrichedDepartureAirport?.name || segment.departureAirport}
+                  </div>
+                </td>
+                
+                ${!isLast ? `
+                <!-- Flight Segment -->
+                <td width="25%" align="center" style="vertical-align: middle;">
+                  <!-- Flight Line with Plane Icon -->
+                  <div style="position: relative; margin: 20px 0;">
+                    <div style="height: 2px; background: linear-gradient(90deg, #0066cc, #0066cc); width: 100%; position: relative;">
+                      <div style="position: absolute; right: -4px; top: -3px; width: 0; height: 0; border-left: 8px solid #0066cc; border-top: 4px solid transparent; border-bottom: 4px solid transparent;"></div>
+                    </div>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2px;">
+                      ✈️
+                    </div>
+                  </div>
+                  
+                  <!-- Flight Details -->
+                  <div style="text-align: center; margin-top: 8px;">
+                    <div style="font-size: 12px; font-weight: 600; color: #0066cc; margin-bottom: 2px; font-family: Arial, sans-serif;">
+                      ${segment.flightNumber}
+                    </div>
+                    <div style="font-size: 10px; color: #666; margin-bottom: 2px; font-family: Arial, sans-serif;">
+                      ${segment.enrichedAirline?.name || segment.airlineCode}
+                    </div>
+                    <div style="font-size: 10px; color: #888; font-family: Arial, sans-serif;">
+                      ${segment.aircraftType || segment.equipment || ''}
+                    </div>
+                  </div>
+                </td>
+                
+                <!-- Arrival -->
+                <td width="25%" align="center" style="vertical-align: top;">
+                  <!-- Date -->
+                  <div style="font-size: 12px; font-weight: 600; color: #666; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                    ${formatDate(segment.arrivalDate)}
+                  </div>
+                  
+                  <!-- Time -->
+                  <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 6px; font-family: Arial, sans-serif;">
+                    ${formatTime(segment.arrivalTime)}
+                  </div>
+                  
+                  <!-- Airport Code -->
+                  <div style="font-size: 18px; font-weight: 800; color: #0066cc; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                    ${segment.arrivalAirport}
+                  </div>
+                  
+                  <!-- Airport Name -->
+                  <div style="font-size: 10px; color: #888; font-family: Arial, sans-serif;">
+                    ${segment.enrichedArrivalAirport?.name || segment.arrivalAirport}
+                  </div>
+                  
+                  ${layoverDuration ? `
+                  <!-- Layover Info -->
+                  <div style="margin-top: 12px; padding: 4px 8px; background-color: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; font-family: Arial, sans-serif;">
+                    ${layoverDuration} layover
+                  </div>
+                  ` : ''}
+                </td>
+                
+                ${layoverDuration && nextSegment ? `
+                <!-- Layover Connector -->
+                <td width="25%" align="center" style="vertical-align: middle;">
+                  <div style="height: 1px; background: #ddd; width: 50%; margin: 0 auto; position: relative;">
+                    <div style="position: absolute; top: -6px; left: 50%; transform: translateX(-50%); background: white; padding: 0 8px; font-size: 10px; color: #888; font-family: Arial, sans-serif;">
+                      ${layoverDuration}
+                    </div>
+                  </div>
+                </td>
+                ` : ''}
+                ` : `
+                <!-- Final Arrival -->
+                <td width="50%" align="center" style="vertical-align: top;">
+                  <!-- Date -->
+                  <div style="font-size: 12px; font-weight: 600; color: #666; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                    ${formatDate(segment.arrivalDate)}
+                  </div>
+                  
+                  <!-- Time -->
+                  <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 6px; font-family: Arial, sans-serif;">
+                    ${formatTime(segment.arrivalTime)}
+                  </div>
+                  
+                  <!-- Airport Code -->
+                  <div style="font-size: 18px; font-weight: 800; color: #0066cc; margin-bottom: 4px; font-family: Arial, sans-serif;">
+                    ${segment.arrivalAirport}
+                  </div>
+                  
+                  <!-- Airport Name -->
+                  <div style="font-size: 10px; color: #888; font-family: Arial, sans-serif;">
+                    ${segment.enrichedArrivalAirport?.name || segment.arrivalAirport}
+                  </div>
+                </td>
+                `}
+              `;
+            }).join('')}
+          </tr>
+        </table>
+      </div>
     `;
 
     return `
@@ -329,13 +353,7 @@ export class EmailTemplateGenerator {
             </tr>
             <tr>
               <td>
-                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
-                  <tr>
-                    <td>
-                      ${timelineHTML}
-                    </td>
-                  </tr>
-                </table>
+                ${timelineHTML}
               </td>
             </tr>
           </table>
@@ -360,14 +378,14 @@ export class EmailTemplateGenerator {
       const childPrice = option.childPrice || (option.sellingPrice * 0.2);
       const infantPrice = option.infantPrice || (option.sellingPrice * 0.1);
 
-      // Build passenger breakdown table for email compatibility
+      // Build clean pricing breakdown matching the uploaded design
       let passengerRows = '';
       
       if (adultsCount > 0) {
         passengerRows += `
           <tr>
-            <td style="padding: 8px 0; font-size: 14px; color: #475569; font-family: Arial, sans-serif;">${adultsCount} Adult${adultsCount > 1 ? 's' : ''}</td>
-            <td style="padding: 8px 0; font-size: 14px; color: #475569; text-align: right; font-family: Arial, sans-serif;">$${adultPrice.toFixed(2)}</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #333; font-family: Arial, sans-serif;">${adultsCount} Adult${adultsCount > 1 ? 's' : ''}:</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #333; text-align: right; font-family: Arial, sans-serif;">${adultPrice.toFixed(2)}</td>
           </tr>
         `;
       }
@@ -375,8 +393,8 @@ export class EmailTemplateGenerator {
       if (childrenCount > 0) {
         passengerRows += `
           <tr>
-            <td style="padding: 8px 0; font-size: 14px; color: #475569; font-family: Arial, sans-serif;">${childrenCount} Child${childrenCount > 1 ? 'ren' : ''}</td>
-            <td style="padding: 8px 0; font-size: 14px; color: #475569; text-align: right; font-family: Arial, sans-serif;">$${childPrice.toFixed(2)}</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #333; font-family: Arial, sans-serif;">${childrenCount} Child${childrenCount > 1 ? 'ren' : ''}:</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #333; text-align: right; font-family: Arial, sans-serif;">${childPrice.toFixed(2)}</td>
           </tr>
         `;
       }
@@ -384,51 +402,43 @@ export class EmailTemplateGenerator {
       if (infantsCount > 0) {
         passengerRows += `
           <tr>
-            <td style="padding: 8px 0; font-size: 14px; color: #475569; font-family: Arial, sans-serif;">${infantsCount} Infant${infantsCount > 1 ? 's' : ''}</td>
-            <td style="padding: 8px 0; font-size: 14px; color: #475569; text-align: right; font-family: Arial, sans-serif;">$${infantPrice.toFixed(2)}</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #333; font-family: Arial, sans-serif;">${infantsCount} Infant${infantsCount > 1 ? 's' : ''}:</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #333; text-align: right; font-family: Arial, sans-serif;">${infantPrice.toFixed(2)}</td>
           </tr>
         `;
       }
       
       pricingContent = `
-        <table cellpadding="0" cellspacing="0" style="background-color: #f1f5f9; border-radius: 12px; padding: 20px; margin: 0 auto; width: 100%; max-width: 400px;">
-          <tr>
-            <td>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                ${passengerRows}
-                <tr>
-                  <td colspan="2" style="padding: 15px 0 15px 0; border-top: 1px solid #cbd5e1;"></td>
-                </tr>
-                <tr>
-                  <td style="font-size: 16px; font-weight: 700; color: #1e293b; font-family: Arial, sans-serif;">Total</td>
-                  <td style="font-size: 16px; font-weight: 700; color: #1e293b; text-align: right; font-family: Arial, sans-serif;">$${option.sellingPrice.toFixed(2)}</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
+        <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 20px; margin: 0 auto; width: 100%; max-width: 300px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${passengerRows}
+            <tr>
+              <td colspan="2" style="padding: 10px 0; border-top: 1px solid #ddd;"></td>
+            </tr>
+            <tr>
+              <td style="font-size: 16px; font-weight: 700; color: #333; font-family: Arial, sans-serif;">Total:</td>
+              <td style="font-size: 16px; font-weight: 700; color: #333; text-align: right; font-family: Arial, sans-serif;">${option.sellingPrice.toFixed(2)}</td>
+            </tr>
+          </table>
+        </div>
       `;
     } else if (option.quoteType === "award" && option.numberOfPoints) {
       pricingContent = `
-        <table cellpadding="0" cellspacing="0" style="background-color: #f1f5f9; border-radius: 12px; padding: 20px; margin: 0 auto; width: 100%; max-width: 400px;">
-          <tr>
-            <td align="center">
-              <div style="font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px; font-family: Arial, sans-serif;">
-                ${option.numberOfPoints.toLocaleString()} points
-              </div>
-              ${option.taxes ? `
-              <div style="font-size: 14px; color: #475569; font-family: Arial, sans-serif;">
-                + $${option.taxes.toFixed(2)} taxes & fees
-              </div>
-              ` : ''}
-              ${option.awardProgram ? `
-              <div style="font-size: 12px; color: #64748b; margin-top: 8px; font-family: Arial, sans-serif;">
-                via ${option.awardProgram}
-              </div>
-              ` : ''}
-            </td>
-          </tr>
-        </table>
+        <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 20px; margin: 0 auto; width: 100%; max-width: 300px; text-align: center;">
+          <div style="font-size: 18px; font-weight: 700; color: #333; margin-bottom: 8px; font-family: Arial, sans-serif;">
+            ${option.numberOfPoints.toLocaleString()} points
+          </div>
+          ${option.taxes ? `
+          <div style="font-size: 14px; color: #666; font-family: Arial, sans-serif;">
+            + $${option.taxes.toFixed(2)} taxes & fees
+          </div>
+          ` : ''}
+          ${option.awardProgram ? `
+          <div style="font-size: 12px; color: #888; margin-top: 8px; font-family: Arial, sans-serif;">
+            via ${option.awardProgram}
+          </div>
+          ` : ''}
+        </div>
       `;
     }
 
@@ -436,7 +446,7 @@ export class EmailTemplateGenerator {
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-bottom: 1px solid #e9ecef;">
       <tr>
         <td style="padding: 25px; text-align: center;">
-          <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50; font-family: Arial, sans-serif;">Pricing Breakdown</h2>
+          <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50; font-family: Arial, sans-serif;">Pricing Details</h2>
           ${pricingContent}
         </td>
       </tr>
