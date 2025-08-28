@@ -17,9 +17,7 @@ export const Layout = ({ children }: LayoutProps) => {
             <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
               <NotificationCenter />
             </div>
-            <div className="p-6">
-              {children}
-            </div>
+            {children}
           </div>
         </main>
       </div>
