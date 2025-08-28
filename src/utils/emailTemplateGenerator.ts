@@ -199,38 +199,38 @@ export class EmailTemplateGenerator {
 
       return `
         <!-- Departure Airport -->
-        <td style="text-align: center; padding: 15px; vertical-align: top; min-width: 120px;">
-          <div style="background: white; border: 2px solid #10b981; border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <div style="font-weight: bold; font-size: 14px; color: #1e293b;">${segment.departureAirport}</div>
-            <div style="font-size: 10px; color: #64748b;">${formattedDate}</div>
+        <td style="text-align: center; padding: 20px; vertical-align: top;">
+          <div style="background: white; border: 2px solid #10b981; border-radius: 50%; width: 100px; height: 100px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <div style="font-weight: bold; font-size: 16px; color: #1e293b;">${segment.departureAirport}</div>
+            <div style="font-size: 12px; color: #64748b;">${formattedDate}</div>
           </div>
-          <div style="font-size: 11px; color: #334155; font-weight: 600;">
+          <div style="font-size: 13px; color: #334155; font-weight: 600;">
             Depart ${segment.departureTime}
           </div>
-          <div style="font-size: 9px; color: #64748b; margin-top: 2px; max-width: 100px; overflow: hidden; text-overflow: ellipsis;">
+          <div style="font-size: 12px; color: #64748b; margin-top: 4px; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">
             ${departureAirportDisplay.split('(')[0].trim()}
           </div>
         </td>
 
         ${!isLast ? `
         <!-- Connection Line and Flight Info -->
-        <td style="text-align: center; padding: 15px; vertical-align: middle; min-width: 150px;">
-          <div style="position: relative; height: 4px; background: linear-gradient(to right, #10b981, #3b82f6); border-radius: 2px; margin: 20px 0;">
-            <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 16px; background: white; padding: 2px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <td style="text-align: center; padding: 20px; vertical-align: middle;">
+          <div style="position: relative; height: 6px; background: linear-gradient(to right, #10b981, #3b82f6); border-radius: 3px; margin: 25px 0;">
+            <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 18px; background: white; padding: 4px; border-radius: 50%; box-shadow: 0 3px 6px rgba(0,0,0,0.15);">
               ✈️
             </div>
           </div>
-          <div style="margin-top: 15px;">
-            <div style="background: white; border-radius: 15px; padding: 6px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block; margin-bottom: 5px;">
-              <span style="font-size: 12px; font-weight: 500; color: #475569;">
+          <div style="margin-top: 20px;">
+            <div style="background: white; border-radius: 18px; padding: 8px 16px; box-shadow: 0 3px 6px rgba(0,0,0,0.15); display: inline-block; margin-bottom: 8px;">
+              <span style="font-size: 14px; font-weight: 500; color: #475569;">
                 ${airlineLogo}${segment.flightNumber}
               </span>
             </div>
-            <div style="font-size: 11px; color: #6c757d;">
+            <div style="font-size: 13px; color: #6c757d;">
               ${airlineDisplay}
             </div>
             ${segment.duration ? `
-            <div style="font-size: 10px; color: #6c757d; margin-top: 2px;">
+            <div style="font-size: 12px; color: #6c757d; margin-top: 4px;">
               ${segment.duration}
             </div>
             ` : ''}
@@ -241,14 +241,14 @@ export class EmailTemplateGenerator {
         ${!isLast && index < segments.length - 1 ? `
         <!-- Layover (if exists) -->
         ${segment.layoverDuration ? `
-        <td style="text-align: center; padding: 15px; vertical-align: top; min-width: 100px;">
-          <div style="background: white; border: 2px solid #f59e0b; border-radius: 50%; width: 60px; height: 60px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 2px 6px rgba(245,158,11,0.2);">
-            <div style="font-weight: bold; font-size: 12px; color: #92400e;">${segment.arrivalAirport}</div>
+        <td style="text-align: center; padding: 20px; vertical-align: top;">
+          <div style="background: white; border: 2px solid #f59e0b; border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 3px 8px rgba(245,158,11,0.25);">
+            <div style="font-weight: bold; font-size: 14px; color: #92400e;">${segment.arrivalAirport}</div>
           </div>
-          <div style="font-size: 10px; color: #f59e0b; font-weight: 600;">
+          <div style="font-size: 12px; color: #f59e0b; font-weight: 600;">
             ${segment.layoverDuration}
           </div>
-          <div style="font-size: 9px; color: #92400e; margin-top: 2px;">
+          <div style="font-size: 12px; color: #92400e; margin-top: 4px;">
             layover
           </div>
         </td>
@@ -267,24 +267,24 @@ export class EmailTemplateGenerator {
     });
 
     return `
-    <div style="padding: 25px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
-      <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #2c3e50; text-align: center;">Flight Route</h2>
+    <div style="padding: 30px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+      <h2 style="margin: 0 0 25px 0; font-size: 20px; color: #2c3e50; text-align: center;">Flight Route</h2>
       
       <!-- Email-compatible table layout -->
-      <table style="width: 100%; max-width: 100%; border-collapse: collapse; margin: 0 auto;">
+      <table style="width: 100%; border-collapse: collapse; margin: 0 auto; table-layout: auto;">
         <tr>
           ${flightSteps}
           
           <!-- Final Destination -->
-          <td style="text-align: center; padding: 15px; vertical-align: top; min-width: 120px;">
-            <div style="background: white; border: 2px solid #3b82f6; border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <div style="font-weight: bold; font-size: 14px; color: #1e293b;">${lastSegment.arrivalAirport}</div>
-              <div style="font-size: 10px; color: #64748b;">${lastFormattedDate}</div>
+          <td style="text-align: center; padding: 20px; vertical-align: top;">
+            <div style="background: white; border: 2px solid #3b82f6; border-radius: 50%; width: 100px; height: 100px; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+              <div style="font-weight: bold; font-size: 16px; color: #1e293b;">${lastSegment.arrivalAirport}</div>
+              <div style="font-size: 12px; color: #64748b;">${lastFormattedDate}</div>
             </div>
-            <div style="font-size: 11px; color: #334155; font-weight: 600;">
+            <div style="font-size: 13px; color: #334155; font-weight: 600;">
               Arrive ${lastSegment.arrivalTime}${lastSegment.arrivalDayOffset ? '+1' : ''}
             </div>
-            <div style="font-size: 9px; color: #64748b; margin-top: 2px; max-width: 100px; overflow: hidden; text-overflow: ellipsis;">
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">
               ${lastAirportDisplay.split('(')[0].trim()}
             </div>
           </td>
@@ -292,8 +292,8 @@ export class EmailTemplateGenerator {
       </table>
 
       <!-- Route Summary -->
-      <div style="text-align: center; margin-top: 20px; padding: 12px; background: white; border-radius: 6px;">
-        <span style="font-size: 14px; font-weight: 500; color: #2c3e50;">
+      <div style="text-align: center; margin-top: 25px; padding: 16px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <span style="font-size: 16px; font-weight: 500; color: #2c3e50;">
           Route: ${routeString}
         </span>
       </div>
