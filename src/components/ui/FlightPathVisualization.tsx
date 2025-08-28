@@ -159,8 +159,15 @@ export function FlightPathVisualization({
         segment.arrivalTime || '',
         segments[index + 1].departureTime || '',
         segment.arrivalDayOffset || 0,
-        segments[index + 1].arrivalDayOffset || 0
+        segment.arrivalDayOffset || 0  // Fix: Use current segment's arrival day as next segment's departure day
       );
+      
+      // Debug logging for layover calculations
+      if (layoverDuration) {
+        console.log(`✅ Layover ${segment.arrivalAirport.code}: ${segment.arrivalTime} → ${segments[index + 1].departureTime} = ${layoverDuration}`);
+      } else {
+        console.log(`❌ Layover ${segment.arrivalAirport.code}: Failed calculation (${segment.arrivalTime} → ${segments[index + 1].departureTime})`);
+      }
     }
     
     airports.push({
