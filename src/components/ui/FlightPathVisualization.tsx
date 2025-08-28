@@ -124,14 +124,21 @@ export function FlightPathVisualization({
 }: FlightPathVisualizationProps) {
   if (!segments || segments.length === 0) return null;
 
-  // Debug logging for received segment data
+  // Debug logging for received segment data with detailed inspection
   console.log(`🎨 FlightPathVisualization: Received ${segments.length} segments for display:`);
   segments.forEach((segment, index) => {
     const route = `${segment.departureAirport.code}→${segment.arrivalAirport.code}`;
+    console.log(`  🔍 Segment ${index + 1} (${route}):`, {
+      duration: segment.duration,
+      durationType: typeof segment.duration,
+      hasOwnDuration: segment.hasOwnProperty('duration'),
+      allKeys: Object.keys(segment),
+      flightNumber: segment.flightNumber
+    });
     if (segment.duration) {
       console.log(`  ✅ Display segment ${index + 1} (${route}): Duration "${segment.duration}" will be shown`);
     } else {
-      console.log(`  ⚠️ Display segment ${index + 1} (${route}): No duration - only flight number will be shown`);
+      console.log(`  ❌ Display segment ${index + 1} (${route}): Duration is missing/falsy - value: ${segment.duration}`);
     }
   });
 
@@ -240,8 +247,11 @@ export function FlightPathVisualization({
               </div>
               <div className="text-xs text-muted-foreground">
                 <div className="font-medium">{segment.flightNumber}</div>
-                {segment.duration && (
-                  <div className="text-[10px]">{segment.duration}</div>
+                {/* Enhanced duration display with debugging */}
+                {segment.duration ? (
+                  <div className="text-[10px] text-primary font-medium">{segment.duration}</div>
+                ) : (
+                  <div className="text-[9px] text-red-500">No duration</div>
                 )}
               </div>
             </div>
