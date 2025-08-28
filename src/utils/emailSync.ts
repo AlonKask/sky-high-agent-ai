@@ -1,5 +1,5 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 export interface EmailSyncOptions {
   includeAIProcessing?: boolean;
@@ -15,7 +15,7 @@ export interface EmailSyncResult {
   message?: string;
 }
 
-// Enhanced email sync utility with better error handling and progress tracking
+// Enhanced email sync utility with silent operation - no toast notifications
 export class EmailSyncManager {
   private static instance: EmailSyncManager;
   private syncInProgress = false;
@@ -30,7 +30,6 @@ export class EmailSyncManager {
 
   async syncEmails(options: EmailSyncOptions = {}): Promise<EmailSyncResult> {
     if (this.syncInProgress) {
-      toast.warning('Email sync already in progress');
       return { success: false, stored: 0, processed: 0, message: 'Sync already in progress' };
     }
 
@@ -43,8 +42,7 @@ export class EmailSyncManager {
         throw new Error('User not authenticated');
       }
 
-      // No longer fetch tokens client-side; only check basic connection status if needed
-      // SECURITY FIX: Check Gmail connection via secure credentials table
+      // Check Gmail connection via secure credentials table
       const { data: gmailCreds, error: credsError } = await supabase
         .from('gmail_credentials')
         .select('gmail_user_email')
@@ -55,21 +53,15 @@ export class EmailSyncManager {
         throw new Error('Gmail not connected. Please connect your Gmail account first.');
       }
 
-      if (options.showProgress) {
-        toast.loading('Syncing emails...', { id: 'email-sync' });
-      }
-
-      // Call enhanced email sync function with comprehensive options
-      console.log('🚀 Invoking enhanced email sync...');
+      // Call enhanced email sync function with comprehensive options - silent operation
+      console.log('🚀 Starting silent email sync...');
       const { data, error } = await supabase.functions.invoke('enhanced-gmail-sync', {
         body: {
           includeAIProcessing: options.includeAIProcessing || false,
-          syncType: 'incremental', // Default to incremental for regular sync
-          maxResults: 200 // Increased batch size for comprehensive sync
+          syncType: 'incremental',
+          maxResults: 200
         }
       });
-
-      console.log('📧 Email sync response:', { data, error });
 
       console.log('📧 Email sync response:', { data, error });
 
@@ -80,25 +72,7 @@ export class EmailSyncManager {
       const result: EmailSyncResult = data;
       this.lastSyncTime = new Date();
 
-      if (options.showProgress) {
-        toast.dismiss('email-sync');
-        
-        if (result.success) {
-          if (result.stored > 0) {
-            toast.success(
-              `Successfully synced ${result.stored} new emails${
-                result.aiProcessed ? ' with AI analysis' : ''
-              }`
-            );
-          } else {
-            toast.info('No new emails to sync');
-          }
-        } else {
-          toast.error(result.message || 'Email sync failed');
-        }
-      }
-
-      // Dispatch event for real-time updates
+      // Dispatch event for real-time updates without toast notifications
       window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
         detail: { 
           syncedCount: result.stored,
@@ -111,11 +85,6 @@ export class EmailSyncManager {
 
     } catch (error) {
       console.error('Email sync error:', error);
-      
-      if (options.showProgress) {
-        toast.dismiss('email-sync');
-        toast.error(`Email sync failed: ${error.message}`);
-      }
 
       return {
         success: false,
@@ -129,7 +98,7 @@ export class EmailSyncManager {
   }
 
   async schedulePeriodicSync(intervalMinutes: number = 5): Promise<void> {
-    // Set up periodic email sync
+    // Set up periodic email sync - silent operation
     setInterval(async () => {
       try {
         await this.syncEmails({ includeAIProcessing: true, showProgress: false });
@@ -152,7 +121,6 @@ export class EmailSyncManager {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return false;
 
-      // SECURITY FIX: Check Gmail connection via secure credentials table
       const { data: gmailCreds } = await supabase
         .from('gmail_credentials')
         .select('gmail_user_email')

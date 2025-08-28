@@ -1,3 +1,4 @@
+
 import { toast as sonnerToast } from 'sonner';
 
 interface ToastOptions {
@@ -16,6 +17,9 @@ interface ErrorToastOptions extends ToastOptions {
 // Centralized toast utilities to reduce duplicated code
 export const toastHelpers = {
   success: (message: string, options?: ToastOptions) => {
+    // Skip sync-related success messages
+    if (message.toLowerCase().includes('sync')) return;
+    
     sonnerToast.success(message, {
       duration: options?.duration || 4000,
       description: options?.description,
@@ -24,6 +28,9 @@ export const toastHelpers = {
   },
 
   error: (message: string, error?: any, options?: ErrorToastOptions) => {
+    // Skip sync-related error messages
+    if (message.toLowerCase().includes('sync')) return;
+    
     let description = options?.description;
     
     // Extract meaningful error message if error object provided
@@ -50,6 +57,9 @@ export const toastHelpers = {
     success?: string;
     error?: string;
   }) => {
+    // Skip sync-related loading messages
+    if (message.toLowerCase().includes('sync')) return promise;
+    
     return sonnerToast.promise(promise, {
       loading: message,
       success: options?.success || 'Operation completed successfully',
@@ -58,6 +68,9 @@ export const toastHelpers = {
   },
 
   info: (message: string, options?: ToastOptions) => {
+    // Skip sync-related info messages
+    if (message.toLowerCase().includes('sync')) return;
+    
     sonnerToast.info(message, {
       duration: options?.duration || 4000,
       description: options?.description,
@@ -66,6 +79,9 @@ export const toastHelpers = {
   },
 
   warning: (message: string, options?: ToastOptions) => {
+    // Skip sync-related warning messages
+    if (message.toLowerCase().includes('sync')) return;
+    
     sonnerToast.warning(message, {
       duration: options?.duration || 5000,
       description: options?.description,
@@ -82,6 +98,11 @@ export const toast = (options: {
   action?: any;
   duration?: number;
 }) => {
+  // Skip sync-related notifications
+  if (options.title?.toLowerCase().includes('sync') || options.description?.toLowerCase().includes('sync')) {
+    return;
+  }
+  
   if (options.variant === 'destructive') {
     toastHelpers.error(options.title || 'Error', options.description, { 
       duration: options.duration,
@@ -96,11 +117,17 @@ export const toast = (options: {
   }
 };
 
-// Specific helpers for common patterns
+// Specific helpers for common patterns (non-sync related)
 export const supabaseErrorToast = (operation: string, error: any) => {
+  // Skip sync operations
+  if (operation.toLowerCase().includes('sync')) return;
+  
   toastHelpers.error(`Failed to ${operation}`, error, { showDetails: true });
 };
 
 export const supabaseSuccessToast = (operation: string, description?: string) => {
+  // Skip sync operations
+  if (operation.toLowerCase().includes('sync')) return;
+  
   toastHelpers.success(`${operation} completed successfully`, { description });
 };

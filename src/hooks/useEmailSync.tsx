@@ -1,6 +1,6 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 
 export interface EmailSyncOptions {
   syncType?: 'incremental' | 'full' | 'historical';
@@ -49,7 +49,7 @@ export const useEmailSync = () => {
       syncType = 'incremental',
       maxResults = 200,
       includeAIProcessing = false,
-      showProgress = true
+      showProgress = false // Default to false for silent operation
     } = options;
 
     // Check authentication
@@ -69,7 +69,7 @@ export const useEmailSync = () => {
       throw new Error('Gmail not connected. Please connect your Gmail account first.');
     }
 
-    // Set initial progress
+    // Set initial progress only if explicitly requested
     if (showProgress) {
       setSyncProgress({
         isActive: true,
@@ -79,11 +79,6 @@ export const useEmailSync = () => {
         emailsStored: 0,
         syncType: syncType,
         message: `Starting ${syncType} sync...`
-      });
-
-      toast({
-        title: "Syncing emails",
-        description: `Performing ${syncType} sync with ${maxResults} emails per batch`,
       });
     }
 
@@ -104,7 +99,7 @@ export const useEmailSync = () => {
 
       const result: EmailSyncResult = data;
 
-      // Update progress with results
+      // Update progress with results only if explicitly requested
       if (showProgress) {
         setSyncProgress(prev => ({
           ...prev,
@@ -113,29 +108,9 @@ export const useEmailSync = () => {
           emailsStored: result.stored || 0,
           message: `Completed: ${result.stored} new emails synced`
         }));
-
-        if (result.success) {
-          if (result.stored > 0) {
-            toast({
-              title: "Sync completed successfully",
-              description: `Synced ${result.stored} new emails (${result.processed} processed, ${result.duplicates_skipped || 0} duplicates skipped)`,
-            });
-          } else {
-            toast({
-              title: "Sync completed",
-              description: "No new emails to sync",
-            });
-          }
-        } else {
-          toast({
-            title: "Sync failed",
-            description: result.message || 'Email sync failed',
-            variant: "destructive"
-          });
-        }
       }
 
-      // Dispatch event for real-time updates
+      // Dispatch event for real-time updates without toast notifications
       window.dispatchEvent(new CustomEvent('gmail-sync-complete', {
         detail: { 
           syncedCount: result.stored,
@@ -158,12 +133,6 @@ export const useEmailSync = () => {
           isActive: false,
           message: `Sync failed: ${error.message}`
         }));
-
-        toast({
-          title: "Sync failed",
-          description: error.message,
-          variant: "destructive"
-        });
       }
 
       return {
@@ -175,8 +144,8 @@ export const useEmailSync = () => {
     }
   }, []);
 
-  // Comprehensive full mailbox sync
-  const performFullSync = useCallback(async (showProgress: boolean = true): Promise<EmailSyncResult> => {
+  // All sync methods now operate silently by default
+  const performFullSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'full',
       maxResults: 200,
@@ -185,8 +154,7 @@ export const useEmailSync = () => {
     });
   }, [performSync]);
 
-  // Historical sync for older emails
-  const performHistoricalSync = useCallback(async (showProgress: boolean = true): Promise<EmailSyncResult> => {
+  const performHistoricalSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'historical',
       maxResults: 200,
@@ -195,7 +163,6 @@ export const useEmailSync = () => {
     });
   }, [performSync]);
 
-  // Quick incremental sync
   const performQuickSync = useCallback(async (showProgress: boolean = false): Promise<EmailSyncResult> => {
     return performSync({
       syncType: 'incremental',
@@ -205,12 +172,11 @@ export const useEmailSync = () => {
     });
   }, [performSync]);
 
-  // Progressive sync - starts with full, then does historical batches
   const performProgressiveSync = useCallback(async (): Promise<void> => {
     try {
-      // Step 1: Full sync for recent emails
-      console.log('📧 Starting progressive sync - Step 1: Full recent sync');
-      const fullResult = await performFullSync(true);
+      // Silent progressive sync
+      console.log('📧 Starting silent progressive sync - Step 1: Full recent sync');
+      const fullResult = await performFullSync(false);
       
       if (!fullResult.success) {
         throw new Error(`Full sync failed: ${fullResult.message}`);
@@ -218,23 +184,13 @@ export const useEmailSync = () => {
 
       // Step 2: Historical sync if there's potentially more data
       if (fullResult.has_more) {
-        console.log('📧 Progressive sync - Step 2: Historical sync');
+        console.log('📧 Silent progressive sync - Step 2: Historical sync');
         await new Promise(resolve => setTimeout(resolve, 2000)); // Brief pause
-        await performHistoricalSync(true);
+        await performHistoricalSync(false);
       }
-
-      toast({
-        title: "Progressive sync completed",
-        description: "All available emails have been synced to your account",
-      });
 
     } catch (error: any) {
       console.error('Progressive sync error:', error);
-      toast({
-        title: "Progressive sync failed",
-        description: error.message,
-        variant: "destructive"
-      });
     }
   }, [performFullSync, performHistoricalSync]);
 
