@@ -660,21 +660,28 @@ export class EnhancedSabreParser {
             { latitude: arrAirport.latitude, longitude: arrAirport.longitude }
           );
           
-          // CRITICAL FIX: Strengthen duration preservation check
-          const hasSabreDuration = segment.duration && segment.duration.trim().length > 0;
-          console.log(`🔍 DB Enhancement - Segment ${index + 1} Duration Check:`, {
+          // STRENGTHENED: Duration preservation check with comprehensive validation
+          const hasSabreDuration = segment.duration && 
+                                 segment.duration.trim().length > 0 && 
+                                 segment.duration !== 'undefined' &&
+                                 !segment.duration.includes('NaN');
+          
+          console.log(`🔍 DB Enhancement - Segment ${index + 1} Duration Preservation Analysis:`, {
             hasDuration: !!segment.duration,
             durationValue: segment.duration,
             durationLength: segment.duration?.length || 0,
-            hasSabreDuration,
-            fromSabre: hasSabreDuration ? "PRESERVED" : "WILL_ESTIMATE"
+            isValidDuration: hasSabreDuration,
+            elapsedTimeHours: segment.elapsedTimeHours,
+            preservationDecision: hasSabreDuration ? "PRESERVE_SABRE_DATA" : "ESTIMATE_FROM_DISTANCE",
+            segmentInfo: `${segment.departureAirport}→${segment.arrivalAirport}`
           });
           
           if (!hasSabreDuration) {
-            segment.duration = this.estimateFlightDuration(distance);
-            console.log(`🔄 DB Enhancement - Estimated duration for segment ${index + 1}: ${segment.duration}`);
+            const estimatedDuration = this.estimateFlightDuration(distance);
+            segment.duration = estimatedDuration;
+            console.log(`🔄 DB Enhancement - Applied estimated duration for segment ${index + 1}: ${estimatedDuration}`);
           } else {
-            console.log(`✅ DB Enhancement - Preserved Sabre duration for segment ${index + 1}: "${segment.duration}"`);
+            console.log(`✅ DB Enhancement - Preserved Sabre-parsed duration for segment ${index + 1}: "${segment.duration}"`);
           }
             segment.aircraftType = this.estimateAircraftType(distance);
             

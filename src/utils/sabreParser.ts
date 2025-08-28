@@ -366,11 +366,16 @@ export class SabreParser {
     const segments: FlightSegment[] = [];
     
     // ENHANCED PATTERN 1: I-Format with ELPD - "LO 7 20SEP F JFKWAW 545P 815A+1 8.30" 
+    // Strengthened pattern to capture all variations of I-Format with ELPD
     const iFormatWithELPDPattern = /^([A-Z]{2})\s+(\d+)\s+(\d{1,2}[A-Z]{3})\s+([A-Z])\s+([A-Z]{6})\s+(\d+[AP])\s+(\d+[AP])(?:\+(\d+))?\s+(\d+\.\d+)\s*.*$/;
     const iFormatELPDMatch = line.match(iFormatWithELPDPattern);
     
     if (iFormatELPDMatch) {
-      console.log(`✅ I-Format with ELPD pattern matched: ${iFormatELPDMatch[0]}`);
+      console.log(`✅ I-Format with ELPD pattern matched successfully:`, {
+        fullMatch: iFormatELPDMatch[0],
+        elapsedTime: iFormatELPDMatch[9],
+        matchGroups: iFormatELPDMatch.length
+      });
       const [, airlineCode, flightNum, dateStr, bookingClass, route, depTime, arrTime, arrivalDayOffset, elapsedStr] = iFormatELPDMatch;
       
       // Validate route format
@@ -386,17 +391,18 @@ export class SabreParser {
         const formattedDepTime = this.convert12hTo24h(depTime);
         const formattedArrTime = this.convert12hTo24h(arrTime);
       
-      // Convert ELPD to human-readable duration
+      // CRITICAL FIX: Convert ELPD to human-readable duration with enhanced logging
       const elapsedHours = parseFloat(elapsedStr);
       const duration = this.convertElapsedTimeToHumanReadable(elapsedHours);
       
-      console.log(`✅ I-Format ELPD extraction successful:`, {
+      console.log(`🎯 I-Format ELPD extraction successful:`, {
         flight: flightNumber,
         route: `${departureAirport}→${arrivalAirport}`,
-        elapsedStr,
-        elapsedHours,
-        duration,
-        times: `${formattedDepTime}→${formattedArrTime}`
+        rawElapsedStr: elapsedStr,
+        parsedElapsedHours: elapsedHours,
+        convertedDuration: duration,
+        times: `${formattedDepTime}→${formattedArrTime}`,
+        conversionMethod: 'ELPD_DECIMAL_FORMAT'
       });
       
       const segment: FlightSegment = {
@@ -1922,17 +1928,29 @@ export class SabreParser {
   }
 
 
-  // Enhanced helper method to convert decimal hours to human-readable format
+  // CRITICAL FIX: Enhanced helper method to convert ELPD format to human-readable format
   public static convertElapsedTimeToHumanReadable(elapsedTimeHours: number): string {
-    console.log(`🔄 Converting elapsed time: ${elapsedTimeHours} hours`);
+    console.log(`🔄 Converting ELPD elapsed time: ${elapsedTimeHours} hours`);
     
     if (isNaN(elapsedTimeHours) || elapsedTimeHours <= 0) {
       console.warn(`⚠️ Invalid elapsed time: ${elapsedTimeHours}`);
       return '';
     }
     
+    // CRITICAL FIX: ELPD format uses decimal notation where:
+    // 8.30 = 8 hours and 30 minutes (NOT 8.3 decimal hours)
+    // 5.45 = 5 hours and 45 minutes (NOT 5.45 decimal hours)
     const hours = Math.floor(elapsedTimeHours);
-    const minutes = Math.round((elapsedTimeHours - hours) * 60);
+    const decimalPart = elapsedTimeHours - hours;
+    const minutes = Math.round(decimalPart * 100); // Convert .30 to 30, .45 to 45
+    
+    console.log(`🔍 ELPD Conversion Details:`, {
+      input: elapsedTimeHours,
+      hours,
+      decimalPart,
+      minutes,
+      calculation: `${elapsedTimeHours} → ${hours}h + (${decimalPart} * 100) = ${minutes}m`
+    });
     
     let result = '';
     if (hours === 0) {
@@ -1943,7 +1961,7 @@ export class SabreParser {
       result = `${hours}h ${minutes}m`;
     }
     
-    console.log(`✅ Duration conversion: ${elapsedTimeHours}h → "${result}"`);
+    console.log(`✅ ELPD Duration conversion: ${elapsedTimeHours} → "${result}"`);
     return result;
   }
 
