@@ -34,7 +34,7 @@ interface Quote {
   markup: number;
   ck_fee_amount: number;
   ck_fee_enabled: boolean;
-  sabre_data?: string;
+  content?: string;
   quote_type?: "award" | "revenue";
   taxes?: number;
   number_of_points?: number;
@@ -91,7 +91,7 @@ export const EnhancedQuoteCard: React.FC<EnhancedQuoteCardProps> = ({
   // Enhanced parsing and email variable generation
   useEffect(() => {
     const processQuoteData = async () => {
-      if (!quote.sabre_data) return;
+      if (!quote.content) return;
 
       setIsLoading(true);
       setParseError(null);
@@ -99,8 +99,11 @@ export const EnhancedQuoteCard: React.FC<EnhancedQuoteCardProps> = ({
       try {
         logger.info(`Processing quote ${quote.id} with enhanced parser`);
 
-        // Parse with enhanced Sabre parser
-        const parsed = await EnhancedSabreParser.parseIFormatWithDatabase(quote.sabre_data);
+        // Detect format and parse accordingly
+        const format = EnhancedSabreParser.detectFormat(quote.content);
+        const parsed = format === 'VI' 
+          ? await EnhancedSabreParser.parseVIFormatWithDatabase(quote.content)
+          : await EnhancedSabreParser.parseIFormatWithDatabase(quote.content);
         
         if (parsed) {
           setEnhancedData(parsed);
@@ -137,7 +140,7 @@ export const EnhancedQuoteCard: React.FC<EnhancedQuoteCardProps> = ({
     };
 
     processQuoteData();
-  }, [quote.sabre_data, quote.id, client.first_name]);
+  }, [quote.content, quote.id, client.first_name]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {

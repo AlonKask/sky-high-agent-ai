@@ -1754,6 +1754,12 @@ export class SabreParser {
   }
 
   private static completeVISegment(segment: Partial<FlightSegment>): FlightSegment {
+    // Convert elapsedTimeHours to readable duration format
+    let duration = segment.duration;
+    if (!duration && segment.elapsedTimeHours) {
+      duration = this.convertElapsedTimeToHumanReadable(segment.elapsedTimeHours);
+    }
+    
     return {
       segmentNumber: segment.segmentNumber || 0,
       flightNumber: segment.flightNumber || '',
@@ -1769,7 +1775,7 @@ export class SabreParser {
       arrivalDayOffset: segment.arrivalDayOffset || 0,
       cabinClass: segment.cabinClass || 'Economy',
       aircraftType: segment.aircraftType,
-      duration: segment.duration,
+      duration: duration,
       layoverTime: segment.layoverTime,
       terminal: segment.departureTerminal || segment.terminal,
       operatingAirline: segment.operatingAirline,
@@ -1784,6 +1790,20 @@ export class SabreParser {
     };
   }
 
+
+  // Helper method to convert decimal hours to human-readable format
+  private static convertElapsedTimeToHumanReadable(elapsedTimeHours: number): string {
+    const hours = Math.floor(elapsedTimeHours);
+    const minutes = Math.round((elapsedTimeHours - hours) * 60);
+    
+    if (hours === 0) {
+      return `${minutes}m`;
+    } else if (minutes === 0) {
+      return `${hours}h`;
+    } else {
+      return `${hours}h ${minutes}m`;
+    }
+  }
 
   private static generateLayoverInfo(segments: FlightSegment[]): Array<{airport: string; duration: number; terminal?: string}> {
     const layovers: Array<{ airport: string; duration: number; terminal?: string }> = [];

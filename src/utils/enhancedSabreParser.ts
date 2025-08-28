@@ -25,6 +25,8 @@ export class EnhancedSabreParser {
         content.includes("cabin-business") ||
         content.includes("cabin-economy") ||
         content.includes("cabin-first") ||
+        content.includes("elpd") ||  // Duration column header
+        content.includes("miles") ||  // Miles column
         content.includes("oneworld") ||
         content.includes("star alliance") ||
         content.includes("skyteam")) {
@@ -339,10 +341,21 @@ export class EnhancedSabreParser {
           return [];
         }
         
-        // Enhanced booking class mapping with database fallback
+        // Enhanced booking class mapping with database fallback 
         let cabinClass;
+        let duration;
         try {
           cabinClass = await this.mapBookingClassWithDatabase(bookingClass, airlineCode);
+          
+          // Extract actual duration from VI format if available
+          if (useSimpleFormat && aircraftInfo && match && match.length > 10) {
+            // Check if there's duration info after the aircraft info
+            const durationMatch = line.match(/(\d+\.\d+)/);
+            if (durationMatch) {
+              const elapsedHours = parseFloat(durationMatch[1]);
+              duration = this.convertElapsedTimeToReadable(elapsedHours);
+            }
+          }
         } catch (dbError) {
           console.warn(`⚠️ Database booking class lookup failed: ${dbError.message}`);
           cabinClass = this.mapBookingClassBasic(bookingClass);
@@ -378,7 +391,8 @@ export class EnhancedSabreParser {
           arrivalTime: formattedArrTime,
           arrivalDayOffset: arrivalDayOffset || 0,
           cabinClass: cabinClass || 'Economy',
-          aircraftType: aircraftType || undefined
+          aircraftType: aircraftType || undefined,
+          duration: duration || undefined  // Use actual duration from VI format if available
         };
         
         segments.push(segment);
@@ -491,6 +505,20 @@ export class EnhancedSabreParser {
     }
     
     return intervals;
+  }
+
+  // Helper method to convert decimal hours to human-readable format
+  private static convertElapsedTimeToReadable(elapsedTimeHours: number): string {
+    const hours = Math.floor(elapsedTimeHours);
+    const minutes = Math.round((elapsedTimeHours - hours) * 60);
+    
+    if (hours === 0) {
+      return `${minutes}m`;
+    } else if (minutes === 0) {
+      return `${hours}h`;
+    } else {
+      return `${hours}h ${minutes}m`;
+    }
   }
 
   private static async enhanceSegmentsWithDatabaseData(segments: FlightSegment[]): Promise<void> {
