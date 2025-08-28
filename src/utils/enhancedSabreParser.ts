@@ -703,11 +703,12 @@ export class EnhancedSabreParser {
           });
           // Apply basic enhancement as fallback
           try {
-            // CRITICAL FIX: Use same strengthened duration check in fallback
+            // CRITICAL: Use identical strengthened duration check in fallback as main enhancement
             const hasSabreDuration = segment.duration && segment.duration.trim().length > 0;
             console.log(`🔍 DB Enhancement Fallback - Segment ${index + 1} Duration Check:`, {
               hasSabreDuration,
-              durationValue: segment.duration,
+              durationValue: `"${segment.duration}"`,
+              durationLength: segment.duration?.length || 0,
               willEstimate: !hasSabreDuration
             });
             
@@ -715,7 +716,7 @@ export class EnhancedSabreParser {
               segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
               console.log(`🔄 DB Enhancement Fallback - Estimated duration: ${segment.duration}`);
             } else {
-              console.log(`✅ DB Enhancement Fallback - Preserved duration: "${segment.duration}"`);
+              console.log(`✅ DB Enhancement Fallback - Preserved Sabre duration: "${segment.duration}"`);
             }
             segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
           } catch (fallbackError) {
@@ -735,13 +736,25 @@ export class EnhancedSabreParser {
   }
 
   private static async enhanceSegmentsWithBasicData(segments: FlightSegment[]): Promise<void> {
-    // Fallback enhancement without database
+    // Fallback enhancement without database - CRITICAL: Preserve Sabre durations
     segments.forEach((segment, index) => {
       try {
+        // CRITICAL: Use identical duration check as main enhancement to prevent overrides
+        const hasSabreDuration = segment.duration && segment.duration.trim().length > 0;
+        console.log(`🔍 Basic Enhancement - Segment ${index + 1} Duration Check:`, {
+          hasSabreDuration,
+          durationValue: segment.duration,
+          durationLength: segment.duration?.length || 0
+        });
+        
         // Only estimate duration if not already present from Sabre data
-        if (!segment.duration) {
+        if (!hasSabreDuration) {
           segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+          console.log(`🔄 Basic Enhancement - Estimated duration: ${segment.duration}`);
+        } else {
+          console.log(`✅ Basic Enhancement - Preserved Sabre duration: "${segment.duration}"`); 
         }
+        
         segment.aircraftType = this.estimateAircraftType(3000); // Default distance
         segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
         

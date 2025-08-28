@@ -1513,39 +1513,39 @@ export class SabreParser {
       // Enhanced pattern for VI format flight lines with stronger ELPD matching
       const flightLinePattern = new RegExp(
         [
-          /^(\d+)\s+/,                   // 1. Segment number
-          /([A-Z]{2})\*?\s*/,            // 2. Airline code (2 letters, possibly followed by '*' for codeshare)
-          /(\d+)\s+/,                    // 3. Flight number
-          /(\d{1,2}[A-Z]{3})\s+/,        // 4. Departure date (e.g. 20AUG)
-          /([A-Z]{3})\s+/,               // 5. Origin airport code
-          /([A-Z]{3})\s+/,               // 6. Destination airport code
-          /(\d{1,2}:?\d{2}[AP])\s+/,     // 7. Departure time (allow optional colon, e.g. "335P" or "3:35P")
-          /(\d{1,2}:?\d{2}[AP])(?:¥(\d+))?\s+/, // 8. Arrival time with optional day offset (e.g. "815A¥1")
-          /([A-Z]?)\s*/,                 // 9. Meal code (M, S, or blank; allow extra spacing)
-          /([A-Z0-9]+)?\s*/,             // 10. Equipment code (aircraft, e.g. 319, 77W; optional)
-          /(\d+\.\d+)\s*/,               // 11. ELPD: Elapsed time in hours - REQUIRED for duration extraction
-          /(\d+)?\s*/,                   // 12. Miles (optional)
-          /([A-Z])?/                     // 13. Smoking indicator (historical, often "N" or blank)
+          /^(\d+)\s+/,                                    // 1. Segment number
+          /([A-Z]{2})\*?\s*/,                            // 2. Airline code (2 letters, possibly followed by '*' for codeshare)
+          /(\d+)\s+/,                                    // 3. Flight number
+          /(\d{1,2}[A-Z]{3})\s+/,                        // 4. Departure date (e.g. 20AUG)
+          /([A-Z]{3})\s+/,                               // 5. Origin airport code
+          /([A-Z]{3})\s+/,                               // 6. Destination airport code
+          /(\d{1,2}:?\d{2}[AP])\s+/,                     // 7. Departure time (allow optional colon, e.g. "335P" or "3:35P")
+          /(\d{1,2}:?\d{2}[AP])(?:¥(\d+))?\s+/,          // 8. Arrival time with optional day offset (e.g. "815A¥1")
+          /([A-Z]?)\s*/,                                 // 9. Meal code (M, S, or blank; allow extra spacing)
+          /([A-Z0-9]+)?\s*/,                             // 10. Equipment code (aircraft, e.g. 319, 77W; optional)
+          /(\d+\.\d+)(?:\s+|$)/,                         // 11. ELPD: Elapsed time in decimal hours (CRITICAL for duration) - Match word boundary or line end
+          /(\d+)?\s*/,                                   // 12. Miles (optional)
+          /([A-Z])?/                                     // 13. Smoking indicator (historical, often "N" or blank)
         ].map(r => r.source).join(''),
         'i'
       );
       
-      // Fallback pattern with optional ELPD for cases where duration might be missing
+      // Enhanced fallback pattern - Try to capture ELPD before miles field
       const fallbackPatternWithOptionalELPD = new RegExp(
         [
-          /^(\d+)\s+/,                   // 1. Segment number
-          /([A-Z]{2})\*?\s*/,            // 2. Airline code 
-          /(\d+)\s+/,                    // 3. Flight number
-          /(\d{1,2}[A-Z]{3})\s+/,        // 4. Departure date
-          /([A-Z]{3})\s+/,               // 5. Origin airport code
-          /([A-Z]{3})\s+/,               // 6. Destination airport code
-          /(\d{1,2}:?\d{2}[AP])\s+/,     // 7. Departure time
-          /(\d{1,2}:?\d{2}[AP])(?:¥(\d+))?\s+/, // 8. Arrival time with optional day offset
-          /([A-Z]?)\s*/,                 // 9. Meal code
-          /([A-Z0-9]+)?\s*/,             // 10. Equipment code
-          /(\d+\.\d+)?\s*/,              // 11. ELPD: Elapsed time - OPTIONAL for fallback
-          /(\d+)?\s*/,                   // 12. Miles
-          /([A-Z])?/                     // 13. Smoking indicator
+          /^(\d+)\s+/,                                   // 1. Segment number
+          /([A-Z]{2})\*?\s*/,                           // 2. Airline code 
+          /(\d+)\s+/,                                   // 3. Flight number
+          /(\d{1,2}[A-Z]{3})\s+/,                       // 4. Departure date
+          /([A-Z]{3})\s+/,                              // 5. Origin airport code
+          /([A-Z]{3})\s+/,                              // 6. Destination airport code
+          /(\d{1,2}:?\d{2}[AP])\s+/,                    // 7. Departure time
+          /(\d{1,2}:?\d{2}[AP])(?:¥(\d+))?\s+/,         // 8. Arrival time with optional day offset
+          /([A-Z]?)\s*/,                                // 9. Meal code
+          /([A-Z0-9]+)?\s*/,                            // 10. Equipment code
+          /(?:(\d+\.\d+)(?:\s+|$))?/,                   // 11. ELPD: Optional decimal hours - Enhanced capture
+          /(\d+)?\s*/,                                  // 12. Miles
+          /([A-Z])?/                                    // 13. Smoking indicator
         ].map(r => r.source).join(''),
         'i'
       );
@@ -1635,7 +1635,7 @@ export class SabreParser {
             equipment: equipment
           });
           
-          // CRITICAL: Enhanced duration extraction logging
+          // CRITICAL: Enhanced duration extraction logging and validation
           console.log(`🕐 ENHANCED DURATION DEBUG - Segment #${segNum}:`, {
             patternUsed,
             rawElapsedStr: elapsedStr,
@@ -1643,7 +1643,8 @@ export class SabreParser {
             parsedFloat: elapsedStr ? parseFloat(elapsedStr) : null,
             convertedDuration: elapsedStr ? this.convertElapsedTimeToHumanReadable(parseFloat(elapsedStr)) : null,
             willBeStored: currentSegment.duration,
-            fullMatch: match ? match.slice(0, 15) : null
+            fullMatch: match ? match.slice(0, 15) : null,
+            lineBeingParsed: line
           });
           
           if (elapsedStr) {
@@ -1651,7 +1652,18 @@ export class SabreParser {
           } else {
             console.warn(`⚠️ VI Format - No ELPD found for segment #${segNum} using pattern: ${patternUsed}`);
             console.log(`📋 VI Format - Raw line for analysis: "${line}"`);
-            console.log(`📋 VI Format - Match groups: ${JSON.stringify(match?.slice(1, 15) || 'NO MATCH')}`);
+            
+            // Additional fallback: Try to extract decimal number anywhere in the line
+            const decimalMatch = line.match(/(\d+\.\d+)/);
+            if (decimalMatch) {
+              console.log(`🔄 VI Format - Found decimal value as fallback: "${decimalMatch[1]}"`);
+              const fallbackDuration = this.convertElapsedTimeToHumanReadable(parseFloat(decimalMatch[1]));
+              if (fallbackDuration) {
+                currentSegment.duration = fallbackDuration;
+                currentSegment.elapsedTimeHours = parseFloat(decimalMatch[1]);
+                console.log(`✅ VI Format - Applied fallback duration: "${fallbackDuration}"`);
+              }
+            }
           }
           continue;  // move to next line
         }
