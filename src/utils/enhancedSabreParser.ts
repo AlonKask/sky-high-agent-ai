@@ -607,7 +607,8 @@ export class EnhancedSabreParser {
     }
   }
 
-  private static async enhanceSegmentsWithDatabaseData(segments: FlightSegment[]): Promise<void> {
+  // Enhancement process with ELPD duration preservation
+  static async enhanceSegmentsWithDatabaseData(segments: FlightSegment[]): Promise<void> {
     logger.info("Enhancing segments with comprehensive IATA database (Phase 4)", { segmentCount: segments.length });
     
     // Phase 4: Add input validation before database queries
@@ -617,6 +618,15 @@ export class EnhancedSabreParser {
     }
     
     try {
+      // First, preserve ELPD durations before enhancement
+      const preservedDurations = new Map<number, string>();
+      segments.forEach((segment, index) => {
+        if (segment.duration) {
+          preservedDurations.set(index, segment.duration);
+          logger.info(`💾 Preserved ELPD duration for segment ${index + 1}: ${segment.duration}`);
+        }
+      });
+
       const { supabase } = await import('@/integrations/supabase/client');
       
       const enhancementPromises = segments.map(async (segment, index) => {
@@ -688,6 +698,13 @@ export class EnhancedSabreParser {
             });
           }
           
+          // CRITICAL: Restore preserved ELPD duration first (highest priority)
+          const preservedDuration = preservedDurations.get(index);
+          if (preservedDuration) {
+            segment.duration = preservedDuration;
+            logger.info(`✅ Restored ELPD duration for segment ${index + 1}: ${preservedDuration}`);
+          }
+          
           if (depAirport && arrAirport) {
           // Enhanced flight calculations with real coordinates
           const distance = this.calculateDistance(
@@ -695,29 +712,13 @@ export class EnhancedSabreParser {
             { latitude: arrAirport.latitude, longitude: arrAirport.longitude }
           );
           
-          // STRENGTHENED: Duration preservation check with comprehensive validation
-          const hasSabreDuration = segment.duration && 
-                                 segment.duration.trim().length > 0 && 
-                                 segment.duration !== 'undefined' &&
-                                 !segment.duration.includes('NaN');
-          
-          console.log(`🔍 DB Enhancement - Segment ${index + 1} Duration Preservation Analysis:`, {
-            hasDuration: !!segment.duration,
-            durationValue: segment.duration,
-            durationLength: segment.duration?.length || 0,
-            isValidDuration: hasSabreDuration,
-            elapsedTimeHours: segment.elapsedTimeHours,
-            preservationDecision: hasSabreDuration ? "PRESERVE_SABRE_DATA" : "ESTIMATE_FROM_DISTANCE",
-            segmentInfo: `${segment.departureAirport}→${segment.arrivalAirport}`
-          });
-          
-          if (!hasSabreDuration) {
+          // Only calculate duration if no ELPD duration was preserved
+          if (!preservedDuration && !segment.duration) {
             const estimatedDuration = this.estimateFlightDuration(distance);
             segment.duration = estimatedDuration;
-            console.log(`🔄 DB Enhancement - Applied estimated duration for segment ${index + 1}: ${estimatedDuration}`);
-          } else {
-            console.log(`✅ DB Enhancement - Preserved Sabre-parsed duration for segment ${index + 1}: "${segment.duration}"`);
+            logger.info(`📏 Estimated duration for segment ${index + 1}: ${estimatedDuration} (no ELPD available)`);
           }
+          
             segment.aircraftType = this.estimateAircraftType(distance);
             
             // Add rich airport information
@@ -781,21 +782,16 @@ export class EnhancedSabreParser {
           });
           // Apply basic enhancement as fallback
           try {
-            // CRITICAL: Use identical strengthened duration check in fallback as main enhancement
-            const hasSabreDuration = segment.duration && segment.duration.trim().length > 0;
-            console.log(`🔍 DB Enhancement Fallback - Segment ${index + 1} Duration Check:`, {
-              hasSabreDuration,
-              durationValue: `"${segment.duration}"`,
-              durationLength: segment.duration?.length || 0,
-              willEstimate: !hasSabreDuration
-            });
-            
-            if (!hasSabreDuration) {
+            // CRITICAL: Restore preserved ELPD duration even in fallback
+            const preservedDuration = preservedDurations.get(index);
+            if (preservedDuration) {
+              segment.duration = preservedDuration;
+              logger.info(`✅ Fallback: Restored ELPD duration for segment ${index + 1}: ${preservedDuration}`);
+            } else if (!segment.duration) {
               segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
-              console.log(`🔄 DB Enhancement Fallback - Estimated duration: ${segment.duration}`);
-            } else {
-              console.log(`✅ DB Enhancement Fallback - Preserved Sabre duration: "${segment.duration}"`);
+              logger.info(`📏 Fallback: Estimated duration for segment ${index + 1}: ${segment.duration}`);
             }
+            
             segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
           } catch (fallbackError) {
             logger.error(`Even basic enhancement failed for segment ${index + 1}`, { error: fallbackError.message });
@@ -804,7 +800,17 @@ export class EnhancedSabreParser {
       });
       
       await Promise.allSettled(enhancementPromises);
-      logger.info("Completed comprehensive segment enhancement");
+
+      // Final validation that ELPD durations were preserved throughout
+      segments.forEach((segment, index) => {
+        const preservedDuration = preservedDurations.get(index);
+        if (preservedDuration && segment.duration !== preservedDuration) {
+          logger.error(`🚨 DURATION CORRUPTION DETECTED for segment ${index + 1}! Expected: ${preservedDuration}, Got: ${segment.duration}`);
+          segment.duration = preservedDuration; // Force restore
+        }
+      });
+      
+      logger.info("Completed comprehensive segment enhancement with ELPD preservation");
       
     } catch (error) {
       logger.error("Failed to enhance segments with database", { error: error.message });
@@ -813,37 +819,44 @@ export class EnhancedSabreParser {
     }
   }
 
-  private static async enhanceSegmentsWithBasicData(segments: FlightSegment[]): Promise<void> {
-    // Fallback enhancement without database - CRITICAL: Preserve Sabre durations
+  // Fallback enhancement without database access with ELPD preservation
+  static async enhanceSegmentsWithBasicData(segments: FlightSegment[]): Promise<void> {
+    logger.info('🔄 Using basic enhancement without database access while preserving ELPD durations');
+    
+    // Preserve ELPD durations during basic enhancement
+    const preservedDurations = new Map<number, string>();
     segments.forEach((segment, index) => {
-      try {
-        // CRITICAL: Use identical duration check as main enhancement to prevent overrides
-        const hasSabreDuration = segment.duration && segment.duration.trim().length > 0;
-        console.log(`🔍 Basic Enhancement - Segment ${index + 1} Duration Check:`, {
-          hasSabreDuration,
-          durationValue: segment.duration,
-          durationLength: segment.duration?.length || 0
-        });
-        
-        // Only estimate duration if not already present from Sabre data
-        if (!hasSabreDuration) {
-          segment.duration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
-          console.log(`🔄 Basic Enhancement - Estimated duration: ${segment.duration}`);
-        } else {
-          console.log(`✅ Basic Enhancement - Preserved Sabre duration: "${segment.duration}"`); 
-        }
-        
-        segment.aircraftType = this.estimateAircraftType(3000); // Default distance
-        segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
-        
-        logger.debug(`Basic enhancement for segment ${index + 1}`, { 
-          route: `${segment.departureAirport}-${segment.arrivalAirport}`,
-          duration: segment.duration
-        });
-      } catch (error) {
-        logger.warn(`Failed basic enhancement for segment ${index + 1}`, { error: error.message });
+      if (segment.duration) {
+        preservedDurations.set(index, segment.duration);
+        logger.info(`💾 Basic enhancement: Preserved ELPD duration for segment ${index + 1}: ${segment.duration}`);
       }
     });
+    
+    for (let index = 0; index < segments.length; index++) {
+      const segment = segments[index];
+      
+      // Restore preserved ELPD duration first
+      const preservedDuration = preservedDurations.get(index);
+      if (preservedDuration) {
+        segment.duration = preservedDuration;
+        logger.info(`✅ Basic enhancement: Restored ELPD duration for segment ${index + 1}: ${preservedDuration}`);
+      } else if (!segment.duration) {
+        // Only estimate if no ELPD duration was available
+        const estimatedDuration = this.estimateBasicFlightDuration(segment.departureAirport, segment.arrivalAirport);
+        segment.duration = estimatedDuration;
+        logger.info(`📏 Basic enhancement: Estimated duration for segment ${index + 1}: ${estimatedDuration}`);
+      }
+
+      // Basic booking class mapping
+      if (segment.bookingClass) {
+        segment.cabinClass = this.mapBookingClassBasic(segment.bookingClass);
+      }
+      
+      // Basic aircraft type estimation
+      segment.aircraftType = this.estimateAircraftType(3000); // Default distance
+    }
+    
+    logger.info(`✅ Basic enhancement complete with ELPD preservation for ${segments.length} segments`);
   }
 
   // Helper methods

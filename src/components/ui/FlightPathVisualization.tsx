@@ -124,6 +124,17 @@ export function FlightPathVisualization({
 }: FlightPathVisualizationProps) {
   if (!segments || segments.length === 0) return null;
 
+  // Debug logging for received segment data
+  console.log(`🎨 FlightPathVisualization: Received ${segments.length} segments for display:`);
+  segments.forEach((segment, index) => {
+    const route = `${segment.departureAirport.code}→${segment.arrivalAirport.code}`;
+    if (segment.duration) {
+      console.log(`  ✅ Display segment ${index + 1} (${route}): Duration "${segment.duration}" will be shown`);
+    } else {
+      console.log(`  ⚠️ Display segment ${index + 1} (${route}): No duration - only flight number will be shown`);
+    }
+  });
+
   // Calculate unique airports for the route with layover durations
   const airports: (Airport & { layoverDuration?: string })[] = [];
   

@@ -108,20 +108,27 @@ const calculateCKFee = (quote: Quote): number => {
   return basePrice * 0.035;
 };
 
-// Transform segments for FlightPathVisualization 
+// Transform segments for FlightPathVisualization with enhanced duration tracking
 const transformSegmentsForVisualization = (segments: any[]) => {
-  console.log(`🔄 QuoteCard: Transforming ${segments.length} segments for visualization:`);
+  console.log(`🔄 QuoteCard: Transforming ${segments.length} segments for FlightPathVisualization:`);
   
   const transformed = segments.map((segment, index) => {
-    console.log(`  Segment ${index + 1}: Duration "${segment.duration || 'MISSING'}" → Will display in FlightPathVisualization`);
+    const duration = segment.duration;
+    const route = `${segment.departureAirport}→${segment.arrivalAirport}`;
     
-    return {
+    if (duration) {
+      console.log(`  ✅ Segment ${index + 1} (${route}): Duration "${duration}" → Preserving for FlightPathVisualization`);
+    } else {
+      console.log(`  ⚠️ Segment ${index + 1} (${route}): Duration MISSING → FlightPathVisualization will show no duration`);
+    }
+    
+    const transformedSegment = {
       airlineCode: segment.airlineCode,
       airlineName: segment.airlineName,
       icaoCode: segment.icaoCode,
       logoUrl: segment.logoUrl,
       flightNumber: segment.flightNumber,
-      duration: segment.duration,
+      duration: duration, // Critical: Preserve exact duration from parsing
       departureTime: segment.departureTime,
       arrivalTime: segment.arrivalTime,
       arrivalDayOffset: segment.arrivalDayOffset || 0,
@@ -134,9 +141,28 @@ const transformSegmentsForVisualization = (segments: any[]) => {
         name: segment.arrivalAirportName 
       }
     };
+    
+    // Validation: Ensure duration was not lost during transformation
+    if (segment.duration && !transformedSegment.duration) {
+      console.error(`🚨 DURATION LOST during transformation for segment ${index + 1}! Original: ${segment.duration}`);
+      transformedSegment.duration = segment.duration; // Restore
+    }
+    
+    return transformedSegment;
   });
   
-  console.log(`✅ QuoteCard: Transformation complete, ${transformed.length} segments ready for visualization`);
+  console.log(`🎯 QuoteCard: Transformation complete - ${transformed.length} segments ready for FlightPathVisualization`);
+  
+  // Final validation log
+  transformed.forEach((seg, idx) => {
+    const route = `${seg.departureAirport.code}→${seg.arrivalAirport.code}`;
+    if (seg.duration) {
+      console.log(`  📊 Final segment ${idx + 1} (${route}): Duration "${seg.duration}" → Ready for display`);
+    } else {
+      console.log(`  📊 Final segment ${idx + 1} (${route}): No duration → Will show flight number only`);
+    }
+  });
+  
   return transformed;
 };
 
