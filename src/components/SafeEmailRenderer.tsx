@@ -644,38 +644,47 @@ function extractBusinessSignature(content: string) {
 }
 
 function extractImages(content: string) {
-  const images = [];
-  const imgPattern = /<img[^>]+>/gi;
-  const matches = content.match(imgPattern) || [];
+  const images: Array<{
+    src: string;
+    alt?: string;
+    width?: string;
+    height?: string;
+    type: 'signature' | 'header' | 'content' | 'attachment';
+  }> = [];
   
-  matches.forEach((imgTag, index) => {
-    const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
-    const altMatch = imgTag.match(/alt=["']([^"']+)["']/i);
-    const widthMatch = imgTag.match(/width=["']([^"']+)["']/i);
-    const heightMatch = imgTag.match(/height=["']([^"']+)["']/i);
-    
-    if (srcMatch && srcMatch[1]) {
-      // Categorize image type based on src URL and context
-      let type: 'signature' | 'header' | 'content' | 'attachment' = 'content';
-      const src = srcMatch[1].toLowerCase();
+  const imgPattern = /<img[^>]+>/gi;
+  const matches = content.match(imgPattern);
+  
+  if (matches) {
+    matches.forEach((imgTag: string, index: number) => {
+      const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+      const altMatch = imgTag.match(/alt=["']([^"']+)["']/i);
+      const widthMatch = imgTag.match(/width=["']([^"']+)["']/i);
+      const heightMatch = imgTag.match(/height=["']([^"']+)["']/i);
       
-      if (src.includes('signature') || src.includes('logo') || content.toLowerCase().includes('signature')) {
-        type = 'signature';
-      } else if (src.includes('header') || src.includes('banner')) {
-        type = 'header';
-      } else if (src.includes('attachment') || src.includes('upload')) {
-        type = 'attachment';
+      if (srcMatch && srcMatch[1]) {
+        // Categorize image type based on src URL and context
+        let type: 'signature' | 'header' | 'content' | 'attachment' = 'content';
+        const src = srcMatch[1].toLowerCase();
+        
+        if (src.includes('signature') || src.includes('logo') || content.toLowerCase().includes('signature')) {
+          type = 'signature';
+        } else if (src.includes('header') || src.includes('banner')) {
+          type = 'header';
+        } else if (src.includes('attachment') || src.includes('upload')) {
+          type = 'attachment';
+        }
+        
+        images.push({
+          src: srcMatch[1],
+          alt: altMatch ? altMatch[1] : undefined,
+          width: widthMatch ? widthMatch[1] : undefined,
+          height: heightMatch ? heightMatch[1] : undefined,
+          type
+        });
       }
-      
-      images.push({
-        src: srcMatch[1],
-        alt: altMatch ? altMatch[1] : undefined,
-        width: widthMatch ? widthMatch[1] : undefined,
-        height: heightMatch ? heightMatch[1] : undefined,
-        type
-      });
-    }
-  });
+    });
+  }
   
   return images;
 }
