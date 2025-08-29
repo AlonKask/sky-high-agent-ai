@@ -29,6 +29,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Allow localhost for development
     if (origin.startsWith('http://localhost:')) return true;
     
+    // Allow production domain
+    if (origin === 'https://selectbc.online') return true;
+    
     // Allow Lovable domains with flexible subdomain matching
     if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.sandbox\.lovable\.dev$/)) return true;
     if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.lovableproject\.com$/)) return true;
