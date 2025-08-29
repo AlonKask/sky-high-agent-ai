@@ -4333,12 +4333,18 @@ export type Database = {
       get_option_review_for_booking: {
         Args: { p_client_token: string }
         Returns: {
+          client_company: string
+          client_email: string
+          client_first_name: string
           client_id: string
+          client_last_name: string
+          client_phone: string
           client_token: string
           created_at: string
           id: string
           metadata: Json
           quote_ids: string[]
+          quotes_data: Json
           request_id: string
           review_status: string
           token_expires_at: string

@@ -415,18 +415,32 @@ export default function UnifiedEmailBuilder({
       const clientToken = optionReview.client_token;
       console.log("✅ Option review created with hex token:", optionReview.id, "Token length:", clientToken?.length);
 
-      // Generate the final email HTML with review URL using hex token
+      // Generate cross-domain compatible URLs for production emails
+      const currentHost = window.location.hostname;
+      let baseUrl;
+      
+      if (currentHost.includes('lovable.app')) {
+        // Lovable preview/sandbox environment
+        baseUrl = window.location.origin;
+      } else if (currentHost === 'selectbc.online' || currentHost.includes('selectbc.online')) {
+        // Production domain
+        baseUrl = 'https://selectbc.online';
+      } else {
+        // Default to current origin (development or other)
+        baseUrl = window.location.origin;
+      }
+      
+      const reviewUrl = `${baseUrl}/view/${clientToken}`;
+      const bookUrlBase = `${baseUrl}/book/${clientToken}`;
+      // Generate the final email HTML using cross-domain URLs
       const emailHTML = await generateEmailHTML();
-      const reviewUrl = `${window.location.origin}/view-option/${clientToken}`;
-
+      
       let finalEmailHTML = emailHTML
         .replace(/\{\{ViewLink\}\}/g, reviewUrl)
         .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
         .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
         .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
 
-      const bookUrlBase = `${window.location.origin}/book/${clientToken}`;
-      
       // Handle both ${BookLink} and {{BookLink:quoteId}} formats
       finalEmailHTML = finalEmailHTML.replace(/\$\{BookLink\}/g, bookUrlBase);
       
