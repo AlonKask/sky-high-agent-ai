@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { X, Plane, ChevronDown, ChevronUp, Luggage, Clock } from "lucide-react";
 import { SabreParser } from "@/utils/sabreParser";
 import { EnhancedSabreParser } from "@/utils/enhancedSabreParser";
 import { toastHelpers } from '@/utils/toastHelpers';
@@ -132,6 +134,8 @@ const SabreOptionManager = ({
   });
 
   const [newQuote, setNewQuote] = useState(getInitialQuoteState);
+  const [parsedSegments, setParsedSegments] = useState<any[]>([]);
+  const [segmentsExpanded, setSegmentsExpanded] = useState(false);
 
   // Robust calculation functions with proper validation
   const calculateTotalNetPrice = useMemo(() => {
@@ -250,6 +254,22 @@ const SabreOptionManager = ({
         number_of_points: editingQuote.number_of_points || null,
         notes: editingQuote.notes || ""
       });
+      
+      // Set parsed segments if editing quote has segments with enhanced data
+      if (editingQuote.segments && editingQuote.segments.length > 0) {
+        // Check if segments already have enhanced data, if not enhance them
+        const segments = editingQuote.segments;
+        const hasEnhancedData = segments.some((s: any) => s.hasOwnProperty('isArrivalSelected'));
+        
+        if (hasEnhancedData) {
+          setParsedSegments(segments);
+        } else {
+          // Enhance legacy segments
+          const enhancedSegments = enhanceSegmentsWithArrivalLogic(segments);
+          setParsedSegments(enhancedSegments);
+        }
+      }
+      
       setEditingId(editingQuote.id);
     }
   }, [editingQuote, dialogOpen]);
@@ -257,6 +277,8 @@ const SabreOptionManager = ({
   const resetQuoteForm = () => {
     console.log("Resetting quote form");
     setNewQuote(getInitialQuoteState());
+    setParsedSegments([]);
+    setSegmentsExpanded(false);
     setEditingId(null);
   };
 
@@ -284,6 +306,170 @@ const SabreOptionManager = ({
 
   const detectFormat = (content: string): "I" | "VI" => {
     return SabreParser.detectFormat(content);
+  };
+
+  // Layover calculation helper function
+  const calculateLayoverMinutes = (segment1: any, segment2: any): number => {
+    if (!segment1 || !segment2) return 0;
+    
+    try {
+      // Parse times to minutes since midnight
+      const parseTimeToMinutes = (timeStr: string, dayOffset: number = 0): number => {
+        if (!timeStr) return 0;
+        const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (!match) return 0;
+        
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const ampm = match[3].toUpperCase();
+        
+        if (ampm === 'PM' && hours !== 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        
+        return (hours * 60 + minutes) + (dayOffset * 24 * 60);
+      };
+      
+      const arrivalMinutes = parseTimeToMinutes(
+        segment1.arrivalTime, 
+        segment1.arrivalDayOffset || 0
+      );
+      const departureMinutes = parseTimeToMinutes(
+        segment2.departureTime, 
+        segment2.departureDayOffset || 0
+      );
+      
+      let layover = departureMinutes - arrivalMinutes;
+      
+      // Handle day changes - if negative, assume next day
+      if (layover < 0) {
+        layover += 24 * 60;
+      }
+      
+      return layover;
+    } catch (error) {
+      console.error('Error calculating layover:', error);
+      return 0;
+    }
+  };
+
+  // Enhanced segments with arrival selection and luggage info
+  const enhanceSegmentsWithArrivalLogic = (segments: any[]): any[] => {
+    if (!segments || segments.length === 0) return [];
+    
+    return segments.map((segment, index) => {
+      const isLastSegment = index === segments.length - 1;
+      const nextSegment = segments[index + 1];
+      
+      // Calculate layover time
+      let layoverMinutes = 0;
+      if (!isLastSegment && nextSegment) {
+        layoverMinutes = calculateLayoverMinutes(segment, nextSegment);
+      }
+      
+      // Determine automatic arrival selection
+      let isArrivalSelected = false;
+      let arrivalReason = '';
+      
+      if (isLastSegment) {
+        isArrivalSelected = true;
+        arrivalReason = 'Final destination';
+      } else if (layoverMinutes >= 1440) { // 24+ hours
+        isArrivalSelected = true;
+        arrivalReason = `Long layover (${Math.floor(layoverMinutes / 60)}h ${layoverMinutes % 60}m)`;
+      } else if (layoverMinutes > 0) {
+        arrivalReason = `Layover (${Math.floor(layoverMinutes / 60)}h ${layoverMinutes % 60}m)`;
+      }
+      
+      // Default luggage info per segment
+      const defaultLuggage = {
+        checkedBags: { count: 1, weight: 23 },
+        carryOn: { count: 1, weight: 8 }
+      };
+      
+      return {
+        ...segment,
+        isArrivalSelected,
+        arrivalReason,
+        layoverMinutes,
+        luggageInfo: segment.luggageInfo || defaultLuggage,
+        // Preserve existing fields while adding new ones
+        segmentNumber: segment.segmentNumber || (index + 1)
+      };
+    });
+  };
+
+  // Parse segments when content changes
+  useEffect(() => {
+    const parseSegments = async () => {
+      if (!newQuote.content.trim()) {
+        setParsedSegments([]);
+        return;
+      }
+      
+      try {
+        const format = detectFormat(newQuote.content);
+        let parsed;
+        
+        if (format === "I") {
+          parsed = await EnhancedSabreParser.parseIFormatWithDatabase(newQuote.content);
+        } else if (format === "VI") {
+          parsed = await EnhancedSabreParser.parseVIFormatWithDatabase(newQuote.content);
+        }
+        
+        if (parsed?.segments && parsed.segments.length > 0) {
+          const enhancedSegments = enhanceSegmentsWithArrivalLogic(parsed.segments);
+          setParsedSegments(enhancedSegments);
+          
+          // Update quote with segments
+          setNewQuote(prev => ({
+            ...prev,
+            segments: enhancedSegments,
+            total_segments: enhancedSegments.length
+          }));
+        } else {
+          setParsedSegments([]);
+        }
+      } catch (error) {
+        console.error('Error parsing segments:', error);
+        setParsedSegments([]);
+      }
+    };
+    
+    parseSegments();
+  }, [newQuote.content]);
+
+  // Update segment arrival selection
+  const updateSegmentArrival = (segmentIndex: number, isSelected: boolean) => {
+    const updatedSegments = [...parsedSegments];
+    updatedSegments[segmentIndex] = {
+      ...updatedSegments[segmentIndex],
+      isArrivalSelected: isSelected
+    };
+    setParsedSegments(updatedSegments);
+    setNewQuote(prev => ({
+      ...prev,
+      segments: updatedSegments
+    }));
+  };
+
+  // Update segment luggage info
+  const updateSegmentLuggage = (segmentIndex: number, luggageType: 'checkedBags' | 'carryOn', field: 'count' | 'weight', value: number) => {
+    const updatedSegments = [...parsedSegments];
+    updatedSegments[segmentIndex] = {
+      ...updatedSegments[segmentIndex],
+      luggageInfo: {
+        ...updatedSegments[segmentIndex].luggageInfo,
+        [luggageType]: {
+          ...updatedSegments[segmentIndex].luggageInfo[luggageType],
+          [field]: Math.max(0, value)
+        }
+      }
+    };
+    setParsedSegments(updatedSegments);
+    setNewQuote(prev => ({
+      ...prev,
+      segments: updatedSegments
+    }));
   };
 
   const handleContentChange = (content: string) => {
@@ -416,8 +602,8 @@ const SabreOptionManager = ({
         taxes: newQuote.taxes ? Number(newQuote.taxes) : null,
         issuing_fee: newQuote.issuing_fee ? Number(newQuote.issuing_fee) : null,
         notes: newQuote.notes || null,
-        segments: [],
-        total_segments: 1
+        segments: parsedSegments.length > 0 ? parsedSegments : [],
+        total_segments: parsedSegments.length > 0 ? parsedSegments.length : 1
       };
 
       const { error } = await supabase.from('quotes').insert(quoteData);
@@ -465,7 +651,9 @@ const SabreOptionManager = ({
         number_of_points: newQuote.number_of_points ? Number(newQuote.number_of_points) : null,
         taxes: newQuote.taxes ? Number(newQuote.taxes) : null,
         issuing_fee: newQuote.issuing_fee ? Number(newQuote.issuing_fee) : null,
-        notes: newQuote.notes || null
+        notes: newQuote.notes || null,
+        segments: parsedSegments.length > 0 ? parsedSegments : (editingQuote?.segments || []),
+        total_segments: parsedSegments.length > 0 ? parsedSegments.length : (editingQuote?.total_segments || 1)
       };
 
       const { error } = await supabase
@@ -903,6 +1091,228 @@ const SabreOptionManager = ({
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Flight Segments & Arrival Selection */}
+            {parsedSegments.length > 0 && (
+              <Collapsible open={segmentsExpanded} onOpenChange={setSegmentsExpanded}>
+                <CollapsibleTrigger asChild>
+                  <Card className="cursor-pointer hover:bg-accent/50 transition-colors">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Plane className="h-5 w-5 text-blue-600" />
+                          Flight Segments & Options
+                          <Badge variant="secondary" className="ml-2">
+                            {parsedSegments.length} segment{parsedSegments.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {parsedSegments.filter(s => s.isArrivalSelected).length} arrival{parsedSegments.filter(s => s.isArrivalSelected).length !== 1 ? 's' : ''} selected
+                          </Badge>
+                          {segmentsExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent>
+                  <div className="space-y-4 mt-4">
+                    {parsedSegments.map((segment, index) => (
+                      <Card key={index} className="border-l-4 border-l-blue-500">
+                        <CardContent className="p-4">
+                          <div className="space-y-4">
+                            {/* Segment Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-blue-100 text-blue-800 rounded-full px-2 py-1 text-sm font-medium">
+                                  Segment {segment.segmentNumber}
+                                </div>
+                                <div className="font-medium">
+                                  {segment.airlineCode}{segment.flightNumber}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {segment.departureAirport} → {segment.arrivalAirport}
+                                </div>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {segment.flightDate}
+                              </div>
+                            </div>
+
+                            {/* Flight Details */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/30 rounded-lg">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Departure</p>
+                                <p className="font-medium">{segment.departureTime}</p>
+                                <p className="text-sm text-muted-foreground">{segment.departureAirport}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Arrival</p>
+                                <p className="font-medium">{segment.arrivalTime}</p>
+                                <p className="text-sm text-muted-foreground">{segment.arrivalAirport}</p>
+                                {segment.arrivalDayOffset > 0 && (
+                                  <p className="text-xs text-orange-600">+{segment.arrivalDayOffset} day</p>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Class</p>
+                                <p className="font-medium">{segment.cabinClass || segment.bookingClass}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Status</p>
+                                <p className="font-medium">{segment.statusCode}</p>
+                              </div>
+                            </div>
+
+                            {/* Layover Information */}
+                            {segment.layoverMinutes > 0 && (
+                              <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                                <Clock className="h-4 w-4 text-amber-600" />
+                                <span className="text-sm text-amber-800">{segment.arrivalReason}</span>
+                              </div>
+                            )}
+
+                            {/* Arrival Selection */}
+                            <div className="space-y-3">
+                              <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                                <Checkbox
+                                  id={`arrival-${index}`}
+                                  checked={segment.isArrivalSelected}
+                                  onCheckedChange={(checked) => updateSegmentArrival(index, !!checked)}
+                                />
+                                <div className="flex-1">
+                                  <Label htmlFor={`arrival-${index}`} className="font-medium text-green-800">
+                                    Select arrival at {segment.arrivalAirport}
+                                  </Label>
+                                  <p className="text-sm text-green-700">
+                                    {segment.arrivalReason === 'Final destination' 
+                                      ? 'Final destination - automatically selected'
+                                      : segment.arrivalReason || 'Connection'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Luggage Information */}
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Luggage className="h-4 w-4 text-gray-600" />
+                                <Label className="font-medium">Luggage Information</Label>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Checked Bags */}
+                                <div className="space-y-3 p-3 border rounded-lg">
+                                  <Label className="text-sm font-medium text-blue-700">Checked Bags</Label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Count</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        value={segment.luggageInfo?.checkedBags?.count || 0}
+                                        onChange={(e) => updateSegmentLuggage(
+                                          index, 
+                                          'checkedBags', 
+                                          'count', 
+                                          parseInt(e.target.value) || 0
+                                        )}
+                                        className="h-8"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Weight (kg)</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="50"
+                                        value={segment.luggageInfo?.checkedBags?.weight || 0}
+                                        onChange={(e) => updateSegmentLuggage(
+                                          index, 
+                                          'checkedBags', 
+                                          'weight', 
+                                          parseInt(e.target.value) || 0
+                                        )}
+                                        className="h-8"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Carry-On Bags */}
+                                <div className="space-y-3 p-3 border rounded-lg">
+                                  <Label className="text-sm font-medium text-purple-700">Carry-On Bags</Label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Count</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="5"
+                                        value={segment.luggageInfo?.carryOn?.count || 0}
+                                        onChange={(e) => updateSegmentLuggage(
+                                          index, 
+                                          'carryOn', 
+                                          'count', 
+                                          parseInt(e.target.value) || 0
+                                        )}
+                                        className="h-8"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-muted-foreground">Weight (kg)</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="15"
+                                        value={segment.luggageInfo?.carryOn?.weight || 0}
+                                        onChange={(e) => updateSegmentLuggage(
+                                          index, 
+                                          'carryOn', 
+                                          'weight', 
+                                          parseInt(e.target.value) || 0
+                                        )}
+                                        className="h-8"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    
+                    {/* Summary */}
+                    <Card className="bg-blue-50 border-blue-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-4">
+                            <span className="font-medium text-blue-800">
+                              Total Arrivals: {parsedSegments.filter(s => s.isArrivalSelected).length}
+                            </span>
+                            <span className="text-blue-700">
+                              Checked Bags: {parsedSegments.reduce((sum, s) => sum + (s.luggageInfo?.checkedBags?.count || 0), 0)}
+                            </span>
+                            <span className="text-blue-700">
+                              Carry-On: {parsedSegments.reduce((sum, s) => sum + (s.luggageInfo?.carryOn?.count || 0), 0)}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {/* Notes */}
