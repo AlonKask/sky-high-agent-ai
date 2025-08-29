@@ -4316,6 +4316,23 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_option_review_for_booking: {
+        Args: { p_client_token: string }
+        Returns: {
+          client_id: string
+          client_token: string
+          created_at: string
+          id: string
+          metadata: Json
+          quote_ids: string[]
+          request_id: string
+          review_status: string
+          token_expires_at: string
+          token_used: boolean
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_option_reviews_by_token: {
         Args: { p_client_token: string }
         Returns: {
