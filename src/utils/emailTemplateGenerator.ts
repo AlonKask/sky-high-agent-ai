@@ -456,7 +456,7 @@ export class EmailTemplateGenerator {
 
   private static generateCleanBookingButton(optionId: string): string {
     return `
-    <a href="#book-${optionId}" style="display: inline-block; padding: 15px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+    <a href="{{BookLink:${optionId}}}" style="display: inline-block; padding: 15px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
       Book / Hold
     </a>
     `;
