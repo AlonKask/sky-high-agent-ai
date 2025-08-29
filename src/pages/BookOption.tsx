@@ -53,42 +53,73 @@ export default function BookOption() {
     (async () => {
       try {
         setLoading(true);
-        console.log("🔍 Looking up token:", token, "Length:", token?.length);
+        console.log("🔍 BookOption: Looking up token:", token, "Length:", token?.length, "Format valid:", /^[0-9a-f]{64}$/.test(token || ''));
         
         // Use the new public access function that bypasses RLS
         const { data: reviewData, error: reviewError } = await supabase
           .rpc('get_option_review_for_booking', { p_client_token: token });
         
+        console.log("📋 BookOption: Review query result:", { 
+          hasData: !!reviewData, 
+          dataLength: reviewData?.length || 0, 
+          error: reviewError?.message || null 
+        });
+        
         if (reviewError) {
-          console.error("❌ Database error:", reviewError);
+          console.error("❌ BookOption: Database error:", reviewError);
           throw reviewError;
         }
         
         if (!reviewData || reviewData.length === 0) {
-          console.error("❌ No option review found for token:", token);
+          console.error("❌ BookOption: No option review found for token:", token);
           throw new Error("Booking option not found. The link may be invalid or expired.");
         }
         
         const review = reviewData[0];
-        console.log("✅ Found option review:", review.id);
+        console.log("✅ BookOption: Found option review:", review.id, "Quote IDs:", review.quote_ids);
         setReview(review);
 
         // Get quotes using the new function
         const { data: quotesData, error: quotesError } = await supabase
           .rpc('get_quotes_for_booking', { p_quote_ids: review.quote_ids });
-        if (quotesError) throw quotesError;
+        
+        console.log("💰 BookOption: Quotes query result:", { 
+          hasData: !!quotesData, 
+          dataLength: quotesData?.length || 0, 
+          error: quotesError?.message || null 
+        });
+        
+        if (quotesError) {
+          console.error("❌ BookOption: Quotes error:", quotesError);
+          throw quotesError;
+        }
+        
         setQuotes((quotesData || []).map((q) => ({ 
           ...q, 
           segments: Array.isArray(q.segments) ? q.segments : [],
           client_token: review.client_token // Add client_token from the review
         })));
 
+        console.log("✅ BookOption: Loaded", quotesData?.length || 0, "quotes");
+
         // Get client data using the new function
         if (quotesData && quotesData.length > 0) {
           const { data: clientData, error: clientError } = await supabase
             .rpc('get_client_for_booking', { p_client_id: quotesData[0].client_id });
-          if (clientError) throw clientError;
+          
+          console.log("👤 BookOption: Client query result:", { 
+            hasData: !!clientData, 
+            dataLength: clientData?.length || 0, 
+            error: clientError?.message || null 
+          });
+          
+          if (clientError) {
+            console.error("❌ BookOption: Client error:", clientError);
+            throw clientError;
+          }
+          
           if (clientData && clientData.length > 0) {
+            console.log("✅ BookOption: Client loaded:", clientData[0].first_name, clientData[0].last_name);
             setClient(clientData[0]);
           }
         }

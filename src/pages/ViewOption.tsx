@@ -59,32 +59,46 @@ export default function ViewOption() {
   const fetchOptionReview = async () => {
     try {
       setLoading(true);
+      console.log("🔍 ViewOption: Looking up token:", token, "Length:", token?.length, "Format valid:", /^[0-9a-f]{64}$/.test(token || ''));
       
       // Use the new public access function that bypasses RLS
       const { data: reviewData, error: reviewError } = await supabase
         .rpc('get_option_review_for_booking', { p_client_token: token });
 
+      console.log("📋 ViewOption: Review query result:", { 
+        hasData: !!reviewData, 
+        dataLength: reviewData?.length || 0, 
+        error: reviewError?.message || null 
+      });
+
       if (reviewError) {
-        console.error('Error fetching option review:', reviewError);
+        console.error('❌ ViewOption: Error fetching option review:', reviewError);
         setError('Option not found or has expired');
         return;
       }
 
       if (!reviewData || reviewData.length === 0) {
-        console.error('No option review found for token:', token);
+        console.error('❌ ViewOption: No option review found for token:', token);
         setError('Option not found or has expired');
         return;
       }
 
       const finalReview = reviewData[0];
+      console.log("✅ ViewOption: Found option review:", finalReview.id, "Quote IDs:", finalReview.quote_ids);
       setOptionReview(finalReview);
 
       // Get quotes using the new function
       const { data: quotesData, error: quotesError } = await supabase
         .rpc('get_quotes_for_booking', { p_quote_ids: finalReview.quote_ids });
 
+      console.log("💰 ViewOption: Quotes query result:", { 
+        hasData: !!quotesData, 
+        dataLength: quotesData?.length || 0, 
+        error: quotesError?.message || null 
+      });
+
       if (quotesError) {
-        console.error('Error fetching quotes:', quotesError);
+        console.error('❌ ViewOption: Error fetching quotes:', quotesError);
         setError('Failed to load quotes');
         return;
       }
@@ -95,24 +109,33 @@ export default function ViewOption() {
         client_token: finalReview.client_token // Add client_token from the review
       })));
 
+      console.log("✅ ViewOption: Loaded", quotesData?.length || 0, "quotes");
+
       // Get client data using the new function
       if (quotesData && quotesData.length > 0) {
         const { data: clientData, error: clientError } = await supabase
           .rpc('get_client_for_booking', { p_client_id: quotesData[0].client_id });
 
+        console.log("👤 ViewOption: Client query result:", { 
+          hasData: !!clientData, 
+          dataLength: clientData?.length || 0, 
+          error: clientError?.message || null 
+        });
+
         if (clientError) {
-          console.error('Error fetching client:', clientError);
+          console.error('❌ ViewOption: Error fetching client:', clientError);
           setError('Failed to load client data');
           return;
         }
 
         if (clientData && clientData.length > 0) {
+          console.log("✅ ViewOption: Client loaded:", clientData[0].first_name, clientData[0].last_name);
           setClient(clientData[0]);
         }
       }
 
     } catch (err: any) {
-      console.error('Error:', err);  
+      console.error('❌ ViewOption: Unexpected error:', err);  
       setError('Failed to load travel options');
     } finally {
       setLoading(false);

@@ -467,10 +467,26 @@ export default function UnifiedEmailBuilder({
 
       console.log("✅ Email sent successfully:", emailResult);
 
+      // Show success with real booking links
+      const realToken = optionReview.client_token;
+      const origin = window.location.origin;
+      const realViewUrl = `${origin}/view-option/${realToken}`;
+      
       toast({
         title: "Email sent successfully!",
         description: `Flight options sent to ${client.first_name} at ${client.email}`,
+        action: (
+          <button 
+            onClick={() => window.open(realViewUrl, '_blank')}
+            className="text-sm underline text-primary hover:text-primary/80"
+          >
+            View Real Booking Page
+          </button>
+        ),
       });
+
+      // Log real booking URL for debugging
+      console.log("🔗 Real booking URL for testing:", realViewUrl);
 
       onEmailSent();
       onClose();
@@ -503,21 +519,24 @@ export default function UnifiedEmailBuilder({
 
       try {
         const html = await generateEmailHTML();
-        const previewToken = 'preview';
-        const origin = window.location.origin;
-        const reviewUrl = `${origin}/view-option/${previewToken}`;
-        const bookUrlBase = `${origin}/book/${previewToken}`;
-
+        
+        // For preview, use placeholder links with clear indication
+        const previewNotice = '<div style="background: #f97316; color: white; padding: 8px; text-align: center; margin: 10px 0; border-radius: 4px; font-weight: bold;">⚠️ PREVIEW MODE - Links are disabled. Real links will work in the actual email.</div>';
+        const disabledStyle = 'style="color: #94a3b8; text-decoration: none; cursor: not-allowed; pointer-events: none;"';
+        
         let replaced = html
-          .replace(/\{\{ViewLink\}\}/g, reviewUrl)
-          .replace(/\{\{HoldLink\}\}/g, `${reviewUrl}?action=hold`)
-          .replace(/\{\{AltLink\}\}/g, `${reviewUrl}?action=alternatives`)
+          .replace(/\{\{ViewLink\}\}/g, `<span ${disabledStyle}>View Options (Preview)</span>`)
+          .replace(/\{\{HoldLink\}\}/g, `<span ${disabledStyle}>Hold Request (Preview)</span>`)
+          .replace(/\{\{AltLink\}\}/g, `<span ${disabledStyle}>Request Alternatives (Preview)</span>`)
           .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
 
         selectedQuotes.forEach((qid) => {
           const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
-          replaced = replaced.replace(re, `${bookUrlBase}?quote_id=${qid}`);
+          replaced = replaced.replace(re, `<span ${disabledStyle}>Book Now (Preview)</span>`);
         });
+        
+        // Add preview notice at the top
+        replaced = previewNotice + replaced;
 
         // Ensure links open outside the sandboxed preview
         replaced = replaced.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
