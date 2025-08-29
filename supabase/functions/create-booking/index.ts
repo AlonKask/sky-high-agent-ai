@@ -18,6 +18,7 @@ interface BookingRequest {
     nationality: string;
     passportNumber?: string;
     passportExpiry?: string;
+    passengerType?: string;
   }>;
   contact_details: {
     email: string;
@@ -37,6 +38,11 @@ interface BookingRequest {
   final_price: number;
   protection_cost: number;
   flexible_cost: number;
+  service_tip?: number;
+  marketing_preferences?: {
+    promotions: boolean;
+    newsletter: boolean;
+  };
 }
 
 serve(async (req) => {
@@ -126,7 +132,9 @@ serve(async (req) => {
           protection: bookingData.selected_protection,
           protection_cost: bookingData.protection_cost,
           flexible: bookingData.selected_flexible,
-          flexible_cost: bookingData.flexible_cost
+          flexible_cost: bookingData.flexible_cost,
+          service_tip: bookingData.service_tip || 0,
+          marketing_preferences: bookingData.marketing_preferences
         })
       })
       .select()
