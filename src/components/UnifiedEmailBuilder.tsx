@@ -520,20 +520,72 @@ export default function UnifiedEmailBuilder({
       try {
         const html = await generateEmailHTML();
         
-        // For preview, use placeholder links with clear indication
-        const previewNotice = '<div style="background: #f97316; color: white; padding: 8px; text-align: center; margin: 10px 0; border-radius: 4px; font-weight: bold;">⚠️ PREVIEW MODE - Links are disabled. Real links will work in the actual email.</div>';
-        const disabledStyle = 'style="color: #94a3b8; text-decoration: none; cursor: not-allowed; pointer-events: none;"';
+        // For preview, create a temporary option review for functional preview links
+        let previewToken: string | null = null;
         
-        let replaced = html
-          .replace(/\{\{ViewLink\}\}/g, `<span ${disabledStyle}>View Options (Preview)</span>`)
-          .replace(/\{\{HoldLink\}\}/g, `<span ${disabledStyle}>Hold Request (Preview)</span>`)
-          .replace(/\{\{AltLink\}\}/g, `<span ${disabledStyle}>Request Alternatives (Preview)</span>`)
-          .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
+        try {
+          // Create temporary option review for preview
+          const currentUser = (await supabase.auth.getUser()).data.user;
+          const { data: previewReview, error: reviewError } = await supabase
+            .from('option_reviews')
+            .insert({
+              user_id: currentUser?.id || null,
+              client_id: clientId,
+              request_id: requestId,
+              quote_ids: selectedQuotes,
+              metadata: {
+                preview_mode: true,
+                email_subject: emailSubject,
+                personal_message: personalMessage
+              }
+            })
+            .select()
+            .single();
 
-        selectedQuotes.forEach((qid) => {
-          const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
-          replaced = replaced.replace(re, `<span ${disabledStyle}>Book Now (Preview)</span>`);
-        });
+          if (!reviewError && previewReview) {
+            previewToken = previewReview.client_token;
+            console.log('✅ Preview token created:', previewToken, 'for testing links');
+          } else {
+            console.warn('⚠️ Preview token creation failed:', reviewError);
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not create preview token, using placeholder links:', error);
+        }
+
+        const previewNotice = '<div style="background: #3b82f6; color: white; padding: 8px; text-align: center; margin: 10px 0; border-radius: 4px; font-weight: bold;">🔍 PREVIEW MODE - These links are functional for testing purposes</div>';
+        
+        let replaced;
+        
+        if (previewToken) {
+          // Use functional preview links with real token + preview parameter
+          const previewViewUrl = `${window.location.origin}/view-option/${previewToken}?preview=true`;
+          const previewBookUrl = `${window.location.origin}/book/${previewToken}?preview=true`;
+          
+          replaced = html
+            .replace(/\{\{ViewLink\}\}/g, previewViewUrl)
+            .replace(/\{\{HoldLink\}\}/g, `${previewViewUrl}&action=hold`)
+            .replace(/\{\{AltLink\}\}/g, `${previewViewUrl}&action=alternatives`)
+            .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
+
+          selectedQuotes.forEach((qid) => {
+            const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
+            replaced = replaced.replace(re, `${previewBookUrl}&quote_id=${qid}`);
+          });
+        } else {
+          // Fallback to disabled links if preview token creation fails
+          const disabledStyle = 'style="color: #94a3b8; text-decoration: none; cursor: not-allowed; pointer-events: none;"';
+          
+          replaced = html
+            .replace(/\{\{ViewLink\}\}/g, `<span ${disabledStyle}>View Options (Preview - Token Error)</span>`)
+            .replace(/\{\{HoldLink\}\}/g, `<span ${disabledStyle}>Hold Request (Preview - Token Error)</span>`)
+            .replace(/\{\{AltLink\}\}/g, `<span ${disabledStyle}>Request Alternatives (Preview - Token Error)</span>`)
+            .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
+
+          selectedQuotes.forEach((qid) => {
+            const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
+            replaced = replaced.replace(re, `<span ${disabledStyle}>Book Now (Preview - Token Error)</span>`);
+          });
+        }
         
         // Add preview notice at the top
         replaced = previewNotice + replaced;

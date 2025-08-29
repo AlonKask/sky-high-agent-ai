@@ -41,6 +41,9 @@ export default function BookOption() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Detect preview mode
+  const isPreviewMode = searchParams.get('preview') === 'true';
 
   const selectedQuoteId = searchParams.get("quote_id");
   const selectedQuote = useMemo(
@@ -167,7 +170,12 @@ export default function BookOption() {
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-muted-foreground">{error || "This booking link is not valid anymore."}</p>
-            <Button onClick={() => navigate(`/view-option/${token}`)}>Back to Options</Button>
+            <Button onClick={() => {
+              const backUrl = isPreviewMode 
+                ? `/view-option/${token}?preview=true`
+                : `/view-option/${token}`;
+              navigate(backUrl);
+            }}>Back to Options</Button>
           </CardContent>
         </Card>
       </div>
@@ -176,11 +184,23 @@ export default function BookOption() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
+      {/* Preview Mode Banner */}
+      {isPreviewMode && (
+        <div className="bg-blue-600 text-white py-2 px-4 text-center text-sm font-medium sticky top-0 z-50">
+          🔍 PREVIEW MODE - This is a functional test of the booking flow for testing purposes
+        </div>
+      )}
+      
       {/* Sticky minimalist header */}
       <header className="bg-background/80 backdrop-blur border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate(`/view-option/${token}`)}>
+            <Button variant="ghost" size="sm" onClick={() => {
+              const backUrl = isPreviewMode 
+                ? `/view-option/${token}?preview=true`
+                : `/view-option/${token}`;
+              navigate(backUrl);
+            }}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back
             </Button>
             <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { SharedItineraryCard } from '@/components/SharedItineraryCard';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -42,11 +42,15 @@ interface OptionReview {
 
 export default function ViewOption() {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
   const [optionReview, setOptionReview] = useState<OptionReview | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Detect preview mode
+  const isPreviewMode = searchParams.get('preview') === 'true';
 
   const navigate = useNavigate();
 
@@ -160,7 +164,7 @@ export default function ViewOption() {
     }
   }, [client, quotes]);
 
-  const handleBookNow = async (quoteId: string) => {
+    const handleBookNow = async (quoteId: string) => {
     try {
       // Store booking intent
       const { error } = await supabase
@@ -172,7 +176,7 @@ export default function ViewOption() {
           user_id: client?.id, // Temporary - should be agent user_id
           feedback_type: 'booking_intent',
           rating: 5,
-          comments: 'Client clicked Book Now'
+          comments: isPreviewMode ? 'Preview mode - Client clicked Book Now' : 'Client clicked Book Now'
         });
 
       if (error) {
@@ -186,9 +190,12 @@ export default function ViewOption() {
       try { (navigator as any).vibrate?.(10); } catch {}
     }
 
-    // Redirect to payment form
+    // Redirect to payment form with preview parameter preserved
     if (token) {
-      navigate(`/book/${token}?quote_id=${quoteId}`);
+      const bookUrl = isPreviewMode 
+        ? `/book/${token}?quote_id=${quoteId}&preview=true`
+        : `/book/${token}?quote_id=${quoteId}`;
+      navigate(bookUrl);
     }
   };
 
@@ -240,6 +247,13 @@ export default function ViewOption() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
+      {/* Preview Mode Banner */}
+      {isPreviewMode && (
+        <div className="bg-blue-600 text-white py-2 px-4 text-center text-sm font-medium sticky top-0 z-50">
+          🔍 PREVIEW MODE - This is a functional test of the booking flow for testing purposes
+        </div>
+      )}
+      
       {/* Header */}
       <div className="bg-background/95 backdrop-blur border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
