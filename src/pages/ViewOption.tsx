@@ -20,7 +20,7 @@ interface Quote {
   infants_count: number;
   segments: any[];
   valid_until?: string;
-  client_token: string;
+  client_token: string; // Required for SharedItineraryCard
 }
 
 interface Client {
@@ -60,38 +60,28 @@ export default function ViewOption() {
     try {
       setLoading(true);
       
-      // Fetch option review (new table)
+      // Use the new public access function that bypasses RLS
       const { data: reviewData, error: reviewError } = await supabase
-        .from('option_reviews')
-        .select('*')
-        .eq('client_token', token)
-        .single();
+        .rpc('get_option_review_for_booking', { p_client_token: token });
 
-      let finalReview: any = reviewData;
-
-      if (reviewError || !reviewData) {
-        console.error('Error fetching option review from option_reviews:', reviewError);
-        // Fallback: legacy table
-        const { data: legacyReview, error: legacyError } = await supabase
-          .from('client_option_reviews')
-          .select('*')
-          .eq('client_token', token)
-          .single();
-
-        if (legacyError || !legacyReview) {
-          setError('Option not found or has expired');
-          return;
-        }
-        finalReview = legacyReview;
+      if (reviewError) {
+        console.error('Error fetching option review:', reviewError);
+        setError('Option not found or has expired');
+        return;
       }
 
+      if (!reviewData || reviewData.length === 0) {
+        console.error('No option review found for token:', token);
+        setError('Option not found or has expired');
+        return;
+      }
+
+      const finalReview = reviewData[0];
       setOptionReview(finalReview);
 
-      // Fetch quotes
+      // Get quotes using the new function
       const { data: quotesData, error: quotesError } = await supabase
-        .from('quotes')
-        .select('*')
-        .in('id', (finalReview as any).quote_ids);
+        .rpc('get_quotes_for_booking', { p_quote_ids: finalReview.quote_ids });
 
       if (quotesError) {
         console.error('Error fetching quotes:', quotesError);
@@ -101,16 +91,14 @@ export default function ViewOption() {
 
       setQuotes((quotesData || []).map(quote => ({
         ...quote,
-        segments: Array.isArray(quote.segments) ? quote.segments : []
+        segments: Array.isArray(quote.segments) ? quote.segments : [],
+        client_token: finalReview.client_token // Add client_token from the review
       })));
 
-      // Fetch client data
+      // Get client data using the new function
       if (quotesData && quotesData.length > 0) {
         const { data: clientData, error: clientError } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', quotesData[0].client_id)
-          .single();
+          .rpc('get_client_for_booking', { p_client_id: quotesData[0].client_id });
 
         if (clientError) {
           console.error('Error fetching client:', clientError);
@@ -118,11 +106,13 @@ export default function ViewOption() {
           return;
         }
 
-        setClient(clientData);
+        if (clientData && clientData.length > 0) {
+          setClient(clientData[0]);
+        }
       }
 
     } catch (err: any) {
-      console.error('Error:', err);
+      console.error('Error:', err);  
       setError('Failed to load travel options');
     } finally {
       setLoading(false);

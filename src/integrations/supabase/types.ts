@@ -4279,6 +4279,20 @@ export type Database = {
           last_sensitive_update: string
         }[]
       }
+      get_client_for_booking: {
+        Args: { p_client_id: string }
+        Returns: {
+          company: string
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+          preferred_class: string
+          user_id: string
+        }[]
+      }
       get_client_sensitive: {
         Args: { p_client_id: string }
         Returns: {
@@ -4348,6 +4362,30 @@ export type Database = {
           token_used: boolean | null
           updated_at: string
           user_id: string
+        }[]
+      }
+      get_quotes_for_booking: {
+        Args: { p_quote_ids: string[] }
+        Returns: {
+          adults_count: number
+          children_count: number
+          client_id: string
+          created_at: string
+          fare_type: string
+          id: string
+          infants_count: number
+          markup: number
+          net_price: number
+          passenger_pricing: Json
+          request_id: string
+          route: string
+          segments: Json
+          status: string
+          total_price: number
+          total_segments: number
+          updated_at: string
+          user_id: string
+          valid_until: string
         }[]
       }
       get_request_details: {

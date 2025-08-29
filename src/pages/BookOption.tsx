@@ -55,40 +55,42 @@ export default function BookOption() {
         setLoading(true);
         console.log("🔍 Looking up token:", token, "Length:", token?.length);
         
+        // Use the new public access function that bypasses RLS
         const { data: reviewData, error: reviewError } = await supabase
-          .from("option_reviews")
-          .select("*")
-          .eq("client_token", token)
-          .maybeSingle();
+          .rpc('get_option_review_for_booking', { p_client_token: token });
         
         if (reviewError) {
           console.error("❌ Database error:", reviewError);
           throw reviewError;
         }
         
-        if (!reviewData) {
+        if (!reviewData || reviewData.length === 0) {
           console.error("❌ No option review found for token:", token);
           throw new Error("Booking option not found. The link may be invalid or expired.");
         }
         
-        console.log("✅ Found option review:", reviewData.id);
-        setReview(reviewData);
+        const review = reviewData[0];
+        console.log("✅ Found option review:", review.id);
+        setReview(review);
 
+        // Get quotes using the new function
         const { data: quotesData, error: quotesError } = await supabase
-          .from("quotes")
-          .select("*")
-          .in("id", reviewData.quote_ids);
+          .rpc('get_quotes_for_booking', { p_quote_ids: review.quote_ids });
         if (quotesError) throw quotesError;
-        setQuotes((quotesData || []).map((q) => ({ ...q, segments: Array.isArray(q.segments) ? q.segments : [] })));
+        setQuotes((quotesData || []).map((q) => ({ 
+          ...q, 
+          segments: Array.isArray(q.segments) ? q.segments : [],
+          client_token: review.client_token // Add client_token from the review
+        })));
 
+        // Get client data using the new function
         if (quotesData && quotesData.length > 0) {
           const { data: clientData, error: clientError } = await supabase
-            .from("clients")
-            .select("*")
-            .eq("id", quotesData[0].client_id)
-            .single();
+            .rpc('get_client_for_booking', { p_client_id: quotesData[0].client_id });
           if (clientError) throw clientError;
-          setClient(clientData);
+          if (clientData && clientData.length > 0) {
+            setClient(clientData[0]);
+          }
         }
       } catch (e: any) {
         console.error("Error loading booking option:", e);
