@@ -426,6 +426,10 @@ export default function UnifiedEmailBuilder({
         .replace(/\{\{UnsubscribeLink\}\}/g, 'mailto:support@selectbusinessclass.com?subject=Unsubscribe');
 
       const bookUrlBase = `${window.location.origin}/book/${clientToken}`;
+      
+      // Handle both ${BookLink} and {{BookLink:quoteId}} formats
+      finalEmailHTML = finalEmailHTML.replace(/\$\{BookLink\}/g, bookUrlBase);
+      
       selectedQuotes.forEach((qid) => {
         const re = new RegExp(`\\{\\{BookLink:${qid}\\}\\}`, 'g');
         finalEmailHTML = finalEmailHTML.replace(re, `${bookUrlBase}?quote_id=${qid}`);

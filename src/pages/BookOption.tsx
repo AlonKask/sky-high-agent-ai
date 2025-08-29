@@ -53,12 +53,25 @@ export default function BookOption() {
     (async () => {
       try {
         setLoading(true);
+        console.log("🔍 Looking up token:", token, "Length:", token?.length);
+        
         const { data: reviewData, error: reviewError } = await supabase
           .from("option_reviews")
           .select("*")
           .eq("client_token", token)
-          .single();
-        if (reviewError) throw reviewError;
+          .maybeSingle();
+        
+        if (reviewError) {
+          console.error("❌ Database error:", reviewError);
+          throw reviewError;
+        }
+        
+        if (!reviewData) {
+          console.error("❌ No option review found for token:", token);
+          throw new Error("Booking option not found. The link may be invalid or expired.");
+        }
+        
+        console.log("✅ Found option review:", reviewData.id);
         setReview(reviewData);
 
         const { data: quotesData, error: quotesError } = await supabase
