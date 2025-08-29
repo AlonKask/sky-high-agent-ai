@@ -21,7 +21,7 @@ const Reports = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="w-full">
       <AdvancedReporting />
     </div>
   );

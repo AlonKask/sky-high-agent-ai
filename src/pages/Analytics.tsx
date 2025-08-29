@@ -43,7 +43,7 @@ const Analytics = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="w-full">
       <ComprehensiveAnalytics />
     </div>
   );

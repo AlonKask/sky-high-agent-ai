@@ -17,7 +17,7 @@ const Clients = () => {
   }, [searchParams]);
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="w-full">
       <EnhancedClientManager />
     </div>
   );

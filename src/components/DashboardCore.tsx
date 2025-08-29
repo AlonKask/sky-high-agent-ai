@@ -121,7 +121,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
     switch (selectedViewRole) {
       case 'admin':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
             <Card className="card-elevated border-0 bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
                   onClick={() => navigate('/analytics')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -214,7 +214,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
 
       case 'manager':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
             <Card className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
                   onClick={() => navigate('/analytics?view=team-revenue&role=manager&metric=revenue')}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -267,7 +267,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
 
       default:
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
             <Card 
               className="card-elevated border-0 bg-gradient-to-br from-primary/10 to-primary/5 hover:shadow-large transition-all duration-200 cursor-pointer hover-scale"
               onClick={() => navigate("/clients")}
@@ -329,11 +329,11 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-6 lg:space-y-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 lg:mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-gradient">Business Travel Hub</h1>
+          <h1 className="text-3xl lg:text-4xl font-bold text-gradient">Business Travel Hub</h1>
           <p className="text-muted-foreground mt-2">
             {selectedViewRole === 'admin' ? 'System administration and monitoring' :
              selectedViewRole === 'manager' ? 'Team management and analytics' :
@@ -346,7 +346,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
 
       {/* Search and Filter Bar */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search clients, requests, or bookings..."
@@ -355,7 +355,7 @@ export const DashboardCore: React.FC<DashboardCoreProps> = ({
             className="pl-10"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm">
             <Filter className="h-4 w-4 mr-2" />
             Filters

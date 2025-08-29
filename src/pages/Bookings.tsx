@@ -21,7 +21,7 @@ const Bookings = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="w-full">
       <EnhancedBookingManager />
     </div>
   );

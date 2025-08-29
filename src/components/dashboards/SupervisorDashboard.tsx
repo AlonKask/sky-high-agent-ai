@@ -225,10 +225,10 @@ export const SupervisorDashboard = () => {
   const averageResponseTime = agents.length > 0 ? agents.reduce((sum, agent) => sum + agent.avg_response_time, 0) / agents.length : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Supervisor Dashboard</h1>
-        <div className="flex items-center gap-3">
+    <div className="w-full max-w-7xl mx-auto space-y-6 lg:space-y-8">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <h1 className="text-2xl lg:text-3xl font-bold">Supervisor Dashboard</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <AddAgentDialog onAgentAdded={() => window.location.reload()} />
           <Badge variant="default">
             Team Status: {onlineAgents}/{agents.length} Online
