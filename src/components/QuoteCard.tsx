@@ -563,7 +563,10 @@ export function QuoteCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleClone}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClone();
+                  }}
                 >
                   <Copy className="h-4 w-4 mr-2" />
                   Clone Quote
