@@ -20,18 +20,33 @@ interface SendEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Enhanced security: Origin validation - allow Lovable domains
+  // Enhanced security: Origin validation - allow Lovable domains with pattern matching
   const origin = req.headers.get('origin');
-  const allowedOrigins = [
-    'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
-    'https://sandbox.lovable.dev',
-    'http://localhost:5173', // For local development
-    'http://localhost:3000'
-  ];
   
-  if (origin && !allowedOrigins.includes(origin)) {
+  const isAllowedOrigin = (origin: string): boolean => {
+    if (!origin) return false;
+    
+    // Allow localhost for development
+    if (origin.startsWith('http://localhost:')) return true;
+    
+    // Allow Lovable domains with flexible subdomain matching
+    if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.sandbox\.lovable\.dev$/)) return true;
+    if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.lovableproject\.com$/)) return true;
+    if (origin === 'https://sandbox.lovable.dev') return true;
+    if (origin === 'https://lovable.dev') return true;
+    
+    return false;
+  };
+  
+  if (origin && !isAllowedOrigin(origin)) {
     console.log('Blocked origin:', origin);
-    return new Response('Forbidden', { status: 403 });
+    return new Response(
+      JSON.stringify({ error: 'CORS: Origin not allowed', origin }),
+      { 
+        status: 403, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
   }
 
   if (req.method === "OPTIONS") {
