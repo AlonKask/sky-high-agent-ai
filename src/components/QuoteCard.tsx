@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,8 @@ import {
   Clock,
   MapPin,
   DollarSign,
-  Users
+  Users,
+  Copy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -72,7 +72,7 @@ interface QuoteCardProps {
   isExpanded: boolean;
   onToggleExpanded: () => void;
   onToggleSelected?: (selected: boolean) => void;
-  onEdit: () => void;
+  onEdit: (isClone?: boolean) => void; // Updated to accept optional clone parameter
   onToggleVisibility: () => void;
   onDelete: () => void;
   onSendToEmail: () => void;
@@ -270,6 +270,11 @@ export function QuoteCard({
   // Get route display using the same logic as expanded view
   const { origin, destination } = getRouteDisplay(quote, parsedSegments);
 
+  // Clone handler - opens edit dialog with cloned data
+  const handleClone = () => {
+    onEdit(true); // Pass true to indicate this is a clone operation
+  };
+
   return (
     <Card className={cn(
       "transition-all duration-200 hover:shadow-md",
@@ -350,6 +355,19 @@ export function QuoteCard({
                   className="h-8 w-8 p-0"
                 >
                   <Edit className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClone();
+                  }}
+                  className="h-8 w-8 p-0"
+                  title="Clone Quote"
+                >
+                  <Copy className="h-4 w-4" />
                 </Button>
 
                 <Button
@@ -541,6 +559,14 @@ export function QuoteCard({
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Quote
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClone}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Clone Quote
                 </Button>
               </div>
             </div>
