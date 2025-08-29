@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Check, CreditCard, Shield, Plane, Users, MapPin } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Quote {
   id: string;
@@ -51,6 +53,7 @@ interface Passenger {
 
 const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBookingFormProps) => {
   const [currentStep, setCurrentStep] = useState(initialStep ?? 1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [passengers, setPassengers] = useState<Passenger[]>([
     {
       id: '1',
@@ -112,6 +115,77 @@ const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBooking
   const removePassenger = (id: string) => {
     if (passengers.length > 1) {
       setPassengers(passengers.filter(p => p.id !== id));
+    }
+  };
+
+  const validateForm = () => {
+    // Validate passengers
+    for (const passenger of passengers) {
+      if (!passenger.firstName || !passenger.lastName || !passenger.dateOfBirth || !passenger.gender || !passenger.nationality) {
+        toast.error("Please fill in all required passenger information");
+        return false;
+      }
+    }
+
+    // Validate contact details
+    if (!contactDetails.email || !contactDetails.phone) {
+      toast.error("Please fill in email and phone number");
+      return false;
+    }
+
+    // Validate payment details (even for manual processing, we collect this info)
+    if (!paymentDetails.cardholderName || !paymentDetails.billingAddress || !paymentDetails.city || !paymentDetails.zipCode || !paymentDetails.country) {
+      toast.error("Please fill in all billing information");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleBookingSubmission = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Calculate additional costs
+      const protectionCost = selectedProtection === 'basic' ? 49 : selectedProtection === 'premium' ? 89 : 0;
+      const flexibleCost = selectedFlexible === 'flexible' ? 75 : 0;
+      const finalPrice = quote.total_price + protectionCost + flexibleCost;
+
+      // Create booking via edge function
+      const response = await supabase.functions.invoke('create-booking', {
+        body: {
+          quote_id: quote.id,
+          client_id: client.id,
+          passengers,
+          contact_details: contactDetails,
+          payment_details: paymentDetails,
+          selected_protection: selectedProtection,
+          selected_flexible: selectedFlexible,
+          final_price: finalPrice,
+          protection_cost: protectionCost,
+          flexible_cost: flexibleCost
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to create booking');
+      }
+
+      const { booking_id } = response.data;
+      
+      toast.success("Booking created successfully! You will receive a confirmation email shortly.");
+      
+      // Redirect to success page
+      window.location.href = `/booking-success/${booking_id}`;
+      
+    } catch (error: any) {
+      console.error('Booking submission error:', error);
+      toast.error(error.message || "Failed to create booking. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -542,14 +616,14 @@ const ClientBookingForm = ({ quote, client, onBack, initialStep }: ClientBooking
         <Button 
           onClick={() => {
             if (currentStep === 3) {
-              // Handle booking submission
-              // Booking submitted successfully
+              handleBookingSubmission();
             } else {
               setCurrentStep(Math.min(3, currentStep + 1));
             }
           }}
+          disabled={isSubmitting}
         >
-          {currentStep === 3 ? 'Complete Booking' : 'Next'}
+          {currentStep === 3 ? (isSubmitting ? 'Creating Booking...' : 'Complete Booking') : 'Next'}
         </Button>
       </div>
     </div>

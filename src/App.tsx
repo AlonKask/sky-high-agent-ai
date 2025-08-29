@@ -32,6 +32,7 @@ const AgentStatistics = lazy(() => import("./pages/AgentStatistics"));
 const OptionsRedirect = lazy(() => import("./pages/OptionsRedirect"));
 const ViewOption = lazy(() => import("./pages/ViewOption"));
 const BookOption = lazy(() => import("./pages/BookOption"));
+const BookingSuccess = lazy(() => import("./pages/BookingSuccess"));
 const PublicRequest = lazy(() => import("./pages/PublicRequest"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -72,6 +73,7 @@ function App() {
                     <Route path="/options/:token" element={<OptionsRedirect />} />
                     <Route path="/view-option/:token" element={<ViewOption />} />
                     <Route path="/book/:token" element={<BookOption />} />
+                    <Route path="/booking-success/:bookingId" element={<BookingSuccess />} />
                     <Route path="/public-request" element={<PublicRequest />} />
                     
                      {/* Protected routes */}
