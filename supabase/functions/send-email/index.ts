@@ -3,7 +3,7 @@ import { encodeBase64, decodeBase64 } from "jsr:@std/encoding/base64";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -20,9 +20,17 @@ interface SendEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Enhanced security: Origin validation
+  // Enhanced security: Origin validation - allow Lovable domains
   const origin = req.headers.get('origin');
-  if (origin && origin !== 'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com') {
+  const allowedOrigins = [
+    'https://b7f1977e-e173-476b-99ff-3f86c3c87e08.lovableproject.com',
+    'https://sandbox.lovable.dev',
+    'http://localhost:5173', // For local development
+    'http://localhost:3000'
+  ];
+  
+  if (origin && !allowedOrigins.includes(origin)) {
+    console.log('Blocked origin:', origin);
     return new Response('Forbidden', { status: 403 });
   }
 
@@ -84,7 +92,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get encrypted Gmail credentials
     const { data: gmailCreds } = await supabaseClient
       .from('gmail_credentials')
-      .select('access_token_encrypted, gmail_user_email')
+      .select('access_token_encrypted, refresh_token_encrypted, gmail_user_email, token_expires_at')
       .eq('user_id', user.id)
       .single();
 
@@ -112,6 +120,96 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: 'Failed to decrypt Gmail credentials' }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    let accessToken = decryptedData;
+
+    // Check if token needs refresh (if expires within 5 minutes)
+    const tokenExpiresAt = new Date(gmailCreds.token_expires_at || 0);
+    const now = new Date();
+    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+    if (tokenExpiresAt <= fiveMinutesFromNow) {
+      console.log('Access token expired or expiring soon, attempting refresh...');
+      
+      if (!gmailCreds.refresh_token_encrypted) {
+        console.error('No refresh token available');
+        return new Response(
+          JSON.stringify({ error: 'Gmail token expired and no refresh token available. Please reconnect Gmail.' }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Decrypt refresh token
+      const { data: refreshToken, error: refreshDecryptError } = await serviceRoleClient.rpc(
+        'decrypt_gmail_token',
+        { encrypted_token: gmailCreds.refresh_token_encrypted }
+      );
+
+      if (refreshDecryptError || !refreshToken) {
+        console.error('Failed to decrypt refresh token:', refreshDecryptError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to decrypt Gmail refresh token' }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Refresh the access token
+      try {
+        const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: Deno.env.get('GOOGLE_CLIENT_ID') || '',
+            client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+          }),
+        });
+
+        if (!refreshResponse.ok) {
+          const errorData = await refreshResponse.text();
+          console.error('Token refresh failed:', errorData);
+          return new Response(
+            JSON.stringify({ error: 'Failed to refresh Gmail token. Please reconnect Gmail.' }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const refreshData = await refreshResponse.json();
+        accessToken = refreshData.access_token;
+
+        // Update the database with new token
+        const newExpiresAt = new Date(now.getTime() + (refreshData.expires_in * 1000));
+        
+        // Encrypt new access token
+        const { data: encryptedNewToken, error: encryptError } = await serviceRoleClient.rpc(
+          'encrypt_gmail_token',
+          { token_to_encrypt: accessToken }
+        );
+
+        if (!encryptError && encryptedNewToken) {
+          await serviceRoleClient
+            .from('gmail_credentials')
+            .update({
+              access_token_encrypted: encryptedNewToken,
+              token_expires_at: newExpiresAt.toISOString(),
+              updated_at: now.toISOString()
+            })
+            .eq('user_id', user.id);
+          
+          console.log('Successfully refreshed and updated Gmail token');
+        }
+
+      } catch (refreshError: any) {
+        console.error('Error refreshing token:', refreshError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to refresh Gmail token. Please reconnect Gmail.' }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Configure sender information using selectbusinessclass.com domain
@@ -164,7 +262,7 @@ const handler = async (req: Request): Promise<Response> => {
     const gmailResponse = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${decryptedData}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
