@@ -187,50 +187,50 @@ const EnhancedEmailInterface = ({
     let filtered = [...allEmails];
     const beforeCount = filtered.length;
 
-    // Apply folder filter - handle null/undefined boolean values properly
+    // Apply folder filter - use direct boolean comparisons (DB returns proper booleans)
     switch (selectedFolder) {
       case 'inbox':
         filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_archived ?? false) === false && 
+          !email.is_deleted && 
+          !email.is_archived && 
           email.direction === 'inbound' && 
           email.folder_name !== 'sent'
         );
         break;
       case 'sent':
         filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_archived ?? false) === false && 
+          !email.is_deleted && 
+          !email.is_archived && 
           (email.direction === 'outbound' || email.folder_name === 'sent')
         );
         break;
       case 'drafts':
         filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_draft ?? false) === true
+          !email.is_deleted && 
+          email.is_draft === true
         );
         break;
       case 'archive':
         filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_archived ?? false) === true
+          !email.is_deleted && 
+          email.is_archived === true
         );
         break;
       case 'trash':
         filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === true
+          email.is_deleted === true
         );
         break;
       case 'starred':
         filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_starred ?? false) === true
+          !email.is_deleted && 
+          email.is_starred === true
         );
         break;
       case 'unread':
         filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_read ?? true) === false
+          !email.is_deleted && 
+          email.is_read === false
         );
         break;
     }
@@ -243,6 +243,8 @@ const EnhancedEmailInterface = ({
         subject: e.subject,
         is_deleted: e.is_deleted,
         is_archived: e.is_archived,
+        is_draft: e.is_draft,
+        is_read: e.is_read,
         direction: e.direction,
         folder_name: e.folder_name
       }))
