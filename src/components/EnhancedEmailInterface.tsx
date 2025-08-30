@@ -278,6 +278,16 @@ const EnhancedEmailInterface = ({
 
       // Atomic state update - this completes the entire operation
       setEmails(filtered);
+      
+      // Auto-select first email if none selected and emails exist
+      if (filtered.length > 0 && !selectedEmailId) {
+        setSelectedEmailId(filtered[0].id);
+      }
+      // Clear selection if selected email is no longer in filtered results
+      else if (selectedEmailId && !filtered.some(email => email.id === selectedEmailId)) {
+        setSelectedEmailId(filtered.length > 0 ? filtered[0].id : null);
+      }
+      
       setIsReady(true);
       
     } catch (error) {

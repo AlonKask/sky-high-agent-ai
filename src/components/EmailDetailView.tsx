@@ -74,8 +74,8 @@ interface EmailDetailViewProps {
       <div className="flex-1 flex items-center justify-center bg-muted/20">
         <div className="text-center text-muted-foreground">
           <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-medium mb-2">No Email Selected</h3>
-          <p className="text-sm">Select an email from the list to view its contents</p>
+          <h3 className="text-lg font-medium mb-2">Select an Email</h3>
+          <p className="text-sm">Choose an email from the list on the left to read its contents</p>
         </div>
       </div>
     );
