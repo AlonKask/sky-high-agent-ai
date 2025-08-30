@@ -174,9 +174,8 @@ const EnhancedEmailInterface = ({
         case 'inbox':
           filtered = filtered.filter(email => 
             (email.is_deleted ?? false) === false && 
-            (email.is_archived ?? false) === false && 
-            email.direction === 'inbound' && 
-            email.folder_name !== 'sent'
+            (email.is_archived ?? false) === false &&
+            (email.is_draft ?? false) === false
           );
           break;
         case 'sent':
@@ -650,7 +649,7 @@ const EnhancedEmailInterface = ({
                   </div>
                 </div>
               </div>
-            ) : emails.length === 0 && allEmails.length === 0 ? (
+            ) : allEmails.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
                   <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
@@ -659,7 +658,7 @@ const EnhancedEmailInterface = ({
                     {authStatus.isConnected ? (
                       <div className="space-y-3">
                         <p className="text-muted-foreground text-sm">
-                          Your Gmail is connected. Emails sync automatically in real-time.
+                          Your Gmail is connected. Sync in progress...
                         </p>
                         {isAutoSyncing && (
                           <div className="flex items-center justify-center gap-2 text-sm">
@@ -667,9 +666,6 @@ const EnhancedEmailInterface = ({
                             <span>Syncing your emails...</span>
                           </div>
                         )}
-                        <p className="text-xs text-muted-foreground">
-                          No manual sync needed - emails appear automatically
-                        </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
