@@ -96,16 +96,17 @@ const EnhancedEmailInterface = ({
   const { authStatus, triggerSync } = useGmailIntegration();
   const { createReplyDraft, createForwardDraft, archiveEmail, deleteEmail } = useEmailActions();
 
-  // Enhanced email fetching with better error handling
+  // Enhanced email fetching with atomic filtering
   const fetchEmails = useCallback(async () => {
     if (!user) {
-      setIsReady(true);
       setAllEmails([]);
       setEmails([]);
+      setIsReady(true);
       return;
     }
 
     setIsReady(false);
+    
     try {
       let query = supabase
         .from('email_exchanges')
@@ -135,6 +136,8 @@ const EnhancedEmailInterface = ({
           variant: "destructive",
         });
         setAllEmails([]);
+        setEmails([]);
+        setIsReady(true);
         return;
       }
 
@@ -145,7 +148,9 @@ const EnhancedEmailInterface = ({
         direction: email.direction as 'inbound' | 'outbound'
       }));
 
+      // Set all emails and immediately apply filtering atomically
       setAllEmails(formattedEmails);
+      applyFiltering(formattedEmails);
       
     } catch (error: any) {
       toast({
@@ -154,124 +159,124 @@ const EnhancedEmailInterface = ({
         variant: "destructive",
       });
       setAllEmails([]);
-      setIsReady(true); // Set ready even on error to prevent stuck loading
+      setEmails([]);
+      setIsReady(true);
     }
-    // Note: isReady will be set by filterEmails after this completes
   }, [user, clientId, clientEmail, authStatus.isConnected]);
 
-  // Filter and search emails with null-safe boolean handling
-  const filterEmails = useCallback(() => {    
+  // Apply filtering logic (separated for reuse)
+  const applyFiltering = useCallback((emailsToFilter: EmailExchange[]) => {    
     try {
-      let filtered = [...allEmails];
+      let filtered = [...emailsToFilter];
 
-    // Apply folder filter with proper null coalescing for boolean fields
-    switch (selectedFolder) {
-      case 'inbox':
-        filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_archived ?? false) === false && 
-          email.direction === 'inbound' && 
-          email.folder_name !== 'sent'
-        );
-        break;
-      case 'sent':
-        filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_archived ?? false) === false && 
-          (email.direction === 'outbound' || email.folder_name === 'sent')
-        );
-        break;
-      case 'drafts':
-        filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_draft ?? false) === true
-        );
-        break;
-      case 'archive':
-        filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_archived ?? false) === true
-        );
-        break;
-      case 'trash':
-        filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === true
-        );
-        break;
-      case 'starred':
-        filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_starred ?? false) === true
-        );
-        break;
-      case 'unread':
-        filtered = filtered.filter(email => 
-          (email.is_deleted ?? false) === false && 
-          (email.is_read ?? true) === false
-        );
-        break;
-    }
-
-    // Apply search filter
-    if (listSearchTerm) {
-      const searchLower = listSearchTerm.toLowerCase();
-      filtered = filtered.filter(email => 
-        email.subject.toLowerCase().includes(searchLower) ||
-        email.body.toLowerCase().includes(searchLower) ||
-        email.sender_email.toLowerCase().includes(searchLower) ||
-        email.recipient_emails.some(recipient => 
-          recipient.toLowerCase().includes(searchLower)
-        )
-      );
-    }
-
-    // Apply date filter
-    if (dateFilter !== 'all') {
-      const now = new Date();
-      let cutoffDate = new Date();
-      
-      switch (dateFilter) {
-        case 'today':
-          cutoffDate.setHours(0, 0, 0, 0);
+      // Apply folder filter with proper null coalescing for boolean fields
+      switch (selectedFolder) {
+        case 'inbox':
+          filtered = filtered.filter(email => 
+            (email.is_deleted ?? false) === false && 
+            (email.is_archived ?? false) === false && 
+            email.direction === 'inbound' && 
+            email.folder_name !== 'sent'
+          );
           break;
-        case 'week':
-          cutoffDate.setDate(now.getDate() - 7);
+        case 'sent':
+          filtered = filtered.filter(email => 
+            (email.is_deleted ?? false) === false && 
+            (email.is_archived ?? false) === false && 
+            (email.direction === 'outbound' || email.folder_name === 'sent')
+          );
           break;
-        case 'month':
-          cutoffDate.setMonth(now.getMonth() - 1);
+        case 'drafts':
+          filtered = filtered.filter(email => 
+            (email.is_deleted ?? false) === false && 
+            (email.is_draft ?? false) === true
+          );
           break;
-        case 'quarter':
-          cutoffDate.setMonth(now.getMonth() - 3);
+        case 'archive':
+          filtered = filtered.filter(email => 
+            (email.is_deleted ?? false) === false && 
+            (email.is_archived ?? false) === true
+          );
+          break;
+        case 'trash':
+          filtered = filtered.filter(email => 
+            (email.is_deleted ?? false) === true
+          );
+          break;
+        case 'starred':
+          filtered = filtered.filter(email => 
+            (email.is_deleted ?? false) === false && 
+            (email.is_starred ?? false) === true
+          );
+          break;
+        case 'unread':
+          filtered = filtered.filter(email => 
+            (email.is_deleted ?? false) === false && 
+            (email.is_read ?? true) === false
+          );
           break;
       }
-      
-      filtered = filtered.filter(email => 
-        new Date(email.created_at) >= cutoffDate
-      );
-    }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'date_asc':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'date_desc':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'subject':
-          return a.subject.localeCompare(b.subject);
-        case 'sender':
-          return a.sender_email.localeCompare(b.sender_email);
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      // Apply search filter
+      if (listSearchTerm) {
+        const searchLower = listSearchTerm.toLowerCase();
+        filtered = filtered.filter(email => 
+          email.subject.toLowerCase().includes(searchLower) ||
+          email.body.toLowerCase().includes(searchLower) ||
+          email.sender_email.toLowerCase().includes(searchLower) ||
+          email.recipient_emails.some(recipient => 
+            recipient.toLowerCase().includes(searchLower)
+          )
+        );
       }
-    });
 
-      // Debug logging for development (remove in production)
+      // Apply date filter
+      if (dateFilter !== 'all') {
+        const now = new Date();
+        let cutoffDate = new Date();
+        
+        switch (dateFilter) {
+          case 'today':
+            cutoffDate.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            cutoffDate.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            cutoffDate.setMonth(now.getMonth() - 1);
+            break;
+          case 'quarter':
+            cutoffDate.setMonth(now.getMonth() - 3);
+            break;
+        }
+        
+        filtered = filtered.filter(email => 
+          new Date(email.created_at) >= cutoffDate
+        );
+      }
+
+      // Apply sorting
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'date_asc':
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          case 'date_desc':
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          case 'subject':
+            return a.subject.localeCompare(b.subject);
+          case 'sender':
+            return a.sender_email.localeCompare(b.sender_email);
+          default:
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+      });
+
+      // Debug logging for development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`📧 Filtering Debug - Folder: ${selectedFolder}, Total: ${allEmails.length}, Filtered: ${filtered.length}`);
+        console.log(`📧 Filtering Complete - Folder: ${selectedFolder}, Total: ${emailsToFilter.length}, Filtered: ${filtered.length}`);
       }
 
-      // Atomic state update to prevent race conditions
+      // Atomic state update - this completes the entire operation
       setEmails(filtered);
       setIsReady(true);
       
@@ -280,7 +285,7 @@ const EnhancedEmailInterface = ({
       setEmails([]);
       setIsReady(true);
     }
-  }, [allEmails, selectedFolder, listSearchTerm, dateFilter, sortBy]);
+  }, [selectedFolder, listSearchTerm, dateFilter, sortBy]);
 
   // Email selection handlers
   const handleEmailSelect = (emailId: string) => {
@@ -435,14 +440,17 @@ const EnhancedEmailInterface = ({
     }
   };
 
-  // Effects
+  // Effects - Fixed race condition with single source of truth
   useEffect(() => {
     fetchEmails();
   }, [fetchEmails, refreshKey]);
 
+  // Re-apply filtering when filter criteria change (but only if data exists)
   useEffect(() => {
-    filterEmails();
-  }, [filterEmails]);
+    if (allEmails.length > 0) {
+      applyFiltering(allEmails);
+    }
+  }, [selectedFolder, listSearchTerm, dateFilter, sortBy, applyFiltering]);
 
   // Listen for Gmail sync completion to refresh emails
   useEffect(() => {
