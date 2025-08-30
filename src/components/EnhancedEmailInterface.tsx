@@ -153,6 +153,7 @@ const EnhancedEmailInterface = ({
       }));
 
       setAllEmails(formattedEmails);
+      console.log("🔄 setAllEmails called with", formattedEmails.length, "emails");
       
       // If no emails found and Gmail is connected, provide helpful message
       if (emailCount === 0) {
@@ -186,6 +187,18 @@ const EnhancedEmailInterface = ({
 
     let filtered = [...allEmails];
     const beforeCount = filtered.length;
+    
+    console.log("📊 Before filtering:", {
+      totalEmails: beforeCount,
+      sampleEmail: allEmails[0] ? {
+        id: allEmails[0].id,
+        subject: allEmails[0].subject,
+        direction: allEmails[0].direction,
+        is_deleted: allEmails[0].is_deleted,
+        is_archived: allEmails[0].is_archived,
+        folder_name: allEmails[0].folder_name
+      } : null
+    });
 
     // Apply folder filter - use direct boolean comparisons (DB returns proper booleans)
     switch (selectedFolder) {
@@ -304,7 +317,19 @@ const EnhancedEmailInterface = ({
       }
     });
 
+    console.log("✅ Email filtering completed:", {
+      beforeCount,
+      afterCount: filtered.length,
+      selectedFolder,
+      firstEmail: filtered[0] ? {
+        id: filtered[0].id,
+        subject: filtered[0].subject,
+        direction: filtered[0].direction
+      } : null
+    });
+
     setEmails(filtered);
+    console.log("🔄 setEmails called with", filtered.length, "emails");
   }, [allEmails, selectedFolder, listSearchTerm, dateFilter, sortBy]);
 
   // Email selection handlers
@@ -462,10 +487,17 @@ const EnhancedEmailInterface = ({
 
   // Effects
   useEffect(() => {
+    console.log("🔄 fetchEmails useEffect triggered", { user: !!user, refreshKey });
     fetchEmails();
   }, [fetchEmails, refreshKey]);
 
   useEffect(() => {
+    console.log("🔄 filterEmails useEffect triggered", { 
+      allEmailsLength: allEmails.length, 
+      selectedFolder, 
+      listSearchTerm,
+      currentEmailsLength: emails.length 
+    });
     filterEmails();
   }, [filterEmails]);
 
@@ -650,7 +682,15 @@ const EnhancedEmailInterface = ({
             <>
               {/* Email List */}
               <ResizablePanel defaultSize={50} minSize={30} className="h-full">
-                {emails.length === 0 && !isLoading ? (
+                 {(() => {
+                   console.log("🎨 Rendering check:", { 
+                     emailsLength: emails.length, 
+                     isLoading,
+                     allEmailsLength: allEmails.length,
+                     showEmpty: emails.length === 0 && !isLoading
+                   });
+                   return emails.length === 0 && !isLoading;
+                 })() ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
                   <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
