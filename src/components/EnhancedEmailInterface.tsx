@@ -617,26 +617,28 @@ const EnhancedEmailInterface = ({
         </div>
 
         {/* Resizable Email Panels */}
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
+        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
           {/* Analytics Tab */}
           {selectedFolder === 'analytics' ? (
-            <div className="flex-1 p-6">
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold">Email Analytics</h2>
-                  <p className="text-muted-foreground">Performance insights and AI-powered recommendations</p>
-                </div>
-                <div className="text-center py-12">
-                  <BarChart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Analytics Coming Soon</h3>
-                  <p className="text-muted-foreground">Advanced email analytics and AI insights will be available here.</p>
+            <ResizablePanel defaultSize={100} className="h-full overflow-auto">
+              <div className="flex-1 p-6 h-full">
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold">Email Analytics</h2>
+                    <p className="text-muted-foreground">Performance insights and AI-powered recommendations</p>
+                  </div>
+                  <div className="text-center py-12">
+                    <BarChart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Analytics Coming Soon</h3>
+                    <p className="text-muted-foreground">Advanced email analytics and AI insights will be available here.</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </ResizablePanel>
           ) : (
             <>
               {/* Email List */}
-              <ResizablePanel defaultSize={50} minSize={30} className="h-full">
+              <ResizablePanel defaultSize={40} minSize={25} className="h-full overflow-hidden">
                 {!isReady ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
@@ -698,7 +700,7 @@ const EnhancedEmailInterface = ({
           <ResizableHandle withHandle />
 
           {/* Email Detail */}
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize={60} minSize={35} className="h-full overflow-hidden">
             <EmailDetailView
               email={selectedEmail}
               clientId={clientId}
