@@ -555,7 +555,10 @@ export function QuoteCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onEdit}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit();
+                  }}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Quote

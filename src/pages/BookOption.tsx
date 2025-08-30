@@ -67,30 +67,44 @@ export default function BookOption() {
   );
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      console.error("❌ BookOption: No token provided in URL");
+      setError("Invalid booking link - no token provided");
+      setLoading(false);
+      return;
+    }
+    
+    if (!/^[0-9a-f]{64}$/.test(token)) {
+      console.error("❌ BookOption: Invalid token format:", token);
+      setError("Invalid booking link format - token format is incorrect");
+      setLoading(false);
+      return;
+    }
+    
     (async () => {
       try {
         setLoading(true);
-        console.log("🔍 BookOption: Looking up token:", token, "Length:", token?.length, "Format valid:", /^[0-9a-f]{64}$/.test(token || ''));
+        console.log("🔍 BookOption: Processing token:", token, "Preview mode:", isPreviewMode);
         
         // Use the comprehensive function that returns all needed data
         const { data: bookingData, error: bookingError } = await supabase
           .rpc('get_option_review_for_booking', { p_client_token: token });
         
-        console.log("📋 BookOption: Booking query result:", { 
+        console.log("📋 BookOption: Database query result:", { 
           hasData: !!bookingData, 
           dataLength: bookingData?.length || 0, 
-          error: bookingError?.message || null 
+          error: bookingError?.message || null,
+          tokenUsed: token
         });
         
         if (bookingError) {
           console.error("❌ BookOption: Database error:", bookingError);
-          throw bookingError;
+          throw new Error(`Database error: ${bookingError.message}`);
         }
         
         if (!bookingData || bookingData.length === 0) {
-          console.error("❌ BookOption: No booking found for token:", token);
-          throw new Error("Booking option not found. The link may be invalid or expired.");
+          console.error("❌ BookOption: No booking found for token:", token, "Query returned:", bookingData);
+          throw new Error("Booking option not found. The link may be invalid or expired. Please check the URL or contact support.");
         }
         
         const booking = bookingData[0];
@@ -140,8 +154,10 @@ export default function BookOption() {
         console.log("✅ BookOption: Client loaded:", clientData.first_name, clientData.last_name);
         
       } catch (e: any) {
-        console.error("Error loading booking option:", e);
-        setError("Unable to load booking page. The link may be invalid or expired.");
+        console.error("❌ BookOption: Error loading booking option:", e);
+        console.error("❌ BookOption: Token that failed:", token);
+        console.error("❌ BookOption: URL params:", { token, preview: isPreviewMode, quote_id: selectedQuoteId });
+        setError(e.message || "Unable to load booking page. The link may be invalid or expired.");
       } finally {
         setLoading(false);
       }
@@ -185,8 +201,8 @@ export default function BookOption() {
             <p className="text-muted-foreground">{error || "This booking link is not valid anymore."}</p>
             <Button onClick={() => {
               const backUrl = isPreviewMode 
-                ? `/view/${token}?preview=true`
-                : `/view/${token}`;
+                ? `/view-option/${token}?preview=true`
+                : `/view-option/${token}`;
               navigate(backUrl);
             }}>Back to Options</Button>
           </CardContent>
@@ -210,8 +226,8 @@ export default function BookOption() {
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => {
               const backUrl = isPreviewMode 
-                ? `/view/${token}?preview=true`
-                : `/view/${token}`;
+                ? `/view-option/${token}?preview=true`
+                : `/view-option/${token}`;
               navigate(backUrl);
             }}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back
@@ -246,7 +262,7 @@ export default function BookOption() {
             <ClientBookingForm
               quote={selectedQuote as any}
               client={client as any}
-              onBack={() => navigate(`/view/${token}`)}
+              onBack={() => navigate(`/view-option/${token}`)}
               initialStep={1}
             />
           </div>
