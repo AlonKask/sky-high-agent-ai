@@ -178,43 +178,75 @@ const EnhancedEmailInterface = ({
 
   // Filter and search emails
   const filterEmails = useCallback(() => {
-    let filtered = [...allEmails];
+    console.log("🔍 Email filtering started:", {
+      totalEmails: allEmails.length,
+      selectedFolder,
+      searchTerm: listSearchTerm
+    });
 
-    // Apply folder filter - use actual database fields
+    let filtered = [...allEmails];
+    const beforeCount = filtered.length;
+
+    // Apply folder filter - handle null/undefined boolean values properly
     switch (selectedFolder) {
       case 'inbox':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          !email.is_archived && 
+          (email.is_deleted ?? false) === false && 
+          (email.is_archived ?? false) === false && 
           email.direction === 'inbound' && 
           email.folder_name !== 'sent'
         );
         break;
       case 'sent':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          !email.is_archived && 
+          (email.is_deleted ?? false) === false && 
+          (email.is_archived ?? false) === false && 
           (email.direction === 'outbound' || email.folder_name === 'sent')
         );
         break;
       case 'drafts':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          email.is_draft === true
+          (email.is_deleted ?? false) === false && 
+          (email.is_draft ?? false) === true
         );
         break;
       case 'archive':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          email.is_archived === true
+          (email.is_deleted ?? false) === false && 
+          (email.is_archived ?? false) === true
         );
         break;
       case 'trash':
         filtered = filtered.filter(email => 
-          email.is_deleted === true
+          (email.is_deleted ?? false) === true
+        );
+        break;
+      case 'starred':
+        filtered = filtered.filter(email => 
+          (email.is_deleted ?? false) === false && 
+          (email.is_starred ?? false) === true
+        );
+        break;
+      case 'unread':
+        filtered = filtered.filter(email => 
+          (email.is_deleted ?? false) === false && 
+          (email.is_read ?? true) === false
         );
         break;
     }
+
+    console.log("📊 After folder filter:", {
+      folder: selectedFolder,
+      beforeCount,
+      afterCount: filtered.length,
+      sampleEmails: filtered.slice(0, 3).map(e => ({
+        subject: e.subject,
+        is_deleted: e.is_deleted,
+        is_archived: e.is_archived,
+        direction: e.direction,
+        folder_name: e.folder_name
+      }))
+    });
 
     // Apply search filter
     if (listSearchTerm) {
