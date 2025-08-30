@@ -69,11 +69,10 @@ const EnhancedEmailInterface = ({
   clientId, 
   requestId 
 }: EnhancedEmailInterfaceProps) => {
-  // Core state
+  // Core state - Fixed race condition with single ready state
   const [emails, setEmails] = useState<EmailExchange[]>([]);
   const [allEmails, setAllEmails] = useState<EmailExchange[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFiltering, setIsFiltering] = useState(false);
+  const [isReady, setIsReady] = useState(false); // Single state to track if data is ready
   const [refreshKey, setRefreshKey] = useState(0);
 
   // UI state
@@ -100,11 +99,13 @@ const EnhancedEmailInterface = ({
   // Enhanced email fetching with better error handling
   const fetchEmails = useCallback(async () => {
     if (!user) {
-      setIsLoading(false);
+      setIsReady(true);
+      setAllEmails([]);
+      setEmails([]);
       return;
     }
 
-    setIsLoading(true);
+    setIsReady(false);
     try {
       let query = supabase
         .from('email_exchanges')
@@ -153,16 +154,15 @@ const EnhancedEmailInterface = ({
         variant: "destructive",
       });
       setAllEmails([]);
-    } finally {
-      // Don't set isLoading false here - wait for filtering to complete
+      setIsReady(true); // Set ready even on error to prevent stuck loading
     }
+    // Note: isReady will be set by filterEmails after this completes
   }, [user, clientId, clientEmail, authStatus.isConnected]);
 
   // Filter and search emails with null-safe boolean handling
-  const filterEmails = useCallback(() => {
-    setIsFiltering(true);
-    
-    let filtered = [...allEmails];
+  const filterEmails = useCallback(() => {    
+    try {
+      let filtered = [...allEmails];
 
     // Apply folder filter with proper null coalescing for boolean fields
     switch (selectedFolder) {
@@ -266,14 +266,20 @@ const EnhancedEmailInterface = ({
       }
     });
 
-    // Debug logging for development (remove in production)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 Filtering Debug - Folder: ${selectedFolder}, Total: ${allEmails.length}, Filtered: ${filtered.length}`);
-    }
+      // Debug logging for development (remove in production)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📧 Filtering Debug - Folder: ${selectedFolder}, Total: ${allEmails.length}, Filtered: ${filtered.length}`);
+      }
 
-    setEmails(filtered);
-    setIsFiltering(false);
-    setIsLoading(false); // Complete both operations
+      // Atomic state update to prevent race conditions
+      setEmails(filtered);
+      setIsReady(true);
+      
+    } catch (error) {
+      console.error('Error filtering emails:', error);
+      setEmails([]);
+      setIsReady(true);
+    }
   }, [allEmails, selectedFolder, listSearchTerm, dateFilter, sortBy]);
 
   // Email selection handlers
@@ -614,7 +620,19 @@ const EnhancedEmailInterface = ({
             <>
               {/* Email List */}
               <ResizablePanel defaultSize={50} minSize={30} className="h-full">
-                {emails.length === 0 && !isLoading && !isFiltering && allEmails.length === 0 ? (
+                {!isReady ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-4 p-8 max-w-md mx-auto">
+                  <RefreshCw className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold">Loading emails...</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Fetching and processing your emails...
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : emails.length === 0 && allEmails.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
                   <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
@@ -654,7 +672,7 @@ const EnhancedEmailInterface = ({
                 onEmailSelect={handleEmailSelect}
                 onEmailCheck={handleEmailCheck}
                 onSelectAll={handleSelectAll}
-                isLoading={isLoading || isFiltering}
+                isLoading={!isReady}
                 searchTerm={listSearchTerm}
                 onSearchChange={setListSearchTerm}
                 onEmailsUpdated={() => setRefreshKey(prev => prev + 1)}
