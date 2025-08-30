@@ -538,9 +538,9 @@ const EnhancedEmailInterface = ({
   const selectedEmail = emails.find(email => email.id === selectedEmailId) || null;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full w-full max-w-full overflow-hidden flex flex-col">
       {/* Header Controls */}
-      <div className="p-2 border-b flex items-center justify-between">
+      <div className="flex-shrink-0 p-3 border-b flex items-center justify-between bg-background">
         <Button
           variant="ghost"
           size="sm"
@@ -552,13 +552,13 @@ const EnhancedEmailInterface = ({
           ) : (
             <PanelLeftClose className="h-4 w-4" />
           )}
-          {sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+          {sidebarCollapsed ? 'Show Filters' : 'Hide Filters'}
         </Button>
         
         <div className="flex items-center gap-2">
           <GmailStatusButton />
           
-          {/* PHASE 4 FIX: Enhanced sync status with error display */}
+          {/* Enhanced sync status with error display */}
           <div className="flex items-center gap-2">
             {authStatus.isConnected && isAutoSyncing && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -598,123 +598,124 @@ const EnhancedEmailInterface = ({
         </div>
       </div>
 
-      {/* Main Interface */}
-      <div className="flex flex-1">
-        {/* Fixed Sidebar */}
-        <div className={`border-r transition-all duration-200 ${
-          sidebarCollapsed ? 'w-16' : 'w-64'
-        }`}>
-          <EmailSidebar
-            selectedFolder={selectedFolder}
-            onFolderSelect={setSelectedFolder}
-            dateFilter={dateFilter}
-            onDateFilterChange={setDateFilter}
-            sortBy={sortBy}
-            onSortByChange={setSortBy}
-            onCompose={() => setIsComposerOpen(true)}
-            isCollapsed={sidebarCollapsed}
-          />
-        </div>
-
-        {/* Resizable Email Panels */}
-        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-          {/* Analytics Tab */}
-          {selectedFolder === 'analytics' ? (
-            <ResizablePanel defaultSize={100} className="h-full overflow-auto">
-              <div className="flex-1 p-6 h-full">
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-2xl font-bold">Email Analytics</h2>
-                    <p className="text-muted-foreground">Performance insights and AI-powered recommendations</p>
-                  </div>
-                  <div className="text-center py-12">
-                    <BarChart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Analytics Coming Soon</h3>
-                    <p className="text-muted-foreground">Advanced email analytics and AI insights will be available here.</p>
-                  </div>
-                </div>
-              </div>
-            </ResizablePanel>
-          ) : (
-            <>
-              {/* Email List */}
-              <ResizablePanel defaultSize={40} minSize={25} className="h-full overflow-hidden">
-                {!isReady ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center space-y-4 p-8 max-w-md mx-auto">
-                  <RefreshCw className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold">Loading emails...</h3>
-                    <p className="text-muted-foreground text-sm">
-                      Fetching and processing your emails...
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : allEmails.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center space-y-4 p-8 max-w-md mx-auto">
-                  <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold">No emails found</h3>
-                    {authStatus.isConnected ? (
-                      <div className="space-y-3">
-                        <p className="text-muted-foreground text-sm">
-                          Your Gmail is connected. Sync in progress...
-                        </p>
-                        {isAutoSyncing && (
-                          <div className="flex items-center justify-center gap-2 text-sm">
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            <span>Syncing your emails...</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-muted-foreground text-sm">
-                          Connect your Gmail account to start viewing emails.
-                        </p>
-                        <GmailStatusButton />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <EmailListView
-                emails={emails}
-                selectedEmails={selectedEmails}
-                selectedEmailId={selectedEmailId}
-                onEmailSelect={handleEmailSelect}
-                onEmailCheck={handleEmailCheck}
-                onSelectAll={handleSelectAll}
-                isLoading={!isReady}
-                searchTerm={listSearchTerm}
-                onSearchChange={setListSearchTerm}
-                onEmailsUpdated={() => setRefreshKey(prev => prev + 1)}
-                currentFolder={selectedFolder}
-              />
-            )}
-          </ResizablePanel>
-
-          <ResizableHandle withHandle />
-
-          {/* Email Detail */}
-          <ResizablePanel defaultSize={60} minSize={35} className="h-full overflow-hidden">
-            <EmailDetailView
-              email={selectedEmail}
-              clientId={clientId}
-              requestId={requestId}
-              onReply={handleReply}
-              onReplyAll={handleReplyAll}
-              onForward={handleForward}
-              onArchive={handleArchive}
-              onDelete={handleDelete}
+      {/* Main Interface - Full width container */}
+      <div className="flex-1 min-h-0 flex max-w-full overflow-hidden">
+        {/* Email Filters Sidebar - Collapsible */}
+        {!sidebarCollapsed && (
+          <div className="w-64 flex-shrink-0 border-r bg-background">
+            <EmailSidebar
+              selectedFolder={selectedFolder}
+              onFolderSelect={setSelectedFolder}
+              dateFilter={dateFilter}
+              onDateFilterChange={setDateFilter}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
+              onCompose={() => setIsComposerOpen(true)}
+              isCollapsed={false}
             />
-          </ResizablePanel>
-            </>
+          </div>
+        )}
+
+        {/* Email Content Area - Resizable Panels */}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          {selectedFolder === 'analytics' ? (
+            <div className="h-full w-full overflow-auto">
+              <div className="p-6 space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold">Email Analytics</h2>
+                  <p className="text-muted-foreground">Performance insights and AI-powered recommendations</p>
+                </div>
+                <div className="text-center py-12">
+                  <BarChart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Analytics Coming Soon</h3>
+                  <p className="text-muted-foreground">Advanced email analytics and AI insights will be available here.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+              {/* Email List Panel */}
+              <ResizablePanel defaultSize={45} minSize={30} className="min-w-0">
+                <div className="h-full w-full overflow-hidden">
+                  {!isReady ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center space-y-4 p-8 max-w-md mx-auto">
+                        <RefreshCw className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-semibold">Loading emails...</h3>
+                          <p className="text-muted-foreground text-sm">
+                            Fetching and processing your emails...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : allEmails.length === 0 ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center space-y-4 p-8 max-w-md mx-auto">
+                        <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-semibold">No emails found</h3>
+                          {authStatus.isConnected ? (
+                            <div className="space-y-3">
+                              <p className="text-muted-foreground text-sm">
+                                Your Gmail is connected. Sync in progress...
+                              </p>
+                              {isAutoSyncing && (
+                                <div className="flex items-center justify-center gap-2 text-sm">
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>Syncing your emails...</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <p className="text-muted-foreground text-sm">
+                                Connect your Gmail account to start viewing emails.
+                              </p>
+                              <GmailStatusButton />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <EmailListView
+                      emails={emails}
+                      selectedEmails={selectedEmails}
+                      selectedEmailId={selectedEmailId}
+                      onEmailSelect={handleEmailSelect}
+                      onEmailCheck={handleEmailCheck}
+                      onSelectAll={handleSelectAll}
+                      isLoading={!isReady}
+                      searchTerm={listSearchTerm}
+                      onSearchChange={setListSearchTerm}
+                      onEmailsUpdated={() => setRefreshKey(prev => prev + 1)}
+                      currentFolder={selectedFolder}
+                    />
+                  )}
+                </div>
+              </ResizablePanel>
+
+              <ResizableHandle withHandle />
+
+              {/* Email Detail Panel */}
+              <ResizablePanel defaultSize={55} minSize={30} className="min-w-0">
+                <div className="h-full w-full overflow-hidden">
+                  <EmailDetailView
+                    email={selectedEmail}
+                    clientId={clientId}
+                    requestId={requestId}
+                    onReply={handleReply}
+                    onReplyAll={handleReplyAll}
+                    onForward={handleForward}
+                    onArchive={handleArchive}
+                    onDelete={handleDelete}
+                  />
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
           )}
-        </ResizablePanelGroup>
+        </div>
       </div>
 
       {/* Compose Dialog */}
