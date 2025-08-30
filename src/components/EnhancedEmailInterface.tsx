@@ -73,6 +73,7 @@ const EnhancedEmailInterface = ({
   const [emails, setEmails] = useState<EmailExchange[]>([]);
   const [allEmails, setAllEmails] = useState<EmailExchange[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // UI state
@@ -99,14 +100,12 @@ const EnhancedEmailInterface = ({
   // Enhanced email fetching with better error handling
   const fetchEmails = useCallback(async () => {
     if (!user) {
-      console.log('👤 No user authenticated, skipping email fetch');
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('📧 Fetching emails from database...');
       let query = supabase
         .from('email_exchanges')
         .select(`
@@ -117,21 +116,18 @@ const EnhancedEmailInterface = ({
         `)
         .eq('user_id', user.id)
         .order('received_at', { ascending: false })
-        .limit(1000); // Increased to handle large email volumes
+        .limit(1000);
 
       // Apply client filtering if specified
       if (clientId) {
-        console.log(`🎯 Filtering by client ID: ${clientId}`);
         query = query.eq('client_id', clientId);
       } else if (clientEmail) {
-        console.log(`📬 Filtering by client email: ${clientEmail}`);
         query = query.or(`sender_email.ilike.%${clientEmail}%,recipient_emails.cs.{${clientEmail}}`);
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.error('❌ Database error fetching emails:', error);
         toast({
           title: "Failed to load emails",
           description: error.message || "Could not retrieve your emails. Please try again.",
@@ -141,31 +137,16 @@ const EnhancedEmailInterface = ({
         return;
       }
 
-      const emailCount = data?.length || 0;
-      console.log(`✅ Found ${emailCount} emails in database`);
-
       const formattedEmails = (data || []).map(email => ({
         ...email,
-        user_id: user.id, // Ensure user_id is present
-        // Initialize client data as null - will be populated if needed
+        user_id: user.id,
         clients: null,
         direction: email.direction as 'inbound' | 'outbound'
       }));
 
       setAllEmails(formattedEmails);
-      console.log("🔄 setAllEmails called with", formattedEmails.length, "emails");
-      
-      // If no emails found and Gmail is connected, provide helpful message
-      if (emailCount === 0) {
-        if (authStatus.isConnected) {
-          console.log('ℹ️ No emails found but Gmail connected - user may need to sync');
-        } else {
-          console.log('ℹ️ No emails found - Gmail not connected');
-        }
-      }
       
     } catch (error: any) {
-      console.error('❌ Error fetching emails:', error);
       toast({
         title: "Failed to load emails",
         description: error.message || "Could not retrieve your emails. Please try again.",
@@ -173,34 +154,17 @@ const EnhancedEmailInterface = ({
       });
       setAllEmails([]);
     } finally {
-      setIsLoading(false);
+      // Don't set isLoading false here - wait for filtering to complete
     }
   }, [user, clientId, clientEmail, authStatus.isConnected]);
 
   // Filter and search emails
   const filterEmails = useCallback(() => {
-    console.log("🔍 Email filtering started:", {
-      totalEmails: allEmails.length,
-      selectedFolder,
-      searchTerm: listSearchTerm
-    });
-
-    let filtered = [...allEmails];
-    const beforeCount = filtered.length;
+    setIsFiltering(true);
     
-    console.log("📊 Before filtering:", {
-      totalEmails: beforeCount,
-      sampleEmail: allEmails[0] ? {
-        id: allEmails[0].id,
-        subject: allEmails[0].subject,
-        direction: allEmails[0].direction,
-        is_deleted: allEmails[0].is_deleted,
-        is_archived: allEmails[0].is_archived,
-        folder_name: allEmails[0].folder_name
-      } : null
-    });
+    let filtered = [...allEmails];
 
-    // Apply folder filter - use direct boolean comparisons (DB returns proper booleans)
+    // Apply folder filter
     switch (selectedFolder) {
       case 'inbox':
         filtered = filtered.filter(email => 
@@ -247,21 +211,6 @@ const EnhancedEmailInterface = ({
         );
         break;
     }
-
-    console.log("📊 After folder filter:", {
-      folder: selectedFolder,
-      beforeCount,
-      afterCount: filtered.length,
-      sampleEmails: filtered.slice(0, 3).map(e => ({
-        subject: e.subject,
-        is_deleted: e.is_deleted,
-        is_archived: e.is_archived,
-        is_draft: e.is_draft,
-        is_read: e.is_read,
-        direction: e.direction,
-        folder_name: e.folder_name
-      }))
-    });
 
     // Apply search filter
     if (listSearchTerm) {
@@ -317,19 +266,9 @@ const EnhancedEmailInterface = ({
       }
     });
 
-    console.log("✅ Email filtering completed:", {
-      beforeCount,
-      afterCount: filtered.length,
-      selectedFolder,
-      firstEmail: filtered[0] ? {
-        id: filtered[0].id,
-        subject: filtered[0].subject,
-        direction: filtered[0].direction
-      } : null
-    });
-
     setEmails(filtered);
-    console.log("🔄 setEmails called with", filtered.length, "emails");
+    setIsFiltering(false);
+    setIsLoading(false); // Complete both operations
   }, [allEmails, selectedFolder, listSearchTerm, dateFilter, sortBy]);
 
   // Email selection handlers
@@ -487,27 +426,16 @@ const EnhancedEmailInterface = ({
 
   // Effects
   useEffect(() => {
-    console.log("🔄 fetchEmails useEffect triggered", { user: !!user, refreshKey });
     fetchEmails();
   }, [fetchEmails, refreshKey]);
 
   useEffect(() => {
-    console.log("🔄 filterEmails useEffect triggered", { 
-      allEmailsLength: allEmails.length, 
-      selectedFolder, 
-      listSearchTerm,
-      currentEmailsLength: emails.length 
-    });
     filterEmails();
   }, [filterEmails]);
 
-  // Listen for Gmail sync completion to refresh emails with better feedback
+  // Listen for Gmail sync completion to refresh emails
   useEffect(() => {
     const handleSyncComplete = (event: CustomEvent) => {
-      console.log('Gmail sync completed, refreshing emails...');
-      const emailCount = event.detail?.emailCount || 0;
-      
-      // Always refresh after sync to show updated emails
       setRefreshKey(prev => prev + 1);
     };
 
@@ -569,7 +497,6 @@ const EnhancedEmailInterface = ({
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('📧 Real-time email update:', payload);
           setRefreshKey(prev => prev + 1);
         }
       )
@@ -682,15 +609,7 @@ const EnhancedEmailInterface = ({
             <>
               {/* Email List */}
               <ResizablePanel defaultSize={50} minSize={30} className="h-full">
-                 {(() => {
-                   console.log("🎨 Rendering check:", { 
-                     emailsLength: emails.length, 
-                     isLoading,
-                     allEmailsLength: allEmails.length,
-                     showEmpty: emails.length === 0 && !isLoading
-                   });
-                   return emails.length === 0 && !isLoading;
-                 })() ? (
+                {emails.length === 0 && !(isLoading || isFiltering) ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
                   <Mail className="w-16 h-16 mx-auto text-muted-foreground" />
@@ -730,7 +649,7 @@ const EnhancedEmailInterface = ({
                 onEmailSelect={handleEmailSelect}
                 onEmailCheck={handleEmailCheck}
                 onSelectAll={handleSelectAll}
-                isLoading={isLoading}
+                isLoading={isLoading || isFiltering}
                 searchTerm={listSearchTerm}
                 onSearchChange={setListSearchTerm}
                 onEmailsUpdated={() => setRefreshKey(prev => prev + 1)}
