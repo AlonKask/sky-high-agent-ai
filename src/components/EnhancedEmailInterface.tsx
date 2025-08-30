@@ -158,56 +158,56 @@ const EnhancedEmailInterface = ({
     }
   }, [user, clientId, clientEmail, authStatus.isConnected]);
 
-  // Filter and search emails
+  // Filter and search emails with null-safe boolean handling
   const filterEmails = useCallback(() => {
     setIsFiltering(true);
     
     let filtered = [...allEmails];
 
-    // Apply folder filter
+    // Apply folder filter with proper null coalescing for boolean fields
     switch (selectedFolder) {
       case 'inbox':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          !email.is_archived && 
+          (email.is_deleted ?? false) === false && 
+          (email.is_archived ?? false) === false && 
           email.direction === 'inbound' && 
           email.folder_name !== 'sent'
         );
         break;
       case 'sent':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          !email.is_archived && 
+          (email.is_deleted ?? false) === false && 
+          (email.is_archived ?? false) === false && 
           (email.direction === 'outbound' || email.folder_name === 'sent')
         );
         break;
       case 'drafts':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          email.is_draft === true
+          (email.is_deleted ?? false) === false && 
+          (email.is_draft ?? false) === true
         );
         break;
       case 'archive':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          email.is_archived === true
+          (email.is_deleted ?? false) === false && 
+          (email.is_archived ?? false) === true
         );
         break;
       case 'trash':
         filtered = filtered.filter(email => 
-          email.is_deleted === true
+          (email.is_deleted ?? false) === true
         );
         break;
       case 'starred':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          email.is_starred === true
+          (email.is_deleted ?? false) === false && 
+          (email.is_starred ?? false) === true
         );
         break;
       case 'unread':
         filtered = filtered.filter(email => 
-          !email.is_deleted && 
-          email.is_read === false
+          (email.is_deleted ?? false) === false && 
+          (email.is_read ?? true) === false
         );
         break;
     }
@@ -265,6 +265,11 @@ const EnhancedEmailInterface = ({
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
     });
+
+    // Debug logging for development (remove in production)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📧 Filtering Debug - Folder: ${selectedFolder}, Total: ${allEmails.length}, Filtered: ${filtered.length}`);
+    }
 
     setEmails(filtered);
     setIsFiltering(false);
@@ -609,7 +614,7 @@ const EnhancedEmailInterface = ({
             <>
               {/* Email List */}
               <ResizablePanel defaultSize={50} minSize={30} className="h-full">
-                {emails.length === 0 && !(isLoading || isFiltering) ? (
+                {emails.length === 0 && !isLoading && !isFiltering && allEmails.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 p-8 max-w-md mx-auto">
                   <Mail className="w-16 h-16 mx-auto text-muted-foreground" />

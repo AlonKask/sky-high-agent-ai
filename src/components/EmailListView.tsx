@@ -217,7 +217,7 @@ const EmailListView: React.FC<EmailListViewProps> = ({
                 <div
                   key={email.id}
                   className={`flex items-center justify-between py-3 px-4 hover:bg-muted/50 cursor-pointer group border-l-4 ${
-                    !email.is_read ? 'border-l-primary bg-muted/20 font-medium' : 'border-l-transparent'
+                    !(email.is_read ?? true) ? 'border-l-primary bg-muted/20 font-medium' : 'border-l-transparent'
                   } ${selectedEmailId === email.id ? 'bg-muted' : ''}`}
                   onClick={() => onEmailSelect(email.id)}
                 >
@@ -236,8 +236,8 @@ const EmailListView: React.FC<EmailListViewProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className={`text-sm truncate ${!email.is_read ? 'font-semibold' : 'font-medium'}`}>
-                            {email.direction === 'inbound' ? email.sender_email : email.recipient_emails[0]}
+                          <span className={`text-sm truncate ${!(email.is_read ?? true) ? 'font-semibold' : 'font-medium'}`}>
+                            {email.direction === 'inbound' ? email.sender_email : email.recipient_emails?.[0] || 'No recipient'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -249,11 +249,11 @@ const EmailListView: React.FC<EmailListViewProps> = ({
                           </Badge>
                         </div>
                       </div>
-                      <div className={`text-sm truncate mt-1 ${!email.is_read ? 'font-semibold' : 'font-medium'}`}>
-                        {truncateText(email.subject, 50)}
+                      <div className={`text-sm truncate mt-1 ${!(email.is_read ?? true) ? 'font-semibold' : 'font-medium'}`}>
+                        {truncateText(email.subject || 'No Subject', 50)}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {truncateText(email.body, 80)}
+                        {truncateText(email.body || 'No content', 80)}
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground whitespace-nowrap">
@@ -269,13 +269,13 @@ const EmailListView: React.FC<EmailListViewProps> = ({
                       variant="ghost" 
                       size="sm" 
                       className="h-8 w-8 p-0"
-                      onClick={async () => {
-                        await emailActions.toggleStarred(email.id, !email.is_starred);
-                        onEmailsUpdated?.();
-                      }}
-                    >
-                      {email.is_starred ? <StarOff className="h-4 w-4" /> : <Star className="h-4 w-4" />}
-                    </Button>
+                       onClick={async () => {
+                         await emailActions.toggleStarred(email.id, !(email.is_starred ?? false));
+                         onEmailsUpdated?.();
+                       }}
+                     >
+                       {(email.is_starred ?? false) ? <StarOff className="h-4 w-4" /> : <Star className="h-4 w-4" />}
+                     </Button>
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -294,13 +294,13 @@ const EmailListView: React.FC<EmailListViewProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={async () => {
-                          await emailActions.toggleReadStatus(email.id, !email.is_read);
-                          onEmailsUpdated?.();
-                        }}>
-                          {email.is_read ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                          Mark as {email.is_read ? 'unread' : 'read'}
-                        </DropdownMenuItem>
+                         <DropdownMenuItem onClick={async () => {
+                           await emailActions.toggleReadStatus(email.id, !(email.is_read ?? true));
+                           onEmailsUpdated?.();
+                         }}>
+                           {(email.is_read ?? true) ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                           Mark as {(email.is_read ?? true) ? 'unread' : 'read'}
+                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={async () => {
                           await emailActions.createReplyDraft(email);
                         }}>

@@ -54,43 +54,43 @@ export const useEmailFolderCounts = () => {
 
       const emails = data || [];
       
-      // Calculate total email counts for each folder (not just unread)
+      // Calculate total email counts for each folder with null-safe boolean handling
       const newCounts = {
         inbox: emails.filter(e => 
-          !e.is_deleted && 
-          !e.is_archived && 
+          (e.is_deleted ?? false) === false && 
+          (e.is_archived ?? false) === false && 
           e.direction === 'inbound' && 
           e.folder_name !== 'sent'
         ).length,
         
         sent: emails.filter(e => 
-          !e.is_deleted && 
-          !e.is_archived && 
+          (e.is_deleted ?? false) === false && 
+          (e.is_archived ?? false) === false && 
           (e.direction === 'outbound' || e.folder_name === 'sent')
         ).length,
         
         drafts: emails.filter(e => 
-          !e.is_deleted && 
-          e.is_draft === true
+          (e.is_deleted ?? false) === false && 
+          (e.is_draft ?? false) === true
         ).length,
         
         archive: emails.filter(e => 
-          !e.is_deleted && 
-          e.is_archived === true
+          (e.is_deleted ?? false) === false && 
+          (e.is_archived ?? false) === true
         ).length,
         
         trash: emails.filter(e => 
-          e.is_deleted === true
+          (e.is_deleted ?? false) === true
         ).length,
         
         unread: emails.filter(e => 
-          !e.is_deleted && 
-          e.is_read === false
+          (e.is_deleted ?? false) === false && 
+          (e.is_read ?? true) === false
         ).length,
         
         starred: emails.filter(e => 
-          !e.is_deleted && 
-          e.is_starred === true
+          (e.is_deleted ?? false) === false && 
+          (e.is_starred ?? false) === true
         ).length
       };
 
