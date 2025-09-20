@@ -5,7 +5,6 @@ export const CSP_DIRECTIVES = {
     "'self'", 
     // Remove unsafe directives in production, keep for development
     ...(process.env.NODE_ENV === 'development' ? ["'unsafe-inline'", "'unsafe-eval'"] : []),
-    "https://challenges.cloudflare.com", // Turnstile
     "https://js.stripe.com", // Stripe if used
     "https://apis.google.com", // Google APIs
     "https://accounts.google.com", // Google OAuth
@@ -31,13 +30,11 @@ export const CSP_DIRECTIVES = {
   'connect-src': [
     "'self'",
     "https://*.supabase.co", // Supabase API
-    "https://challenges.cloudflare.com", // Turnstile
     "https://api.stripe.com", // Stripe if used
     "https://www.googleapis.com", // Gmail API
     "https://oauth2.googleapis.com" // Google OAuth
   ],
   'frame-src': [
-    "https://challenges.cloudflare.com", // Turnstile
     "https://js.stripe.com" // Stripe if used
   ],
   'frame-ancestors': ["'none'"], // Prevent clickjacking

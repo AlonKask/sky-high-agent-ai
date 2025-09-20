@@ -25,12 +25,11 @@ export const cleanupAuthState = () => {
 };
 
 /**
- * Enhanced sign-in with CAPTCHA support
+ * Enhanced sign-in functionality
  */
 export const signInWithEmailPassword = async (
   email: string, 
-  password: string, 
-  captchaToken?: string
+  password: string
 ) => {
   try {
     // Clean up existing state first
@@ -44,13 +43,10 @@ export const signInWithEmailPassword = async (
       console.warn('Sign out during cleanup failed:', err);
     }
 
-    // Sign in with email and password using native CAPTCHA integration
+    // Sign in with email and password
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      password: password.trim(),
-      options: {
-        ...(captchaToken && { captchaToken })
-      }
+      password: password.trim()
     });
 
     if (error) {
@@ -58,14 +54,11 @@ export const signInWithEmailPassword = async (
       console.error('Authentication failed:', {
         error: error.message,
         email: email.trim(),
-        hasCaptcha: !!captchaToken,
         timestamp: new Date().toISOString()
       });
       
       // Provide user-friendly error messages
-      if (error.message.includes('captcha')) {
-        throw new Error('CAPTCHA verification failed. Please try again.');
-      } else if (error.message.includes('Invalid login credentials')) {
+      if (error.message.includes('Invalid login credentials')) {
         throw new Error('Invalid email or password. Please check your credentials and try again.');
       } else if (error.message.includes('Email not confirmed')) {
         throw new Error('Please check your email and click the confirmation link before signing in.');

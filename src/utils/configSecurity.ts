@@ -5,7 +5,6 @@ interface SecureConfig {
   googleClientId: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
-  turnstileSiteKey: string;
   appVersion: string;
   environment: 'development' | 'staging' | 'production';
 }
@@ -38,7 +37,6 @@ class ConfigSecurityManager {
         googleClientId,
         supabaseUrl: "https://ekrwjfdypqzequovmvjn.supabase.co",
         supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcndqZmR5cHF6ZXF1b3ZtdmpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxMDA4MzEsImV4cCI6MjA2ODY3NjgzMX0.r2Y4sVUM_0ofU1G8QGDDqSR7-LatBkWXa8pWSwniXdE",
-        turnstileSiteKey: await this.getTurnstileSiteKey(),
         appVersion: '1.0.0',
         environment: this.detectEnvironment()
       };
@@ -50,7 +48,6 @@ class ConfigSecurityManager {
       console.log('✅ Secure configuration initialized', {
         environment: this.config.environment,
         hasGoogleClientId: !!this.config.googleClientId,
-        hasTurnstileSiteKey: !!this.config.turnstileSiteKey,
         version: this.config.appVersion
       });
 
@@ -68,10 +65,6 @@ class ConfigSecurityManager {
       if (key === 'GOOGLE_CLIENT_ID') {
         return "871203174190-t2f8sg44gh37nne80saenhajffitpu7n.apps.googleusercontent.com";
       }
-      if (key === 'TURNSTILE_SITE_KEY') {
-        // Return the actual Turnstile site key if available
-        return null; // This will fallback to provided key
-      }
       return null;
     } catch (error) {
       console.warn(`Could not retrieve secure value for ${key}:`, error);
@@ -87,8 +80,6 @@ class ConfigSecurityManager {
     } else if (hostname.includes('staging')) {
       return 'staging';
     } else {
-      // Treat all deployed domains (including lovable.app) as production 
-      // since Supabase instance requires CAPTCHA
       return 'production';
     }
   }
@@ -105,15 +96,10 @@ class ConfigSecurityManager {
         test: () => config.supabaseUrl && config.supabaseUrl.startsWith('https://'),
         severity: 'critical'
       },
-      {
+        {
         name: 'Supabase Anon Key',
         test: () => config.supabaseAnonKey && config.supabaseAnonKey.length > 100,
         severity: 'critical'
-      },
-      {
-        name: 'Turnstile Site Key',
-        test: () => config.turnstileSiteKey && config.turnstileSiteKey.length > 10,
-        severity: 'warning'
       }
     ];
 
@@ -128,17 +114,6 @@ class ConfigSecurityManager {
     }
   }
 
-  private async getTurnstileSiteKey(): Promise<string> {
-    const environment = this.detectEnvironment();
-    
-    // Use the production site key that matches your Supabase configuration
-    if (environment === 'production' || environment === 'staging') {
-      return "0x4AAAAAAAkC4jP8mjdogjWI";
-    }
-    
-    // Use test key only for localhost development
-    return "1x00000000000000000000AA";
-  }
 
   getConfig(): SecureConfig {
     if (!this.config || !this.validated) {

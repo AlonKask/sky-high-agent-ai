@@ -9,8 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
-import { TurnstileWrapper } from '@/components/TurnstileWrapper';
-import { configSecurity } from '@/utils/configSecurity';
 
 export default function AuthOptimized() {
   const { user, loading } = useSimpleAuth();
@@ -18,9 +16,6 @@ export default function AuthOptimized() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string>('');
-  const [captchaEnabled, setCaptchaEnabled] = useState(false);
 
   // Form state
   const [signInData, setSignInData] = useState({ email: '', password: '' });
@@ -33,28 +28,6 @@ export default function AuthOptimized() {
     }
   }, [user, loading, navigate, location.state]);
 
-  useEffect(() => {
-    const initializeConfig = async () => {
-      try {
-        const config = await configSecurity.initializeSecureConfig();
-        setTurnstileSiteKey(config.turnstileSiteKey);
-        setCaptchaEnabled(true); // Always enable CAPTCHA since Supabase requires it
-        console.log('🔧 Auth config initialized:', {
-          environment: config.environment,
-          captchaEnabled: true,
-          hasSiteKey: !!config.turnstileSiteKey,
-          hostname: window.location.hostname
-        });
-      } catch (error) {
-        console.warn('⚠️ Configuration initialization failed, using production CAPTCHA:', error);
-        // Fallback - use production CAPTCHA key since Supabase requires it
-        setTurnstileSiteKey('0x4AAAAAAAkC4jP8mjdogjWI');
-        setCaptchaEnabled(true);
-      }
-    };
-    
-    initializeConfig();
-  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,23 +35,13 @@ export default function AuthOptimized() {
     setError('');
     
     try {
-      // CAPTCHA is required - check if we have a valid token
-      if (captchaEnabled && !captchaToken) {
-        setError('Please complete the security verification to continue.');
-        return;
-      }
-      
       console.log('🔐 Sign in attempt:', {
-        email: signInData.email,
-        captchaEnabled,
-        hasCaptchaToken: !!captchaToken,
-        captchaRequired: captchaEnabled
+        email: signInData.email
       });
       
       const result = await SimpleAuth.signInWithEmail(
         signInData.email, 
-        signInData.password, 
-        captchaToken || undefined
+        signInData.password
       );
       
       if (result.success) {
@@ -87,27 +50,11 @@ export default function AuthOptimized() {
         navigate(returnUrl, { replace: true });
       } else {
         console.error('❌ Sign in failed:', result.error);
-        
-        // Enhanced error handling for CAPTCHA-related issues
-        let errorMessage = result.error || 'Sign in failed';
-        
-        if (errorMessage.includes('no captcha response') || errorMessage.includes('captcha')) {
-          errorMessage = 'Security verification failed. Please complete the CAPTCHA and try again.';
-          setCaptchaToken(null); // Reset CAPTCHA to force new verification
-        } else if (errorMessage.includes('timeout-or-duplicate')) {
-          errorMessage = 'Security verification expired. Please complete the CAPTCHA again.';
-          setCaptchaToken(null); // Reset CAPTCHA to force new verification
-        }
-        
-        setError(errorMessage);
-        
-        // Reset CAPTCHA token on any error to force regeneration
-        setCaptchaToken(null);
+        setError(result.error || 'Sign in failed');
       }
     } catch (error: any) {
       console.error('❌ Sign in error:', error);
       setError('An unexpected error occurred. Please try again.');
-      setCaptchaToken(null);
     } finally {
       setIsLoading(false);
     }
@@ -194,38 +141,6 @@ export default function AuthOptimized() {
               </div>
             </div>
 
-            {captchaEnabled && turnstileSiteKey && (
-              <div className="space-y-2">
-                <Label>Security Verification <span className="text-destructive">*</span></Label>
-                <TurnstileWrapper
-                  siteKey={turnstileSiteKey}
-                  onVerify={(token) => {
-                    console.log('✅ CAPTCHA verified successfully');
-                    setCaptchaToken(token);
-                    if (error.includes('Security verification')) {
-                      setError(''); // Clear CAPTCHA-related errors
-                    }
-                  }}
-                  onError={(error) => {
-                    console.error('❌ CAPTCHA error:', error);
-                    setError('Security verification failed. Please try again.');
-                    setCaptchaToken(null);
-                  }}
-                  onExpire={() => {
-                    console.log('⏰ CAPTCHA expired, resetting token');
-                    setCaptchaToken(null);
-                    if (!error) {
-                      setError('Security verification expired. Please complete it again.');
-                    }
-                  }}
-                />
-                {captchaEnabled && !captchaToken && (
-                  <p className="text-sm text-muted-foreground">
-                    Please complete the security verification above to sign in.
-                  </p>
-                )}
-              </div>
-            )}
             
             <Button
               type="submit" 

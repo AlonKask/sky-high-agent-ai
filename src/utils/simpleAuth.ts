@@ -5,13 +5,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { AuthCleanup } from "./authCleanup";
-import { captchaService } from "./captchaService";
 
 export class SimpleAuth {
   /**
    * Simple email/password sign in with cleanup
    */
-  static async signInWithEmail(email: string, password: string, captchaToken?: string): Promise<{
+  static async signInWithEmail(email: string, password: string): Promise<{
     success: boolean;
     user?: any;
     session?: any;
@@ -19,17 +18,13 @@ export class SimpleAuth {
   }> {
     try {
       console.log('🔐 Starting simple auth sign-in...', {
-        email,
-        hasCaptchaToken: !!captchaToken
+        email
       });
 
-      // 1. Attempt sign in with Supabase (let Supabase handle CAPTCHA directly)
+      // Attempt sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
-        options: {
-          captchaToken: captchaToken || undefined
-        }
+        password
       });
 
       if (error) {
@@ -38,9 +33,7 @@ export class SimpleAuth {
         // Enhanced error handling
         let errorMessage = error.message;
         
-        if (error.message.includes('captcha') || error.message.includes('timeout-or-duplicate')) {
-          errorMessage = 'Security verification failed. Please refresh and try again.';
-        } else if (error.message.includes('Invalid login credentials')) {
+        if (error.message.includes('Invalid login credentials')) {
           errorMessage = 'Invalid email or password. Please check your credentials.';
         } else if (error.message.includes('Email not confirmed')) {
           errorMessage = 'Please check your email and confirm your account before signing in.';
@@ -62,8 +55,7 @@ export class SimpleAuth {
 
       console.log('✅ Supabase sign-in successful:', {
         userId: data.user.id,
-        email: data.user.email,
-        captchaUsed: !!captchaToken
+        email: data.user.email
       });
 
       return {

@@ -339,7 +339,6 @@ const CriticalSecurityDashboard = () => {
                   <CardContent>
                     <ul className="text-sm space-y-1">
                       <li>✓ Comprehensive event logging for all auth attempts</li>
-                      <li>✓ CAPTCHA verification with security monitoring</li>
                       <li>✓ Google OAuth with enhanced security logging</li>
                       <li>✓ Session validation and timeout protection</li>
                     </ul>
