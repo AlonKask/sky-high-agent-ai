@@ -62,7 +62,7 @@ export type Database = {
           endpoint: string
           id: string
           identifier: string
-          ip_address: unknown | null
+          ip_address: unknown
           request_count: number | null
           window_start: string | null
         }
@@ -71,7 +71,7 @@ export type Database = {
           endpoint: string
           id?: string
           identifier: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           request_count?: number | null
           window_start?: string | null
         }
@@ -80,7 +80,7 @@ export type Database = {
           endpoint?: string
           id?: string
           identifier?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           request_count?: number | null
           window_start?: string | null
         }
@@ -141,7 +141,7 @@ export type Database = {
           emails_sent: number | null
           id: string
           metric_date: string | null
-          response_time_avg: unknown | null
+          response_time_avg: unknown
           revenue_generated: number | null
           satisfaction_score: number | null
           target_achieved: boolean | null
@@ -156,7 +156,7 @@ export type Database = {
           emails_sent?: number | null
           id?: string
           metric_date?: string | null
-          response_time_avg?: unknown | null
+          response_time_avg?: unknown
           revenue_generated?: number | null
           satisfaction_score?: number | null
           target_achieved?: boolean | null
@@ -171,7 +171,7 @@ export type Database = {
           emails_sent?: number | null
           id?: string
           metric_date?: string | null
-          response_time_avg?: unknown | null
+          response_time_avg?: unknown
           revenue_generated?: number | null
           satisfaction_score?: number | null
           target_achieved?: boolean | null
@@ -182,7 +182,7 @@ export type Database = {
       agent_performance_reports: {
         Row: {
           agent_id: string
-          avg_response_time: unknown | null
+          avg_response_time: unknown
           client_satisfaction_score: number | null
           conversion_rate: number | null
           created_at: string
@@ -199,7 +199,7 @@ export type Database = {
         }
         Insert: {
           agent_id: string
-          avg_response_time?: unknown | null
+          avg_response_time?: unknown
           client_satisfaction_score?: number | null
           conversion_rate?: number | null
           created_at?: string
@@ -216,7 +216,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string
-          avg_response_time?: unknown | null
+          avg_response_time?: unknown
           client_satisfaction_score?: number | null
           conversion_rate?: number | null
           created_at?: string
@@ -703,7 +703,7 @@ export type Database = {
       audit_logs: {
         Row: {
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_values: Json | null
           old_values: Json | null
           operation: string
@@ -716,7 +716,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           operation: string
@@ -729,7 +729,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           operation?: string
@@ -1474,7 +1474,7 @@ export type Database = {
           business_justification: string | null
           id: string
           integrity_hash: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_values: Json | null
           old_values: Json | null
           operation_type: string
@@ -1490,7 +1490,7 @@ export type Database = {
           business_justification?: string | null
           id?: string
           integrity_hash: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           operation_type: string
@@ -1506,7 +1506,7 @@ export type Database = {
           business_justification?: string | null
           id?: string
           integrity_hash?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           operation_type?: string
@@ -1524,7 +1524,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string | null
           violation_data: Json
@@ -1532,7 +1532,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
           violation_data: Json
@@ -1540,7 +1540,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
           violation_data?: Json
@@ -1558,7 +1558,7 @@ export type Database = {
           data_classification: string | null
           denial_reason: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           risk_score: number | null
           session_id: string | null
           timestamp: string | null
@@ -1575,7 +1575,7 @@ export type Database = {
           data_classification?: string | null
           denial_reason?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           risk_score?: number | null
           session_id?: string | null
           timestamp?: string | null
@@ -1592,7 +1592,7 @@ export type Database = {
           data_classification?: string | null
           denial_reason?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           risk_score?: number | null
           session_id?: string | null
           timestamp?: string | null
@@ -2235,7 +2235,7 @@ export type Database = {
       }
       emergency_access_log: {
         Row: {
-          access_duration: unknown | null
+          access_duration: unknown
           access_granted: boolean | null
           accessing_user_id: string
           authorized_by: string | null
@@ -2248,7 +2248,7 @@ export type Database = {
           target_client_id: string
         }
         Insert: {
-          access_duration?: unknown | null
+          access_duration?: unknown
           access_granted?: boolean | null
           accessing_user_id: string
           authorized_by?: string | null
@@ -2261,7 +2261,7 @@ export type Database = {
           target_client_id: string
         }
         Update: {
-          access_duration?: unknown | null
+          access_duration?: unknown
           access_granted?: boolean | null
           accessing_user_id?: string
           authorized_by?: string | null
@@ -2281,7 +2281,7 @@ export type Database = {
           client_id: string | null
           field_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           metadata: Json | null
           success: boolean | null
           timestamp: string | null
@@ -2293,7 +2293,7 @@ export type Database = {
           client_id?: string | null
           field_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           success?: boolean | null
           timestamp?: string | null
@@ -2305,7 +2305,7 @@ export type Database = {
           client_id?: string | null
           field_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           success?: boolean | null
           timestamp?: string | null
@@ -2498,7 +2498,7 @@ export type Database = {
           consent_type: string
           consent_version: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           timestamp: string
           user_id: string
           withdrawal_timestamp: string | null
@@ -2508,7 +2508,7 @@ export type Database = {
           consent_type: string
           consent_version: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           timestamp?: string
           user_id: string
           withdrawal_timestamp?: string | null
@@ -2518,7 +2518,7 @@ export type Database = {
           consent_type?: string
           consent_version?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           timestamp?: string
           user_id?: string
           withdrawal_timestamp?: string | null
@@ -3308,7 +3308,7 @@ export type Database = {
           details: Json | null
           event_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           resolved: boolean
           severity: string
           timestamp: string
@@ -3319,7 +3319,7 @@ export type Database = {
           details?: Json | null
           event_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resolved?: boolean
           severity?: string
           timestamp?: string
@@ -3330,7 +3330,7 @@ export type Database = {
           details?: Json | null
           event_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resolved?: boolean
           severity?: string
           timestamp?: string
@@ -3347,7 +3347,7 @@ export type Database = {
           id: string
           investigated_by: string | null
           investigation_notes: string | null
-          ip_address: unknown | null
+          ip_address: unknown
           requires_investigation: boolean | null
           resolved: boolean | null
           session_fingerprint: string | null
@@ -3363,7 +3363,7 @@ export type Database = {
           id?: string
           investigated_by?: string | null
           investigation_notes?: string | null
-          ip_address?: unknown | null
+          ip_address?: unknown
           requires_investigation?: boolean | null
           resolved?: boolean | null
           session_fingerprint?: string | null
@@ -3379,7 +3379,7 @@ export type Database = {
           id?: string
           investigated_by?: string | null
           investigation_notes?: string | null
-          ip_address?: unknown | null
+          ip_address?: unknown
           requires_investigation?: boolean | null
           resolved?: boolean | null
           session_fingerprint?: string | null
@@ -3436,7 +3436,7 @@ export type Database = {
           client_id: string | null
           data_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           timestamp: string
           user_id: string
         }
@@ -3446,7 +3446,7 @@ export type Database = {
           client_id?: string | null
           data_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           timestamp?: string
           user_id: string
         }
@@ -3456,7 +3456,7 @@ export type Database = {
           client_id?: string | null
           data_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           timestamp?: string
           user_id?: string
         }
@@ -3771,7 +3771,7 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           is_active: boolean
           last_activity: string
           mfa_verified: boolean
@@ -3783,7 +3783,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           is_active?: boolean
           last_activity?: string
           mfa_verified?: boolean
@@ -3795,7 +3795,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           is_active?: boolean
           last_activity?: string
           mfa_verified?: boolean
@@ -3826,42 +3826,42 @@ export type Database = {
         }
         Returns: boolean
       }
-      advanced_rate_limit_check: {
-        Args:
-          | {
+      advanced_rate_limit_check:
+        | {
+            Args: {
               p_endpoint: string
               p_identifier: string
               p_ip_address?: string
               p_max_requests?: number
               p_window_minutes?: number
             }
-          | {
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_endpoint: string
+              p_max_requests?: number
+              p_user_id: string
+              p_window_minutes?: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
               p_endpoint: string
               p_identifier: string
               p_ip_address?: unknown
               p_max_requests?: number
               p_window_minutes?: number
             }
-          | {
-              p_endpoint: string
-              p_max_requests?: number
-              p_user_id: string
-              p_window_minutes?: number
-            }
-        Returns: boolean
-      }
+            Returns: Json
+          }
       anonymize_client_data: {
         Args: { p_client_id: string; p_reason?: string }
         Returns: boolean
       }
-      archive_old_communications: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      archive_old_emails: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      archive_old_communications: { Args: never; Returns: undefined }
+      archive_old_emails: { Args: never; Returns: undefined }
       assign_client_to_agent: {
         Args: {
           p_agent_id: string
@@ -3882,14 +3882,8 @@ export type Database = {
         }
         Returns: undefined
       }
-      automated_data_retention_cleanup: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      automated_security_cleanup: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      automated_data_retention_cleanup: { Args: never; Returns: Json }
+      automated_security_cleanup: { Args: never; Returns: undefined }
       block_suspicious_ip: {
         Args: { p_block_duration?: unknown; p_ip_address: unknown }
         Returns: boolean
@@ -3920,10 +3914,7 @@ export type Database = {
         Args: { p_accessing_user_id: string; p_client_user_id: string }
         Returns: boolean
       }
-      can_access_client_data: {
-        Args: { client_id: string }
-        Returns: boolean
-      }
+      can_access_client_data: { Args: { client_id: string }; Returns: boolean }
       can_access_client_data_enhanced: {
         Args: { client_id?: string; target_user_id: string }
         Returns: boolean
@@ -3964,10 +3955,7 @@ export type Database = {
         Args: { target_client_id: string }
         Returns: boolean
       }
-      can_manage_teams: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      can_manage_teams: { Args: { _user_id: string }; Returns: boolean }
       can_modify_data: {
         Args: { _resource_user_id: string; _user_id: string }
         Returns: boolean
@@ -4009,34 +3997,13 @@ export type Database = {
         }
         Returns: boolean
       }
-      classify_sensitive_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_blocked_ips: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_oauth_tokens: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_oauth_state_tokens: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_conversations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_security_events: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      classify_sensitive_data: { Args: never; Returns: undefined }
+      cleanup_expired_blocked_ips: { Args: never; Returns: undefined }
+      cleanup_expired_oauth_tokens: { Args: never; Returns: undefined }
+      cleanup_expired_sessions: { Args: never; Returns: undefined }
+      cleanup_oauth_state_tokens: { Args: never; Returns: undefined }
+      cleanup_old_conversations: { Args: never; Returns: undefined }
+      cleanup_old_security_events: { Args: never; Returns: undefined }
       create_audit_log: {
         Args: {
           p_new_values?: Json
@@ -4060,43 +4027,40 @@ export type Database = {
         }
         Returns: string
       }
-      debug_gmail_credentials_state: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      debug_gmail_credentials_state: { Args: never; Returns: Json }
       decrypt_gmail_token: {
         Args: { encrypted_token: string }
         Returns: string
       }
-      detect_security_anomalies: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      detect_security_threats: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      detect_session_anomaly: {
-        Args:
-          | {
-              p_current_fingerprint: string
+      detect_security_anomalies: { Args: never; Returns: undefined }
+      detect_security_threats: { Args: { p_user_id: string }; Returns: Json }
+      detect_session_anomaly:
+        | {
+            Args: {
+              p_current_fingerprint?: string
               p_ip_address?: string
               p_user_agent?: string
-              p_user_id: string
             }
-          | {
+            Returns: Json
+          }
+        | {
+            Args: {
               p_current_fingerprint: string
               p_ip_address?: unknown
               p_user_agent?: string
               p_user_id: string
             }
-          | {
-              p_current_fingerprint?: string
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_current_fingerprint: string
               p_ip_address?: string
               p_user_agent?: string
+              p_user_id: string
             }
-        Returns: Json
-      }
+            Returns: Json
+          }
       detect_suspicious_activity: {
         Args: {
           p_action_count: number
@@ -4114,23 +4078,26 @@ export type Database = {
         }
         Returns: boolean
       }
-      emergency_client_access: {
-        Args:
-          | {
+      emergency_client_access:
+        | {
+            Args: {
               p_client_id: string
               p_incident_id?: string
               p_justification: string
             }
-          | { p_client_id: string; p_justification: string }
-        Returns: {
-          email: string
-          emergency_access_granted: boolean
-          first_name: string
-          id: string
-          last_name: string
-          phone: string
-        }[]
-      }
+            Returns: {
+              email: string
+              emergency_access_granted: boolean
+              first_name: string
+              id: string
+              last_name: string
+              phone: string
+            }[]
+          }
+        | {
+            Args: { p_client_id: string; p_justification: string }
+            Returns: Json
+          }
       emergency_client_access_with_approval: {
         Args: {
           p_approver_id: string
@@ -4161,18 +4128,14 @@ export type Database = {
         }
         Returns: string
       }
-      generate_oauth_state_token: {
-        Args: Record<PropertyKey, never> | { p_user_id: string }
-        Returns: string
-      }
+      generate_oauth_state_token:
+        | { Args: { p_user_id: string }; Returns: string }
+        | { Args: never; Returns: string }
       generate_sample_dashboard_data: {
         Args: { p_agent_id: string }
         Returns: Json
       }
-      generate_secure_client_token: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_secure_client_token: { Args: never; Returns: string }
       get_airline_rbds: {
         Args: { airline_uuid: string }
         Returns: {
@@ -4199,23 +4162,44 @@ export type Database = {
           name: string
         }[]
       }
-      get_analytics_data: {
-        Args:
-          | { p_agent_id?: string; p_end_date?: string; p_start_date?: string }
-          | {
+      get_analytics_data:
+        | {
+            Args: {
+              p_agent_id?: string
+              p_end_date?: string
+              p_start_date?: string
+            }
+            Returns: {
+              agent_performance: Json
+              avg_ticket_price: number
+              conversion_rate: number
+              monthly_data: Json
+              pipeline_value: number
+              top_routes: Json
+              total_bookings: number
+              total_clients: number
+              total_quotes: number
+              total_revenue: number
+            }[]
+          }
+        | {
+            Args: {
               p_end_date: string
               p_start_date: string
               p_user_id: string
               p_user_role: string
             }
-          | {
+            Returns: Json
+          }
+        | {
+            Args: {
               p_end_date?: string
               p_start_date?: string
               p_user_id: string
               p_user_role?: string
             }
-        Returns: Json
-      }
+            Returns: Json
+          }
       get_asset_by_url: {
         Args: { p_url: string }
         Returns: {
@@ -4228,7 +4212,7 @@ export type Database = {
         }[]
       }
       get_cities_with_airports: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           airport_count: number
           city: string
@@ -4258,16 +4242,19 @@ export type Database = {
           target_user_id: string
         }[]
       }
-      get_client_data_secure: {
-        Args:
-          | {
+      get_client_data_secure:
+        | {
+            Args: { p_client_id: string; p_include_sensitive?: boolean }
+            Returns: Json
+          }
+        | {
+            Args: {
               p_business_justification?: string
               p_client_id: string
               p_fields?: string[]
             }
-          | { p_client_id: string; p_include_sensitive?: boolean }
-        Returns: Json
-      }
+            Returns: Json
+          }
       get_client_decrypted_preview: {
         Args: { p_client_id: string }
         Returns: {
@@ -4312,7 +4299,7 @@ export type Database = {
         }[]
       }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_dashboard_stats: {
@@ -4322,14 +4309,8 @@ export type Database = {
         }
         Returns: Json
       }
-      get_encryption_status: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_gmail_integration_status: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_encryption_status: { Args: never; Returns: Json }
+      get_gmail_integration_status: { Args: never; Returns: Json }
       get_option_review_for_booking: {
         Args: { p_client_token: string }
         Returns: {
@@ -4369,6 +4350,12 @@ export type Database = {
           updated_at: string
           user_id: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "option_reviews"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_quotes_for_booking: {
         Args: { p_quote_ids: string[] }
@@ -4428,7 +4415,7 @@ export type Database = {
         }[]
       }
       get_secure_client_view: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           client_type: string
           company: string
@@ -4453,7 +4440,7 @@ export type Database = {
         }[]
       }
       get_security_dashboard: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           auth_events_24h: number
           critical_events: number
@@ -4465,22 +4452,10 @@ export type Database = {
           unauthorized_attempts_24h: number
         }[]
       }
-      get_security_dashboard_metrics: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_security_metrics: {
-        Args: { time_period?: unknown }
-        Returns: Json
-      }
-      get_security_status: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_system_health_status: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_security_dashboard_metrics: { Args: never; Returns: Json }
+      get_security_metrics: { Args: { time_period?: unknown }; Returns: Json }
+      get_security_status: { Args: never; Returns: Json }
+      get_system_health_status: { Args: never; Returns: Json }
       get_user_requests: {
         Args: { target_user_id?: string }
         Returns: {
@@ -4520,39 +4495,30 @@ export type Database = {
         }
         Returns: string
       }
-      handle_email_sync_status: {
-        Args:
-          | {
+      handle_email_sync_status:
+        | {
+            Args: {
               p_folder_name: string
               p_gmail_history_id?: string
               p_last_sync_at: string
               p_last_sync_count?: number
               p_user_id: string
             }
-          | {
+            Returns: undefined
+          }
+        | {
+            Args: {
               p_folder_name: string
               p_gmail_history_id?: string
               p_last_sync_count?: number
               p_user_id: string
             }
-        Returns: undefined
-      }
-      has_admin_role: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      has_business_role: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      has_elevated_role: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      has_management_role: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+            Returns: undefined
+          }
+      has_admin_role: { Args: never; Returns: boolean }
+      has_business_role: { Args: never; Returns: boolean }
+      has_elevated_role: { Args: never; Returns: boolean }
+      has_management_role: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           p_role: Database["public"]["Enums"]["app_role"]
@@ -4560,42 +4526,18 @@ export type Database = {
         }
         Returns: boolean
       }
-      has_security_admin_role: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      health_check: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      is_authenticated_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_base64: {
-        Args: { p_text: string }
-        Returns: boolean
-      }
-      is_base64_flexible: {
-        Args: { p_text: string }
-        Returns: boolean
-      }
-      is_business_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_ip_blocked: {
-        Args: { p_ip_address: unknown }
-        Returns: boolean
-      }
+      has_security_admin_role: { Args: never; Returns: boolean }
+      health_check: { Args: never; Returns: Json }
+      is_authenticated_user: { Args: never; Returns: boolean }
+      is_base64: { Args: { p_text: string }; Returns: boolean }
+      is_base64_flexible: { Args: { p_text: string }; Returns: boolean }
+      is_business_user: { Args: never; Returns: boolean }
+      is_ip_blocked: { Args: { p_ip_address: unknown }; Returns: boolean }
       is_team_manager: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
-      is_valid_token_format: {
-        Args: { token_text: string }
-        Returns: boolean
-      }
+      is_valid_token_format: { Args: { token_text: string }; Returns: boolean }
       log_admin_data_access: {
         Args: {
           p_justification: string
@@ -4696,10 +4638,9 @@ export type Database = {
         }
         Returns: Json
       }
-      mask_sensitive_data: {
-        Args: { p_data: Json } | { p_data: string; p_field_type?: string }
-        Returns: Json
-      }
+      mask_sensitive_data:
+        | { Args: { p_data: Json }; Returns: Json }
+        | { Args: { p_data: string; p_field_type?: string }; Returns: string }
       mask_sensitive_field: {
         Args: { field_type?: string; field_value: string }
         Returns: string
@@ -4712,10 +4653,7 @@ export type Database = {
         }
         Returns: number
       }
-      migrate_existing_assets: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      migrate_existing_assets: { Args: never; Returns: undefined }
       monitor_sensitive_access: {
         Args: {
           p_access_type: string
@@ -4724,10 +4662,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      rotate_gmail_tokens: {
-        Args: { p_user_id: string }
-        Returns: boolean
-      }
+      rotate_gmail_tokens: { Args: { p_user_id: string }; Returns: boolean }
       search_aircraft_models: {
         Args: { page_limit?: number; page_offset?: number; search_term: string }
         Returns: {
@@ -4812,23 +4747,27 @@ export type Database = {
           updated_at: string
         }[]
       }
-      secure_communication_access: {
-        Args:
-          | { email_id: string }
-          | { p_client_id?: string; p_operation?: string; p_user_id: string }
-        Returns: boolean
-      }
-      secure_financial_data_access: {
-        Args:
-          | { booking_id: string }
-          | {
+      secure_communication_access:
+        | {
+            Args: {
+              p_client_id?: string
+              p_operation?: string
+              p_user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { email_id: string }; Returns: boolean }
+      secure_financial_data_access:
+        | {
+            Args: {
               p_justification?: string
               p_operation: string
               p_record_id: string
               p_table_name: string
             }
-        Returns: boolean
-      }
+            Returns: boolean
+          }
+        | { Args: { booking_id: string }; Returns: boolean }
       simple_log_event: {
         Args: {
           p_details?: Json
@@ -4838,22 +4777,10 @@ export type Database = {
         }
         Returns: undefined
       }
-      simple_session_check: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      test_function_connectivity: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      test_gmail_oauth_setup: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      update_agent_performance_metrics: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      simple_session_check: { Args: never; Returns: boolean }
+      test_function_connectivity: { Args: never; Returns: Json }
+      test_gmail_oauth_setup: { Args: never; Returns: Json }
+      update_agent_performance_metrics: { Args: never; Returns: undefined }
       update_airline_logo: {
         Args: { p_airline_id: string; p_logo_url: string }
         Returns: undefined
@@ -4890,18 +4817,12 @@ export type Database = {
         }
         Returns: undefined
       }
-      validate_audit_integrity: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      validate_audit_integrity: { Args: never; Returns: Json }
       validate_booking_access: {
         Args: { p_access_type?: string; p_booking_id: string }
         Returns: boolean
       }
-      validate_business_hours_access: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      validate_business_hours_access: { Args: never; Returns: boolean }
       validate_communication_access: {
         Args: { p_communication_type?: string; p_user_id: string }
         Returns: boolean
@@ -4950,7 +4871,7 @@ export type Database = {
         Returns: boolean
       }
       validate_security_isolation: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           has_isolation: boolean
           policy_count: number
@@ -4962,28 +4883,22 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      validate_session_security: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      verify_gmail_credentials: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      verify_security_configuration: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      zero_trust_client_access: {
-        Args:
-          | {
+      validate_session_security: { Args: never; Returns: boolean }
+      verify_gmail_credentials: { Args: { p_user_id: string }; Returns: Json }
+      verify_security_configuration: { Args: never; Returns: Json }
+      zero_trust_client_access:
+        | {
+            Args: { p_client_id: string; p_operation: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
               p_client_id: string
               p_justification?: string
               p_operation: string
             }
-          | { p_client_id: string; p_operation: string }
-        Returns: boolean
-      }
+            Returns: boolean
+          }
     }
     Enums: {
       app_role:

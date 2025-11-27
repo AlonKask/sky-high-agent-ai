@@ -10,7 +10,11 @@ export class SimpleAuth {
   /**
    * Simple email/password sign in with cleanup
    */
-  static async signInWithEmail(email: string, password: string): Promise<{
+  static async signInWithEmail(
+    email: string, 
+    password: string, 
+    captchaToken?: string
+  ): Promise<{
     success: boolean;
     user?: any;
     session?: any;
@@ -24,7 +28,8 @@ export class SimpleAuth {
       // Attempt sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
+        options: captchaToken ? { captchaToken } : undefined,
       });
 
       if (error) {
