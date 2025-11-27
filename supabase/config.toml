@@ -1,8 +1,5 @@
 project_id = "ekrwjfdypqzequovmvjn"
 
-[functions.verify-captcha]
-verify_jwt = false
-
 [functions.gmail-oauth-health]
 verify_jwt = false
 
@@ -11,9 +8,6 @@ verify_jwt = true
 
 [functions.reclassify-emails]
 verify_jwt = true
-
-[functions.captcha-health-check]
-verify_jwt = false
 
 [functions.update-user-password]
 verify_jwt = true
