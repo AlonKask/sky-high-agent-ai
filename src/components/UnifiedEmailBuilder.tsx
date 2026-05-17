@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import { supabase } from '@/integrations/supabase/client';
+
+// Sanitize any HTML before assigning to the preview state to prevent stored XSS
+const sanitizePreviewHtml = (html: string) =>
+  DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel'] });
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
