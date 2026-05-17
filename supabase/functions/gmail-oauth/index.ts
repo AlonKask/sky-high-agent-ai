@@ -4,6 +4,45 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
+// XSS-safe HTML escape for any externally-sourced value embedded in HTML
+const esc = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+// JS-string escape for values embedded inside inline <script> single-quoted strings
+const escJs = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\r?\n/g, '\\n');
+
+// Allowlisted origins that may receive postMessage from this OAuth popup
+const ALLOWED_POSTMESSAGE_ORIGINS = [
+  'https://selectbc.online',
+  'https://www.selectbc.online',
+  'https://sky-high-agent-ai.lovable.app',
+  'https://id-preview--b7f1977e-e173-476b-99ff-3f86c3c87e08.lovable.app',
+];
+
+const resolveTargetOrigin = (req: Request): string => {
+  const origin = req.headers.get('origin') || '';
+  if (ALLOWED_POSTMESSAGE_ORIGINS.includes(origin)) return origin;
+  const referer = req.headers.get('referer') || '';
+  try {
+    const refOrigin = new URL(referer).origin;
+    if (ALLOWED_POSTMESSAGE_ORIGINS.includes(refOrigin)) return refOrigin;
+  } catch (_) { /* ignore */ }
+  return ALLOWED_POSTMESSAGE_ORIGINS[0];
+};
+
+
 serve(async (req) => {
   const url = new URL(req.url);
   console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
