@@ -660,7 +660,7 @@ serve(async (req) => {
                 }
               });
             
-            throw new Error(`Credential storage failed: ${esc(storageError.message)}`);
+            throw new Error(`Credential storage failed: ${storageError.message}`);
           }
           
           console.log('✅ Credentials stored successfully:', insertData);
@@ -770,7 +770,7 @@ serve(async (req) => {
         }
 
         return new Response(
-          `<html><body><h1>OAuth Error</h1><p>Failed to store Gmail credentials: ${storageError.message}</p><script>
+          `<html><body><h1>OAuth Error</h1><p>Failed to store Gmail credentials: ${esc(storageError.message)}</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
