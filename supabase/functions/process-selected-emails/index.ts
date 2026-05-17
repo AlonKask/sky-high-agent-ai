@@ -17,16 +17,36 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require authentication
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+  const { data: userData, error: userError } = await authClient.auth.getUser(token);
+  if (userError || !userData?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const callerId = userData.user.id;
+
   try {
     const { emailIds, requestType, customPrompt } = await req.json();
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch the selected emails
+    // Fetch the selected emails - scoped to caller's emails only
     const { data: emails, error: fetchError } = await supabase
       .from('email_exchanges')
       .select('*')
-      .in('id', emailIds);
+      .in('id', emailIds)
+      .eq('user_id', callerId);
 
     if (fetchError) {
       throw new Error(`Failed to fetch emails: ${fetchError.message}`);

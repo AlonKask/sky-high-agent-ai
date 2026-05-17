@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import { supabase } from '@/integrations/supabase/client';
+
+// Sanitize any HTML before assigning to the preview state to prevent stored XSS
+const sanitizePreviewHtml = (html: string) =>
+  DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel'] });
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -607,13 +612,13 @@ export default function UnifiedEmailBuilder({
         // Ensure links open outside the sandboxed preview
         replaced = replaced.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
 
-        setPreviewContent(replaced);
+        setPreviewContent(sanitizePreviewHtml(replaced));
       } catch (error) {
         console.error('Preview generation error:', error);
         const selectedQuoteData = processedQuotes.filter(q => selectedQuotes.includes(q.id));
         const basic = await generateBasicEmailHTML(selectedQuoteData);
         const basicWithLinks = basic.replace(/<a\s+/g, '<a target="_blank" rel="noopener noreferrer" ');
-        setPreviewContent(basicWithLinks);
+        setPreviewContent(sanitizePreviewHtml(basicWithLinks));
       }
     };
     updatePreview();
@@ -629,7 +634,7 @@ export default function UnifiedEmailBuilder({
   }, []);
 
   const handleContentEdit = useCallback((event: React.FormEvent<HTMLDivElement>) => {
-    const content = event.currentTarget.innerHTML;
+    const content = sanitizePreviewHtml(event.currentTarget.innerHTML);
     setPreviewContent(content);
     debouncedSave(content);
   }, [debouncedSave]);
@@ -669,8 +674,9 @@ export default function UnifiedEmailBuilder({
         // Update the entire preview content
         const previewDiv = element.closest('[data-preview-container]') as HTMLDivElement;
         if (previewDiv) {
-          setPreviewContent(previewDiv.innerHTML);
-          debouncedSave(previewDiv.innerHTML);
+          const sanitized = sanitizePreviewHtml(previewDiv.innerHTML);
+          setPreviewContent(sanitized);
+          debouncedSave(sanitized);
         }
       };
       

@@ -4,8 +4,48 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { withRateLimit, rateLimitConfigs } from '../_shared/rate-limiter.ts';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 
+// XSS-safe HTML escape for any externally-sourced value embedded in HTML
+const esc = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+// JS-string escape for values embedded inside inline <script> single-quoted strings
+const escJs = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\r?\n/g, '\\n');
+
+// Allowlisted origins that may receive postMessage from this OAuth popup
+const ALLOWED_POSTMESSAGE_ORIGINS = [
+  'https://selectbc.online',
+  'https://www.selectbc.online',
+  'https://sky-high-agent-ai.lovable.app',
+  'https://id-preview--b7f1977e-e173-476b-99ff-3f86c3c87e08.lovable.app',
+];
+
+const resolveTargetOrigin = (req: Request): string => {
+  const origin = req.headers.get('origin') || '';
+  if (ALLOWED_POSTMESSAGE_ORIGINS.includes(origin)) return origin;
+  const referer = req.headers.get('referer') || '';
+  try {
+    const refOrigin = new URL(referer).origin;
+    if (ALLOWED_POSTMESSAGE_ORIGINS.includes(refOrigin)) return refOrigin;
+  } catch (_) { /* ignore */ }
+  return ALLOWED_POSTMESSAGE_ORIGINS[0];
+};
+
+
 serve(async (req) => {
   const url = new URL(req.url);
+  const targetOrigin = resolveTargetOrigin(req);
   console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
   console.log(`📍 URL Parameters:`, Object.fromEntries(url.searchParams));
   
@@ -133,7 +173,7 @@ serve(async (req) => {
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: 'Missing authentication state'
-              }, '*');
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -155,7 +195,7 @@ serve(async (req) => {
                   type: 'GMAIL_AUTH_ERROR',
                   success: false,
                   error: 'Invalid authentication state'
-                }, '*');
+                }, '${targetOrigin}');
               }
               window.close();
             </script></body></html>`,
@@ -175,7 +215,7 @@ serve(async (req) => {
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: 'Authentication validation failed'
-              }, '*');
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -382,13 +422,13 @@ serve(async (req) => {
       if (error) {
         console.error(`❌ OAuth error: ${error}`);
         return new Response(
-          `<html><body><h1>Authentication Error</h1><p>Google OAuth error: ${error}</p><script>
+          `<html><body><h1>Authentication Error</h1><p>Google OAuth error: ${esc(error)}</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
-                error: '${error}'
-              }, '*');
+                error: '${escJs(error)}'
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -400,13 +440,13 @@ serve(async (req) => {
         const errorMsg = 'No authorization code received from Google';
         console.error(`❌ ${errorMsg}`);
         return new Response(
-          `<html><body><h1>OAuth Error</h1><p>${errorMsg}</p><script>
+          `<html><body><h1>OAuth Error</h1><p>${esc(errorMsg)}</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
-                error: '${errorMsg}'
-              }, '*');
+                error: '${escJs(errorMsg)}'
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -730,13 +770,13 @@ serve(async (req) => {
         }
 
         return new Response(
-          `<html><body><h1>OAuth Error</h1><p>Failed to store Gmail credentials: ${storageError.message}</p><script>
+          `<html><body><h1>OAuth Error</h1><p>Failed to store Gmail credentials: ${esc(storageError.message)}</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
-                error: 'Failed to store credentials: ${storageError.message}'
-              }, '*');
+                error: 'Failed to store credentials: ${escJs(storageError.message)}'
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -998,7 +1038,7 @@ serve(async (req) => {
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                ${userInfo.email}
+                ${esc(userInfo.email)}
               </div>
               
               <p class="status-text">
@@ -1020,9 +1060,9 @@ serve(async (req) => {
                 window.opener.postMessage({
                   type: 'GMAIL_AUTH_SUCCESS',
                   success: true,
-                  userEmail: '${userInfo.email}',
+                  userEmail: '${escJs(userInfo.email)}',
                   timestamp: new Date().toISOString()
-                }, '*');
+                }, '${targetOrigin}');
               }
               setTimeout(() => window.close(), 3000);
             </script>
@@ -1300,11 +1340,11 @@ serve(async (req) => {
             if (window.opener) {
               window.opener.postMessage({ 
                 type: 'GMAIL_AUTH_ERROR', 
-                error: '${errorMessage.replace(/'/g, "\\'")}',
-                category: '${errorCategory}',
-                details: '${errorDetails.replace(/'/g, "\\'")}',
+                error: '${escJs(errorMessage)}',
+                category: '${escJs(errorCategory)}',
+                details: '${escJs(errorDetails)}',
                 success: false
-              }, '*');
+              }, '${targetOrigin}');
             }
             setTimeout(() => window.close(), 5000);
           </script>
