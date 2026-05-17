@@ -27,6 +27,28 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require authentication
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const authClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+  );
+  const { data: userData, error: userError } = await authClient.auth.getUser(token);
+  if (userError || !userData?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+  const callerId = userData.user.id;
+
   try {
     const {
       user_id,
@@ -44,6 +66,17 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: 'Missing required fields: user_id, title, message' }),
         {
           status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        }
+      );
+    }
+
+    // Users may only create notifications for themselves
+    if (user_id !== callerId) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: can only create notifications for yourself' }),
+        {
+          status: 403,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         }
       );

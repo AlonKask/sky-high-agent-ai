@@ -47,18 +47,38 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require authentication
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+  const { data: userData, error: userError } = await authClient.auth.getUser(token);
+  if (userError || !userData?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const callerId = userData.user.id;
+
   try {
     const { emailId, emailContent, senderInfo, n8nWebhook } = await req.json();
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch email data if ID provided
+    // Fetch email data if ID provided - scoped to caller's emails only
     let email = emailContent;
     if (emailId && !emailContent) {
       const { data: emailData, error } = await supabase
         .from('email_exchanges')
         .select('*')
         .eq('id', emailId)
+        .eq('user_id', callerId)
         .single();
       
       if (error) throw error;
