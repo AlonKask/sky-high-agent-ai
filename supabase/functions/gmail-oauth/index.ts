@@ -45,6 +45,7 @@ const resolveTargetOrigin = (req: Request): string => {
 
 serve(async (req) => {
   const url = new URL(req.url);
+  const targetOrigin = resolveTargetOrigin(req);
   console.log(`🔄 Gmail OAuth Request: ${req.method} ${req.url}`);
   console.log(`📍 URL Parameters:`, Object.fromEntries(url.searchParams));
   
@@ -172,7 +173,7 @@ serve(async (req) => {
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: 'Missing authentication state'
-              }, '*');
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -194,7 +195,7 @@ serve(async (req) => {
                   type: 'GMAIL_AUTH_ERROR',
                   success: false,
                   error: 'Invalid authentication state'
-                }, '*');
+                }, '${targetOrigin}');
               }
               window.close();
             </script></body></html>`,
@@ -214,7 +215,7 @@ serve(async (req) => {
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
                 error: 'Authentication validation failed'
-              }, '*');
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -421,13 +422,13 @@ serve(async (req) => {
       if (error) {
         console.error(`❌ OAuth error: ${error}`);
         return new Response(
-          `<html><body><h1>Authentication Error</h1><p>Google OAuth error: ${error}</p><script>
+          `<html><body><h1>Authentication Error</h1><p>Google OAuth error: ${esc(error)}</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
-                error: '${error}'
-              }, '*');
+                error: '${escJs(error)}'
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -439,13 +440,13 @@ serve(async (req) => {
         const errorMsg = 'No authorization code received from Google';
         console.error(`❌ ${errorMsg}`);
         return new Response(
-          `<html><body><h1>OAuth Error</h1><p>${errorMsg}</p><script>
+          `<html><body><h1>OAuth Error</h1><p>${esc(errorMsg)}</p><script>
             if (window.opener) {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
-                error: '${errorMsg}'
-              }, '*');
+                error: '${escJs(errorMsg)}'
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -659,7 +660,7 @@ serve(async (req) => {
                 }
               });
             
-            throw new Error(`Credential storage failed: ${storageError.message}`);
+            throw new Error(`Credential storage failed: ${esc(storageError.message)}`);
           }
           
           console.log('✅ Credentials stored successfully:', insertData);
@@ -774,8 +775,8 @@ serve(async (req) => {
               window.opener.postMessage({
                 type: 'GMAIL_AUTH_ERROR',
                 success: false,
-                error: 'Failed to store credentials: ${storageError.message}'
-              }, '*');
+                error: 'Failed to store credentials: ${escJs(storageError.message)}'
+              }, '${targetOrigin}');
             }
             window.close();
           </script></body></html>`,
@@ -1037,7 +1038,7 @@ serve(async (req) => {
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                ${userInfo.email}
+                ${esc(userInfo.email)}
               </div>
               
               <p class="status-text">
@@ -1059,9 +1060,9 @@ serve(async (req) => {
                 window.opener.postMessage({
                   type: 'GMAIL_AUTH_SUCCESS',
                   success: true,
-                  userEmail: '${userInfo.email}',
+                  userEmail: '${escJs(userInfo.email)}',
                   timestamp: new Date().toISOString()
-                }, '*');
+                }, '${targetOrigin}');
               }
               setTimeout(() => window.close(), 3000);
             </script>
@@ -1339,11 +1340,11 @@ serve(async (req) => {
             if (window.opener) {
               window.opener.postMessage({ 
                 type: 'GMAIL_AUTH_ERROR', 
-                error: '${errorMessage.replace(/'/g, "\\'")}',
-                category: '${errorCategory}',
-                details: '${errorDetails.replace(/'/g, "\\'")}',
+                error: '${escJs(errorMessage)}',
+                category: '${escJs(errorCategory)}',
+                details: '${escJs(errorDetails)}',
                 success: false
-              }, '*');
+              }, '${targetOrigin}');
             }
             setTimeout(() => window.close(), 5000);
           </script>
