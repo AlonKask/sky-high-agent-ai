@@ -95,7 +95,7 @@ export const useAirportMutations = () => {
     mutationFn: async (airport: Omit<Airport, 'id' | 'created_at'>) => {
       const { data, error } = await supabase
         .from('airport_codes')
-        .insert([airport])
+        .insert([airport] as any)
         .select()
         .single();
       if (error) throw error;
@@ -114,7 +114,7 @@ export const useAirportMutations = () => {
     mutationFn: async ({ id, ...airport }: Partial<Airport> & { id: string }) => {
       const { data, error } = await supabase
         .from('airport_codes')
-        .update(airport)
+        .update(airport as any)
         .eq('id', id)
         .select()
         .single();
@@ -206,7 +206,7 @@ export const useAirlineMutations = () => {
     mutationFn: async ({ id, ...airline }: Partial<Airline> & { id: string }) => {
       const { data, error } = await supabase
         .from('airline_codes')
-        .update(airline)
+        .update(airline as any)
         .eq('id', id)
         .select()
         .single();
