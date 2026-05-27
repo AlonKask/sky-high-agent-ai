@@ -254,7 +254,7 @@ export const GmailStatusEnhanced: React.FC = () => {
         )}
 
         {/* OAuth Debug Info (for development) */}
-        {oauthTokens.length > 0 && process.env.NODE_ENV === 'development' && (
+        {oauthTokens.length > 0 && import.meta.env.DEV && (
           <details className="text-sm">
             <summary className="cursor-pointer font-medium">OAuth Debug Info</summary>
             <pre className="mt-2 p-2 bg-muted rounded overflow-auto text-xs">

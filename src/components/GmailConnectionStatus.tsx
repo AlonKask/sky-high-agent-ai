@@ -37,7 +37,7 @@ export const GmailConnectionStatus = () => {
 
   // PHASE 3: Monitor OAuth tokens for pending callbacks (with timeout)
   useEffect(() => {
-    let timeoutHandle: NodeJS.Timeout;
+    let timeoutHandle: ReturnType<typeof setTimeout>;
     
     const checkOAuthTokens = async () => {
       if (!user?.id) return;
@@ -320,7 +320,7 @@ export const GmailConnectionStatus = () => {
       )}
 
       {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && oauthTokens.length > 0 && (
+      {import.meta.env.DEV && oauthTokens.length > 0 && (
         <Card className="bg-yellow-50 border-yellow-200">
           <CardContent className="p-3">
             <p className="text-xs font-medium mb-2">OAuth Debug Info:</p>

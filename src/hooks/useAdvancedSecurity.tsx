@@ -164,7 +164,7 @@ export const useAdvancedSecurity = () => {
           metadata: sessionData.metadata || {},
           last_activity: new Date().toISOString(),
           is_active: true
-        });
+        } as any);
 
       if (error) throw error;
     } catch (error) {

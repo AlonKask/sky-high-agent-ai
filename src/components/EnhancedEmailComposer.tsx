@@ -52,7 +52,7 @@ const EnhancedEmailComposer = ({
   const [showTemplates, setShowTemplates] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
-  const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const [email, setEmail] = useState({
     to: defaultTo,
@@ -203,14 +203,14 @@ const EnhancedEmailComposer = ({
       if (draftId) {
         result = await supabase
           .from('ai_email_drafts')
-          .update(draftData)
+          .update(draftData as any)
           .eq('id', draftId)
           .select('id')
           .single();
       } else {
         result = await supabase
           .from('ai_email_drafts')
-          .insert(draftData)
+          .insert(draftData as any)
           .select('id')
           .single();
       }
