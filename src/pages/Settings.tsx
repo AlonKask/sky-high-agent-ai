@@ -189,7 +189,7 @@ const Settings = () => {
           user_id: user?.id,
           ...preferences,
           updated_at: new Date().toISOString()
-        });
+        } as any);
 
       if (error) throw error;
 

@@ -206,7 +206,7 @@ export const useAirlineMutations = () => {
     mutationFn: async ({ id, ...airline }: Partial<Airline> & { id: string }) => {
       const { data, error } = await supabase
         .from('airline_codes')
-        .update(airline)
+        .update(airline as any)
         .eq('id', id)
         .select()
         .single();
