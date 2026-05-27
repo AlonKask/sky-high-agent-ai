@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
-import { SimpleTurnstile } from '@/components/SimpleTurnstile';
+
 
 export default function AuthOptimized() {
   const { user, loading } = useSimpleAuth();
@@ -17,8 +17,6 @@ export default function AuthOptimized() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [captchaToken, setCaptchaToken] = useState<string>('');
-  const turnstileRef = useRef<number>(0);
 
   // Form state
   const [signInData, setSignInData] = useState({ email: '', password: '' });
@@ -34,26 +32,18 @@ export default function AuthOptimized() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!captchaToken) {
-      setError('Please complete the security check');
-      return;
-    }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
-      console.log('🔐 Sign in attempt:', {
-        email: signInData.email
-      });
-      
+      console.log('🔐 Sign in attempt:', { email: signInData.email });
+
       const result = await SimpleAuth.signInWithEmail(
-        signInData.email, 
-        signInData.password,
-        captchaToken
+        signInData.email,
+        signInData.password
       );
-      
+
       if (result.success) {
         console.log('✅ Sign in successful, redirecting...');
         const returnUrl = location.state?.returnUrl || '/';
@@ -61,16 +51,10 @@ export default function AuthOptimized() {
       } else {
         console.error('❌ Sign in failed:', result.error);
         setError(result.error || 'Sign in failed');
-        // Reset CAPTCHA on failed attempt
-        setCaptchaToken('');
-        turnstileRef.current += 1;
       }
     } catch (error: any) {
       console.error('❌ Sign in error:', error);
       setError('An unexpected error occurred. Please try again.');
-      // Reset CAPTCHA on error
-      setCaptchaToken('');
-      turnstileRef.current += 1;
     } finally {
       setIsLoading(false);
     }
@@ -157,16 +141,10 @@ export default function AuthOptimized() {
               </div>
             </div>
 
-            <SimpleTurnstile
-              key={turnstileRef.current}
-              onSuccess={setCaptchaToken}
-              onError={() => setError('Security check failed. Please try again.')}
-            />
-            
             <Button
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading || !captchaToken}
+              type="submit"
+              className="w-full"
+              disabled={isLoading}
             >
               {isLoading ? (
                 <>
